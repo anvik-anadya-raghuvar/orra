@@ -1,0 +1,40 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: ['selector', '[data-theme="dark"]'],
+  theme: {
+    extend: {
+      colors: {
+        bg: 'var(--bg)',
+        bg2: 'var(--bg2)',
+        surf: 'var(--surf)',
+        surf2: 'var(--surf2)',
+        surf3: 'var(--surf3)',
+        ink: 'var(--ink)',
+        slate: 'var(--slate)',
+        mute: 'var(--mute)',
+        line: 'var(--line)',
+        indigo: 'var(--indigo)',
+        'indigo-s': 'var(--indigo-s)',
+        violet: 'var(--violet)',
+        stamp: 'var(--stamp)',
+        'stamp-s': 'var(--stamp-s)',
+        teal: 'var(--teal)',
+        'teal-s': 'var(--teal-s)',
+        rose: 'var(--rose)',
+        'rose-s': 'var(--rose-s)',
+        sky: 'var(--sky)',
+        'sky-s': 'var(--sky-s)',
+      },
+      fontFamily: {
+        disp: ['"Space Grotesk"', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+        sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: { r: 'var(--r)', rl: 'var(--rl)' },
+      boxShadow: { sh1: 'var(--sh1)', sh2: 'var(--sh2)' },
+      transitionTimingFunction: { out: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+    },
+  },
+  plugins: [],
+};

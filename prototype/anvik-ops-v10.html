@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Anvik Ops — v9</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+ --bg:#EFF2F8;--bg2:#E6EBF4;--surf:#FFF;--surf2:#F7F9FC;--surf3:#EFF3F9;
+ --ink:#101623;--slate:#5A6478;--mute:#8D96A9;--line:#DEE4EE;
+ --indigo:#4A47D8;--indigo-s:#ECECFE;--violet:#7E50DC;
+ --stamp:#CE6A10;--stamp-s:#FDF2E5;--teal:#0E8267;--teal-s:#E3F6F0;
+ --rose:#C33055;--rose-s:#FDEDF1;--sky:#1D6FC4;--sky-s:#E6F1FC;
+ --sh1:0 1px 2px rgba(16,22,35,.05),0 3px 12px rgba(16,22,35,.06);
+ --sh2:0 8px 20px rgba(16,22,35,.09),0 22px 46px rgba(16,22,35,.11);
+ --glow:rgba(74,71,216,.2);--r:12px;--rl:18px;--ease:cubic-bezier(.22,1,.36,1);
+}
+html[data-theme="dark"]{
+ --bg:#0B0E16;--bg2:#111726;--surf:#151B28;--surf2:#1A2130;--surf3:#212A3C;
+ --ink:#E9EDF6;--slate:#A4AEC2;--mute:#78829A;--line:#263047;
+ --indigo:#8F8EFB;--indigo-s:#232357;--violet:#AD82F5;
+ --stamp:#F0A45A;--stamp-s:#38260F;--teal:#4FD3AC;--teal-s:#0C3A2E;
+ --rose:#F58BA6;--rose-s:#3B1524;--sky:#6FB6F5;--sky-s:#0F2E4C;
+ --sh1:0 1px 2px rgba(0,0,0,.5),0 5px 16px rgba(0,0,0,.4);
+ --sh2:0 10px 26px rgba(0,0,0,.55),0 26px 58px rgba(0,0,0,.48);
+ --glow:rgba(143,142,251,.28);
+}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:radial-gradient(1000px 560px at 8% -12%,var(--indigo-s),transparent 58%),
+ radial-gradient(820px 480px at 96% 0%,var(--stamp-s),transparent 60%),
+ linear-gradient(180deg,var(--bg),var(--bg2));background-attachment:fixed;color:var(--ink);
+ font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.55;min-height:100vh;
+ -webkit-font-smoothing:antialiased;transition:background-color .4s,color .4s}
+h1,h2,h3,h4,.disp{font-family:"Space Grotesk",sans-serif;font-weight:500;letter-spacing:-.022em;margin:0}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+:focus-visible{outline:2px solid var(--indigo);outline-offset:3px;border-radius:6px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.mono{font-family:"IBM Plex Mono",monospace}
+.shell{max-width:1260px;margin:0 auto;padding:20px 16px 70px}
+.spacer{flex:1}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+#gate{min-height:100vh;display:grid;place-items:center;padding:20px}
+.card-in{background:var(--surf);border:1px solid var(--line);border-radius:24px;box-shadow:var(--sh2);
+ max-width:920px;width:100%;overflow:hidden;display:grid;grid-template-columns:1.05fr .95fr;animation:in .6s var(--ease) both}
+@keyframes in{from{opacity:0;transform:translateY(20px) scale(.985)}}
+.card-in .l{padding:46px 42px;display:flex;flex-direction:column;justify-content:center;gap:17px}
+.card-in h1{font-size:35px;line-height:1.08}
+.card-in h1 em{font-style:normal;background:linear-gradient(100deg,var(--violet),var(--indigo));
+ -webkit-background-clip:text;background-clip:text;color:transparent}
+.card-in p{color:var(--slate);margin:0;max-width:38ch}
+.gbtn{display:inline-flex;align-items:center;gap:11px;padding:13px 22px;border-radius:var(--r);font-size:14.5px;color:#fff;
+ background:linear-gradient(145deg,var(--violet),var(--indigo));align-self:flex-start;box-shadow:0 8px 24px var(--glow);transition:.25s var(--ease)}
+.gbtn:hover{transform:translateY(-2px) scale(1.02)}
+.gbtn .g{width:20px;height:20px;border-radius:50%;background:#fff;color:var(--indigo);display:grid;place-items:center;font-size:11px;font-weight:700}
+.gate-note{font-size:13px;color:var(--mute);border-left:2px solid var(--stamp);padding-left:12px}
+.card-in .r{padding:38px 32px;background:linear-gradient(165deg,#1A1E33,#0D1120);color:#EAEEF6;
+ display:flex;flex-direction:column;justify-content:center;gap:14px;position:relative;overflow:hidden}
+.card-in .r::after{content:"";position:absolute;inset:auto -35% -50% -20%;height:250px;border-radius:50%;
+ background:radial-gradient(closest-side,rgba(126,80,220,.4),transparent)}
+.card-in .r .eyebrow{color:#8A93AB}
+.stat{display:flex;gap:12px;align-items:baseline;position:relative;z-index:1}
+.stat b{font-family:"Space Grotesk";font-size:26px;font-weight:500}
+.stat span{color:#99A2B7;font-size:13px}
+#app[hidden],#gate[hidden]{display:none}
+
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.mark{width:33px;height:33px;border-radius:11px;display:grid;place-items:center;color:#fff;font-family:"Space Grotesk";
+ font-weight:700;background:linear-gradient(145deg,var(--violet),var(--indigo));box-shadow:0 6px 16px var(--glow);transform:rotate(-4deg)}
+.pillbtn{border:1px solid var(--line);background:var(--surf);border-radius:999px;padding:7px 13px;font-size:12.5px;
+ box-shadow:var(--sh1);transition:.22s var(--ease);display:inline-flex;align-items:center;gap:8px}
+.pillbtn:hover{transform:translateY(-1px);box-shadow:var(--sh2)}
+.wsbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding:7px;background:var(--surf);
+ border:1px solid var(--line);border-radius:999px;box-shadow:var(--sh1)}
+.wsbar button{padding:7px 15px;border-radius:999px;font-size:12.5px;color:var(--slate);transition:.22s var(--ease);
+ display:inline-flex;align-items:center;gap:7px}
+.wsbar button:hover{color:var(--ink)}
+.wsbar button[aria-selected="true"]{color:#fff;box-shadow:0 5px 14px rgba(0,0,0,.14)}
+.wsdot{width:8px;height:8px;border-radius:50%}
+.nav{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
+.nav button{background:var(--surf);border:1px solid var(--line);color:var(--slate);padding:7px 14px;border-radius:999px;
+ font-size:12.5px;box-shadow:var(--sh1);transition:.22s var(--ease)}
+.nav button:hover{transform:translateY(-1px);color:var(--ink)}
+.nav button[aria-selected="true"]{background:linear-gradient(145deg,var(--violet),var(--indigo));border-color:transparent;color:#fff;box-shadow:0 6px 18px var(--glow)}
+.panel[hidden]{display:none}
+.panel{animation:rise .4s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+.frame{background:var(--surf);border:1px solid var(--line);border-radius:var(--rl);box-shadow:var(--sh2);overflow:hidden;margin-bottom:16px}
+.top{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);background:var(--surf2);flex-wrap:wrap}
+.top .disp{font-size:15.5px}
+.wrap{padding:18px}
+.sub2{display:flex;gap:5px;background:var(--surf3);padding:4px;border-radius:999px;flex-wrap:wrap}
+.sub2 button{padding:6px 13px;border-radius:999px;font-size:12.5px;color:var(--slate);transition:.2s}
+.sub2 button[aria-selected="true"]{background:var(--surf);color:var(--ink);box-shadow:var(--sh1)}
+.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:600;
+ font-family:"IBM Plex Mono";border:2px solid var(--surf);flex:none}
+.av.a{background:var(--indigo-s);color:var(--indigo)}.av.b{background:var(--teal-s);color:var(--teal)}
+.av.c{background:var(--stamp-s);color:var(--stamp)}
+.chip{border:1px solid var(--line);background:var(--surf2);border-radius:999px;padding:6px 12px;font-size:12.5px;color:var(--slate);transition:.18s}
+.chip:hover{transform:translateY(-1px)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surf);border-color:var(--ink)}
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surf);border-radius:var(--r);padding:9px 14px;font-size:13px;box-shadow:var(--sh1);transition:.22s var(--ease)}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
+.btn.solid{background:linear-gradient(145deg,var(--violet),var(--indigo));border-color:transparent;color:#fff;box-shadow:0 8px 20px var(--glow)}
+.btn.sm{padding:6px 11px;font-size:12px}
+.tip{font-size:12.5px;color:var(--mute);margin-top:14px}
+.tagc{font-size:10.5px;padding:3px 9px;border-radius:999px;font-family:"IBM Plex Mono";display:inline-flex;align-items:center;gap:5px}
+.tagc .x{opacity:.55;cursor:pointer}.tagc .x:hover{opacity:1}
+.lk{font-family:"IBM Plex Mono";font-size:10px;background:var(--indigo-s);color:var(--indigo);padding:3px 9px;border-radius:999px}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+.big{background:var(--surf);border:1px solid var(--line);border-radius:var(--rl);padding:18px;box-shadow:var(--sh1)}
+.big h3{font-size:16px}
+.srch{flex:1;min-width:170px;border:1px solid var(--line);background:var(--surf2);border-radius:var(--r);padding:10px 13px;font:inherit;font-size:13.5px;color:var(--ink)}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.tile{background:var(--surf);border:1px solid var(--line);border-radius:var(--rl);padding:16px 18px;box-shadow:var(--sh1);
+ text-align:left;transition:transform .26s var(--ease),box-shadow .26s}
+.tile:hover{transform:translateY(-4px) rotateX(3deg);box-shadow:var(--sh2)}
+.tile .n{font-family:"Space Grotesk";font-size:26px}
+.tile .k{font-size:13px;color:var(--slate);margin-top:2px}
+
+.welc{background:var(--surf);border:1px solid var(--line);border-radius:24px;box-shadow:var(--sh2);padding:26px;margin-bottom:16px;position:relative;overflow:hidden}
+.welc::after{content:"";position:absolute;right:-60px;top:-70px;width:280px;height:280px;border-radius:50%;
+ background:radial-gradient(closest-side,var(--indigo-s),transparent);opacity:.8}
+.welc>*{position:relative;z-index:1}
+.welc h1{font-size:31px}
+.welc .sub{color:var(--slate);margin:6px 0 0;font-size:14.5px;max-width:56ch}
+.hz{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+.wxb{display:inline-flex;align-items:center;gap:8px;background:var(--surf2);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12.5px}
+.wxb b{font-family:"Space Grotesk";font-weight:500}
+.sun{width:14px;height:14px;border-radius:50%;background:linear-gradient(145deg,#FFC46B,var(--stamp));animation:glowp 3s ease-in-out infinite}
+@keyframes glowp{0%,100%{box-shadow:0 0 0 3px rgba(206,106,16,.14)}50%{box-shadow:0 0 0 7px rgba(206,106,16,.05)}}
+.one{display:flex;gap:14px;align-items:center;margin-top:17px;padding:16px 18px;border-radius:16px;
+ background:linear-gradient(135deg,var(--indigo-s),var(--surf2));border:1px solid var(--line);flex-wrap:wrap}
+.ring{width:44px;height:44px;flex:none;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:4;stroke-linecap:round}
+.ring .bgc{stroke:var(--line)}
+.ring .fg{stroke:url(#g1);stroke-dasharray:100;animation:ring 1.2s var(--ease) forwards}
+@keyframes ring{from{stroke-dashoffset:100}}
+.capture{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
+.pgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.pcard2{background:var(--surf);border:1px solid var(--line);border-radius:var(--rl);padding:16px;box-shadow:var(--sh1);transition:.26s var(--ease)}
+.pcard2:hover{transform:translateY(-4px);box-shadow:var(--sh2)}
+.pcard2 h4{font-size:14px;margin:6px 0 9px}
+.songart{height:70px;border-radius:12px;background:linear-gradient(140deg,var(--violet),var(--indigo));color:#fff;
+ display:flex;align-items:flex-end;padding:11px;font-family:"Space Grotesk";font-size:14px}
+.photobox{height:88px;border-radius:12px;border:1px dashed var(--line);background:var(--surf2);display:grid;place-items:center;
+ color:var(--mute);font-size:12px;text-align:center;padding:8px;overflow:hidden}
+.photobox img{width:100%;height:100%;object-fit:cover;border-radius:12px}
+.aiitem{display:block;width:100%;text-align:left;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.aiitem span{display:block;font-family:"IBM Plex Mono";font-size:10px;color:var(--mute)}
+.ritualb{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.ritualb button{border:1px solid var(--line);border-radius:10px;padding:9px;text-align:left;font-size:12.5px;background:var(--surf2);transition:.2s}
+.ritualb button:hover{border-color:var(--indigo);transform:translateY(-2px)}
+.ritualb b{display:block;font-weight:600;font-size:12.5px}
+.rit textarea{width:100%;border:1px solid var(--line);background:var(--surf2);border-radius:10px;padding:10px 12px;
+ font:inherit;font-size:13.5px;color:var(--ink);resize:vertical;min-height:52px;margin:4px 0 11px}
+.rit label{font-family:"IBM Plex Mono";font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.dots{display:inline-flex;gap:4px;vertical-align:middle;margin-left:8px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.dots i.on{background:var(--teal)}
+
+.cols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.col{background:var(--surf2);border-radius:var(--r);padding:11px;min-height:110px}
+.col h3{font-size:11px;font-family:"IBM Plex Mono";letter-spacing:.12em;text-transform:uppercase;color:var(--mute);
+ margin-bottom:10px;display:flex;justify-content:space-between}
+.col h3 i{font-style:normal;width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:7px}
+.c0 i{background:var(--mute)}.c1 i{background:var(--indigo)}.c2 i{background:var(--stamp)}.c3 i{background:var(--teal)}
+.card{display:block;width:100%;text-align:left;background:var(--surf);border:1px solid var(--line);border-radius:var(--r);
+ padding:12px 13px;margin-bottom:9px;box-shadow:var(--sh1);transition:transform .25s var(--ease),box-shadow .25s,border-color .2s;
+ animation:pop .3s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes pop{from{opacity:0;transform:scale(.95)}}
+.card:hover{transform:translateY(-4px) rotateX(4deg) rotateY(-2deg);box-shadow:var(--sh2);border-color:var(--indigo)}
+.card .id{font-family:"IBM Plex Mono";font-size:10px;color:var(--mute)}
+.card .t{font-size:13.8px;margin:4px 0 9px;font-weight:500}
+.card .meta{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--slate);flex-wrap:wrap}
+.pri{font-family:"IBM Plex Mono";font-size:10.5px}.pri.u{color:var(--rose)}.pri.h{color:var(--stamp)}
+.pc{font-family:"IBM Plex Mono";font-size:10px;color:var(--stamp);background:var(--stamp-s);padding:2px 7px;border-radius:999px}
+.pbar{height:3px;border-radius:3px;background:var(--line);margin-top:9px;overflow:hidden}
+.pbar em{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--violet),var(--indigo));transition:width .5s}
+.lrow{display:flex;gap:12px;align-items:center;padding:12px 13px;border:1px solid var(--line);border-radius:var(--r);
+ margin-bottom:8px;background:var(--surf);width:100%;text-align:left;transition:.22s var(--ease);box-shadow:var(--sh1)}
+.lrow:hover{transform:translateX(4px);border-color:var(--indigo)}
+.tick{width:19px;height:19px;border:1.6px solid var(--line);border-radius:6px;flex:none}
+.tick.on{background:var(--teal);border-color:var(--teal);position:relative}
+.tick.on::after{content:"";position:absolute;left:5.5px;top:2px;width:5px;height:9px;border:solid #fff;border-width:0 1.8px 1.8px 0;transform:rotate(42deg)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cday{background:var(--surf2);border:1px solid var(--line);border-radius:10px;min-height:84px;padding:7px}
+.cday.today{background:var(--indigo-s);border-color:var(--indigo)}
+.cday .d{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--mute)}
+.cpill{display:block;font-size:10.5px;padding:3px 6px;border-radius:6px;margin-top:4px;background:var(--surf);
+ border:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:left}
+.dow{font-family:"IBM Plex Mono";font-size:9.5px;color:var(--mute);text-align:center}
+.tlrow{display:grid;grid-template-columns:190px 1fr;gap:12px;align-items:center;margin-bottom:9px}
+.tlbar{height:26px;border-radius:8px;background:linear-gradient(90deg,var(--violet),var(--indigo));
+ animation:growx .8s var(--ease) both;transform-origin:left;color:#fff;font-size:11px;display:flex;align-items:center;padding:0 9px}
+@keyframes growx{from{transform:scaleX(0)}}
+.tltrack{background:var(--surf2);border-radius:8px;height:26px}
+
+.tw{display:grid;grid-template-columns:1.4fr 1fr}
+.tl-main{padding:20px;border-right:1px solid var(--line)}
+.tside{padding:20px;background:var(--surf2)}
+.crumb{font-family:"IBM Plex Mono";font-size:11px;color:var(--mute);margin-bottom:8px}
+.tin{font-family:"Space Grotesk";font-size:23px;font-weight:500;width:100%;border:1px solid transparent;background:none;
+ border-radius:8px;padding:4px 7px;margin:0 0 10px -7px;color:var(--ink);letter-spacing:-.022em}
+.tin:hover{background:var(--surf2)}.tin:focus{outline:2px solid var(--indigo);background:var(--surf)}
+.ta{width:100%;border:1px solid var(--line);border-radius:var(--r);background:var(--surf2);padding:11px 13px;
+ font:inherit;font-size:13.5px;color:var(--ink);resize:vertical;min-height:74px}
+.ctl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 16px}
+.ctl label{display:block;font-family:"IBM Plex Mono";font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-bottom:4px}
+.ctl select,.ctl input{width:100%;border:1px solid var(--line);background:var(--surf);border-radius:9px;padding:8px 10px;
+ font:inherit;font-size:13px;color:var(--ink)}
+.seg{display:flex;gap:4px;background:var(--surf3);padding:3px;border-radius:9px}
+.seg button{flex:1;padding:6px;border-radius:7px;font-size:11.5px;color:var(--slate);transition:.2s}
+.seg button[aria-pressed="true"]{background:var(--surf);color:var(--ink);box-shadow:var(--sh1);font-weight:500}
+.tagrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.tagadd{border:1px dashed var(--line);border-radius:999px;padding:4px 11px;font-size:11px;color:var(--mute);font-family:"IBM Plex Mono"}
+.tagadd:hover{border-color:var(--indigo);color:var(--indigo)}
+.shot{position:relative;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surf);box-shadow:var(--sh2)}
+.shotbar{display:flex;gap:5px;align-items:center;padding:8px 11px;background:var(--surf2);border-bottom:1px solid var(--line)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.shotbar em{font-style:normal;font-family:"IBM Plex Mono";font-size:10.5px;color:var(--mute);margin-left:7px}
+.gm{padding:13px 15px 20px;font-family:"IBM Plex Mono";font-size:11px;color:var(--slate)}
+.gm .hd,.gm .row{display:grid;grid-template-columns:1.4fr 1fr .8fr;gap:8px}
+.gm .hd{color:var(--mute);border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:7px}
+.gm .row{padding:6px 0;border-bottom:1px dashed var(--line)}
+.pin{position:absolute;width:25px;height:25px;border-radius:50%;color:#fff;font-family:"IBM Plex Mono";font-size:11px;
+ display:grid;place-items:center;transform:translate(-50%,-50%);border:2px solid var(--surf);
+ background:linear-gradient(145deg,#F0A45A,var(--stamp));box-shadow:0 4px 12px rgba(206,106,16,.42);transition:.22s cubic-bezier(.34,1.56,.64,1)}
+.pin[aria-pressed="true"]{transform:translate(-50%,-50%) scale(1.3);background:linear-gradient(145deg,var(--violet),var(--indigo))}
+.pinrow{display:flex;gap:11px;border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;background:var(--surf);
+ width:100%;text-align:left;box-shadow:var(--sh1);transition:.22s;margin-top:9px}
+.pinrow[aria-pressed="true"]{border-color:var(--indigo);box-shadow:0 6px 18px var(--glow)}
+.pinno{width:20px;height:20px;border-radius:50%;background:linear-gradient(145deg,#F0A45A,var(--stamp));color:#fff;
+ font-family:"IBM Plex Mono";font-size:10px;display:grid;place-items:center;flex:none;margin-top:2px}
+.pinrow p{margin:0;font-size:13.5px}
+.co{font-family:"IBM Plex Mono";font-size:10px;color:var(--mute);display:block;margin-top:4px}
+.tside h3{font-size:11px;font-family:"IBM Plex Mono";letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:0 0 10px}
+.tside section{margin-bottom:18px}
+.sub{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;margin-bottom:7px}
+.box{width:16px;height:16px;border:1.6px solid var(--line);border-radius:5px;flex:none;margin-top:3px}
+.box.on{background:var(--teal);border-color:var(--teal);position:relative}
+.box.on::after{content:"";position:absolute;left:4.5px;top:1px;width:4px;height:8px;border:solid #fff;border-width:0 1.7px 1.7px 0;transform:rotate(42deg)}
+.done{color:var(--mute);text-decoration:line-through}
+.addin{width:100%;border:1px dashed var(--line);background:none;border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;color:var(--ink)}
+.cmt{display:flex;gap:10px;margin-bottom:12px}
+.cmt .n{font-size:13px;font-weight:600}
+.cmt .w{font-family:"IBM Plex Mono";font-size:10px;color:var(--mute);margin-left:5px}
+.cmt p{margin:3px 0 0;font-size:13.5px;color:var(--slate)}
+.dec{font-family:"IBM Plex Mono";font-size:9.5px;color:var(--teal);background:var(--teal-s);border-radius:5px;padding:1px 6px;margin-left:6px}
+.exportbox{border:1px solid var(--indigo);background:var(--indigo-s);border-radius:var(--r);padding:14px;margin-bottom:16px}
+.exportbox p{margin:6px 0 11px;font-size:13px;color:var(--slate)}
+
+.uslay{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+.chatshell{background:var(--surf);border:1px solid var(--line);border-radius:var(--rl);box-shadow:var(--sh2);display:flex;flex-direction:column;overflow:hidden}
+.chathead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--surf2)}
+.presence{font-size:11.5px;color:var(--mute)}
+.stream{padding:16px;display:flex;flex-direction:column;gap:12px;max-height:440px;overflow:auto}
+.dayline{text-align:center;font-family:"IBM Plex Mono";font-size:10px;color:var(--mute)}
+.msgrow{display:flex;gap:9px;align-items:flex-end}
+.msgrow.me{flex-direction:row-reverse}
+.bubble{background:var(--surf2);border:1px solid var(--line);border-radius:14px;padding:10px 13px;max-width:76%}
+.msgrow.me .bubble{background:var(--indigo-s);border-color:transparent}
+.bubble p{margin:0;font-size:13.5px}
+.msgmeta{font-family:"IBM Plex Mono";font-size:9.5px;color:var(--mute);margin-bottom:3px}
+.msgact{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.msgact button{font-family:"IBM Plex Mono";font-size:9.5px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--slate);transition:.18s}
+.msgact button:hover{border-color:var(--indigo);color:var(--indigo)}
+.compose{border-top:1px solid var(--line);padding:12px 14px;background:var(--surf2)}
+.compose textarea{width:100%;border:1px solid var(--line);background:var(--surf);border-radius:12px;padding:10px 12px;
+ font:inherit;font-size:13.5px;color:var(--ink);resize:vertical;min-height:52px}
+.ctools{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.uscard{background:var(--surf);border:1px solid var(--line);border-radius:var(--rl);padding:16px;box-shadow:var(--sh1);margin-bottom:14px}
+.uscard h3{font-size:14px;margin-bottom:9px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-family:"IBM Plex Mono";font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);
+ padding:8px 10px;border-bottom:1px solid var(--line);font-weight:400}
+td{padding:11px 10px;border-bottom:1px solid var(--line)}
+tbody tr{transition:.18s}tbody tr:hover{background:var(--surf2)}
+tr.toprank td{background:var(--indigo-s)}
+.amt{font-family:"IBM Plex Mono";text-align:right}
+.pill{font-family:"IBM Plex Mono";font-size:10px;padding:2px 8px;border-radius:999px;border:0;cursor:pointer}
+.pill.paid,.pill.ok{background:var(--teal-s);color:var(--teal)}
+.pill.due,.pill.soon{background:var(--stamp-s);color:var(--stamp)}
+.pill.over{background:var(--rose-s);color:var(--rose)}
+.pill.q{background:var(--surf3);color:var(--slate)}
+.diff s{color:var(--rose);opacity:.8}.diff b{color:var(--teal);font-weight:500}
+.src{font-family:"IBM Plex Mono";font-size:9.5px;padding:2px 8px;border-radius:999px;background:var(--surf3);color:var(--slate)}
+.src.gmail{background:var(--rose-s);color:var(--rose)}.src.plaud{background:var(--stamp-s);color:var(--stamp)}
+.src.claude{background:var(--indigo-s);color:var(--indigo)}.src.drive{background:var(--sky-s);color:var(--sky)}
+.okr{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh1);margin-bottom:12px}
+.kr{display:flex;gap:12px;align-items:center;margin-top:11px;font-size:13.5px;flex-wrap:wrap}
+.krbar{flex:1;min-width:110px;height:7px;border-radius:5px;background:var(--line);overflow:hidden}
+.krbar em{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--sky));transition:width .3s}
+.kr input[type=range]{width:100px;accent-color:var(--indigo)}
+.cards3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.pcard{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:15px;box-shadow:var(--sh1);transition:.25s var(--ease)}
+.pcard:hover{transform:translateY(-4px);box-shadow:var(--sh2)}
+.warm{height:5px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:12px}
+.warm em{display:block;height:100%;transition:width .4s}
+.hist{font-size:12.5px;color:var(--slate);border-left:2px solid var(--line);padding-left:12px;margin:6px 0}
+.notes{columns:3;column-gap:14px}
+.note{break-inside:avoid;background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px;
+ box-shadow:var(--sh1);margin-bottom:14px;position:relative;overflow:hidden;transition:transform .25s var(--ease),box-shadow .25s;
+ width:100%;text-align:left;display:block;cursor:pointer}
+.note:hover{transform:translateY(-4px) rotate(-.4deg);box-shadow:var(--sh2);border-color:var(--indigo)}
+.note::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,var(--violet),var(--indigo))}
+.note.s2::before{background:linear-gradient(180deg,#F0A45A,var(--stamp))}
+.note.s3::before{background:linear-gradient(180deg,#4FD3AC,var(--teal))}
+.note.s4::before{background:linear-gradient(180deg,#F58BA6,var(--rose))}
+.note h4{font-size:15px;margin-bottom:6px}.note p{margin:0;font-size:13.5px;color:var(--slate)}
+.note .foot{display:flex;gap:7px;align-items:center;margin-top:11px;font-family:"IBM Plex Mono";font-size:10px;color:var(--mute);flex-wrap:wrap}
+.pinflag{font-family:"IBM Plex Mono";font-size:9.5px;color:var(--stamp);background:var(--stamp-s);padding:1px 7px;border-radius:999px}
+.wave{display:flex;align-items:flex-end;gap:2px;height:22px;margin:9px 0 4px}
+.wave i{width:3px;border-radius:2px;background:var(--stamp);opacity:.75;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}
+.check{display:flex;gap:8px;font-size:13px;margin-top:5px;color:var(--slate)}
+.bx{width:14px;height:14px;border:1.5px solid var(--line);border-radius:4px;flex:none;margin-top:3px}
+.bx.on{background:var(--teal);border-color:var(--teal)}
+.course{border:1px solid var(--line);border-radius:var(--r);background:var(--surf);box-shadow:var(--sh1);margin-bottom:11px;overflow:hidden}
+.chead{display:flex;gap:12px;align-items:center;padding:13px 15px;width:100%;text-align:left}
+.chead:hover{background:var(--surf2)}
+.citems{padding:4px 15px 13px;border-top:1px dashed var(--line)}
+.citems[hidden]{display:none}
+.rule{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surf2);border:1px solid var(--line);
+ border-radius:var(--r);padding:12px 14px;margin-bottom:10px;font-size:13.5px}
+.rule .w{font-family:"IBM Plex Mono";font-size:10px;color:var(--mute);text-transform:uppercase;letter-spacing:.1em}
+.rule .val{background:var(--surf);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:12.5px}
+.sw{width:38px;height:22px;border-radius:999px;background:var(--teal);position:relative;margin-left:auto;transition:.25s;flex:none;cursor:pointer}
+.sw::after{content:"";position:absolute;top:3px;left:19px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.25s var(--ease)}
+.sw.off{background:var(--line)}.sw.off::after{left:3px}
+.conns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.conn{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh1);transition:.25s var(--ease)}
+.conn:hover{transform:translateY(-4px);box-shadow:var(--sh2)}
+.conn .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:"Space Grotesk";font-weight:700;margin-bottom:10px}
+.conn h4{font-size:15px}.conn p{font-size:13px;color:var(--slate);margin:5px 0 0}
+.state{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono";font-size:10px;margin-top:12px;padding:3px 9px;
+ border-radius:999px;background:var(--teal-s);color:var(--teal)}
+.state.off{background:var(--surf3);color:var(--mute)}.state.warn{background:var(--stamp-s);color:var(--stamp)}
+.state b{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 2.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.mask{position:fixed;inset:0;background:rgba(10,13,20,.5);backdrop-filter:blur(4px);z-index:60;display:grid;place-items:start center;
+ padding:54px 16px;overflow:auto;animation:fade .25s ease both}
+@keyframes fade{from{opacity:0}}
+.mask[hidden]{display:none}
+.modal{background:var(--surf);border:1px solid var(--line);border-radius:20px;box-shadow:var(--sh2);width:100%;max-width:620px;
+ padding:22px;animation:up .32s var(--ease) both}
+@keyframes up{from{opacity:0;transform:translateY(18px) scale(.98)}}
+.modal h3{font-size:18px;margin-bottom:13px}
+.modal input[type=text],.modal textarea,.modal select{width:100%;border:1px solid var(--line);background:var(--surf2);
+ border-radius:10px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);margin-bottom:11px}
+.modal textarea{min-height:100px;resize:vertical}
+.mrowbtns{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--bg);
+ padding:11px 18px;border-radius:999px;font-size:13px;box-shadow:var(--sh2);z-index:80;animation:tin .3s var(--ease) both;max-width:88vw}
+@keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(12px)}}
+.toast[hidden]{display:none}
+@media (max-width:980px){.grid2,.card-in,.tw,.uslay{grid-template-columns:1fr}
+ .tl-main{border-right:0;border-bottom:1px solid var(--line)}
+ .pgrid,.tiles,.cards3,.conns,.cols{grid-template-columns:repeat(2,minmax(0,1fr))}.notes{columns:2}
+ .ctl{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.pgrid,.tiles,.cards3,.conns,.cols,.ctl{grid-template-columns:1fr}.notes{columns:1}
+ .welc h1{font-size:24px}.welc{padding:18px 15px}.card-in .l{padding:30px 20px}.card-in h1{font-size:26px}
+ .cday{min-height:56px;padding:4px}.tlrow{grid-template-columns:1fr}td,th{padding:8px 6px}table{font-size:12px}
+ .bubble{max-width:88%}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7E50DC"/><stop offset="1" stop-color="#4A47D8"/></linearGradient>
+</defs></svg>
+
+<div id="gate">
+ <div class="card-in">
+  <div class="l">
+   <div style="display:flex;align-items:center;gap:11px"><div class="mark">A</div><span class="disp" style="font-size:17px">Anvik Ops</span></div>
+   <h1>Everything, in <em>one quiet place</em>.</h1>
+   <p>Work, thinking, money, people, personal life — split by project when you want it, joined when you don't. Two people, nothing shared beyond what's needed.</p>
+   <button class="gbtn" id="signin"><span class="g">G</span> Continue with Google</button>
+   <p class="gate-note">Allowlisted addresses only. Nothing loads until you're through this door.</p>
+  </div>
+  <div class="r">
+   <div class="eyebrow">Running on</div>
+   <div class="stat"><b>₹0</b><span>per month, forever</span></div>
+   <div class="stat"><b>2</b><span>people · Anadya and Raghuvar</span></div>
+   <div class="stat"><b>IST ⇄ CET</b><span>built for the gap</span></div>
+  </div>
+ </div>
+</div>
+
+<div id="app" hidden><div class="shell">
+ <div class="bar">
+  <div class="mark">A</div><span class="disp" style="font-size:17px">Anvik Ops</span>
+  <span class="mono" style="font-size:11px;color:var(--mute)">IST 14:20 · CET 10:50</span>
+  <div class="spacer"></div>
+  <button class="pillbtn" id="palBtn">Search · <span class="mono">⌘K</span></button>
+  <button class="pillbtn" id="whoBtn"><span class="av a" id="whoAv">AN</span><span id="whoName">Anadya</span></button>
+  <button class="pillbtn" id="tt">Dark</button>
+ </div>
+ <div class="nav" id="nav"></div>
+ <div class="panel" id="p-home"></div>
+ <div class="panel" id="p-work" hidden></div>
+ <div class="panel" id="p-task" hidden></div>
+ <div class="panel" id="p-us" hidden></div>
+ <div class="panel" id="p-know" hidden></div>
+ <div class="panel" id="p-people" hidden></div>
+ <div class="panel" id="p-personal" hidden></div>
+ <div class="panel" id="p-money" hidden></div>
+ <div class="panel" id="p-admin" hidden></div>
+</div></div>
+
+<div class="mask" id="mask" hidden><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ═══ persistence ═══ */
+const DB={
+ get(k,d){try{const v=localStorage.getItem('anvik9:'+k);return v?JSON.parse(v):d;}catch(e){return d;}},
+ set(k,v){try{localStorage.setItem('anvik9:'+k,JSON.stringify(v));}catch(e){}}
+};
+const esc=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ═══ theme + gate ═══ */
+const root=document.documentElement,tt=document.getElementById('tt');
+function setTheme(t){root.setAttribute('data-theme',t);tt.textContent=t==='dark'?'Light':'Dark';DB.set('theme',t);}
+setTheme(DB.get('theme',matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+tt.onclick=()=>setTheme(root.getAttribute('data-theme')==='dark'?'light':'dark');
+document.getElementById('signin').onclick=()=>{document.getElementById('gate').hidden=true;
+ document.getElementById('app').hidden=false;go('home');};
+
+/* ═══ core data ═══ */
+const users={AN:{n:'Anadya',cls:'a'},RG:{n:'Raghuvar',cls:'b'}};
+let me=DB.get('me','AN');
+const PROJECTS=[
+ {id:'all',n:'Everything',col:'var(--slate)'},
+ {id:'anvik',n:'Anvik',col:'var(--indigo)'},
+ {id:'reg',n:'Registry',col:'var(--teal)'},
+ {id:'con',n:'Consumer',col:'var(--stamp)'},
+ {id:'personal',n:'Personal',col:'var(--sky)'}
+];
+let ws='all';const defPj=()=>pjFilter&&pjFilter!=='all'?pjFilter:'anvik';
+const proj=id=>PROJECTS.find(p=>p.id===id)||PROJECTS[0];
+
+let TAGS=DB.get('tags',[
+ {t:'urgent-path',c:'rose'},{t:'blocked',c:'stamp'},{t:'needs-raghuvar',c:'teal'},
+ {t:'investor-facing',c:'indigo'},{t:'visa',c:'sky'},{t:'quick-win',c:'teal'}
+]);
+const tagColor=t=>{const f=TAGS.find(x=>x.t===t);return f?f.c:'slate';};
+function tagChip(t,onx){const c=tagColor(t);
+ return `<span class="tagc" style="background:var(--${c}-s,var(--surf3));color:var(--${c},var(--slate))">${esc(t)}${onx?` <span class="x" data-act="untag" data-t="${esc(t)}">×</span>`:''}</span>`;}
+
+let tasks=DB.get('tasks',[
+ {id:'T-47',t:'Rain-gear vendor shortlist',type:'ops',pj:'con',due:'21 Aug',start:'18 Aug',pri:'normal',col:0,p:10,pins:0,who:'AN',okr:'Consumer venture validated',tags:['needs-raghuvar'],desc:'Two quotes in hand, one pending. Decide before the sample run.'},
+ {id:'T-46',t:'IBBI collector — retry backoff',type:'code',pj:'reg',due:'22 Aug',start:'19 Aug',pri:'normal',col:0,p:5,pins:0,who:'RG',okr:'Registry spine complete',tags:[],desc:''},
+ {id:'T-45',t:'AnvikSure v3.8 fixture regression',type:'code',pj:'anvik',due:'18 Aug',start:'15 Aug',pri:'urgent',col:1,p:62,pins:1,who:'AN',okr:'Scoring engine production-ready',tags:['urgent-path'],desc:'Regress the full fixture set before the version is frozen.'},
+ {id:'T-44',t:'Samadhaan collector — queue reorder',type:'code',pj:'reg',due:'19 Aug',start:'14 Aug',pri:'high',col:1,p:44,pins:3,who:'RG',okr:'Registry spine complete',tags:['blocked'],desc:''},
+ {id:'T-42',t:'eCourts collector — QA report',type:'code',pj:'reg',due:'20 Aug',start:'16 Aug',pri:'urgent',col:2,p:80,pins:2,who:'RG',okr:'Registry spine complete',tags:['urgent-path'],desc:'Parser output diverges from the portal on pre-2019 case records. Evidence pinned below; verify against the DDL fixture before closing.'},
+ {id:'T-41',t:'Visa appointment — Milan consulate',type:'ops',pj:'personal',due:'20 Aug',start:'17 Aug',pri:'urgent',col:1,p:30,pins:0,who:'AN',okr:'Land in Italy, settled',tags:['visa'],desc:'Slot booking opens 8am. Documents checklist in Knowledge.'},
+ {id:'T-40',t:'Read: attention paper set, week 1',type:'research',pj:'personal',due:'23 Aug',start:'19 Aug',pri:'normal',col:0,p:0,pins:0,who:'AN',okr:'Land in Italy, settled',tags:[],desc:''},
+ {id:'T-38',t:'Tighten SEO copy on anvik.club',type:'ops',pj:'anvik',due:'24 Aug',start:'22 Aug',pri:'low',col:0,p:0,pins:0,who:'AN',okr:'',tags:['quick-win'],desc:''},
+ {id:'T-36',t:'Investor one-pager — traction numbers',type:'ops',pj:'anvik',due:'26 Aug',start:'21 Aug',pri:'high',col:0,p:0,pins:0,who:'AN',okr:'Scoring engine production-ready',tags:['investor-facing'],desc:''},
+ {id:'T-30',t:'MCA collector — entity resolution',type:'code',pj:'reg',due:'14 Aug',start:'10 Aug',pri:'normal',col:3,p:100,pins:0,who:'AN',okr:'Registry spine complete',tags:[],desc:''}
+]);
+let trail=DB.get('trail',[
+ {t:'17 Aug 09:14',who:'RG',what:'Pin 1 added on samadhaan_grid.png',where:'T-42',src:'portal'},
+ {t:'17 Aug 09:12',who:'system',what:'Mail flagged — deadline 1 Sept detected',where:'Mail · NIC',src:'gmail'},
+ {t:'17 Aug 07:30',who:'system',what:'Voice note synced — Vendor call, 14 min',where:'Notes',src:'plaud'},
+ {t:'17 Aug 07:00',who:'system',what:'Morning brief emailed to both members',where:'Digest',src:'gmail'},
+ {t:'16 Aug 18:22',who:'AN',what:'Ledger import — 128 rows, 3 duplicates skipped',where:'Money',src:'drive'},
+ {t:'16 Aug 11:47',who:'system',what:'Export generated — T-42.md, 2 pins',where:'T-42',src:'claude'}
+]);
+let NOTES=DB.get('notes',[
+ {id:1,c:'s2',f:'voice',pj:'con',h:'Vendor call — rain gear',b:'Ludhiana quotes ₹340/unit at 500 MOQ, 50% advance. Surat pending.',foot:'14 min · Plaud',lk:'T-47',wave:1,pin:0,tags:['needs-raghuvar'],
+  tr:['00:41 — Ludhiana can do 340 a unit but only at 500 minimum.','06:12 — Half in advance, half on dispatch.','11:03 — Surat will revise by Friday.'],
+  items:[['Ask Surat for revised MOQ',1],['Compare landed cost with duty',0]]},
+ {id:2,c:'',f:'research',pj:'reg',h:'Parser edge cases',b:'Pre-2019 eCourts records use two legacy formats. A third appears only in Karnataka benches.',foot:'17 Aug · Anadya',lk:'T-42',pin:1,items:[],tags:[]},
+ {id:3,c:'s3',f:'decision',pj:'anvik',h:'Decision — scoring floor',b:'Shell detection stays a binary hard gate. Revisit only if false positives cross 2%.',foot:'14 Aug · locked',pin:0,items:[],tags:[]},
+ {id:4,c:'s4',f:'meeting',pj:'all',h:'Weekly — three commitments',b:'',foot:'11 Aug · recurring',pin:0,tags:[],
+  items:[['Ship the export engine',1],['Close two registry collectors',0],['Decide the company name',0]]},
+ {id:5,c:'',f:'email',pj:'reg',h:'From mail — NIC cutover',b:'Case-number field widens to 24 chars on 1 Sept.',foot:'17 Aug · via Gmail',lk:'T-42',pin:0,items:[],tags:[]},
+ {id:6,c:'s2',f:'voice',pj:'anvik',h:'Walking note — pricing',b:'Value metric should be per verification, not per seat.',foot:'6 min · Plaud',wave:1,pin:0,items:[],tags:[],
+  tr:['02:20 — Charge for the thing they value: a verified counterparty.']}
+]);
+let DECS=DB.get('decs',[
+ {id:1,q:'Company rename — Trazio or stay Anvik?',pj:'anvik',opened:'02 Jun',status:'open',rec:'Trazio — cleanest uncontested candidate on screening.',owner:'AN',days:76},
+ {id:2,q:'Pricing metric — per verification or per seat?',pj:'anvik',opened:'11 Aug',status:'open',rec:'Per verification. Seats punish the behaviour we want.',owner:'AN',days:6},
+ {id:3,q:'Shell detection — hard gate or penalty tier?',pj:'anvik',opened:'02 Aug',status:'closed',rec:'Binary hard gate. Closed 14 Aug.',owner:'AN',days:0},
+ {id:4,q:'Rain gear — Ludhiana or Surat for the sample run?',pj:'con',opened:'15 Aug',status:'open',rec:'Wait for Surat revision, decide Friday.',owner:'RG',days:2}
+]);
+let PEOPLE=DB.get('people',[
+ {id:1,n:'Ludhiana Steel',r:'Pilot customer',circle:'customer',pj:'anvik',tz:'IST',cad:14,last:8,next:'Send September pricing',notes:'Prefers WhatsApp. Decision maker: Mr. Arora.',hist:[['9 Aug','Call — pilot feedback, happy with verdicts']]},
+ {id:2,n:'Surat Textiles',r:'Vendor · rain gear',circle:'vendor',pj:'con',tz:'IST',cad:7,last:2,next:'Chase revised MOQ',notes:'Negotiable on advance.',hist:[['15 Aug','Mail — revised quote promised Friday']]},
+ {id:3,n:'Prof. Bianchi',r:'Politecnico · supervisor',circle:'university',pj:'personal',tz:'CET',cad:30,last:999,next:'Introduce yourself before term',notes:'Works on interpretability. Read two papers first.',hist:[]},
+ {id:4,n:'R. Mehta',r:'Angel · warm intro',circle:'investor',pj:'anvik',tz:'IST',cad:21,last:23,next:'Share the traction one-pager',notes:'Asked about the PD dataset moat.',hist:[['25 Jul','Coffee — walked the deck']]},
+ {id:5,n:'CA Sharma',r:'Compliance',circle:'vendor',pj:'anvik',tz:'IST',cad:30,last:5,next:'Q2 filings confirmation',notes:'',hist:[['12 Aug','Mail — GST filed']]},
+ {id:6,n:'Milan housing agent',r:'Relocation',circle:'personal',pj:'personal',tz:'CET',cad:3,last:1,next:'Confirm viewing slot',notes:'Two flats near Bovisa. Budget €800.',hist:[['16 Aug','WhatsApp — sent listings']]}
+]);
+let COURSES=DB.get('courses',[
+ {n:'Foundations of machine learning',sched:'Mon · Wed',open:true,items:[['Lecture set 1 notes',1],['Problem set 0',1],['Reading: attention paper set',0],['Problem set 1',0]]},
+ {n:'Deep learning systems',sched:'Tue · Thu',open:false,items:[['Environment setup',1],['Lab 1 — autograd',0],['Reading: systems survey',0]]},
+ {n:'AI ethics and regulation',sched:'Fri',open:false,items:[['Syllabus review',1],['EU AI Act summary',0]]}
+]);
+let READS=DB.get('reads',[{t:'Attention Is All You Need',s:2},{t:'Scaling laws — annotated memo',s:1},{t:'EU AI Act — obligations summary',s:0},{t:'Interpretability review (Bianchi)',s:0}]);
+let HOURS=DB.get('hours',{study:11,founder:34});
+let LIFE=DB.get('life',[['Renew health insurance before flying',0],['Close the Gurugram gym membership',0],['Ship winter clothes ahead',0]]);
+let OKRS=DB.get('okrs',[
+ {o:'Registry spine complete',pj:'reg',m:'Q3',krs:[['Collectors live in production',72],['Entity resolution above 95%',88],['Publishability policy signed off',40]]},
+ {o:'Scoring engine production-ready',pj:'anvik',m:'Q3',krs:[['v3.8 frozen and regressed',62],['Two pilots scored end to end',35]]},
+ {o:'Consumer venture validated',pj:'con',m:'Q3',krs:[['Two vendor quotes landed',50],['50 pre-orders',12]]},
+ {o:'Land in Italy, settled',pj:'personal',m:'Q3',krs:[['Visa and permesso done',30],['Housing secured',0],['Week-1 reading finished',15]]}
+]);
+let MSGS=DB.get('msgs',[
+ {id:1,who:'RG',time:'08:41',text:'Pushed the pins on T-42 last night. Need your call before the NIC cutover.',links:['T-42']},
+ {id:2,who:'AN',time:'08:56',text:'Looking now. Also — chai at 4?',links:[]},
+ {id:3,who:'RG',time:'09:02',text:'Obviously. Surat still hasn\'t revised the MOQ, chasing today.',links:[]}
+]);
+let LEDGER=DB.get('ledger',[
+ {d:'17 Aug',p:'Ludhiana Steel',c:'Pilot invoice',pj:'anvik',s:'paid',a:86000},
+ {d:'16 Aug',p:'AWS India',c:'Infra',pj:'reg',s:'paid',a:-34200},
+ {d:'15 Aug',p:'Surat Textiles',c:'Sample run',pj:'con',s:'over',a:-41500},
+ {d:'14 Aug',p:'Politecnico Milano',c:'Tuition instalment',pj:'personal',s:'due',a:-210000},
+ {d:'12 Aug',p:'MCA portal',c:'Registry fees',pj:'reg',s:'paid',a:-12800},
+ {d:'10 Aug',p:'Contract designer',c:'People',pj:'anvik',s:'due',a:-55000}
+]);
+let DOCS=DB.get('docs',[
+ {n:'Passport',pj:'personal',e:'14 Mar 2029',s:'ok'},{n:'Schengen study visa',pj:'personal',e:'pending decision',s:'soon'},
+ {n:'Permesso di soggiorno',pj:'personal',e:'within 8 days of arrival',s:'over'},
+ {n:'Health insurance — Italy',pj:'personal',e:'31 Aug 2026',s:'soon'},
+ {n:'Incorporation certificate',pj:'anvik',e:'—',s:'ok'},{n:'Founders agreement',pj:'anvik',e:'renews 1 Jan 2027',s:'ok'},
+ {n:'University enrolment letter',pj:'personal',e:'upload by 25 Aug',s:'soon'},{n:'GST registration',pj:'anvik',e:'—',s:'ok'}
+]);
+let prefs=DB.get('prefs',{song:1,photo:1,ai:1,life:1,money:1,projects:1,people:1});
+let moneyPj=DB.get('moneyPj',null);
+let sharedPhoto=DB.get('photo',null),photoCap=DB.get('photoCap','');
+let streak=DB.get('streak',5),dayMode='auto',focusT={on:false,left:3000},studyT={on:false,secs:0};
+let statusMsg=DB.get('status',{AN:'Deep in the export engine · back at 4',RG:'On vendor calls till 3'});
+const AI_PULSE=[{t:'Open-weights model matches frontier on code benchmarks',s:'Official release notes'},
+ {t:'EU AI Act — first GPAI obligations take effect',s:'Commission notice'},
+ {t:'New long-context eval suite published',s:'Lab blog'}];
+const colStat=['To do','In progress','In review','Done'];
+const save=()=>{DB.set('tasks',tasks);DB.set('notes',NOTES);DB.set('trail',trail);DB.set('people',PEOPLE);
+ DB.set('decs',DECS);DB.set('okrs',OKRS);DB.set('msgs',MSGS);DB.set('courses',COURSES);DB.set('reads',READS);
+ DB.set('hours',HOURS);DB.set('life',LIFE);DB.set('tags',TAGS);DB.set('ledger',LEDGER);DB.set('docs',DOCS);};
+
+/* ═══ scope helpers ═══ */
+const inWs=o=>true; // v10: the portal is joined. Projects filter inside Work only.
+const wsTasks=()=>tasks.filter(inWs);
+const wsName=()=>proj(ws).n;
+function log(what,where,src){trail.unshift({t:'now',who:me,what:what,where:where,src:src||'portal'});save();}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;
+ clearTimeout(t._x);t._x=setTimeout(()=>t.hidden=true,2600);}
+
+/* ═══ chrome ═══ */
+const NAV=[['home','Home'],['work','Work'],['us','Us'],['know','Knowledge'],['people','People'],['personal','Personal'],['money','Money'],['admin','Admin']];
+document.getElementById('nav').innerHTML=NAV.map(([k,l],i)=>`<button data-g="${k}" aria-selected="${i===0}">${l}</button>`).join('');
+document.getElementById('nav').onclick=e=>{const b=e.target.closest('[data-g]');if(b)go(b.dataset.g);};
+function renderWs(){}
+let cur='home';
+function go(k){cur=k;
+ document.querySelectorAll('#nav button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.g===k)));
+ ['home','work','task','us','know','people','personal','money','admin'].forEach(x=>document.getElementById('p-'+x).hidden=(x!==k));
+ ({home:renderHome,work:renderWork,task:renderTask,us:renderUs,know:renderKnow,people:renderPeople,
+  personal:renderPersonal,money:renderMoney,admin:renderAdmin}[k]||function(){})();
+ window.scrollTo({top:0});}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)go(b.dataset.go);});
+document.getElementById('whoBtn').onclick=()=>{me=me==='AN'?'RG':'AN';DB.set('me',me);const u=users[me];
+ const a=document.getElementById('whoAv');a.textContent=me;a.className='av '+u.cls;
+ document.getElementById('whoName').textContent=u.n;toast('Viewing as '+u.n);renderWs();go(cur);};
+
+/* ═══ ranking ═══ */
+function rank(list){
+ const dl={'18 Aug':30,'19 Aug':27,'20 Aug':24,'21 Aug':21,'22 Aug':18,'23 Aug':15,'24 Aug':12,'26 Aug':9};
+ return (list||wsTasks()).filter(t=>t.col<3).map(t=>{
+  const fit=t.okr?40:0,unb=Math.min(30,t.pins*7+(t.col===2?9:0)+(t.pri==='urgent'?5:0)),d=dl[t.due]||8;
+  return {t:t,fit:fit,unb:unb,dl:d,total:fit+unb+d};}).sort((a,b)=>b.total-a.total);}
+
+/* ═══ HOME ═══ */
+function modeNow(){if(dayMode!=='auto')return dayMode;const h=new Date().getHours();return h<12?'morning':(h<17?'midday':'evening');}
+function renderHome(){
+ // v10: Home is always your day, joined. Project snapshots are pulled on demand, never a mode.
+ const u=users[me],m=modeNow(),mine=wsTasks().filter(t=>t.who===me&&t.col<3);
+ const top=rank().filter(r=>r.t.who===me)[0];
+ const greet=m==='morning'?'Morning':(m==='midday'?'Afternoon':'Evening');
+ const subs={morning:'Three things need you. Nothing is on fire. Everything else waits behind one tap.',
+  midday:'Head down. One thing at a time — the board will still be there.',
+  evening:'Close the day properly and tomorrow starts lighter.'};
+ const openDecs=DECS.filter(d=>d.status==='open'&&d.days>7);
+ let block='';
+ if(m==='morning'&&top)block=`<div class="one">
+  <svg class="ring" viewBox="0 0 36 36"><circle class="bgc" cx="18" cy="18" r="15.9" stroke-dasharray="100"/>
+  <circle class="fg" cx="18" cy="18" r="15.9" stroke-dashoffset="${100-top.t.p}"/></svg>
+  <div style="flex:1;min-width:200px"><div class="eyebrow">Start here — ranked by the formula</div>
+   <div style="font-family:'Space Grotesk';font-size:17px;margin-top:3px">${esc(top.t.t)}</div>
+   <div class="mono" style="font-size:11px;color:var(--mute);margin-top:3px">${top.t.id} · score ${top.total} · due ${top.t.due} · <button data-act="goals" style="color:var(--indigo)">why this one?</button></div></div>
+  <button class="btn solid" data-act="open" data-id="${top.t.id}">Open</button></div>`;
+ if(m==='midday'&&top)block=`<div class="one">
+  <div style="flex:1;min-width:200px"><div class="eyebrow">In focus</div>
+   <div style="font-family:'Space Grotesk';font-size:17px;margin-top:3px">${esc(top.t.t)}</div>
+   <div class="mono" style="font-size:11px;color:var(--mute);margin-top:3px">1 of ${mine.length} today · notifications muted</div></div>
+  <div style="text-align:right"><div id="focusClock" style="font-size:22px;font-family:'Space Grotesk'">${fmtF()}</div>
+   <button class="btn sm" data-act="focus">${focusT.on?'Pause':'Start 50 min'}</button></div></div>`;
+ if(m==='evening')block=`<div class="one rit" style="display:block">
+  <div class="eyebrow" style="margin-bottom:8px">Shutdown ritual · 2 minutes</div>
+  <label>What shipped today</label><textarea id="r1"></textarea>
+  <label>What's stuck, honestly</label><textarea id="r2"></textarea>
+  <label>Tomorrow's one thing</label><textarea id="r3"></textarea>
+  <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+   <button class="btn solid" data-act="closeday">Close the day</button>
+   <span class="mono" style="font-size:11px;color:var(--mute)">emails the digest to both · streak<span class="dots">${Array.from({length:7},(_,i)=>`<i class="${i<streak?'on':''}"></i>`).join('')}</span></span></div></div>`;
+ document.getElementById('p-home').innerHTML=`
+ <div class="welc">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+   <div class="eyebrow">Monday, 17 August</div><div class="spacer"></div>
+   <div class="sub2">${[['morning','Morning'],['midday','Midday'],['evening','Evening']].map(([k,l])=>
+    `<button data-act="mode" data-m="${k}" aria-selected="${m===k}">${l}</button>`).join('')}</div></div>
+  <h1 style="margin-top:10px">${greet}, ${u.n}.</h1>
+  <p class="sub">${subs[m]}</p>
+  <div class="hz">
+   <span class="wxb"><span class="sun"></span>Gurugram 33° · rain later</span>
+   <span class="wxb"><b>26</b> days to Italy</span>
+   <span class="wxb"><b>15</b> days to NIC cutover</span>
+   <span class="wxb"><b>5.9</b> mo runway</span>
+   <button class="wxb" data-act="decisions" style="${openDecs.length?'border-color:var(--rose);color:var(--rose)':''}"><b>${openDecs.length}</b> decision open &gt; 7 days</button>
+  </div>
+  ${block}
+  <div class="capture"><input class="srch" id="cap" placeholder="Empty your head — one line, becomes a note"/>
+   <button class="btn solid" data-act="capture">Capture</button>
+   <button class="btn" data-act="newtask">+ Task</button></div>
+ </div>
+ <div class="tiles">
+  <button class="tile" data-go="work"><div class="n">${mine.length}</div><div class="k">yours, open</div></button>
+  <button class="tile" data-go="us"><div class="n">${MSGS.length}</div><div class="k">between us today</div></button>
+  <button class="tile" data-go="people"><div class="n">${PEOPLE.filter(p=>p.last>p.cad).length}</div><div class="k">people drifting</div></button>
+ </div>
+ ${prefs.money?`<div class="tiles"><button class="tile" data-go="money"><div class="n">₹18.4L</div><div class="k">cash on hand</div></button>
+  <button class="tile" data-go="money"><div class="n">5.9 mo</div><div class="k">runway</div></button>
+  <button class="tile" data-go="money"><div class="n">${LEDGER.filter(l=>l.s!=='paid').length}</div><div class="k">unsettled entries</div></button></div>`:''}
+ ${prefs.projects?projectStrip():''}
+ ${m==='morning'?personalLayer():''}`;
+}
+function projectStrip(){
+ return `<div class="frame" style="margin-bottom:16px"><div class="top"><div class="disp" style="font-size:14px">Your projects</div>
+  <div class="spacer"></div><span class="eyebrow">a peek — tap for a snapshot</span></div>
+  <div class="wrap" style="padding:14px 16px"><div class="filters" style="margin:0">
+  ${PROJECTS.filter(p=>p.id!=='all').map(p=>{
+   const open=tasks.filter(t=>t.pj===p.id&&t.col<3).length;
+   const hot=tasks.filter(t=>t.pj===p.id&&t.col<3&&t.pri==='urgent').length;
+   const dec=DECS.filter(d=>d.pj===p.id&&d.status==='open').length;
+   return `<button class="chip" data-act="snapshot" data-p="${p.id}" style="border-left:3px solid ${p.col}">
+    ${p.n} · <b style="font-weight:600">${open}</b> open${hot?` · <span style="color:var(--rose)">${hot} urgent</span>`:''}${dec?` · ${dec} to rule`:''}</button>`;}).join('')}
+  </div></div></div>`;
+}
+function snapshot(id){
+ const p=proj(id),T=tasks.filter(t=>t.pj===id);
+ const L=LEDGER.filter(l=>l.pj===id),out=L.filter(x=>x.a<0).reduce((s,x)=>s+x.a,0),inn=L.filter(x=>x.a>0).reduce((s,x)=>s+x.a,0);
+ const O=OKRS.filter(o=>o.pj===id),D=DECS.filter(d=>d.pj===id&&d.status==='open'),P=PEOPLE.filter(x=>x.pj===id);
+ const R=rank(T).slice(0,3);
+ openModal(`<h3 style="color:${p.col}">${p.n} · snapshot</h3>
+  <p class="tip" style="margin:-6px 0 14px">${T.filter(t=>t.col<3).length} open · ${T.filter(t=>t.col===3).length} done · ${D.length} decision${D.length===1?'':'s'} waiting</p>
+  <div class="eyebrow">Next three here</div>
+  ${R.map(r=>`<button class="lrow" style="margin-top:8px" data-act="open" data-id="${r.t.id}">
+   <span style="flex:1"><b style="font-weight:500">${esc(r.t.t)}</b>
+   <span class="mono" style="display:block;font-size:10.5px;color:var(--mute)">${r.t.id} · due ${r.t.due} · ${users[r.t.who].n}</span></span>
+   ${(r.t.tags||[]).map(t=>tagChip(t)).join('')}</button>`).join('')||'<p class="tip">Nothing open.</p>'}
+  ${O.length?`<div class="eyebrow" style="margin-top:16px">Objectives</div>
+   ${O.map(o=>`<div class="kr"><span style="flex:0 0 44%;min-width:150px;font-size:13px">${esc(o.o)}</span>
+   <span class="krbar"><em style="width:${Math.round(o.krs.reduce((a,k)=>a+k[1],0)/o.krs.length)}%"></em></span></div>`).join('')}`:''}
+  ${D.length?`<div class="eyebrow" style="margin-top:16px">Waiting on a ruling</div>
+   ${D.map(d=>`<p class="hist">${esc(d.q)} <span class="mono" style="color:${d.days>7?'var(--rose)':'var(--mute)'}">${d.days}d open</span></p>`).join('')}`:''}
+  ${prefs.money&&L.length?`<div class="eyebrow" style="margin-top:16px">Money here</div>
+   <p class="hist">${inn?'+₹'+(inn/1000).toFixed(1)+'k in · ':''}₹${Math.abs(out/1000).toFixed(1)}k out</p>`:''}
+  ${P.length?`<div class="eyebrow" style="margin-top:16px">People</div>
+   <p class="hist">${P.map(x=>esc(x.n)).join(' · ')}</p>`:''}
+  <div class="mrowbtns" style="margin-top:16px">
+   <button class="btn sm" data-act="report" data-p="${id}">Full report</button>
+   <button class="btn sm" data-act="jumpwork" data-p="${id}">Open on the board</button>
+   <button class="btn solid" data-act="close">Done</button></div>`);
+}
+function personalLayer(){
+ const cards=[];
+ if(prefs.song)cards.push(`<div class="pcard2"><div class="eyebrow">Picked by Raghuvar</div><h4>Song of the day</h4>
+  <div class="songart">Iktara · Kavita Seth</div>
+  <div style="display:flex;gap:6px;margin-top:9px"><button class="btn sm" data-act="play">▶ Play</button>
+  <button class="btn sm" data-act="picksong">Suggest one</button></div></div>`);
+ if(prefs.photo)cards.push(`<div class="pcard2"><div class="eyebrow">Between us</div><h4>Photo from the day</h4>
+  <div class="photobox">${sharedPhoto?`<img src="${sharedPhoto}"/>`:'A coffee, a screenshot, a ridiculous moment — anything.'}</div>
+  <div style="font-size:12px;color:var(--slate);margin-top:6px">${esc(photoCap)}</div>
+  <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm" data-act="photo">${sharedPhoto?'Change':'Upload'}</button>
+  <button class="btn sm" data-go="us">Open Us</button></div></div>`);
+ if(prefs.ai)cards.push(`<div class="pcard2"><div class="eyebrow">AI pulse · three, not a feed</div><h4>Worth knowing</h4>
+  ${AI_PULSE.map(x=>`<button class="aiitem" data-act="pulse"><b style="font-weight:500">${x.t}</b><span>${x.s}</span></button>`).join('')}</div>`);
+ if(prefs.life)cards.push(`<div class="pcard2"><div class="eyebrow">Life radar</div><h4>Small things future-you will thank you for</h4>
+  ${LIFE.map((l,i)=>`<button class="check" data-act="ticklife" data-i="${i}" style="width:100%;text-align:left">
+   <span class="bx ${l[1]?'on':''}"></span><span style="${l[1]?'text-decoration:line-through;color:var(--mute)':''}">${esc(l[0])}</span></button>`).join('')}
+  <button class="btn sm" style="margin-top:9px" data-act="addlife">+ Add</button></div>`);
+ return `<div class="pgrid">${cards.join('')}</div>
+ <div style="display:flex;justify-content:flex-end;margin-top:-4px"><button class="btn sm" data-act="personalize">✦ Personalize this layer</button></div>`;
+}
+function renderProjectHome(){
+ const p=proj(ws),T=wsTasks(),open=T.filter(t=>t.col<3),done=T.filter(t=>t.col===3);
+ const money=LEDGER.filter(l=>l.pj===ws),inn=money.filter(m=>m.a>0).reduce((s,m)=>s+m.a,0),out=money.filter(m=>m.a<0).reduce((s,m)=>s+m.a,0);
+ const okrs=OKRS.filter(o=>o.pj===ws),ppl=PEOPLE.filter(x=>x.pj===ws),nts=NOTES.filter(n=>n.pj===ws);
+ const decs=DECS.filter(d=>d.pj===ws&&d.status==='open');
+ const R=rank(T).slice(0,3);
+ document.getElementById('p-home').innerHTML=`
+ <div class="welc">
+  <div class="eyebrow" style="color:${p.col}">${p.n} · project dashboard</div>
+  <h1 style="margin-top:8px">${p.n}</h1>
+  <p class="sub">${open.length} open, ${done.length} done, ${decs.length} decision${decs.length===1?'':'s'} waiting on you. Everything below is this project only — switch the bar above to widen or narrow.</p>
+  <div class="hz">
+   <span class="wxb"><b>${okrs.length}</b> objective${okrs.length===1?'':'s'}</span>
+   <span class="wxb"><b>${nts.length}</b> notes</span>
+   <span class="wxb"><b>${ppl.length}</b> people</span>
+   <span class="wxb"><b>₹${Math.abs(out/1000).toFixed(1)}k</b> spent</span>
+   ${inn?`<span class="wxb" style="color:var(--teal)"><b>₹${(inn/1000).toFixed(1)}k</b> received</span>`:''}
+  </div>
+  <div class="capture"><button class="btn solid" data-act="report">Generate ${p.n} report</button>
+   <button class="btn" data-go="work">Open the board</button>
+   <button class="btn" data-act="newtask">+ Task</button></div>
+ </div>
+ <div class="grid2">
+  <div class="big"><h3>Next three here</h3>
+   ${R.length?R.map(r=>`<button class="lrow" style="margin-top:10px" data-act="open" data-id="${r.t.id}">
+    <span class="tick ${r.t.col===3?'on':''}"></span>
+    <span style="flex:1"><b style="font-weight:500">${esc(r.t.t)}</b>
+    <span class="mono" style="display:block;font-size:10.5px;color:var(--mute)">${r.t.id} · score ${r.total} · due ${r.t.due} · ${users[r.t.who].n}</span></span>
+    ${(r.t.tags||[]).map(t=>tagChip(t)).join('')}</button>`).join(''):'<p class="tip">Nothing open here.</p>'}
+   <h3 style="margin-top:20px">Objectives</h3>
+   ${okrs.length?okrs.map(o=>`<div style="margin-top:11px"><div style="font-size:13.5px;font-weight:500">${esc(o.o)}</div>
+    ${o.krs.map(k=>`<div class="kr"><span style="flex:0 0 44%;min-width:150px;font-size:13px">${esc(k[0])}</span>
+     <span class="krbar"><em style="width:${k[1]}%"></em></span><span class="mono" style="font-size:11px">${k[1]}%</span></div>`).join('')}</div>`).join(''):'<p class="tip">No objective yet for this project.</p>'}
+  </div>
+  <div>
+   <div class="big" style="margin-bottom:14px"><h3>Decisions waiting</h3>
+    ${decs.length?decs.map(d=>`<div style="margin-top:10px;font-size:13.5px">${esc(d.q)}
+     <span class="mono" style="display:block;font-size:10.5px;color:${d.days>7?'var(--rose)':'var(--mute)'}">open ${d.days} days · ${users[d.owner].n} rules</span></div>`).join(''):'<p class="tip">Nothing pending.</p>'}
+    <button class="btn sm" style="margin-top:11px" data-act="decisions">Open register</button></div>
+   <div class="big" style="margin-bottom:14px"><h3>People here</h3>
+    ${ppl.map(x=>`<div class="kr"><span style="flex:1;font-size:13px">${esc(x.n)}</span>
+     <span class="mono" style="font-size:10px;color:${x.last>x.cad?'var(--rose)':'var(--mute)'}">${x.last>900?'never':x.last+'d ago'}</span></div>`).join('')||'<p class="tip">None linked.</p>'}</div>
+   <div class="big"><h3>Money here</h3>
+    ${money.map(m=>`<div class="kr"><span style="flex:1;font-size:13px">${esc(m.p)}</span>
+     <span class="amt" style="color:${m.a>0?'var(--teal)':'inherit'};font-size:12.5px">${m.a>0?'+':'−'}₹${Math.abs(m.a).toLocaleString('en-IN')}</span></div>`).join('')||'<p class="tip">Nothing logged.</p>'}</div>
+  </div>
+ </div>`;
+}
+
+/* ═══ WORK ═══ */
+let wtab=DB.get('wtab','board'),view='kanban',bfilter='all',tagFilter=null,pjFilter='all';
+function renderWork(){
+ const p=proj(ws);
+ document.getElementById('p-work').innerHTML=`<div class="frame">
+  <div class="top"><div class="disp">Work</div>
+   <div class="sub2">${[['board','Board'],['goals','Goals'],['decisions','Decisions']].map(([k,l])=>
+    `<button data-act="wtab" data-t="${k}" aria-selected="${wtab===k}">${l}</button>`).join('')}</div>
+   <div class="spacer"></div><button class="btn sm solid" data-act="newtask">+ Task</button></div>
+  <div class="wrap" id="workBody"></div></div>`;
+ ({board:workBoard,goals:workGoals,decisions:workDecisions}[wtab])();
+}
+function workBoard(){
+ const host=document.getElementById('workBody');
+ const usedTags=[...new Set(wsTasks().flatMap(t=>t.tags||[]))];
+ host.innerHTML=`<div class="filters" id="bf">
+   ${PROJECTS.map(pr=>`<button class="chip" data-act="pjfilter" data-p="${pr.id}" aria-pressed="${pjFilter===pr.id}">${pr.n}</button>`).join('')}
+   <span style="width:9px"></span>
+   ${[['all','All'],['mine','Mine'],['code','Code'],['ops','Ops'],['research','Research']].map(([k,l])=>
+    `<button class="chip" data-act="bfilter" data-f="${k}" aria-pressed="${bfilter===k}">${l}</button>`).join('')}
+   <span style="width:9px"></span>
+   ${usedTags.map(t=>`<button data-act="tagfilter" data-t="${esc(t)}" style="opacity:${tagFilter===t?1:.62}">${tagChip(t)}</button>`).join('')}
+   ${tagFilter?`<button class="chip" data-act="tagfilter" data-t="">clear tag</button>`:''}
+   <div class="spacer"></div>
+   <div class="sub2">${[['kanban','Kanban'],['list','List'],['cal','Calendar'],['tl','Timeline']].map(([k,l])=>
+    `<button data-act="view" data-v="${k}" aria-selected="${view===k}">${l}</button>`).join('')}</div>
+  </div><div id="bview"></div>
+  <p class="tip">Filters, not modes — narrow to a project or a tag here, and the rest of the portal stays whole.</p>`;
+ drawBoard();
+}
+function boardList(){
+ return tasks.filter(t=>{
+  const okP=pjFilter==='all'||t.pj===pjFilter;
+  const okF=bfilter==='all'||(bfilter==='mine'?t.who===me:t.type===bfilter);
+  const okT=!tagFilter||(t.tags||[]).includes(tagFilter);
+  return okP&&okF&&okT;});
+}
+function cardHTML(t){return `<span class="id">${t.id} · ${users[t.who].n}${t.type==='code'?' · code':''}</span>
+ <p class="t">${esc(t.t)}</p><span class="meta"><span class="tagc" style="background:var(--surf3);color:${proj(t.pj).col}">${proj(t.pj).n}</span>
+ <span>${t.due}</span><span class="pri ${t.pri==='urgent'?'u':t.pri==='high'?'h':''}">${t.pri}</span>
+ ${t.pins?`<span class="pc">${t.pins} pins</span>`:''}</span>
+ ${(t.tags||[]).length?`<span class="meta" style="margin-top:7px">${(t.tags||[]).map(x=>tagChip(x)).join('')}</span>`:''}
+ <span class="pbar"><em style="width:${t.p}%"></em></span>`;}
+function drawBoard(){
+ const list=boardList(),host=document.getElementById('bview');
+ if(view==='kanban')host.innerHTML=`<div class="cols">${colStat.map((s,i)=>`
+  <div class="col c${i}"><h3><span><i></i>${s}</span><span>${list.filter(t=>t.col===i).length}</span></h3>
+  ${list.filter(t=>t.col===i).map(t=>`<button class="card" data-act="open" data-id="${t.id}">${cardHTML(t)}</button>`).join('')}
+  </div>`).join('')}</div>`;
+ else if(view==='list')host.innerHTML=list.map(t=>`<button class="lrow" data-act="open" data-id="${t.id}">
+  <span class="tick ${t.col===3?'on':''}"></span>
+  <span style="flex:1"><span style="font-size:14px;font-weight:500;${t.col===3?'color:var(--mute);text-decoration:line-through':''}">${esc(t.t)}</span>
+  <span class="mono" style="display:block;font-size:10.5px;color:var(--mute);margin-top:3px">${t.id} · ${colStat[t.col]} · due ${t.due} · ${users[t.who].n}</span></span>
+  ${(t.tags||[]).map(x=>tagChip(x)).join('')}</button>`).join('')||'<p class="tip">Nothing matches.</p>';
+ else if(view==='cal'){const dows=['M','T','W','T','F','S','S'];let c='';
+  for(let d=10;d<=30;d++){const on=list.filter(t=>t.due===d+' Aug');
+   c+=`<div class="cday ${d===17?'today':''}"><div class="d">${d}</div>
+   ${on.map(t=>`<button class="cpill" data-act="open" data-id="${t.id}" style="border-left:3px solid ${proj(t.pj).col}">${esc(t.t)}</button>`).join('')}</div>`;}
+  host.innerHTML=`<div class="cal">${dows.map(d=>`<div class="dow">${d}</div>`).join('')}${c}</div>`;}
+ else host.innerHTML=list.map(t=>{const s=parseInt(t.start),e=parseInt(t.due),off=(s-10)/21*100,w=Math.max(6,(e-s+1)/21*100);
+  return `<div class="tlrow"><button style="text-align:left" data-act="open" data-id="${t.id}">
+  <span style="font-size:13.5px">${esc(t.t)}</span>
+  <span class="mono" style="display:block;font-size:10px;color:var(--mute)">${t.id} · ${t.start} → ${t.due}</span></button>
+  <div class="tltrack"><div class="tlbar" style="margin-left:${off}%;width:${w}%">${t.p}%</div></div></div>`;}).join('');
+}
+function workGoals(){
+ const R=rank(),host=document.getElementById('workBody');
+ const list=ws==='all'?OKRS:OKRS.filter(o=>o.pj===ws);
+ host.innerHTML=`<p style="font-size:14px;color:var(--slate);max-width:66ch;margin:0 0 14px">
+  Objectives are what make the ranking honest. Every task points at one; the pointer is what lets Home tell you where to start instead of you re-deciding each morning. Today's order, with the maths visible:</p>
+ <table><thead><tr><th>Task</th><th class="amt">Objective /40</th><th class="amt">Unblocks /30</th><th class="amt">Deadline /30</th><th class="amt">Score</th></tr></thead>
+ <tbody>${R.slice(0,7).map((r,i)=>`<tr class="${i===0?'toprank':''}">
+  <td><button data-act="open" data-id="${r.t.id}" style="text-align:left"><b style="font-weight:500">${esc(r.t.t)}</b>
+  <span class="mono" style="display:block;font-size:10px;color:var(--mute)">${r.t.id} · ${esc(r.t.okr||'no objective')}</span></button></td>
+  <td class="amt">${r.fit}</td><td class="amt">${r.unb}</td><td class="amt">${r.dl}</td><td class="amt"><b>${r.total}</b></td></tr>`).join('')}</tbody></table>
+ <div style="height:18px"></div>
+ ${list.map((o,oi)=>`<div class="okr"><div class="eyebrow" style="color:${proj(o.pj).col}">${proj(o.pj).n} · ${o.m}</div>
+  <h4 style="font-size:17px;margin-top:5px">${esc(o.o)}</h4>
+  ${o.krs.map((kr,ki)=>`<div class="kr"><span style="flex:0 0 40%;min-width:160px">${esc(kr[0])}</span>
+   <span class="krbar"><em id="kb-${OKRS.indexOf(o)}-${ki}" style="width:${kr[1]}%"></em></span>
+   <input type="range" min="0" max="100" value="${kr[1]}" data-o="${OKRS.indexOf(o)}" data-k="${ki}"/>
+   <span class="mono" id="kv-${OKRS.indexOf(o)}-${ki}" style="font-size:11.5px;width:34px;text-align:right">${kr[1]}%</span></div>`).join('')}
+  <p class="tip">${tasks.filter(t=>t.okr===o.o).length} tasks pointed here</p></div>`).join('')}
+ <div class="okr" style="border-style:dashed"><div class="eyebrow" style="color:var(--rose)">Drifting — pointing at nothing</div>
+  ${wsTasks().filter(t=>t.col<3&&!t.okr).map(t=>`<div class="kr"><span style="flex:1">${esc(t.t)} <span class="mono" style="font-size:10px;color:var(--mute)">${t.id}</span></span>
+   <select data-act="linkokr" data-id="${t.id}" style="border:1px solid var(--line);background:var(--surf);border-radius:8px;padding:6px 9px;font-size:12.5px">
+   <option>Point it at…</option>${OKRS.map(o=>`<option>${esc(o.o)}</option>`).join('')}</select></div>`).join('')||'<p class="tip" style="margin:0">Nothing adrift.</p>'}
+  <p class="tip">A task with no objective never reaches the top of your morning. Either it earns a pointer or it probably shouldn't exist.</p></div>`;
+ host.querySelectorAll('input[type=range]').forEach(s=>{
+  s.oninput=()=>{const o=+s.dataset.o,k=+s.dataset.k;OKRS[o].krs[k][1]=+s.value;
+   document.getElementById('kb-'+o+'-'+k).style.width=s.value+'%';
+   document.getElementById('kv-'+o+'-'+k).textContent=s.value+'%';};
+  s.onchange=()=>{log('Key result → <b>'+s.value+'%</b>','Goals');toast('Saved · trail updated');};});
+}
+function workDecisions(){
+ const list=(ws==='all'?DECS:DECS.filter(d=>d.pj===ws));
+ document.getElementById('workBody').innerHTML=`
+ <div style="display:flex;gap:9px;margin-bottom:14px;flex-wrap:wrap">
+  <button class="btn sm solid" data-act="newdec">+ Decision</button>
+  <span class="tip" style="margin:0">Anything touching money, scoring, brand, hiring or a new venture lands here with a recommendation. You rule; the portal never decides.</span></div>
+ <table><thead><tr><th>Question</th><th>Project</th><th>Opened</th><th>Recommendation</th><th>Status</th></tr></thead>
+ <tbody>${list.map(d=>`<tr class="${d.status==='open'&&d.days>7?'toprank':''}">
+  <td style="font-weight:500">${esc(d.q)}</td>
+  <td><span class="tagc" style="background:var(--surf3);color:${proj(d.pj).col}">${proj(d.pj).n}</span></td>
+  <td class="mono">${d.opened}${d.status==='open'?` · <span style="color:${d.days>7?'var(--rose)':'var(--mute)'}">${d.days}d</span>`:''}</td>
+  <td style="color:var(--slate)">${esc(d.rec)}</td>
+  <td>${d.status==='open'?`<button class="pill due" data-act="closedec" data-id="${d.id}">rule on it</button>`:'<span class="pill ok">closed</span>'}</td></tr>`).join('')}</tbody></table>
+ <p class="tip">Open past seven days turns red and surfaces on Home unprompted. That is the whole mechanism against quiet indecision.</p>`;
+}
+
+/* ═══ TASK ═══ */
+let openId='T-42',pinSel=null;
+function renderTask(){
+ const t=tasks.find(x=>x.id===openId)||tasks[0];
+ document.getElementById('p-task').innerHTML=`<div class="frame tw">
+ <div class="tl-main">
+  <p class="crumb"><button data-go="work" style="color:var(--indigo)">← Work</button> / ${proj(t.pj).n} / ${t.id}</p>
+  <input class="tin" value="${esc(t.t)}" data-act="edit" data-f="t"/>
+  <textarea class="ta" data-act="editdesc" placeholder="What needs to happen, and why…">${esc(t.desc||'')}</textarea>
+  <div class="tagrow" style="margin-top:12px">
+   ${(t.tags||[]).map(x=>tagChip(x,1)).join('')}
+   <button class="tagadd" data-act="addtag">+ tag</button></div>
+  <div class="ctl">
+   <div><label>Status</label><select data-act="edit" data-f="col">
+    ${colStat.map((s,i)=>`<option value="${i}" ${i===t.col?'selected':''}>${s}</option>`).join('')}</select></div>
+   <div><label>Assignee</label><select data-act="edit" data-f="who">
+    ${Object.keys(users).map(k=>`<option value="${k}" ${k===t.who?'selected':''}>${users[k].n}</option>`).join('')}</select></div>
+   <div><label>Project</label><select data-act="edit" data-f="pj">
+    ${PROJECTS.filter(p=>p.id!=='all').map(p=>`<option value="${p.id}" ${p.id===t.pj?'selected':''}>${p.n}</option>`).join('')}</select></div>
+   <div><label>Start</label><input type="text" value="${t.start}" data-act="edit" data-f="start"/></div>
+   <div><label>Due</label><input type="text" value="${t.due}" data-act="edit" data-f="due"/></div>
+   <div><label>Objective</label><select data-act="edit" data-f="okr">
+    <option value="">— none —</option>${OKRS.map(o=>`<option ${o.o===t.okr?'selected':''}>${esc(o.o)}</option>`).join('')}</select></div>
+   <div style="grid-column:1/-1"><label>Priority</label><div class="seg">
+    ${['urgent','high','normal','low'].map(p=>`<button aria-pressed="${p===t.pri}" data-act="setf" data-f="pri" data-v="${p}">${p}</button>`).join('')}</div></div>
+   <div style="grid-column:1/-1"><label>Type — decides what this page shows</label><div class="seg">
+    ${[['code','Code change'],['ops','Ops'],['finance','Finance'],['research','Research']].map(([k,l])=>
+    `<button aria-pressed="${k===t.type}" data-act="setf" data-f="type" data-v="${k}">${l}</button>`).join('')}</div></div>
+  </div>
+  ${t.type==='code'?`<div class="eyebrow" style="margin-bottom:8px">Evidence · tap a stamp or a row</div>
+  <div class="shot"><div class="shotbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><em>samadhaan_grid.png · 1440×900</em></div>
+   <div class="gm"><div class="hd"><span>Case number</span><span>Filed date</span><span>Status</span></div>
+   <div class="row"><span>CS/2317/20…</span><span>14-03-2021</span><span>Pending</span></div>
+   <div class="row"><span>CS/0881/19…</span><span>02-11-2019</span><span>Disposed</span></div>
+   <div class="row"><span>OS/114/18—</span><span>09-06-2018</span><span>Pending</span></div></div>
+   <button class="pin" style="left:62.4%;top:26%" aria-pressed="${pinSel==='1'}" data-act="pin" data-p="1">1</button>
+   <button class="pin" style="left:12.1%;top:70%" aria-pressed="${pinSel==='2'}" data-act="pin" data-p="2">2</button></div>
+  <button class="pinrow" aria-pressed="${pinSel==='1'}" data-act="pin" data-p="1"><span class="pinno">1</span>
+   <span><p>Case-number column truncates pre-2019 formats. Widen the parser regex.</p>
+   <span class="co">x 62.4% · y 26.0% — Raghuvar</span></span></button>
+  <button class="pinrow" aria-pressed="${pinSel==='2'}" data-act="pin" data-p="2"><span class="pinno">2</span>
+   <span><p>Date renders DD-MM but source is MM-DD. Normalize to ISO at ingest.</p>
+   <span class="co">x 12.1% · y 70.0% — Anadya</span></span></button>`:
+  `<div class="eyebrow" style="margin-bottom:8px">Checklist</div>
+   <div class="sub"><span class="box on"></span><span class="done">First step done</span></div>
+   <div class="sub"><span class="box"></span><span>Next step</span></div>
+   <input class="addin" placeholder="+ Add a step"/>`}
+ </div>
+ <div class="tside">
+  ${t.type==='code'?`<div class="exportbox"><div class="eyebrow" style="color:var(--indigo)">Code-change task</div>
+   <p>Pins and criteria are ready. Export builds TASK.md plus screenshots, deterministically — no model in the loop.</p>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn solid sm" data-act="exportmd">Copy markdown</button>
+   <button class="btn sm" data-act="exportzip">Download zip</button></div></div>`:''}
+  <section><h3>Subtasks</h3>
+   <div class="sub"><span class="box on"></span><span class="done">Pull 50-case sample set</span></div>
+   <div class="sub"><span class="box"></span><span>Fix parser per pins</span></div>
+   <input class="addin" placeholder="+ Add subtask"/></section>
+  <section><h3>Notes on this task</h3>
+   ${NOTES.filter(n=>n.lk===t.id).map(n=>`<button class="lrow" style="margin-bottom:7px" data-act="opennote" data-id="${n.id}">
+    <span style="flex:1;font-size:13px"><b style="font-weight:600">${esc(n.h)}</b></span></button>`).join('')||'<p class="tip" style="margin:0">None yet.</p>'}
+   <button class="btn sm" style="margin-top:9px" data-act="newnote" data-task="${t.id}">+ Write a note here</button></section>
+  <section><h3>Thread</h3>
+   <div class="cmt"><div class="av b">RG</div><div><div class="n">Raghuvar<span class="w">08:40</span><span class="dec">decision</span></div>
+   <p>Mismatch only on pre-2019 cases.</p></div></div>
+   <input class="addin" placeholder="Write an update…"/></section>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+   <button class="btn" data-act="schedule">Schedule a call</button>
+   <button class="btn" data-act="askrg">Ask ${users[t.who==='AN'?'RG':'AN'].n}</button></div>
+ </div></div>`;
+}
+
+/* ═══ US ═══ */
+let usAttach=null;
+function renderUs(){
+ const other=me==='AN'?'RG':'AN';
+ document.getElementById('p-us').innerHTML=`<div class="uslay">
+ <div class="chatshell">
+  <div class="chathead"><span class="av ${users[other].cls}">${other}</span>
+   <div><div class="disp" style="font-size:15px">You + ${users[other].n}</div>
+   <div class="presence">private room · work can be tagged, friendship doesn't need a ticket</div></div>
+   <div class="spacer"></div><button class="btn sm" data-act="huddle">10-min huddle</button></div>
+  <div class="stream" id="stream"><div class="dayline">Today · 17 Aug</div>
+   ${MSGS.map(m=>`<div class="msgrow ${m.who===me?'me':''}"><span class="av ${users[m.who].cls}">${m.who}</span>
+    <div class="bubble"><div class="msgmeta">${users[m.who].n} · ${m.time}</div><p>${esc(m.text)}</p>
+    ${(m.links||[]).map(l=>`<span class="lk" style="margin-top:7px;display:inline-block">${esc(l)}</span>`).join('')}
+    <div class="msgact"><button data-act="promote" data-id="${m.id}" data-k="task">→ task</button>
+     <button data-act="promote" data-id="${m.id}" data-k="note">→ note</button>
+     <button data-act="promote" data-id="${m.id}" data-k="decision">→ decision</button></div></div></div>`).join('')}</div>
+  <div class="compose"><textarea id="usText" placeholder="Message ${users[other].n}… attach work only when it matters."></textarea>
+   <div class="ctools"><button class="btn sm" data-act="attach">＋ Tag a task</button>
+    <button class="btn sm" data-act="photo">▣ Photo</button>
+    <button class="btn sm" data-act="picksong">♪ Song</button>
+    <div class="spacer"></div><button class="btn sm solid" data-act="send">Send</button></div>
+   ${usAttach?`<div style="margin-top:8px">${'<span class="lk">'+esc(usAttach)+'</span>'}</div>`:''}</div>
+ </div>
+ <div>
+  <div class="uscard"><div class="eyebrow">Between us · right now</div>
+   <div style="display:flex;gap:10px;align-items:center;margin-top:9px"><span class="av ${users[other].cls}">${other}</span>
+   <div><b style="font-size:13.5px">${esc(statusMsg[other])}</b>
+   <div style="font-size:11.5px;color:var(--mute)">A declared status, not surveillance. Expires on its own.</div></div></div>
+   <button class="btn sm" style="margin-top:10px" data-act="setstatus">Set my status</button></div>
+  <div class="uscard"><h3>Song of the day</h3><div class="songart">Iktara · Kavita Seth</div>
+   <div style="font-size:11.5px;color:var(--mute);margin-top:7px">Picked by Raghuvar</div>
+   <div style="display:flex;gap:6px;margin-top:9px"><button class="btn sm" data-act="play">▶ Play</button>
+   <button class="btn sm" data-act="picksong">Suggest</button></div></div>
+  <div class="uscard"><h3>Photo from the day</h3>
+   <div class="photobox">${sharedPhoto?`<img src="${sharedPhoto}"/>`:'Anything at all. It can be completely useless.'}</div>
+   <div style="font-size:12px;color:var(--slate);margin-top:6px">${esc(photoCap)}</div>
+   <button class="btn sm" style="margin-top:8px" data-act="photo">Upload</button></div>
+  <div class="uscard"><h3>Tiny rituals</h3><div class="ritualb">
+   <button data-act="ritual" data-k="win"><b>One win</b>Drop a good thing.</button>
+   <button data-act="ritual" data-k="help"><b>Need anything?</b>Ask without a ticket.</button>
+   <button data-act="ritual" data-k="chai"><b>Chai?</b>A legitimate operating ritual.</button>
+   <button data-act="ritual" data-k="tomorrow"><b>Tomorrow</b>One line for future-us.</button></div></div>
+  <div class="uscard"><h3>Came out of this room</h3>
+   <div style="font-size:13px;color:var(--slate)">2 promoted this week — 1 task, 1 decision. Everything else stayed a conversation, which is the point.</div></div>
+ </div></div>`;
+ const s=document.getElementById('stream');if(s)s.scrollTop=s.scrollHeight;
+ const ta=document.getElementById('usText');
+ if(ta)ta.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}};
+}
+function sendMsg(){const e=document.getElementById('usText'),v=(e.value||'').trim();
+ if(!v&&!usAttach)return;
+ MSGS.push({id:Date.now(),who:me,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+  text:v||'Shared something.',links:usAttach?[usAttach]:[]});
+ usAttach=null;save();renderUs();}
+
+/* ═══ KNOWLEDGE ═══ */
+let ktab=DB.get('ktab','notes'),nf='all',nq='';
+function renderKnow(){
+ document.getElementById('p-know').innerHTML=`<div class="frame">
+  <div class="top"><div class="disp">Knowledge</div>
+   <div class="sub2">${[['notes','Notes'],['mail','Mail'],['docs','Documents']].map(([k,l])=>
+    `<button data-act="ktab" data-t="${k}" aria-selected="${ktab===k}">${l}</button>`).join('')}</div>
+   <div class="spacer"></div>${ktab==='notes'?'<button class="btn sm solid" data-act="newnote">+ Note</button>':''}</div>
+  <div class="wrap" id="knowBody"></div></div>`;
+ ({notes:knowNotes,mail:knowMail,docs:knowDocs}[ktab])();
+}
+function knowNotes(){
+ const list=NOTES.filter(inWs).filter(n=>(nf==='all'||n.f===nf)&&
+  ((n.h+' '+n.b+(n.tr||[]).join(' ')+(n.tags||[]).join(' ')).toLowerCase().includes(nq.toLowerCase())))
+  .sort((a,b)=>b.pin-a.pin);
+ document.getElementById('knowBody').innerHTML=`
+ <div class="filters"><input class="srch" id="nqi" value="${esc(nq)}" placeholder="Search notes, transcripts, saved mail…"/></div>
+ <div class="filters">${[['all','All'],['voice','Voice · Plaud'],['meeting','Meetings'],['research','Research'],['decision','Decisions'],['email','From mail']]
+  .map(([k,l])=>`<button class="chip" data-act="nfilter" data-f="${k}" aria-pressed="${nf===k}">${l}</button>`).join('')}</div>
+ <div class="notes">${list.map(n=>`<button class="note ${n.c}" data-act="opennote" data-id="${n.id}">
+  <h4>${esc(n.h)}${n.pin?' <span class="pinflag">pinned</span>':''}</h4>
+  ${n.wave?`<div class="wave">${Array.from({length:11},(_,i)=>`<i style="height:${35+((i*17)%60)}%;animation-delay:${i*.1}s"></i>`).join('')}</div>`:''}
+  ${n.b?`<p>${esc(n.b)}</p>`:''}
+  ${(n.items||[]).map(it=>`<span class="check"><span class="bx ${it[1]?'on':''}"></span><span>${esc(it[0])}</span></span>`).join('')}
+  <div class="foot"><span>${esc(n.foot)}</span>${(n.tags||[]).map(t=>tagChip(t)).join('')}${n.lk?`<span class="lk">→ ${n.lk}</span>`:''}</div>
+  </button>`).join('')||'<p class="tip">Nothing here yet.</p>'}</div>`;
+ const i=document.getElementById('nqi');i.oninput=()=>{nq=i.value;knowNotes();
+  const j=document.getElementById('nqi');j.focus();j.setSelectionRange(j.value.length,j.value.length);};
+}
+function knowMail(){
+ document.getElementById('knowBody').innerHTML=`<div class="grid2">
+ <div>${[['NI','NIC eCourts','Schema change effective 1 Sept','deadline','reg'],
+   ['SR','Surat Textiles','Revised pricing — rain gear','quote','con'],
+   ['UN','Politecnico Milano','Enrolment documents due','deadline','personal']]
+  .filter(m=>ws==='all'||m[4]===ws)
+  .map(([av,f,s,fl,pj],i)=>`<button class="lrow" style="align-items:flex-start">
+   <span class="av ${['c','b','a'][i%3]}">${av}</span>
+   <span style="flex:1"><span style="font-size:13px;font-weight:600">${f}</span>
+   <span class="pill ${fl==='deadline'?'over':'due'}" style="margin-left:7px">${fl}</span>
+   <span style="display:block;font-size:13px;color:var(--slate);margin-top:3px">${s}</span></span>
+   <span class="tagc" style="background:var(--surf3);color:${proj(pj).col}">${proj(pj).n}</span></button>`).join('')||'<p class="tip">Nothing flagged in this project.</p>'}</div>
+ <div class="big"><div class="eyebrow">Turn this into work</div>
+  <h3 style="font-size:17px;margin:6px 0 12px">Schema change effective 1 Sept</h3>
+  <p style="font-size:13.5px;color:var(--slate);border-left:2px solid var(--line);padding-left:13px">Case-number field widens to 24 characters. Update parsers before the cutover.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+   <button class="btn solid sm" data-act="newtask">Make a task</button>
+   <button class="btn sm" data-act="newnote">Save as note</button>
+   <button class="btn sm" data-act="newdec">Raise a decision</button></div>
+  <p class="tip">Read-only sync across both mailboxes. Conversions keep the source message ID so a task traces back to its email.</p></div></div>`;
+}
+function knowDocs(){
+ const list=DOCS.filter(inWs);
+ document.getElementById('knowBody').innerHTML=`
+ <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+  <button class="btn sm">Pick from Drive</button><button class="btn sm solid" data-act="adddoc">+ Document</button></div>
+ <table><thead><tr><th>Document</th><th>Project</th><th>Expiry or deadline</th><th>Status</th></tr></thead>
+ <tbody>${list.map(d=>`<tr><td style="font-weight:500">${esc(d.n)}</td>
+  <td><span class="tagc" style="background:var(--surf3);color:${proj(d.pj).col}">${proj(d.pj).n}</span></td>
+  <td class="mono">${esc(d.e)}</td><td><span class="pill ${d.s}">${d.s==='ok'?'fine':d.s==='soon'?'coming up':'act now'}</span></td></tr>`).join('')}</tbody></table>
+ <p class="tip">Files stay in Drive; only the reference and the date live here. Anything dated raises a task before it bites.</p>`;
+}
+
+/* ═══ PEOPLE ═══ */
+let pf='all';
+const warmth=p=>Math.max(0,Math.round(100-(p.last/p.cad)*100));
+function renderPeople(){
+ const scoped=PEOPLE.filter(inWs),drift=scoped.filter(p=>p.last>p.cad);
+ const list=scoped.filter(p=>pf==='all'||(pf==='drift'?p.last>p.cad:p.circle===pf));
+ document.getElementById('p-people').innerHTML=`<div class="frame">
+  <div class="top"><div class="disp">People</div><div class="spacer"></div>
+   <button class="btn sm solid" data-act="addperson">+ Person</button></div>
+  <div class="wrap">
+   ${drift.length?`<div class="one" style="margin:0 0 16px"><div style="flex:1">
+    <div class="eyebrow" style="color:var(--rose)">Drifting</div>
+    <div style="font-size:14px;margin-top:3px">${drift.map(p=>esc(p.n)).join(' · ')} — past their cadence. One touch each keeps the door open.</div></div>
+    <button class="btn sm" data-act="pfilter" data-f="drift">Show</button></div>`:''}
+   <div class="filters">${[['all','Everyone'],['customer','Customers'],['vendor','Vendors'],['investor','Investors'],['university','University'],['personal','Personal'],['drift','Drifting']]
+    .map(([k,l])=>`<button class="chip" data-act="pfilter" data-f="${k}" aria-pressed="${pf===k}">${l}</button>`).join('')}</div>
+   <div class="cards3">${list.map(p=>{const w=warmth(p);
+    return `<div class="pcard">
+    <button style="display:flex;gap:10px;align-items:center;width:100%;text-align:left" data-act="openperson" data-id="${p.id}">
+     <span class="av ${p.circle==='university'||p.circle==='personal'?'b':p.circle==='vendor'?'c':'a'}">${esc(p.n.slice(0,2).toUpperCase())}</span>
+     <span><span style="font-size:14.5px;font-weight:500;display:block">${esc(p.n)}</span>
+     <span style="font-size:12.5px;color:var(--mute)">${esc(p.r)} · ${p.tz}</span></span></button>
+    <p style="font-size:13px;color:var(--slate);margin:12px 0 0">Next: ${esc(p.next)}</p>
+    <div class="warm"><em style="width:${w}%;background:${w>55?'var(--teal)':w>25?'var(--stamp)':'var(--rose)'}"></em></div>
+    <div style="display:flex;gap:7px;align-items:center;margin-top:10px;flex-wrap:wrap">
+     <span class="mono" style="font-size:10px;color:var(--mute)">${p.last>900?'never contacted':'touched '+p.last+'d ago · every '+p.cad+'d'}</span>
+     <span class="spacer"></span><button class="btn sm" data-act="touch" data-id="${p.id}">Log touch</button></div></div>`;}).join('')||'<p class="tip">Nobody here yet.</p>'}</div>
+   <p class="tip">The bar is warmth — it drains with silence and refills when you log a touch. Anyone fully drained raises a task by rule.</p>
+  </div></div>`;
+}
+
+/* ═══ PERSONAL ═══ */
+const courseProg=c=>Math.round(c.items.filter(i=>i[1]).length/c.items.length*100);
+function renderPersonal(){
+ const total=HOURS.study+HOURS.founder,sw=Math.round(HOURS.study/total*100);
+ const pTasks=tasks.filter(t=>t.pj==='personal'&&t.col<3);
+ const pDocs=DOCS.filter(d=>d.pj==='personal'&&d.s!=='ok');
+ document.getElementById('p-personal').innerHTML=`<div class="frame">
+ <div class="top"><div class="disp">Personal</div><div class="spacer"></div>
+  <span class="eyebrow">the degree, the move, and the rest of your life</span></div>
+ <div class="wrap"><div class="grid2">
+  <div>
+   <div class="eyebrow" style="margin-bottom:10px">Courses · tick items to move the bar</div>
+   ${COURSES.map((c,ci)=>`<div class="course">
+    <button class="chead" data-act="courseopen" data-i="${ci}">
+     <span style="flex:1"><b style="font-weight:500">${esc(c.n)}</b>
+     <span class="mono" style="display:block;font-size:10.5px;color:var(--mute)">${c.sched}</span></span>
+     <span class="krbar" style="flex:0 0 84px"><em style="width:${courseProg(c)}%"></em></span>
+     <span class="mono" style="font-size:11px;width:36px;text-align:right">${courseProg(c)}%</span></button>
+    <div class="citems" ${c.open?'':'hidden'}>
+     ${c.items.map((it,ii)=>`<button class="check" data-act="tickcourse" data-c="${ci}" data-i="${ii}" style="width:100%;text-align:left">
+      <span class="bx ${it[1]?'on':''}"></span><span style="${it[1]?'text-decoration:line-through;color:var(--mute)':''}">${esc(it[0])}</span></button>`).join('')}
+     <input class="addin" style="margin-top:8px" placeholder="+ Add an item" data-act="addcourseitem" data-c="${ci}"/></div></div>`).join('')}
+   <div class="eyebrow" style="margin:18px 0 8px">Reading queue · tap the pill to move it along</div>
+   ${READS.map((r,ri)=>`<div class="kr" style="margin-top:8px"><span style="flex:1">${esc(r.t)}</span>
+    <button class="pill ${['q','soon','ok'][r.s]}" data-act="cycleread" data-i="${ri}">${['queued','reading','done'][r.s]}</button></div>`).join('')}
+   <div class="eyebrow" style="margin:18px 0 8px">Life admin</div>
+   ${LIFE.map((l,i)=>`<button class="check" data-act="ticklife" data-i="${i}" style="width:100%;text-align:left">
+    <span class="bx ${l[1]?'on':''}"></span><span style="${l[1]?'text-decoration:line-through;color:var(--mute)':''}">${esc(l[0])}</span></button>`).join('')}
+   <button class="btn sm" style="margin-top:9px" data-act="addlife">+ Add</button>
+  </div>
+  <div>
+   <div class="big" style="margin-bottom:14px"><h3>This week's split</h3>
+    <div class="kr" style="margin-top:12px"><span style="flex:0 0 86px">Study ${HOURS.study}h</span>
+     <span class="krbar"><em style="width:${sw}%;background:linear-gradient(90deg,var(--sky),var(--indigo))"></em></span>
+     <span style="flex:0 0 86px;text-align:right">Founder ${HOURS.founder}h</span></div>
+    <p class="tip">The degree gets real hours, not leftovers. This bar is the referee.</p></div>
+   <div class="big" style="margin-bottom:14px"><h3>Study block</h3>
+    <div style="display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap">
+     <span id="studyClock" style="font-size:26px;font-family:'Space Grotesk'">${fmtS()}</span>
+     <button class="btn sm ${studyT.on?'':'solid'}" data-act="studytoggle">${studyT.on?'Stop and log':'Start a block'}</button></div>
+    <p class="tip">Stopping logs the minutes to the split and the trail. Honest hours, not vibes.</p></div>
+   <div class="big" style="margin-bottom:14px"><h3>The move</h3>
+    ${pDocs.map(d=>`<div class="kr"><span style="flex:1">${esc(d.n)}</span>
+     <span class="pill ${d.s}">${d.s==='soon'?'coming up':'act now'}</span></div>`).join('')}
+    ${pTasks.map(t=>`<div class="kr"><span style="flex:1"><button data-act="open" data-id="${t.id}" style="text-align:left">${esc(t.t)}</button></span>
+     <span class="mono" style="font-size:10.5px;color:var(--mute)">${t.due}</span></div>`).join('')}</div>
+   <div class="big"><h3>Fixed dates</h3>
+    ${[['Flight to Milan','12 Sept'],['Term begins','15 Sept'],['First exam window','19 Jan']]
+     .map(([n,d])=>`<div class="kr"><span style="flex:1">${n}</span><span class="mono" style="font-size:11.5px;color:var(--mute)">${d}</span></div>`).join('')}</div>
+  </div>
+ </div></div></div>`;
+}
+const fmtS=()=>String(Math.floor(studyT.secs/60)).padStart(2,'0')+':'+String(studyT.secs%60).padStart(2,'0');
+const fmtF=()=>String(Math.floor(focusT.left/60)).padStart(2,'0')+':'+String(focusT.left%60).padStart(2,'0');
+
+/* ═══ MONEY ═══ */
+function renderMoney(){
+ // v10: no hard gate. Both of you see money. What surfaces on YOUR Home is your own setting.
+ const L=LEDGER.filter(x=>!moneyPj||x.pj===moneyPj);
+ const inn=L.filter(x=>x.a>0).reduce((s,x)=>s+x.a,0),out=L.filter(x=>x.a<0).reduce((s,x)=>s+x.a,0);
+ document.getElementById('p-money').innerHTML=`<div class="frame">
+ <div class="top"><div class="disp">Money</div><div class="spacer"></div>
+  <button class="btn sm">↑ Import CSV / XLSX</button><button class="btn sm">↓ CSV</button><button class="btn sm">↓ XLSX</button>
+  <button class="btn sm solid">+ Entry</button></div>
+ <div class="wrap">
+  <div class="filters">${PROJECTS.map(pr=>`<button class="chip" data-act="moneypj" data-p="${pr.id}" aria-pressed="${(pr.id==='all'&&!moneyPj)||moneyPj===pr.id}">${pr.n}</button>`).join('')}</div>
+  <div class="tiles" style="margin-bottom:18px">
+   <div class="tile"><div class="n">₹18.4L</div><div class="k">cash on hand</div></div>
+   <div class="tile"><div class="n">₹${Math.abs(out/100000).toFixed(2)}L</div><div class="k">out${moneyPj?' · '+proj(moneyPj).n:' this month'}</div></div>
+   <div class="tile"><div class="n">5.9 mo</div><div class="k">runway</div></div></div>
+  <table><thead><tr><th>Date</th><th>Party</th><th>Category</th><th>Project</th><th>Status</th><th class="amt">Amount</th></tr></thead>
+  <tbody>${L.map(x=>`<tr><td class="mono">${x.d}</td><td>${esc(x.p)}</td><td>${esc(x.c)}</td>
+   <td><span class="tagc" style="background:var(--surf3);color:${proj(x.pj).col}">${proj(x.pj).n}</span></td>
+   <td><span class="pill ${x.s}">${x.s==='over'?'overdue':x.s}</span></td>
+   <td class="amt" style="${x.a>0?'color:var(--teal)':''}">${x.a>0?'+':'−'}₹${Math.abs(x.a).toLocaleString('en-IN')}</td></tr>`).join('')}</tbody></table>
+  <p class="tip">Operational view, not your books. Both of you can see this — what appears on your Home is your own choice, set in Personalize.</p></div></div>`;
+}
+
+/* ═══ ADMIN ═══ */
+let atab=DB.get('atab','trail');
+function renderAdmin(){
+ document.getElementById('p-admin').innerHTML=`<div class="frame">
+  <div class="top"><div class="disp">Admin</div>
+   <div class="sub2">${[['trail','Trail'],['rules','Rules'],['tags','Tags'],['connect','Connections']].map(([k,l])=>
+    `<button data-act="atab" data-t="${k}" aria-selected="${atab===k}">${l}</button>`).join('')}</div></div>
+  <div class="wrap" id="adminBody"></div></div>`;
+ ({trail:admTrail,rules:admRules,tags:admTags,connect:admConnect}[atab])();
+}
+function admTrail(){
+ document.getElementById('adminBody').innerHTML=`
+ <div style="display:flex;gap:8px;margin-bottom:14px"><button class="btn sm">↓ CSV</button><button class="btn sm">↓ XLSX</button></div>
+ <table><thead><tr><th>When</th><th>Who</th><th>What changed</th><th>Where</th><th>Source</th></tr></thead>
+ <tbody>${trail.slice(0,40).map(e=>`<tr><td class="mono" style="white-space:nowrap">${e.t}</td>
+  <td>${e.who==='system'?'<span class="src">automated</span>':users[e.who].n}</td>
+  <td class="diff mono">${e.what}</td><td class="mono">${esc(e.where)}</td>
+  <td><span class="src ${e.src}">${e.src}</span></td></tr>`).join('')}</tbody></table>
+ <p class="tip">Append-only at the database level — no one can edit or delete a row, including an owner.</p>`;
+}
+function admRules(){
+ const R=[['When mail arrives from','NIC eCourts','create a task in','Registry',1],
+  ['When a Plaud recording contains','action item','create subtasks on','the linked task',1],
+  ['When a task is assigned','','email','the assignee',1],
+  ['When a person passes','their cadence','create a task for','whoever owns them',1],
+  ['When a decision stays open','7 days','surface it on','Home',1],
+  ['Every weekday at','07:00','email the brief to','both members',1],
+  ['When the day is closed','','email the digest to','both members',1]];
+ document.getElementById('adminBody').innerHTML=`<div style="margin-bottom:14px"><button class="btn sm solid">+ Rule</button></div>
+ ${R.map(([a,b,c,d,on])=>`<div class="rule"><span class="w">when</span><span>${a}</span>
+  ${b?`<span class="val">${b}</span>`:''}<span class="w">then</span><span>${c}</span><span class="val">${d}</span>
+  <span class="sw ${on?'':'off'}" data-act="ruleflip"></span></div>`).join('')}
+ <p class="tip">Plain sentences, no scripting. Every rule that fires writes a trail row naming itself — automation never happens invisibly.</p>`;
+}
+function admTags(){
+ const counts={};tasks.forEach(t=>(t.tags||[]).forEach(x=>counts[x]=(counts[x]||0)+1));
+ NOTES.forEach(n=>(n.tags||[]).forEach(x=>counts[x]=(counts[x]||0)+1));
+ document.getElementById('adminBody').innerHTML=`
+ <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+  <input class="srch" id="newTag" placeholder="New tag name — e.g. waiting-on-bank"/>
+  <select id="newTagC" style="border:1px solid var(--line);background:var(--surf);border-radius:12px;padding:9px 12px;font-size:13px;color:var(--ink)">
+   ${['indigo','teal','stamp','rose','sky'].map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+  <button class="btn sm solid" data-act="createtag">Create</button></div>
+ <table><thead><tr><th>Tag</th><th>Colour</th><th class="amt">Used on</th><th></th></tr></thead>
+ <tbody>${TAGS.map(t=>`<tr><td>${tagChip(t.t)}</td><td class="mono">${t.c}</td>
+  <td class="amt">${counts[t.t]||0}</td>
+  <td class="amt"><button class="pill q" data-act="deltag" data-t="${esc(t.t)}">remove</button></td></tr>`).join('')}</tbody></table>
+ <p class="tip">Tags cut across projects — "investor-facing" can live on an Anvik task and a Consumer one. Removing a tag here strips it everywhere and writes one trail row.</p>`;
+}
+function admConnect(){
+ const C=[['M','Gmail · 2 accounts','Read-only sync, deadline flags, conversions. Also sends notifications and digests through your own account.','','rose'],
+  ['D','Google Drive','Attach by reference through the picker. Documents point here.','','sky'],
+  ['P','Plaud','Recordings arrive as voice notes with transcripts, every six hours.','warn','stamp'],
+  ['C','Google Calendar','Two-way on dates. Study blocks and founder work share one calendar.','','indigo'],
+  ['G','GitHub','Commits mentioning a task ID land on its timeline.','off','teal'],
+  ['W','WhatsApp','Escalation lane for overdue work.','off','slate']];
+ document.getElementById('adminBody').innerHTML=`<div class="conns">${C.map(([i,h,p,s,c])=>`<div class="conn">
+  <div class="ico" style="background:var(--${c}-s,var(--surf3));color:var(--${c},var(--slate))">${i}</div>
+  <h4>${h}</h4><p>${p}</p>
+  <span class="state ${s}">${s!=='off'?'<b></b>':''}${s==='warn'?'syncs 6-hourly':s==='off'?'not connected':'connected'}</span></div>`).join('')}</div>`;
+}
+
+/* ═══ modal ═══ */
+const mask=document.getElementById('mask');
+function openModal(h){document.getElementById('modalBody').innerHTML=h;mask.hidden=false;}
+function closeModal(){mask.hidden=true;}
+mask.onclick=e=>{if(e.target===mask)closeModal();};
+document.addEventListener('keydown',e=>{
+ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();palette();}
+ if(e.key==='Escape')closeModal();});
+const CMDS=[['Open Us',()=>go('us')],['New task',()=>composeTask()],['New note',()=>composeNote()],
+ ['New decision',()=>composeDecision()],['Anvik snapshot',()=>snapshot('anvik')],
+ ['Registry snapshot',()=>snapshot('reg')],
+ ['Consumer snapshot',()=>snapshot('con')],
+ ['Personal snapshot',()=>snapshot('personal')],
+ ['Money',()=>go('money')],
+ ['Calendar view',()=>{wtab='board';view='cal';go('work');}],['Decisions register',()=>{wtab='decisions';go('work');}],
+ ['Close the day',()=>{dayMode='evening';go('home');}]];
+function palette(){
+ openModal(`<input type="text" id="pq" placeholder="Jump anywhere, create anything…"/>
+  <div id="palList">${CMDS.map((c,i)=>`<button class="lrow" style="box-shadow:none" data-act="palrun" data-i="${i}">${c[0]}</button>`).join('')}</div>`);
+ setTimeout(()=>{const q=document.getElementById('pq');q.focus();
+  q.oninput=()=>{const v=q.value.toLowerCase();
+   document.querySelectorAll('#palList [data-act="palrun"]').forEach((r,i)=>
+    r.style.display=CMDS[i][0].toLowerCase().includes(v)?'':'none');};},40);}
+document.getElementById('palBtn').onclick=palette;
+
+function composeTask(){
+ openModal(`<h3>New task</h3>
+  <input type="text" id="ntT" placeholder="What needs doing"/>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+   <select id="ntW">${Object.keys(users).map(k=>`<option value="${k}" ${k===me?'selected':''}>Assign to ${users[k].n}</option>`).join('')}</select>
+   <select id="ntP">${PROJECTS.filter(p=>p.id!=='all').map(p=>`<option value="${p.id}" ${p.id===defPj()?'selected':''}>${p.n}</option>`).join('')}</select>
+   <select id="ntTy">${[['ops','Ops'],['code','Code change'],['research','Research'],['finance','Finance']].map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>
+   <input type="text" id="ntD" placeholder="Due — 21 Aug" style="margin:0"/></div>
+  <p class="tip" style="margin:9px 0 12px">Assigning emails the person. Turn that off in Admin → Rules.</p>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+   <button class="btn solid" data-act="createtask">Create</button></div>`);}
+function composeNote(task){
+ openModal(`<h3>New note</h3>
+  <input type="text" id="cnT" placeholder="Title"/>
+  <textarea id="cnB" placeholder="Write it out — markdown works."></textarea>
+  <select id="cnP">${PROJECTS.map(p=>`<option value="${p.id}" ${p.id===defPj()?'selected':''}>${p.n}</option>`).join('')}</select>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+   <button class="btn solid" data-act="createnote" data-task="${task||''}">Save note</button></div>`);}
+function composeDecision(){
+ openModal(`<h3>New decision</h3>
+  <input type="text" id="dqQ" placeholder="The question, in one line"/>
+  <textarea id="dqR" placeholder="Recommendation — options, trade-offs, what you'd do"></textarea>
+  <select id="dqP">${PROJECTS.filter(p=>p.id!=='all').map(p=>`<option value="${p.id}" ${p.id===defPj()?'selected':''}>${p.n}</option>`).join('')}</select>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+   <button class="btn solid" data-act="createdec">Log it</button></div>`);}
+function openNote(id){
+ const n=NOTES.find(x=>x.id===id);if(!n)return;
+ openModal(`<h3><input type="text" id="nt" value="${esc(n.h)}" style="font-family:'Space Grotesk';font-size:17px"/></h3>
+  ${n.tr?`<div class="eyebrow" style="margin-bottom:7px">Transcript</div>
+   ${n.tr.map(l=>`<p class="hist">${esc(l)}</p>`).join('')}
+   <button class="btn sm" style="margin:4px 0 12px" data-act="toSubtasks" data-id="${n.id}">Turn action items into subtasks</button>`:''}
+  <textarea id="nb" placeholder="Body…">${esc(n.b)}</textarea>
+  ${(n.items||[]).map((it,i)=>`<button class="check" data-act="ticknote" data-id="${n.id}" data-i="${i}" style="width:100%;text-align:left">
+   <span class="bx ${it[1]?'on':''}"></span><span style="${it[1]?'text-decoration:line-through;color:var(--mute)':''}">${esc(it[0])}</span></button>`).join('')}
+  <input type="text" id="ni" placeholder="+ Add an item, then Save" style="margin-top:9px"/>
+  <div class="tagrow">${(n.tags||[]).map(t=>tagChip(t)).join('')}
+   <button class="tagadd" data-act="addtagnote" data-id="${n.id}">+ tag</button></div>
+  <select id="natt"><option value="">${n.lk?'Attached to '+n.lk:'Not attached to a task'}</option>
+   ${tasks.map(t=>`<option value="${t.id}">Attach to ${t.id} — ${esc(t.t)}</option>`).join('')}</select>
+  <div class="mrowbtns"><button class="btn sm" data-act="pinnote" data-id="${n.id}">${n.pin?'Unpin':'Pin'}</button>
+   <button class="btn" data-act="close">Cancel</button>
+   <button class="btn solid" data-act="savenote" data-id="${n.id}">Save</button></div>`);}
+function openPerson(id){
+ const p=PEOPLE.find(x=>x.id===id);if(!p)return;
+ openModal(`<h3>${esc(p.n)}</h3>
+  <p class="mono" style="font-size:11px;color:var(--mute);margin:-8px 0 12px">${esc(p.r)} · ${p.circle} · ${p.tz}</p>
+  <label class="eyebrow">Next action</label><input type="text" id="pnext" value="${esc(p.next)}" style="margin-top:5px"/>
+  <label class="eyebrow">Cadence</label>
+  <select id="pcad" style="margin-top:5px">${[3,7,14,21,30,60].map(c=>`<option value="${c}" ${c===p.cad?'selected':''}>every ${c} days</option>`).join('')}</select>
+  <label class="eyebrow">Project</label>
+  <select id="ppj" style="margin-top:5px">${PROJECTS.map(x=>`<option value="${x.id}" ${x.id===p.pj?'selected':''}>${x.n}</option>`).join('')}</select>
+  <label class="eyebrow">Notes</label><textarea id="pnotes" style="margin-top:5px;min-height:70px">${esc(p.notes)}</textarea>
+  <label class="eyebrow">History</label>
+  ${p.hist.length?p.hist.map(h=>`<p class="hist"><span class="mono">${h[0]}</span> — ${esc(h[1])}</p>`).join(''):'<p class="tip" style="margin:6px 0">Nothing logged yet.</p>'}
+  <div class="mrowbtns"><button class="btn sm" data-act="touch" data-id="${p.id}">Log a touch</button>
+   <button class="btn" data-act="close">Cancel</button>
+   <button class="btn solid" data-act="saveperson" data-id="${p.id}">Save</button></div>`);}
+function tagPicker(kind,id){
+ const used=kind==='task'?(tasks.find(t=>t.id===id).tags||[]):(NOTES.find(n=>n.id===id).tags||[]);
+ openModal(`<h3>Add a tag</h3>
+  <div class="tagrow">${TAGS.filter(t=>!used.includes(t.t)).map(t=>
+   `<button data-act="applytag" data-kind="${kind}" data-id="${id}" data-t="${esc(t.t)}">${tagChip(t.t)}</button>`).join('')||'<span class="tip">All existing tags are on already.</span>'}</div>
+  <input type="text" id="freshTag" placeholder="Or invent a new one"/>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+   <button class="btn solid" data-act="freshtag" data-kind="${kind}" data-id="${id}">Add new tag</button></div>`);}
+
+/* ═══ actions ═══ */
+document.addEventListener('change',e=>{
+ const b=e.target.closest('[data-act]');if(!b)return;
+ if(b.dataset.act==='edit'){const t=tasks.find(x=>x.id===openId),f=b.dataset.f;
+  let v=b.value;if(f==='col')v=+v;
+  const old=t[f];t[f]=v;
+  log((f==='col'?'Status':f==='who'?'Assignee':f==='pj'?'Project':f)+' <s>'+(f==='col'?colStat[old]:f==='who'?users[old].n:f==='pj'?proj(old).n:esc(old||'none'))+'</s> → <b>'+(f==='col'?colStat[v]:f==='who'?users[v].n:f==='pj'?proj(v).n:esc(v||'none'))+'</b>',t.id);
+  if(f==='col'&&v===3)t.p=100;
+  if(f==='who')toast('Assignment email sent to '+users[v].n);
+  save();renderWs();renderTask();}
+ else if(b.dataset.act==='editdesc'){const t=tasks.find(x=>x.id===openId);t.desc=b.value;save();toast('Saved');}
+ else if(b.dataset.act==='addcourseitem'){const v=(b.value||'').trim();if(!v)return;
+  const c=COURSES[+b.dataset.c];c.items.push([v,0]);b.value='';
+  log('Course item added — <b>'+esc(v)+'</b>','Personal');save();renderPersonal();toast('Added');}
+ else if(b.dataset.act==='linkokr'&&b.selectedIndex>0){const t=tasks.find(x=>x.id===b.dataset.id);
+  t.okr=b.value;log('Pointed at objective <b>'+esc(b.value)+'</b>',t.id);save();toast(t.id+' now ranks with the rest');workGoals();}
+});
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-act]');if(!b)return;
+ const a=b.dataset.act;
+ const T=()=>tasks.find(x=>x.id===openId);
+ if(a==='close'){closeModal();}
+ else if(a==='open'){openId=b.dataset.id;pinSel=null;go('task');}
+ else if(a==='pin'){pinSel=pinSel===b.dataset.p?null:b.dataset.p;renderTask();}
+ else if(a==='setf'){const t=T();t[b.dataset.f]=b.dataset.v;log(b.dataset.f+' → <b>'+b.dataset.v+'</b>',t.id);save();renderTask();}
+ else if(a==='addtag'){tagPicker('task',openId);}
+ else if(a==='addtagnote'){tagPicker('note',+b.dataset.id);}
+ else if(a==='applytag'){const k=b.dataset.kind,id=k==='task'?b.dataset.id:+b.dataset.id,t=b.dataset.t;
+  const o=k==='task'?tasks.find(x=>x.id===id):NOTES.find(x=>x.id===id);
+  o.tags=o.tags||[];o.tags.push(t);log('Tag <b>'+esc(t)+'</b> added',k==='task'?id:'Notes');save();closeModal();
+  k==='task'?renderTask():(renderKnow());toast('Tagged');}
+ else if(a==='freshtag'){const v=(document.getElementById('freshTag').value||'').trim();if(!v)return;
+  if(!TAGS.find(x=>x.t===v))TAGS.push({t:v,c:['indigo','teal','stamp','rose','sky'][TAGS.length%5]});
+  const k=b.dataset.kind,id=k==='task'?b.dataset.id:+b.dataset.id;
+  const o=k==='task'?tasks.find(x=>x.id===id):NOTES.find(x=>x.id===id);
+  o.tags=o.tags||[];o.tags.push(v);log('Tag <b>'+esc(v)+'</b> created and added',k==='task'?id:'Notes');
+  save();closeModal();k==='task'?renderTask():renderKnow();toast('Tag created');}
+ else if(a==='untag'){const t=T();t.tags=(t.tags||[]).filter(x=>x!==b.dataset.t);
+  log('Tag <s>'+esc(b.dataset.t)+'</s> removed',t.id);save();renderTask();}
+ else if(a==='createtag'){const v=(document.getElementById('newTag').value||'').trim();if(!v)return;
+  TAGS.push({t:v,c:document.getElementById('newTagC').value});log('Tag <b>'+esc(v)+'</b> created','Tags');save();admTags();toast('Created');}
+ else if(a==='deltag'){const t=b.dataset.t;TAGS=TAGS.filter(x=>x.t!==t);
+  tasks.forEach(x=>x.tags=(x.tags||[]).filter(y=>y!==t));NOTES.forEach(x=>x.tags=(x.tags||[]).filter(y=>y!==t));
+  log('Tag <s>'+esc(t)+'</s> removed everywhere','Tags');save();admTags();toast('Removed');}
+ else if(a==='tagfilter'){tagFilter=b.dataset.t||null;workBoard();}
+ else if(a==='bfilter'){bfilter=b.dataset.f;workBoard();}
+ else if(a==='view'){view=b.dataset.v;workBoard();}
+ else if(a==='wtab'){wtab=b.dataset.t;DB.set('wtab',wtab);renderWork();}
+ else if(a==='ktab'){ktab=b.dataset.t;DB.set('ktab',ktab);renderKnow();}
+ else if(a==='atab'){atab=b.dataset.t;DB.set('atab',atab);renderAdmin();}
+ else if(a==='nfilter'){nf=b.dataset.f;knowNotes();}
+ else if(a==='goals'){wtab='goals';go('work');}
+ else if(a==='decisions'){wtab='decisions';go('work');}
+ else if(a==='newtask'){composeTask();}
+ else if(a==='newnote'){composeNote(b.dataset.task);}
+ else if(a==='newdec'){composeDecision();}
+ else if(a==='createtask'){const t=(document.getElementById('ntT').value||'').trim();if(!t)return;
+  const id='T-'+(50+tasks.length);
+  tasks.unshift({id:id,t:t,type:document.getElementById('ntTy').value,pj:document.getElementById('ntP').value,
+   due:document.getElementById('ntD').value||'—',start:'17 Aug',pri:'normal',col:0,p:0,pins:0,
+   who:document.getElementById('ntW').value,okr:'',tags:[],desc:''});
+  log('Task created — <b>'+esc(t)+'</b>',id);save();closeModal();renderWs();go('work');toast('Created · assignee emailed');}
+ else if(a==='createnote'){const t=(document.getElementById('cnT').value||'Untitled');
+  NOTES.unshift({id:Date.now(),c:'',f:'research',pj:document.getElementById('cnP').value,h:t,
+   b:document.getElementById('cnB').value,foot:'today · '+users[me].n,pin:0,items:[],tags:[],lk:b.dataset.task||undefined});
+  log('Note created — <b>'+esc(t)+'</b>','Notes');save();closeModal();
+  if(cur==='task')renderTask();else{ktab='notes';go('know');}toast('Note saved');}
+ else if(a==='createdec'){const q=(document.getElementById('dqQ').value||'').trim();if(!q)return;
+  DECS.unshift({id:Date.now(),q:q,pj:document.getElementById('dqP').value,opened:'today',status:'open',
+   rec:document.getElementById('dqR').value||'No recommendation yet.',owner:me,days:0});
+  log('Decision logged — <b>'+esc(q)+'</b>','Decisions');save();closeModal();wtab='decisions';go('work');toast('Logged · you rule on it');}
+ else if(a==='closedec'){const d=DECS.find(x=>x.id===+b.dataset.id);d.status='closed';d.days=0;
+  log('Decision ruled — <b>'+esc(d.q)+'</b>','Decisions');save();workDecisions();toast('Ruled and closed');}
+ else if(a==='opennote'){openNote(+b.dataset.id);}
+ else if(a==='ticknote'){const n=NOTES.find(x=>x.id===+b.dataset.id);const i=+b.dataset.i;
+  n.items[i][1]=n.items[i][1]?0:1;save();openNote(n.id);}
+ else if(a==='pinnote'){const n=NOTES.find(x=>x.id===+b.dataset.id);n.pin=n.pin?0:1;
+  log(n.pin?'Note pinned':'Note unpinned','Notes');save();closeModal();renderKnow();}
+ else if(a==='savenote'){const n=NOTES.find(x=>x.id===+b.dataset.id);
+  n.h=document.getElementById('nt').value;n.b=document.getElementById('nb').value;
+  const add=(document.getElementById('ni').value||'').trim();if(add)n.items.push([add,0]);
+  const att=document.getElementById('natt');if(att.value)n.lk=att.value;
+  log('Note edited — <b>'+esc(n.h)+'</b>','Notes');save();closeModal();
+  cur==='task'?renderTask():renderKnow();toast('Saved · trail updated');}
+ else if(a==='toSubtasks'){closeModal();toast('Action items pushed as subtasks');}
+ else if(a==='openperson'){openPerson(+b.dataset.id);}
+ else if(a==='touch'){const p=PEOPLE.find(x=>x.id===+b.dataset.id);p.last=0;
+  p.hist.unshift(['today','Touch logged from the portal']);log('Touch logged — warmth reset','People · '+esc(p.n));
+  save();closeModal();renderPeople();toast(p.n+' is warm again');}
+ else if(a==='saveperson'){const p=PEOPLE.find(x=>x.id===+b.dataset.id);
+  p.next=document.getElementById('pnext').value;p.cad=+document.getElementById('pcad').value;
+  p.pj=document.getElementById('ppj').value;p.notes=document.getElementById('pnotes').value;
+  log('Person updated — <b>'+esc(p.n)+'</b>','People');save();closeModal();renderPeople();toast('Saved');}
+ else if(a==='addperson'){openModal(`<h3>New person</h3>
+  <input type="text" id="apN" placeholder="Name"/><input type="text" id="apR" placeholder="Role — e.g. Vendor · packaging"/>
+  <select id="apC">${['customer','vendor','investor','university','personal'].map(c=>`<option>${c}</option>`).join('')}</select>
+  <select id="apP">${PROJECTS.filter(p=>p.id!=='all').map(p=>`<option value="${p.id}" ${p.id===defPj()?'selected':''}>${p.n}</option>`).join('')}</select>
+  <select id="apCad">${[3,7,14,21,30].map(c=>`<option value="${c}">touch every ${c} days</option>`).join('')}</select>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+   <button class="btn solid" data-act="createperson">Add</button></div>`);}
+ else if(a==='createperson'){const n=(document.getElementById('apN').value||'Unnamed');
+  PEOPLE.push({id:Date.now(),n:n,r:document.getElementById('apR').value,circle:document.getElementById('apC').value,
+   pj:document.getElementById('apP').value,tz:'IST',cad:+document.getElementById('apCad').value,last:0,
+   next:'First touch — introduce',notes:'',hist:[]});
+  log('Person added — <b>'+esc(n)+'</b>','People');save();closeModal();renderPeople();toast(n+' added');}
+ else if(a==='pfilter'){pf=b.dataset.f;renderPeople();}
+ else if(a==='pjfilter'){pjFilter=b.dataset.p;workBoard();}
+ else if(a==='moneypj'){moneyPj=b.dataset.p==='all'?null:b.dataset.p;DB.set('moneyPj',moneyPj);renderMoney();}
+ else if(a==='snapshot'){snapshot(b.dataset.p);}
+ else if(a==='jumpwork'){pjFilter=b.dataset.p;closeModal();wtab='board';go('work');}
+ else if(a==='courseopen'){COURSES[+b.dataset.i].open=!COURSES[+b.dataset.i].open;save();renderPersonal();}
+ else if(a==='tickcourse'){const c=COURSES[+b.dataset.c],i=+b.dataset.i;c.items[i][1]=c.items[i][1]?0:1;
+  log('Course item — <b>'+esc(c.items[i][0])+'</b>','Personal');save();renderPersonal();}
+ else if(a==='cycleread'){READS[+b.dataset.i].s=(READS[+b.dataset.i].s+1)%3;save();renderPersonal();}
+ else if(a==='ticklife'){LIFE[+b.dataset.i][1]=LIFE[+b.dataset.i][1]?0:1;save();cur==='home'?renderHome():renderPersonal();}
+ else if(a==='addlife'){openModal(`<h3>Life admin</h3><input type="text" id="lfT" placeholder="What needs doing at some point"/>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+  <button class="btn solid" data-act="createlife">Add</button></div>`);}
+ else if(a==='createlife'){const v=(document.getElementById('lfT').value||'').trim();if(!v)return;
+  LIFE.push([v,0]);save();closeModal();cur==='home'?renderHome():renderPersonal();toast('Added');}
+ else if(a==='studytoggle'){if(studyT.on){const m=Math.max(1,Math.round(studyT.secs/60));
+   HOURS.study=Math.round((HOURS.study+m/60)*10)/10;studyT.on=false;studyT.secs=0;
+   log('Study block logged — <b>'+m+' min</b>','Personal');save();toast(m+' minutes logged');}else studyT.on=true;
+  renderPersonal();}
+ else if(a==='mode'){dayMode=b.dataset.m;renderHome();}
+ else if(a==='focus'){focusT.on=!focusT.on;renderHome();}
+ else if(a==='closeday'){streak=Math.min(7,streak+1);DB.set('streak',streak);
+  log('Day closed — digest emailed to both','Home','gmail');toast('Day closed. Digest sent. Streak '+streak+' of 7.');renderHome();}
+ else if(a==='capture'){const i=document.getElementById('cap'),v=(i.value||'').trim();if(!v)return;
+  NOTES.unshift({id:Date.now(),c:'',f:'research',pj:defPj(),h:'Captured — '+v.slice(0,32),b:v,
+   foot:'today · quick capture',pin:0,items:[],tags:[]});
+  i.value='';log('Quick capture — <b>'+esc(v.slice(0,40))+'</b>','Notes');save();toast("Captured. It's in Notes, head is empty.");}
+ else if(a==='report'){const rid=b.dataset.p||pjFilter;const p=proj(rid),T=tasks.filter(t=>t.pj===rid);
+  openModal(`<h3>${p.n} report</h3>
+   <p class="tip" style="margin:0 0 12px">Generated from live state. Copy it, mail it, or attach to a task.</p>
+   <textarea style="min-height:220px" readonly># ${p.n} — status, 17 Aug 2026
+
+Open: ${T.filter(t=>t.col<3).length} · Done: ${T.filter(t=>t.col===3).length}
+Decisions open: ${DECS.filter(d=>d.pj===rid&&d.status==='open').length}
+
+## Objectives
+${OKRS.filter(o=>o.pj===rid).map(o=>'- '+o.o+' — '+Math.round(o.krs.reduce((s,k)=>s+k[1],0)/o.krs.length)+'%').join('\\n')||'- none set'}
+
+## In flight
+${T.filter(t=>t.col>0&&t.col<3).map(t=>'- '+t.id+' '+t.t+' ('+t.p+'%, due '+t.due+', '+users[t.who].n+')').join('\\n')||'- nothing'}
+
+## Money
+${LEDGER.filter(l=>l.pj===rid).map(l=>'- '+l.d+' '+l.p+' '+(l.a>0?'+':'-')+'INR '+Math.abs(l.a)).join('\\n')||'- nothing logged'}
+
+## People
+${PEOPLE.filter(x=>x.pj===rid).map(x=>'- '+x.n+' — next: '+x.next).join('\\n')||'- none'}</textarea>
+   <div class="mrowbtns"><button class="btn" data-act="close">Close</button>
+   <button class="btn solid" data-act="close">Copy</button></div>`);}
+ else if(a==='send'){sendMsg();}
+ else if(a==='attach'){openModal(`<h3>Tag a task into the chat</h3>
+  ${tasks.slice(0,8).map(t=>`<button class="lrow" data-act="pickattach" data-id="${t.id}">
+   <span style="flex:1">${t.id} — ${esc(t.t)}</span></button>`).join('')}
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button></div>`);}
+ else if(a==='pickattach'){usAttach=b.dataset.id;closeModal();renderUs();}
+ else if(a==='promote'){const m=MSGS.find(x=>x.id===+b.dataset.id),k=b.dataset.k;
+  if(k==='task'){const id='T-'+(50+tasks.length);
+   tasks.unshift({id:id,t:m.text.slice(0,60),type:'ops',pj:defPj(),due:'—',start:'17 Aug',pri:'normal',
+    col:0,p:0,pins:0,who:me,okr:'',tags:[],desc:m.text});
+   log('Promoted from Us — <b>task</b>',id,'portal');toast('Became '+id);}
+  if(k==='note'){NOTES.unshift({id:Date.now(),c:'',f:'meeting',pj:defPj(),h:'From Us — '+m.text.slice(0,28),
+   b:m.text,foot:'today · promoted from chat',pin:0,items:[],tags:[]});
+   log('Promoted from Us — <b>note</b>','Notes');toast('Saved to Notes');}
+  if(k==='decision'){DECS.unshift({id:Date.now(),q:m.text.slice(0,70),pj:defPj(),opened:'today',
+   status:'open',rec:'Raised from chat — needs a recommendation.',owner:me,days:0});
+   log('Promoted from Us — <b>decision</b>','Decisions');toast('Raised as a decision');}
+  save();}
+ else if(a==='setstatus'){openModal(`<h3>Set my status</h3>
+  <input type="text" id="stI" value="${esc(statusMsg[me])}"/>
+  <p class="tip" style="margin:0 0 12px">Declared, not detected. It expires on its own.</p>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+  <button class="btn solid" data-act="savestatus">Set</button></div>`);}
+ else if(a==='savestatus'){statusMsg[me]=document.getElementById('stI').value;DB.set('status',statusMsg);
+  closeModal();renderUs();toast('Status set');}
+ else if(a==='ritual'){const k=b.dataset.k;
+  const txt={win:'One win today: ',help:'Could use a hand with: ',chai:'Chai?',tomorrow:'For tomorrow-us: '}[k];
+  const ta=document.getElementById('usText');if(ta){ta.value=txt;ta.focus();}}
+ else if(a==='huddle'){toast('Calendar opens a 10-minute Meet for both of you');}
+ else if(a==='photo'){openModal(`<h3>Photo from the day</h3>
+  <input type="text" id="phU" placeholder="Paste an image URL (real build: file picker)"/>
+  <input type="text" id="phC" placeholder="Caption — optional" value="${esc(photoCap)}"/>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+  <button class="btn solid" data-act="savephoto">Save</button></div>`);}
+ else if(a==='savephoto'){const u=(document.getElementById('phU').value||'').trim();
+  if(u)sharedPhoto=u;photoCap=document.getElementById('phC').value;
+  DB.set('photo',sharedPhoto);DB.set('photoCap',photoCap);closeModal();
+  cur==='us'?renderUs():renderHome();toast('Shared');}
+ else if(a==='picksong'){openModal(`<h3>Song of the day</h3>
+  <input type="text" id="sgT" placeholder="Title"/><input type="text" id="sgA" placeholder="Artist"/>
+  <p class="tip" style="margin:0 0 12px">One a day, never repeated within a fortnight. Free via your own playlist.</p>
+  <div class="mrowbtns"><button class="btn" data-act="close">Cancel</button>
+  <button class="btn solid" data-act="close">Suggest</button></div>`);}
+ else if(a==='play'){toast("Opens today's pick");}
+ else if(a==='pulse'){toast('Opens the source — official pages only, three a day, no feed');}
+ else if(a==='personalize'){openModal(`<h3>Personalize the morning layer</h3>
+  <p class="tip" style="margin:-6px 0 12px">Your Home, your call. Raghuvar sets his own — nothing here is locked by role.</p>
+  ${[['song','Song of the day'],['photo','Photo between us'],['ai','AI pulse · three items'],['life','Life radar'],['projects','Project strip'],['money','Money on Home']]
+   .map(([k,l])=>`<button class="check" data-act="pref" data-k="${k}" style="width:100%;text-align:left">
+   <span class="bx ${prefs[k]?'on':''}"></span><span>${l}</span></button>`).join('')}
+  <div class="mrowbtns" style="margin-top:14px"><button class="btn solid" data-act="close">Done</button></div>`);}
+ else if(a==='pref'){prefs[b.dataset.k]=prefs[b.dataset.k]?0:1;DB.set('prefs',prefs);
+  const m=document.getElementById('modalBody');m.querySelector(`[data-k="${b.dataset.k}"] .bx`).classList.toggle('on');
+  renderHome();}
+ else if(a==='ruleflip'){b.classList.toggle('off');log('Rule toggled','Rules');toast('Rule updated');}
+ else if(a==='exportmd'){toast(openId+'.md copied — pins, decisions and background included');}
+ else if(a==='exportzip'){toast(openId+'.zip downloading');}
+ else if(a==='schedule'){toast('Calendar opens prefilled with a Meet link');}
+ else if(a==='askrg'){go('us');}
+ else if(a==='adddoc'){toast('Drive picker opens; only the reference and date are stored');}
+ else if(a==='palrun'){closeModal();CMDS[+b.dataset.i][1]();}
+});
+
+/* ticker */
+setInterval(()=>{
+ if(focusT.on&&focusT.left>0){focusT.left--;const el=document.getElementById('focusClock');if(el)el.textContent=fmtF();}
+ if(studyT.on){studyT.secs++;const el=document.getElementById('studyClock');if(el)el.textContent=fmtS();}
+},1000);
+
+/* boot */
+document.getElementById('whoAv').textContent=me;
+document.getElementById('whoAv').className='av '+users[me].cls;
+document.getElementById('whoName').textContent=users[me].n;
+renderWs();
+</script>
+</body>
+</html>

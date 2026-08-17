@@ -1,0 +1,32 @@
+name: Supabase keepalive
+
+# Free-tier Supabase projects pause after ~7 days of inactivity.
+# This pings the keepalive table every 3 days so the project never sleeps.
+on:
+  schedule:
+    - cron: '17 4 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Touch keepalive row
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "SUPABASE_URL secret not set — skipping (project not provisioned yet)."
+            exit 0
+          fi
+          # A SELECT counts as API activity even when RLS returns zero rows,
+          # so the anon key is enough — no service_role secret in CI.
+          code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/keepalive?select=pinged_at&id=eq.1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          cat /tmp/resp.txt
+          if [ "$code" != "200" ] && [ "$code" != "206" ]; then
+            echo "Keepalive ping returned $code" && exit 1
+          fi
