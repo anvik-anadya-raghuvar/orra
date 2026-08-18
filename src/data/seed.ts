@@ -101,6 +101,7 @@ export function seedDataset(): Dataset {
         project_id: 'con', type: 'ops', status: 'todo', priority: 'normal', assignee_id: AN, created_by: AN,
         start_date: D('2026-08-18'), due_date: D('2026-08-21'), objective_id: 'okr-con', tags: ['needs-raghuvar'], progress_pct: 10,
         effort: 'light', estimate_minutes: 25, impact: 2, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-14T10:00:00'), updated_at: T('2026-08-17T10:00:00'),
       },
       {
@@ -108,6 +109,7 @@ export function seedDataset(): Dataset {
         project_id: 'reg', type: 'code_change', status: 'todo', priority: 'normal', assignee_id: RG, created_by: RG,
         start_date: D('2026-08-19'), due_date: D('2026-08-22'), objective_id: 'okr-reg', tags: [], progress_pct: 5,
         effort: 'medium', estimate_minutes: 50, impact: 3, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-14T11:00:00'), updated_at: T('2026-08-16T11:00:00'),
       },
       {
@@ -115,6 +117,7 @@ export function seedDataset(): Dataset {
         project_id: 'anvik', type: 'code_change', status: 'in_progress', priority: 'urgent', assignee_id: AN, created_by: AN,
         start_date: D('2026-08-15'), due_date: D('2026-08-18'), objective_id: 'okr-score', tags: ['urgent-path'], progress_pct: 62,
         effort: 'heavy', estimate_minutes: 90, impact: 5, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-12T09:00:00'), updated_at: T('2026-08-17T18:00:00'),
       },
       {
@@ -122,6 +125,7 @@ export function seedDataset(): Dataset {
         project_id: 'reg', type: 'code_change', status: 'in_progress', priority: 'high', assignee_id: RG, created_by: RG,
         start_date: D('2026-08-14'), due_date: D('2026-08-19'), objective_id: 'okr-reg', tags: ['blocked'], progress_pct: 44,
         effort: 'medium', estimate_minutes: 55, impact: 4, is_stuck: false, blocked_reason: 'Needs fixture confirmation from Anadya',
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-11T09:00:00'), updated_at: T('2026-08-17T09:00:00'),
       },
       {
@@ -129,6 +133,7 @@ export function seedDataset(): Dataset {
         project_id: 'reg', type: 'code_change', status: 'in_review', priority: 'urgent', assignee_id: RG, created_by: AN,
         start_date: D('2026-08-16'), due_date: D('2026-08-20'), objective_id: 'okr-reg', tags: ['urgent-path'], progress_pct: 80,
         effort: 'medium', estimate_minutes: 70, impact: 5, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-10T09:00:00'), updated_at: T('2026-08-17T09:14:00'),
       },
       {
@@ -136,6 +141,7 @@ export function seedDataset(): Dataset {
         project_id: 'personal', type: 'ops', status: 'in_progress', priority: 'urgent', assignee_id: AN, created_by: AN,
         start_date: D('2026-08-17'), due_date: D('2026-08-20'), objective_id: 'okr-italy', tags: ['visa'], progress_pct: 30,
         effort: 'light', estimate_minutes: 20, impact: 5, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-09T09:00:00'), updated_at: T('2026-08-17T08:00:00'),
       },
       {
@@ -143,6 +149,7 @@ export function seedDataset(): Dataset {
         project_id: 'personal', type: 'research', status: 'todo', priority: 'normal', assignee_id: AN, created_by: AN,
         start_date: D('2026-08-19'), due_date: D('2026-08-23'), objective_id: 'okr-italy', tags: [], progress_pct: 0,
         effort: 'heavy', estimate_minutes: 80, impact: 2, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-08T09:00:00'), updated_at: T('2026-08-08T09:00:00'),
       },
       {
@@ -150,6 +157,7 @@ export function seedDataset(): Dataset {
         project_id: 'anvik', type: 'ops', status: 'todo', priority: 'low', assignee_id: AN, created_by: RG,
         start_date: D('2026-08-22'), due_date: D('2026-08-24'), objective_id: null, tags: ['quick-win'], progress_pct: 0,
         effort: 'light', estimate_minutes: 30, impact: 1, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-07T09:00:00'), updated_at: T('2026-08-07T09:00:00'),
       },
       {
@@ -157,6 +165,7 @@ export function seedDataset(): Dataset {
         project_id: 'anvik', type: 'ops', status: 'todo', priority: 'high', assignee_id: AN, created_by: AN,
         start_date: D('2026-08-21'), due_date: D('2026-08-26'), objective_id: 'okr-score', tags: ['investor-facing'], progress_pct: 0,
         effort: 'medium', estimate_minutes: 60, impact: 4, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-05T09:00:00'), updated_at: T('2026-08-05T09:00:00'),
       },
       {
@@ -164,6 +173,7 @@ export function seedDataset(): Dataset {
         project_id: 'reg', type: 'code_change', status: 'done', priority: 'normal', assignee_id: AN, created_by: AN,
         start_date: D('2026-08-10'), due_date: D('2026-08-14'), objective_id: 'okr-reg', tags: [], progress_pct: 100,
         effort: 'medium', estimate_minutes: 45, impact: 3, is_stuck: false, blocked_reason: null,
+        sprint_id: 'sprint-1', board_order: 0,
         created_at: T('2026-08-01T09:00:00'), updated_at: T('2026-08-14T17:00:00'),
       },
     ],
@@ -357,6 +367,44 @@ export function seedDataset(): Dataset {
       { id: 'dc-1', user_id: AN, date: D('2026-08-17'), shipped: 'Export engine skeleton', stuck: 'Fixture drift on golden cases', tomorrow: 'Freeze v3.8', created_at: T('2026-08-17T21:30:00') },
     ],
     day_plans: [],
+    sprints: [
+      { id: 'sprint-1', name: 'Current sprint', starts_on: D('2026-08-15'), ends_on: D('2026-08-29'), is_archived: false, position: 1 },
+      { id: 'sprint-0', name: 'Sprint 0 (archived)', starts_on: D('2026-08-01'), ends_on: D('2026-08-14'), is_archived: true, position: 0 },
+    ],
+    task_links: [
+      { id: 'tl-1', from_task_id: 'T-44', to_task_id: 'T-42', type: 'blocked_by', created_by: RG, created_at: T('2026-08-17T09:00:00') },
+      { id: 'tl-2', from_task_id: 'T-45', to_task_id: 'T-36', type: 'related', created_by: AN, created_at: T('2026-08-16T09:00:00') },
+    ],
+    integration_grants: [],
+    page_comments: [
+      { id: 'pc-1', page_id: 'pg-2', author_id: RG, body: 'Added the Karnataka bench case — see T-42.', created_at: T('2026-08-17T12:00:00') },
+    ],
+    pages: [
+      {
+        id: 'pg-1', title: 'Engineering handbook', icon: '📕', parent_page_id: null,
+        blocks: [
+          { id: 'b1', type: 'heading', level: 1, text: 'How we build' },
+          { id: 'b2', type: 'paragraph', text: 'Small commits, a passing gate before the next phase, and evidence over assertion.' },
+          { id: 'b3', type: 'callout', icon: '⚠️', color: 'stamp', text: 'Never put the service_role key in client code. Edge functions only.' },
+          { id: 'b4', type: 'list', items: [{ text: 'Plan, then execute' }, { text: 'Verify, do not assert' }, { text: 'Commit after each passing gate' }] },
+        ],
+        tags: ['process'], linked_task_ids: [], is_archived: false, position: 1,
+        created_by: AN, created_at: T('2026-08-10T09:00:00'), last_edited_by: AN, last_edited_at: T('2026-08-16T09:00:00'),
+      },
+      {
+        id: 'pg-2', title: 'Registry parser notes', icon: '🧩', parent_page_id: 'pg-1',
+        blocks: [
+          { id: 'b1', type: 'heading', level: 2, text: 'Legacy formats' },
+          { id: 'b2', type: 'paragraph', text: 'Pre-2019 eCourts records use two legacy formats. A third appears only in Karnataka benches — tracked in T-42.' },
+          { id: 'b3', type: 'code', lang: 'sql', text: "select * from cases where filed_on < '2019-01-01';" },
+          { id: 'b4', type: 'quote', text: 'Treat pre-2019 as its own parser branch — do not patch the main path.' },
+          { id: 'b5', type: 'divider' },
+          { id: 'b6', type: 'todo', items: [{ text: 'Cover Karnataka format with a fixture', done: false }, { text: 'Diff against the portal capture', done: true }] },
+        ],
+        tags: ['registry'], linked_task_ids: ['T-42'], is_archived: false, position: 2,
+        created_by: RG, created_at: T('2026-08-14T09:00:00'), last_edited_by: RG, last_edited_at: T('2026-08-17T09:00:00'),
+      },
+    ],
     pulse_items: [
       { id: 'pulse-1', title: 'Open-weights model matches frontier on code benchmarks', source: 'Release notes', url: '', published_at: T('2026-08-18T06:00:00'), origin: 'auto', is_pinned: false, created_at: T('2026-08-18T06:00:00') },
       { id: 'pulse-2', title: 'EU AI Act — first GPAI obligations take effect', source: 'Commission notice', url: '', published_at: T('2026-08-17T09:00:00'), origin: 'auto', is_pinned: false, created_at: T('2026-08-17T09:00:00') },
@@ -377,7 +425,7 @@ export function generateBulkTasks(base: Dataset, n: number): Dataset {
   const tasks = [...base.tasks];
   const projects = ['anvik', 'reg', 'con', 'personal'];
   const types = ['code_change', 'ops', 'finance', 'research'] as const;
-  const statuses = ['todo', 'in_progress', 'in_review', 'done'] as const;
+  const statuses = ['backlog', 'todo', 'in_progress', 'in_review', 'done'] as const;
   const pris = ['urgent', 'high', 'normal', 'low'] as const;
   for (let i = tasks.length; i < n; i++) {
     const num = 100 + i;
@@ -388,7 +436,7 @@ export function generateBulkTasks(base: Dataset, n: number): Dataset {
       acceptance_criteria: '',
       project_id: projects[i % 4],
       type: types[i % 4],
-      status: statuses[i % 4],
+      status: statuses[i % 5],
       priority: pris[i % 4],
       assignee_id: i % 2 === 0 ? AN : RG,
       created_by: AN,
@@ -397,6 +445,8 @@ export function generateBulkTasks(base: Dataset, n: number): Dataset {
       objective_id: i % 3 === 0 ? 'okr-reg' : null,
       tags: [],
       progress_pct: (i * 7) % 101,
+      sprint_id: i % 3 === 0 ? null : 'sprint-1',
+      board_order: i,
       effort: (['light', 'medium', 'heavy'] as const)[i % 3],
       estimate_minutes: 25 + (i % 4) * 20,
       impact: (i % 5) + 1,

@@ -19,6 +19,8 @@ export function makeTask(partial: Partial<Task> & Pick<Task, 'id' | 'title' | 'p
     objective_id: null,
     tags: [],
     progress_pct: 0,
+    sprint_id: null,
+    board_order: 0,
     effort: 'medium',
     estimate_minutes: 45,
     impact: 3,

@@ -36,6 +36,11 @@ const TABLE: Record<CollectionKey, string> = {
   day_plans: 'day_plans',
   day_events: 'day_events',
   pulse_items: 'pulse_items',
+  task_links: 'task_links',
+  sprints: 'sprints',
+  pages: 'pages',
+  page_comments: 'page_comments',
+  integration_grants: 'integration_grants',
 };
 
 /**

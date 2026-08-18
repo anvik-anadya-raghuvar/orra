@@ -6,8 +6,40 @@ export type TaskType = 'code_change' | 'ops' | 'finance' | 'research';
 export type Effort = 'light' | 'medium' | 'heavy';
 /** Declared capacity for the day — "how heavy do I want today to be". */
 export type Capacity = 'light' | 'medium' | 'heavy';
-export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'done';
+/** Board columns. `backlog` is the unscheduled pool; `in_review` is kept
+ *  deliberately — the ranking engine scores it as "closing this unblocks the
+ *  other person", which is a real signal a 4-column board would throw away. */
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'in_review' | 'done';
+/** Stored names are unchanged; P0–P3 is a display label over the same values
+ *  (see PRIORITY_LABEL), so adopting Jira's vocabulary costs no migration. */
 export type TaskPriority = 'urgent' | 'high' | 'normal' | 'low';
+export const PRIORITY_LABEL: Record<TaskPriority, string> = {
+  urgent: 'P0',
+  high: 'P1',
+  normal: 'P2',
+  low: 'P3',
+};
+
+/** How one task relates to another. Parent/child gives real subtasks. */
+export type TaskLinkType = 'blocks' | 'blocked_by' | 'related' | 'child_of';
+export interface TaskLink {
+  id: string;
+  from_task_id: string;
+  to_task_id: string;
+  type: TaskLinkType;
+  created_by: UserId;
+  created_at: string;
+}
+
+/** A sprint groups work in time. 'backlog' is the always-present catch-all. */
+export interface Sprint {
+  id: string;
+  name: string;
+  starts_on: string | null;
+  ends_on: string | null;
+  is_archived: boolean;
+  position: number;
+}
 export type RelationshipType = 'customer' | 'vendor' | 'investor' | 'university' | 'personal';
 export type NoteType = 'plain' | 'checklist' | 'meeting' | 'voice' | 'email';
 export type AuditSource = 'portal' | 'gmail' | 'plaud' | 'drive' | 'claude_export' | 'rule';
@@ -91,6 +123,10 @@ export interface Task {
   objective_id: string | null;
   tags: string[];
   progress_pct: number;
+  /** Which sprint this sits in. Null = the backlog. */
+  sprint_id: string | null;
+  /** Manual order inside a board column, so drag-to-reorder sticks. */
+  board_order: number;
   /** Founder-life metadata — drives capacity matching and the stuck zone. */
   effort: Effort;
   estimate_minutes: number;
@@ -381,6 +417,79 @@ export interface PulseItem {
   created_at: string;
 }
 
+/* ── Wiki pages ─────────────────────────────────────────────────────── */
+
+export type BlockType =
+  | 'heading'
+  | 'paragraph'
+  | 'list'
+  | 'todo'
+  | 'image'
+  | 'code'
+  | 'callout'
+  | 'divider'
+  | 'quote';
+
+/** One block of a page. Kept as a discriminated-ish shape in JSONB so the
+ *  editor can add block types without a migration each time. */
+export interface PageBlock {
+  id: string;
+  type: BlockType;
+  /** heading/paragraph/quote/callout/code text */
+  text?: string;
+  /** heading only, 1–3 */
+  level?: number;
+  /** list/todo items */
+  items?: { text: string; done?: boolean }[];
+  /** image */
+  src?: string;
+  alt?: string;
+  /** code */
+  lang?: string;
+  /** callout */
+  icon?: string;
+  color?: string;
+}
+
+export interface Page {
+  id: string;
+  title: string;
+  icon: string;
+  parent_page_id: string | null;
+  blocks: PageBlock[];
+  tags: string[];
+  /** Tasks this page is about; mentions like "T-45" are resolved on render. */
+  linked_task_ids: string[];
+  is_archived: boolean;
+  position: number;
+  created_by: UserId;
+  created_at: string;
+  last_edited_by: UserId;
+  last_edited_at: string;
+}
+
+export interface PageComment {
+  id: string;
+  page_id: string;
+  author_id: UserId;
+  body: string;
+  created_at: string;
+}
+
+/* ── External integrations ──────────────────────────────────────────── */
+
+export type IntegrationProvider = 'google';
+/** Which Google scopes the user actually granted, so the UI can be honest
+ *  about what works rather than assuming a blanket connection. */
+export interface IntegrationGrant {
+  id: string;
+  user_id: UserId;
+  provider: IntegrationProvider;
+  scopes: string[];
+  connected_at: string;
+  last_sync_at: string | null;
+}
+
 export interface DailyCloseout {
   id: string;
   user_id: UserId;
@@ -426,6 +535,11 @@ export interface Dataset {
   day_plans: DayPlan[];
   day_events: DayEvent[];
   pulse_items: PulseItem[];
+  task_links: TaskLink[];
+  sprints: Sprint[];
+  pages: Page[];
+  page_comments: PageComment[];
+  integration_grants: IntegrationGrant[];
 }
 
 export type CollectionKey = keyof Omit<Dataset, 'ranking_weights'>;

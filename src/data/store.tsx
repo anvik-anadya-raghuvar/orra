@@ -76,6 +76,11 @@ export class AppStore {
       day_plans: 'day_plan',
       day_events: 'day_event',
       pulse_items: 'pulse_item',
+      task_links: 'task_link',
+      sprints: 'sprint',
+      pages: 'page',
+      page_comments: 'page_comment',
+      integration_grants: 'integration_grant',
     };
     return irregular[key] ?? key.replace(/s$/, '');
   }
