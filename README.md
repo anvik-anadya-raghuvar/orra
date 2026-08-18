@@ -4,7 +4,7 @@ Internal operations portal for exactly two people — Anadya and Raghuvar — ru
 
 ## Stack
 
-Vite · React 18 · TypeScript · Tailwind (+ ported prototype design system) · Framer Motion · Supabase (Postgres/Auth/Storage/Realtime) · Cloudflare Pages. ₹0 recurring.
+Vite · React 18 · TypeScript · Tailwind (+ ported prototype design system) · Framer Motion · Supabase (Postgres/Auth/Storage/Realtime) · Vercel. ₹0 recurring.
 
 ## Run it
 
@@ -18,18 +18,19 @@ With no `.env`, the app runs on the **local mock adapter** (localStorage-persist
 ## Connect the real backend
 
 1. Create a Supabase project (free tier).
-2. In the SQL editor, run `supabase/migrations/0001_init.sql`.
+2. In the SQL editor, run `supabase/migrations/0001_init.sql`, then `0002_day_plan.sql`, in that order.
 3. Auth is **email + password** (no Google OAuth). In Authentication → Users, create the two
    member accounts `anvik.anadya@gmail.com` and `raghuvar.anvik@gmail.com` with temp passwords,
    and disable public signups. Each member changes their password from the in-app account menu.
    (In local mock mode the temp passwords are `Anadya@2026` / `Raghuvar@2026`.)
 4. Copy `.env.example` → `.env`, fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-5. Restart dev / rebuild. The data adapter switches automatically; the sign-in gate becomes real Google OAuth backed by the allowlist trigger.
+5. Restart dev / rebuild. The data adapter switches automatically; the sign-in gate starts checking real Supabase credentials against the allowlist trigger.
 
-## Deploy (Cloudflare Pages)
+## Deploy (Vercel)
 
-- Build command `npm run build`, output `dist`, SPA fallback via `public/_redirects`.
-- Add the two env vars in Pages settings.
+- Import the repo in Vercel — it auto-detects Vite (`npm run build`, output `dist`).
+- `vercel.json` carries the SPA rewrite so client-side routes (`/work`, `/task/:id`, …) don't 404 on refresh.
+- Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as Vercel project environment variables (same values as `.env`).
 - GitHub secrets `SUPABASE_URL` + `SUPABASE_ANON_KEY` power `.github/workflows/keepalive.yml` (3-day cron so the free Supabase project never pauses).
 
 ## Tests
