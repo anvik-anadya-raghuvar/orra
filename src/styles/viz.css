@@ -193,6 +193,12 @@ html[data-theme='dark'] {
   .viz-heatcell {
     height: 38px;
   }
+  /* Ribbon blocks span time, so their width is data and cannot be padded to
+     44px. Give the track more height instead, the same trade the heat cells
+     make — a tall thin target is reachable; a stretched one would lie. */
+  .viz-ribbontrack {
+    height: 52px;
+  }
 }
 /* Never let a strip force its container wider than the column it sits in. */
 .viz-heat,

@@ -1,26 +1,32 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import type { Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
-import { nowIso, useData, useStore } from '../../data/store';
+import { useData, useStore } from '../../data/store';
 import { Avatar, Modal, TagChip, useToast } from '../../ui/bits';
-import { entrance, lift, micro, spring, staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
 import { stuckTasks } from '../../lib/ranking';
 import { MiniBars } from '../../ui/viz';
+import QuickEdit from './quickedit';
 import {
   Field,
   PRIORITIES,
   STATUSES,
   Segment,
   TYPES,
+  currentSprint,
+  liveSprints,
+  parentOf,
   personName,
   pinCounts,
-  priClass,
+  priBadge,
+  priBadgeClass,
   projColor,
   projName,
+  sprintName,
   statusLabel,
   typeLabel,
 } from './common';
@@ -29,6 +35,35 @@ type View = 'kanban' | 'list' | 'calendar' | 'timeline';
 
 /** Cards mounted per column before "show more" — keeps board render under budget. */
 const COLUMN_PAGE = 25;
+
+/** Column order: manual board_order first, id only to break exact ties. */
+const byOrder = (a: Task, b: Task) => a.board_order - b.board_order || a.id.localeCompare(b.id);
+
+/**
+ * Lay a column out so a `child_of` task sits directly beneath its parent when
+ * both are in the same column. Only one level nests — a grandchild stays at
+ * top level rather than disappearing because its parent was itself absorbed.
+ */
+function arrange(col: Task[], parent: Map<string, string>): { t: Task; childOf: string | null }[] {
+  const sorted = [...col].sort(byOrder);
+  const ids = new Set(sorted.map((t) => t.id));
+  const nests = (id: string) => {
+    const p = parent.get(id);
+    return p && p !== id && ids.has(p) && !(parent.get(p) && ids.has(parent.get(p)!)) ? p : null;
+  };
+  const kids = new Map<string, Task[]>();
+  for (const t of sorted) {
+    const p = nests(t.id);
+    if (p) kids.set(p, [...(kids.get(p) ?? []), t]);
+  }
+  const out: { t: Task; childOf: string | null }[] = [];
+  for (const t of sorted) {
+    if (nests(t.id)) continue; // rendered under its parent below
+    out.push({ t, childOf: parent.get(t.id) ?? null });
+    for (const k of kids.get(t.id) ?? []) out.push({ t: k, childOf: t.id });
+  }
+  return out;
+}
 
 const VIEWS: { key: View; label: string }[] = [
   { key: 'kanban', label: 'Kanban' },
@@ -50,18 +85,25 @@ function TaskCard({
   ds,
   pins,
   onMove,
+  onEdit,
   stuckReason,
+  childOf,
+  dragging,
 }: {
   t: Task;
   ds: Dataset;
   pins: number;
   onMove: (t: Task, dir: -1 | 1) => void;
+  onEdit: (t: Task) => void;
   stuckReason?: string;
+  childOf: string | null;
+  dragging: boolean;
 }) {
   const idx = STATUSES.findIndex((s) => s.key === t.status);
+  const parent = childOf ? ds.tasks.find((x) => x.id === childOf) : null;
   return (
     <motion.div
-      className="wk-card"
+      className={`wk-card${dragging ? ' dragging' : ''}${childOf ? ' child' : ''}`}
       layout
       layoutId={`wk-card-${t.id}`}
       initial={{ opacity: 0, scale: 0.96 }}
@@ -70,18 +112,25 @@ function TaskCard({
       whileHover={{ y: -4, boxShadow: 'var(--sh2)', transition: micro }}
       whileTap={{ scale: 0.99 }}
     >
-      <Link className="wk-cardlink" to={`/task/${t.id}`}>
+      {parent && (
+        <Link className="wk-parent" to={`/task/${parent.id}`} draggable={false}>
+          ↳ <span className="mono">{parent.id}</span> {parent.title}
+        </Link>
+      )}
+      <Link className="wk-cardlink" to={`/task/${t.id}`} draggable={false}>
         <span className="wk-id">
           {t.id} · {typeLabel(t.type)}
         </span>
         <p className="wk-t">{t.title}</p>
         <span className="wk-meta">
+          <span className={priBadgeClass(t.priority)} title={t.priority}>
+            {priBadge(t.priority)}
+          </span>
           <span className="tagc" style={{ background: 'var(--surf3)', color: projColor(ds, t.project_id) }}>
             {projName(ds, t.project_id)}
           </span>
           <Avatar userId={t.assignee_id} size={22} />
           {t.due_date && <span>{fmtDay(t.due_date)}</span>}
-          <span className={priClass(t.priority)}>{t.priority}</span>
           {pins > 0 && <span className="wk-pc">{pins} pins</span>}
           {stuckReason && (
             <span className="wk-stuck" title={stuckReason}>
@@ -92,6 +141,7 @@ function TaskCard({
         <span className="wk-meta" style={{ marginTop: 5 }}>
           <span className="wk-chip mono">{t.effort}</span>
           <span className="wk-chip mono">{t.estimate_minutes}m</span>
+          <span className="wk-chip mono">{sprintName(ds, t.sprint_id)}</span>
         </span>
         {t.tags.length > 0 && (
           <span className="wk-meta" style={{ marginTop: 7 }}>
@@ -126,6 +176,9 @@ function TaskCard({
           onClick={() => onMove(t, 1)}
         >
           <ChevronRight size={18} strokeWidth={1.9} />
+        </button>
+        <button type="button" aria-label={`Quick edit ${t.id}`} onClick={() => onEdit(t)}>
+          <Pencil size={16} strokeWidth={1.9} />
         </button>
       </div>
     </motion.div>
@@ -192,10 +245,36 @@ export default function BoardTab({
   const [mine, setMine] = useState(false);
   const [types, setTypes] = useState<Set<TaskType>>(new Set());
   const [tags, setTags] = useState<Set<string>>(new Set());
+  const [assignees, setAssignees] = useState<Set<string>>(new Set());
+  const [priorities, setPriorities] = useState<Set<TaskPriority>>(new Set());
   const [monthOffset, setMonthOffset] = useState(0);
   const [stuckOnly, setStuckOnly] = useState(false);
+  /** 'all' | 'current' | 'none' | 'archive' | a sprint id. */
+  const [sprintSel, setSprintSel] = useState('all');
+  const [quick, setQuick] = useState<Task | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [over, setOver] = useState<{ status: TaskStatus; anchorId: string | null } | null>(null);
 
   const pins = useMemo(() => pinCounts(ds), [ds]);
+  const parents = useMemo(() => parentOf(ds), [ds.task_links]);
+  const sprints = useMemo(() => liveSprints(ds), [ds.sprints]);
+  const archived = useMemo(() => ds.sprints.filter((s) => s.is_archived), [ds.sprints]);
+  const current = useMemo(() => currentSprint(ds, todayIso()), [ds.sprints]);
+
+  const inSprintScope = (t: Task) => {
+    switch (sprintSel) {
+      case 'all':
+        return true;
+      case 'none':
+        return t.sprint_id === null;
+      case 'archive':
+        return archived.some((s) => s.id === t.sprint_id);
+      case 'current':
+        return current ? t.sprint_id === current.id : t.sprint_id === null;
+      default:
+        return t.sprint_id === sprintSel;
+    }
+  };
   const liveTags = useMemo(
     () => [...new Set(ds.tasks.flatMap((t) => t.tags))].sort(),
     [ds.tasks],
@@ -212,12 +291,29 @@ export default function BoardTab({
       ds.tasks.filter((t) => {
         if (projects.size && !projects.has(t.project_id)) return false;
         if (mine && t.assignee_id !== store.meId) return false;
+        if (assignees.size && !assignees.has(t.assignee_id ?? '__none')) return false;
+        if (priorities.size && !priorities.has(t.priority)) return false;
         if (types.size && !types.has(t.type)) return false;
         if (tags.size && !t.tags.some((x) => tags.has(x))) return false;
         if (stuckOnly && !stuckReasons.has(t.id)) return false;
+        if (!inSprintScope(t)) return false;
         return true;
       }),
-    [ds.tasks, projects, mine, types, tags, stuckOnly, stuckReasons, store.meId],
+    [
+      ds.tasks,
+      projects,
+      mine,
+      assignees,
+      priorities,
+      types,
+      tags,
+      stuckOnly,
+      stuckReasons,
+      store.meId,
+      sprintSel,
+      current,
+      archived,
+    ],
   );
 
   /* status distribution + workload — the imbalance strip above the board */
@@ -237,17 +333,67 @@ export default function BoardTab({
       .sort((a, b) => b.value - a.value);
   }, [list, ds]);
 
+  /**
+   * Land `taskId` in `dest`, immediately before `anchorId` (null = append).
+   * Both the status and a contiguous board_order for every affected column are
+   * written, so the position survives a reload rather than living in state.
+   */
+  const commit = (taskId: string, dest: TaskStatus, anchorId: string | null) => {
+    const t = ds.tasks.find((x) => x.id === taskId);
+    if (!t || taskId === anchorId) return;
+    const src = t.status;
+
+    // Order against the whole column, not just what filters left visible —
+    // otherwise a hidden card silently keeps a colliding board_order.
+    const destCol = ds.tasks.filter((x) => x.status === dest && x.id !== taskId).sort(byOrder);
+    const at = anchorId ? destCol.findIndex((x) => x.id === anchorId) : -1;
+    const cut = at >= 0 ? at : destCol.length;
+    const next = [...destCol.slice(0, cut), t, ...destCol.slice(cut)];
+
+    const writes = new Map<string, number>();
+    next.forEach((x, i) => {
+      if (x.board_order !== i) writes.set(x.id, i);
+    });
+    if (src !== dest) {
+      ds.tasks
+        .filter((x) => x.status === src && x.id !== taskId)
+        .sort(byOrder)
+        .forEach((x, i) => {
+          if (x.board_order !== i) writes.set(x.id, i);
+        });
+    }
+
+    // Neighbours only shuffled position — silent, or one drag writes 40 audit
+    // rows and buries the change that actually mattered.
+    for (const [id, board_order] of writes) {
+      if (id !== taskId) store.update('tasks', id, { board_order }, store.asMe({ silent: true }));
+    }
+
+    const patch: Partial<Task> = { board_order: next.findIndex((x) => x.id === taskId) };
+    if (src !== dest) {
+      patch.status = dest;
+      if (dest === 'done') patch.progress_pct = 100;
+    }
+    store.update('tasks', taskId, patch, store.asMe());
+    if (src !== dest) toast(`${taskId} → ${statusLabel(dest)}`);
+  };
+
+  /** Keyboard/touch equivalent of a drag: step one column, land at the end. */
   const move = (t: Task, dir: -1 | 1) => {
     const i = STATUSES.findIndex((s) => s.key === t.status) + dir;
     if (i < 0 || i >= STATUSES.length) return;
-    const status = STATUSES[i].key;
-    store.update(
-      'tasks',
-      t.id,
-      { status, ...(status === 'done' ? { progress_pct: 100 } : {}) },
-      store.asMe(),
-    );
-    toast(`${t.id} → ${STATUSES[i].label}`);
+    commit(t.id, STATUSES[i].key, null);
+  };
+
+  const endDrag = () => {
+    setDragId(null);
+    setOver(null);
+  };
+
+  /** Which card should the dragged one land in front of, given the pointer? */
+  const anchorFor = (e: React.DragEvent, id: string, nextId: string | null) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return e.clientY < r.top + r.height / 2 ? id : nextId;
   };
 
   const toggleDone = (t: Task) => {
@@ -261,10 +407,44 @@ export default function BoardTab({
     toast(`${t.id} → ${statusLabel(status)}`);
   };
 
-  const anyFilter = projects.size > 0 || mine || types.size > 0 || tags.size > 0 || stuckOnly;
+  const anyFilter =
+    projects.size > 0 ||
+    mine ||
+    types.size > 0 ||
+    tags.size > 0 ||
+    stuckOnly ||
+    assignees.size > 0 ||
+    priorities.size > 0;
 
   return (
     <div>
+      {/* sprint scope — a filter on this board, never a mode for the portal */}
+      <div className="wk-bar">
+        <label className="wk-lbl" htmlFor="wk-sprint" style={{ marginBottom: 0 }}>
+          Sprint
+        </label>
+        <select
+          id="wk-sprint"
+          className="wk-in"
+          style={{ flex: '0 1 260px' }}
+          value={sprintSel}
+          onChange={(e) => setSprintSel(e.target.value)}
+        >
+          <option value="all">All work</option>
+          {current && <option value="current">Current sprint ({current.name})</option>}
+          {sprints.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+          <option value="none">Backlog (no sprint)</option>
+          {archived.length > 0 && <option value="archive">Archive</option>}
+        </select>
+        <span className="tip" style={{ margin: 0 }}>
+          Move a task between sprints from its quick edit.
+        </span>
+      </div>
+
       {/* filter row — local to this screen, never a global mode */}
       <div className="filters">
         {ds.projects.map((p) => (
@@ -293,6 +473,39 @@ export default function BoardTab({
             Stuck ({stuck.length})
           </button>
         )}
+        <span style={{ width: 8 }} />
+        {ds.profiles.map((p) => (
+          <button
+            key={p.id}
+            className="chip"
+            type="button"
+            aria-pressed={assignees.has(p.id)}
+            onClick={() => setAssignees((s) => toggle(s, p.id))}
+          >
+            {p.name}
+          </button>
+        ))}
+        <button
+          className="chip"
+          type="button"
+          aria-pressed={assignees.has('__none')}
+          onClick={() => setAssignees((s) => toggle(s, '__none'))}
+        >
+          Unassigned
+        </button>
+        <span style={{ width: 8 }} />
+        {PRIORITIES.map((p) => (
+          <button
+            key={p.key}
+            className="chip"
+            type="button"
+            aria-pressed={priorities.has(p.key)}
+            onClick={() => setPriorities((s) => toggle(s, p.key))}
+            title={p.label}
+          >
+            {priBadge(p.key)}
+          </button>
+        ))}
         <span style={{ width: 8 }} />
         {TYPES.map((t) => (
           <button
@@ -328,6 +541,8 @@ export default function BoardTab({
               setTypes(new Set());
               setTags(new Set());
               setStuckOnly(false);
+              setAssignees(new Set());
+              setPriorities(new Set());
             }}
           >
             Clear filters
@@ -373,13 +588,28 @@ export default function BoardTab({
           {view === 'kanban' && (
             <div className="wk-cols">
               {STATUSES.map((s) => {
-                const col = list.filter((t) => t.status === s.key);
+                const col = arrange(list.filter((t) => t.status === s.key), parents);
                 // Render a window, not the whole column: a 500-task board that
                 // mounts every card blows the 300ms p95 render budget.
                 const shown = colLimits[s.key] ?? COLUMN_PAGE;
                 const visible = col.slice(0, shown);
                 return (
-                  <motion.div layout className="wk-col" key={s.key}>
+                  <motion.div
+                    layout
+                    className={`wk-col${over?.status === s.key ? ' over' : ''}`}
+                    key={s.key}
+                    onDragOver={(e) => {
+                      if (!dragId) return;
+                      e.preventDefault();
+                      setOver({ status: s.key, anchorId: null });
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const id = dragId ?? e.dataTransfer.getData('text/plain');
+                      if (id) commit(id, s.key, over?.status === s.key ? over.anchorId : null);
+                      endDrag();
+                    }}
+                  >
                     <h3>
                       <span>
                         <i className="wk-dot" style={{ background: s.dot }} />
@@ -388,15 +618,50 @@ export default function BoardTab({
                       <span>{col.length}</span>
                     </h3>
                     <AnimatePresence initial={false}>
-                      {visible.map((t) => (
-                        <TaskCard
+                      {visible.map(({ t, childOf }, i) => (
+                        <div
                           key={t.id}
-                          t={t}
-                          ds={ds}
-                          pins={pins[t.id] ?? 0}
-                          onMove={move}
-                          stuckReason={stuckReasons.get(t.id)}
-                        />
+                          className={
+                            over?.status === s.key && over.anchorId === t.id ? 'wk-slot before' : 'wk-slot'
+                          }
+                          /* Native DnD lives on this plain wrapper: framer-motion
+                             claims onDragStart/onDragEnd for its own gestures and
+                             would never forward them to the DOM. */
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', t.id);
+                            setDragId(t.id);
+                          }}
+                          onDragEnd={endDrag}
+                          onDragOver={(e) => {
+                            if (!dragId) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOver({
+                              status: s.key,
+                              anchorId: anchorFor(e, t.id, visible[i + 1]?.t.id ?? null),
+                            });
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const id = dragId ?? e.dataTransfer.getData('text/plain');
+                            if (id) commit(id, s.key, anchorFor(e, t.id, visible[i + 1]?.t.id ?? null));
+                            endDrag();
+                          }}
+                        >
+                          <TaskCard
+                            t={t}
+                            ds={ds}
+                            pins={pins[t.id] ?? 0}
+                            onMove={move}
+                            onEdit={setQuick}
+                            stuckReason={stuckReasons.get(t.id)}
+                            childOf={childOf}
+                            dragging={dragId === t.id}
+                          />
+                        </div>
                       ))}
                     </AnimatePresence>
                     {col.length > visible.length && (
@@ -498,11 +763,12 @@ export default function BoardTab({
       </AnimatePresence>
 
       <p className="tip">
-        Filters, not modes — narrowing to a project or a tag here never changes what the rest of the
-        portal shows.
+        Filters, not modes — narrowing to a project, sprint or tag here never changes what the rest
+        of the portal shows. Drag a card between columns, or use ‹ › on any device without a mouse.
       </p>
 
       <NewTaskModal open={newOpen} onClose={() => setNewOpen(false)} />
+      {quick && <QuickEdit task={quick} onClose={() => setQuick(null)} />}
     </div>
   );
 }

@@ -8,11 +8,25 @@ import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import { isYouTubeUrl, playUrl, youTubeThumb } from '../../lib/song';
+import { ChevronRight } from 'lucide-react';
 import type { Personalization, Project, SharedDaily } from '../../types';
 
+/* ── One consistent "open full page" affordance, shared with index.tsx.
+   Always in the tile header, always a real link — keyboard reachable,
+   ≥44px hit area on touch via style.css. ────────────────────────────────── */
+export function TileOpen({ to, label }: { to: string; label: string }) {
+  return (
+    <Link className="bt-openlink" to={to} aria-label={`Open ${label}`} title={`Open ${label}`}>
+      <ChevronRight size={16} strokeWidth={2.2} aria-hidden />
+    </Link>
+  );
+}
+
 /* ── the six independent per-user toggles ──────────────────────────────── */
+export type WidgetKey = Exclude<keyof Personalization, 'home_layout'>;
+
 export const PERSONAL_KEYS: {
-  key: keyof Personalization;
+  key: WidgetKey;
   label: string;
   hint: string;
   Icon: typeof Music;
@@ -41,7 +55,7 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
   const me = useData((_, s) => s.me);
   const toast = useToast();
 
-  const set = (key: keyof Personalization, value: boolean) => {
+  const set = (key: WidgetKey, value: boolean) => {
     store.update(
       'profiles',
       me.id,
@@ -57,7 +71,7 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
         never a permission. Hiding a tile re-flows the grid; it never leaves a hole.
       </p>
       {PERSONAL_KEYS.map(({ key, label, hint, Icon }) => {
-        const on = me.personalization[key];
+        const on = Boolean(me.personalization[key]);
         return (
           <div className="swrow" key={key}>
             <Icon size={17} strokeWidth={1.7} color="var(--slate)" aria-hidden />
@@ -182,6 +196,9 @@ export function PhotoTile() {
           <b>{todaysRow.photo_caption || 'No caption yet'}</b>
         </div>
         <div className="photoacts">
+          <Link className="btn sm" to="/us" aria-label="Open Us">
+            Open Us
+          </Link>
           <button
             type="button"
             className="btn sm"
@@ -215,6 +232,8 @@ export function PhotoTile() {
       {picker}
       <div className="bt-hd">
         <span className="eyebrow">Photo of the day</span>
+        <div className="spacer" />
+        <TileOpen to="/us" label="Us" />
       </div>
       <button
         type="button"
@@ -360,6 +379,8 @@ export function SongTile() {
     <>
       <div className="bt-hd">
         <span className="eyebrow">{who ? `Picked by ${who}` : 'Between us'}</span>
+        <div className="spacer" />
+        <TileOpen to="/us" label="Us" />
       </div>
       <div className="songart" style={thumb ? { backgroundImage: `url(${thumb})` } : undefined}>
         <span>{daily ? daily.song_title : 'Nothing picked yet'}</span>
@@ -429,6 +450,7 @@ export function WorthTile() {
       <div className="bt-hd">
         <span className="eyebrow">AI pulse · three, not a feed</span>
         <div className="spacer" />
+        <TileOpen to="/knowledge" label="Knowledge" />
         <button type="button" className="btn sm" onClick={() => setAdding((v) => !v)}>
           {adding ? 'Cancel' : 'Pin one'}
         </button>
@@ -505,6 +527,7 @@ export function LifeTile() {
         <span className="mono bt-num">
           <CountUp value={lifeOpen.length} /> open
         </span>
+        <TileOpen to="/personal" label="Personal" />
       </div>
       <div className="bt-scroll">
         {lifeOpen.length === 0 && <p className="tip" style={{ marginTop: 0 }}>Life admin is clear.</p>}
@@ -548,9 +571,7 @@ export function MoneyTile() {
       <div className="bt-hd">
         <span className="eyebrow">Money</span>
         <span className="spacer" />
-        <Link className="lk" to="/money">
-          Open
-        </Link>
+        <TileOpen to="/money" label="Money" />
       </div>
       <div className="donutrow">
         <Donut
@@ -592,9 +613,7 @@ export function ProjectsTile() {
       <div className="bt-hd">
         <span className="eyebrow">Open per project</span>
         <span className="spacer" />
-        <Link className="lk" to="/work">
-          Board
-        </Link>
+        <TileOpen to="/work" label="Work" />
       </div>
       <div className="bt-scroll">
         {items.length ? (

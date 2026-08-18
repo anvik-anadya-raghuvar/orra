@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { AlertTriangle, Plus, Settings2, Sparkles } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Plus, Settings2, Sparkles } from 'lucide-react';
 import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
 import { packBento } from '../../lib/bento';
 import { Avatar, CountUp, Modal, ProgressBar, useToast } from '../../ui/bits';
@@ -24,6 +24,7 @@ import {
   PhotoTile,
   ProjectsTile,
   SongTile,
+  TileOpen,
   WorthTile,
 } from './personal';
 import type { Capacity, DayPlan, Task, WinCondition } from '../../types';
@@ -256,11 +257,12 @@ export default function Home() {
     ),
   });
 
-  // No filler tile: every row closes by growing whichever real tile already
-  // ends it, recomputed fresh from whatever's actually visible right now —
-  // so hiding a widget makes a genuine neighbour bigger, not a fake patch.
+  // No filler tile, and no trailing holes: placement is computed rather than
+  // left to `grid-auto-flow: dense`, because a two-row tile also consumes a
+  // cell in the row beneath it. Recomputed fresh from whatever is visible, so
+  // hiding a widget makes a genuine neighbour bigger, not a fake patch.
   const { rc4, rc2 } = useMemo(
-    () => packBento(tiles.map((t) => ({ key: t.key, cols: t.cols }))),
+    () => packBento(tiles.map((t) => ({ key: t.key, cols: t.cols, rows: t.tall ? 2 : 1 }))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tiles.map((t) => t.key + t.cols).join(',')],
   );
@@ -272,7 +274,18 @@ export default function Home() {
           <motion.section
             key={t.key}
             className={`bt${t.tall ? ' bt-tall' : ''}${t.cls ? ` ${t.cls}` : ''}`}
-            style={{ '--rc4': rc4.get(t.key) ?? t.cols, '--rc2': rc2.get(t.key) ?? Math.min(t.cols, 2) } as React.CSSProperties}
+            style={
+              {
+                '--rc4': rc4.get(t.key)?.renderCols ?? t.cols,
+                '--rr4': rc4.get(t.key)?.renderRows ?? (t.tall ? 2 : 1),
+                '--gc4': rc4.get(t.key)?.col ?? 'auto',
+                '--gr4': rc4.get(t.key)?.row ?? 'auto',
+                '--rc2': rc2.get(t.key)?.renderCols ?? Math.min(t.cols, 2),
+                '--rr2': rc2.get(t.key)?.renderRows ?? (t.tall ? 2 : 1),
+                '--gc2': rc2.get(t.key)?.col ?? 'auto',
+                '--gr2': rc2.get(t.key)?.row ?? 'auto',
+              } as React.CSSProperties
+            }
             variants={staggerItem}
           >
             {t.node}
@@ -434,6 +447,7 @@ function PlanTile({ picked, capacity }: { picked: RankedTask[]; capacity: Capaci
         <span className="mono bt-num">
           <CountUp value={picked.length} /> task{picked.length === 1 ? '' : 's'}
         </span>
+        <TileOpen to="/work" label="Work" />
       </div>
       <div className="bt-scroll">
         {picked.length === 0 && (
@@ -461,6 +475,8 @@ function HeroTile({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) =>
       <>
         <div className="bt-hd">
           <span className="eyebrow">Start here</span>
+          <span className="spacer" />
+          <TileOpen to="/work" label="Work" />
         </div>
         <div className="heroempty">
           <Sparkles size={24} strokeWidth={1.4} aria-hidden />
@@ -477,6 +493,7 @@ function HeroTile({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) =>
         <span className="eyebrow">Start here · ranked, not guessed</span>
         <span className="spacer" />
         <span className="mono bt-num">score {top.score}</span>
+        <TileOpen to="/work" label="Work" />
       </div>
       <div className="herotop">
         <Ring pct={t.progress_pct} size={62} label={`${t.progress_pct}% complete`} />
@@ -579,6 +596,19 @@ function WinsTile({
 
 /* ── Stuck zone ────────────────────────────────────────────────────────── */
 function StuckTile({ rows }: { rows: { task: Task; reason: string }[] }) {
+  const store = useStore();
+  const toast = useToast();
+
+  const unstick = (task: Task) => {
+    store.update(
+      'tasks',
+      task.id,
+      { is_stuck: false, blocked_reason: null },
+      store.asMe({ summary: `${task.title} — unstuck` }),
+    );
+    toast('Cleared. Back in the running.');
+  };
+
   return (
     <>
       <div className="bt-hd">
@@ -587,6 +617,7 @@ function StuckTile({ rows }: { rows: { task: Task; reason: string }[] }) {
         <span className={`mono bt-num${rows.length ? ' alert' : ''}`}>
           <CountUp value={rows.length} />
         </span>
+        <TileOpen to="/work" label="Work" />
       </div>
       <div className="bt-scroll">
         {rows.length === 0 && (
@@ -596,13 +627,18 @@ function StuckTile({ rows }: { rows: { task: Task; reason: string }[] }) {
           </div>
         )}
         {rows.map(({ task, reason }) => (
-          <Link className="stuckrow" key={task.id} to={`/task/${task.id}`}>
+          <div className="stuckrow" key={task.id}>
             <AlertTriangle size={14} strokeWidth={1.8} aria-hidden />
-            <span>
+            <Link className="stuckttl" to={`/task/${task.id}`}>
               <b>{task.title}</b>
               <em>{reason}</em>
-            </span>
-          </Link>
+            </Link>
+            {(task.is_stuck || task.blocked_reason) && (
+              <button type="button" className="btn sm" onClick={() => unstick(task)}>
+                Unstick
+              </button>
+            )}
+          </div>
         ))}
       </div>
     </>
@@ -631,6 +667,7 @@ function RibbonTile({
           <Plus size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Add block
         </button>
+        <TileOpen to="/work" label="Work calendar" />
       </div>
       <div className="bt-mid">
       {events.length ? (
@@ -696,6 +733,8 @@ function PulseTile() {
     <>
       <div className="bt-hd">
         <span className="eyebrow">Pair pulse · no status theatre</span>
+        <span className="spacer" />
+        <TileOpen to="/us" label="Us" />
       </div>
       <div className="pulsehead">
         <span className="pulsedot" aria-hidden />
@@ -775,9 +814,7 @@ function ThreadTile() {
             {unread} new
           </span>
         )}
-        <Link className="lk" to="/us">
-          Open Us →
-        </Link>
+        <TileOpen to="/us" label="Us" />
       </div>
       <div className="threadstream" ref={streamRef}>
         {recent.length === 0 ? (
@@ -853,6 +890,8 @@ function MomentumTile() {
     <>
       <div className="bt-hd">
         <span className="eyebrow">Momentum · 7 days</span>
+        <span className="spacer" />
+        <TileOpen to="/work" label="Work" />
       </div>
       <div className="bignum">
         <CountUp value={total} />
@@ -877,6 +916,8 @@ function SplitTile() {
     <>
       <div className="bt-hd">
         <span className="eyebrow">Where the hours went</span>
+        <span className="spacer" />
+        <TileOpen to="/personal" label="Personal" />
       </div>
       <div className="bignum">
         <CountUp value={study + founder} format={(n) => hm(n)} />
@@ -909,9 +950,7 @@ function WarmthTile() {
       <div className="bt-hd">
         <span className="eyebrow">Warmth · coldest first</span>
         <span className="spacer" />
-        <Link className="lk" to="/people">
-          People
-        </Link>
+        <TileOpen to="/people" label="People" />
       </div>
       <div className="bt-scroll">
         {rows.length ? (
@@ -944,6 +983,7 @@ function StatTile({
       <div className="bignum">
         <CountUp value={value} />
         <span>{label}</span>
+        <ChevronRight className="bt-openhint" size={16} strokeWidth={2.2} aria-hidden />
       </div>
       <MiniBars items={items.map((i) => ({ ...i, max }))} />
     </Link>

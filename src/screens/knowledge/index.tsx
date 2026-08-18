@@ -3,11 +3,13 @@ import './style.css';
 import NotesTab from './NotesTab';
 import MailTab from './MailTab';
 import DocumentsTab from './DocumentsTab';
+import WikiTab from './WikiTab';
 
-type KTab = 'notes' | 'mail' | 'docs';
+type KTab = 'notes' | 'wiki' | 'mail' | 'docs';
 
 const TABS: { key: KTab; label: string }[] = [
   { key: 'notes', label: 'Notes' },
+  { key: 'wiki', label: 'Wiki' },
   { key: 'mail', label: 'Mail' },
   { key: 'docs', label: 'Documents' },
 ];
@@ -30,6 +32,7 @@ export default function Knowledge() {
       </div>
       <div className="wrap">
         {tab === 'notes' && <NotesTab />}
+        {tab === 'wiki' && <WikiTab />}
         {tab === 'mail' && <MailTab />}
         {tab === 'docs' && <DocumentsTab />}
       </div>

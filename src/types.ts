@@ -64,6 +64,23 @@ export interface Personalization {
   life_radar: boolean;
   projects_strip: boolean;
   money_on_home: boolean;
+  /** How this user has arranged their own Home grid. Absent means "however the
+   *  packer lays it out", which is what a fresh account gets. A preference,
+   *  never a permission — the other user's Home is unaffected by anything in
+   *  here, exactly like the widget toggles above it. */
+  home_layout?: HomeLayout;
+}
+
+export interface HomeLayout {
+  /** Tile keys in the order they are laid out. Keys that no longer exist are
+   *  ignored on read; tiles absent from the list keep their declared position
+   *  relative to the tiles around them, so a new widget never has to be
+   *  re-placed by hand after an update. */
+  order: string[];
+  /** Explicit span overrides per tile key, as [columns, rows] at the four-column
+   *  desktop grid. Narrower grids clamp these down rather than storing a second
+   *  set, so there is exactly one arrangement to reason about. */
+  size: Record<string, [number, number]>;
 }
 
 export interface Project {

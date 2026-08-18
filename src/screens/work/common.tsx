@@ -1,10 +1,12 @@
 import React from 'react';
-import type { Dataset, Project, TaskPriority, TaskStatus, TaskType } from '../../types';
+import type { Dataset, Project, Sprint, TaskLinkType, TaskPriority, TaskStatus, TaskType } from '../../types';
+import { PRIORITY_LABEL } from '../../types';
 
 /* ── vocabulary shared by the three Work tabs ─────────────────────────── */
 
 export const STATUSES: { key: TaskStatus; label: string; dot: string }[] = [
-  { key: 'todo', label: 'Todo', dot: 'var(--mute)' },
+  { key: 'backlog', label: 'Backlog', dot: 'var(--slate)' },
+  { key: 'todo', label: 'To do', dot: 'var(--mute)' },
   { key: 'in_progress', label: 'In progress', dot: 'var(--indigo)' },
   { key: 'in_review', label: 'In review', dot: 'var(--stamp)' },
   { key: 'done', label: 'Done', dot: 'var(--teal)' },
@@ -28,6 +30,58 @@ export const statusLabel = (s: TaskStatus) => STATUSES.find((x) => x.key === s)?
 export const typeLabel = (t: TaskType) => TYPES.find((x) => x.key === t)?.label ?? t;
 export const priClass = (p: TaskPriority) =>
   `wk-pri${p === 'urgent' ? ' u' : p === 'high' ? ' h' : ''}`;
+
+/** P0–P3 badge. Display only — the stored value stays urgent/high/normal/low. */
+export const priBadge = (p: TaskPriority) => PRIORITY_LABEL[p];
+export const priBadgeClass = (p: TaskPriority) => `wk-pbadge ${p}`;
+
+/* ── sprints ──────────────────────────────────────────────────────────── */
+
+/** Sprints are database rows, never constants — read them, never hard-code. */
+export const sprintsOf = (ds: Dataset): Sprint[] =>
+  [...ds.sprints].sort((a, b) => b.position - a.position || a.name.localeCompare(b.name));
+export const liveSprints = (ds: Dataset): Sprint[] => sprintsOf(ds).filter((s) => !s.is_archived);
+/** "Current sprint" = the live sprint whose window contains today, else the
+ *  highest-positioned live sprint. Nothing about it is hard-coded. */
+export function currentSprint(ds: Dataset, todayIso: string): Sprint | undefined {
+  const live = liveSprints(ds);
+  return (
+    live.find(
+      (s) => (!s.starts_on || s.starts_on <= todayIso) && (!s.ends_on || s.ends_on >= todayIso),
+    ) ?? live[0]
+  );
+}
+export const sprintName = (ds: Dataset, id: string | null) =>
+  id === null ? 'Backlog' : ds.sprints.find((s) => s.id === id)?.name ?? id;
+
+/* ── task links ───────────────────────────────────────────────────────── */
+
+export const LINK_TYPES: { key: TaskLinkType; label: string }[] = [
+  { key: 'blocks', label: 'blocks' },
+  { key: 'blocked_by', label: 'is blocked by' },
+  { key: 'related', label: 'relates to' },
+  { key: 'child_of', label: 'is a child of' },
+];
+
+/** How a link reads from the *other* end of the arrow. */
+export const INVERSE_LINK_LABEL: Record<TaskLinkType, string> = {
+  blocks: 'is blocked by',
+  blocked_by: 'blocks',
+  related: 'relates to',
+  child_of: 'is the parent of',
+};
+export const linkLabel = (type: TaskLinkType, outgoing: boolean) =>
+  outgoing ? LINK_TYPES.find((l) => l.key === type)!.label : INVERSE_LINK_LABEL[type];
+
+/** task id → its parent task id, from `child_of` links. */
+export function parentOf(ds: Dataset): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const l of ds.task_links) if (l.type === 'child_of') out.set(l.from_task_id, l.to_task_id);
+  return out;
+}
+
+/** Palette for auto-created tags — mirrors the admin tag screen. */
+export const WORK_TAG_COLORS = ['indigo', 'teal', 'stamp', 'rose', 'sky', 'violet', 'slate'];
 
 export const projOf = (ds: Dataset, id: string): Project | undefined =>
   ds.projects.find((p) => p.id === id);

@@ -301,3 +301,13 @@
 .note-card {
   cursor: pointer;
 }
+
+/* The card is the big target, but the title is the focusable control — it has
+   to clear the touch minimum in its own right on phones and tablets. */
+@media (max-width: 1024px) {
+  .note-card .note-open {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}

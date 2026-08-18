@@ -367,22 +367,26 @@
 .home-screen .stuckrow {
   display: flex;
   gap: 9px;
-  align-items: flex-start;
+  align-items: center;
   padding: 9px 0;
   border-bottom: 1px dashed var(--line);
   color: var(--rose);
-  text-decoration: none;
   min-height: 40px;
 }
 .home-screen .stuckrow:last-child {
   border-bottom: 0;
 }
-.home-screen .stuckrow svg {
+.home-screen .stuckrow > svg {
   flex: none;
   margin-top: 2px;
+  align-self: flex-start;
 }
-.home-screen .stuckrow span {
+.home-screen .stuckttl {
+  display: block;
   min-width: 0;
+  flex: 1 1 auto;
+  color: inherit;
+  text-decoration: none;
 }
 .home-screen .stuckrow b {
   display: block;
@@ -396,6 +400,9 @@
   font-size: 11.5px;
   color: var(--slate);
   margin-top: 1px;
+}
+.home-screen .stuckrow .btn {
+  flex: none;
 }
 
 /* ── pair pulse ────────────────────────────────────────────────────────── */
@@ -847,11 +854,13 @@
     grid-auto-rows: 178px;
     gap: 13px;
   }
+  /* Explicit placement, computed in src/lib/bento.ts. Leaving this to
+     grid-auto-flow leaves holes once a tile is two rows tall, because that
+     tile also occupies a cell in the row below. min(...) is a hard clamp so a
+     bad value can never span past the real track count. */
   .home-screen .bt {
-    grid-column: span min(var(--rc2, 1), 2);
-  }
-  .home-screen .bt-tall {
-    grid-row: span 2;
+    grid-column: var(--gc2, auto) / span min(var(--rc2, 1), 2);
+    grid-row: var(--gr2, auto) / span var(--rr2, 1);
   }
   .home-screen .greetrow h1 {
     font-size: 28px;
@@ -870,9 +879,10 @@
     gap: 14px;
   }
   .home-screen .bt {
-    grid-column: span min(var(--rc4, 1), 4);
+    grid-column: var(--gc4, auto) / span min(var(--rc4, 1), 4);
+    grid-row: var(--gr4, auto) / span var(--rr4, 1);
     padding: 15px 17px;
-    transition: box-shadow 0.26s var(--ease), border-color 0.26s var(--ease), grid-column 0.3s var(--ease);
+    transition: box-shadow 0.26s var(--ease), border-color 0.26s var(--ease);
   }
   .home-screen .greetrow h1 {
     font-size: 30px;
@@ -913,6 +923,47 @@
     display: inline-flex;
     align-items: center;
   }
+}
+
+/* ── the one consistent "open full page" affordance every tile that has a
+   destination screen carries in its header — same shape everywhere so it
+   reads as a system, not a one-off decoration. ─────────────────────────── */
+.home-screen .bt-openlink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: -3px -4px -3px 0;
+  border-radius: 999px;
+  color: var(--mute);
+  transition: background 0.18s var(--ease), color 0.18s var(--ease);
+}
+.home-screen .bt-openlink:hover,
+.home-screen .bt-openlink:focus-visible {
+  background: var(--surf3);
+  color: var(--ink);
+}
+.home-screen .bt-openlink:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 1px;
+}
+@media (max-width: 1024px) {
+  .home-screen .bt-openlink {
+    width: 44px;
+    height: 44px;
+    margin: -9px -9px -9px 0;
+  }
+}
+
+/* Decorative, non-interactive "opens a page" cue on stat tiles — the whole
+   card is already the link, so this is a visual echo, not a second control. */
+.home-screen .statlink .bt-openhint {
+  color: var(--mute);
+  flex: none;
+  margin-left: auto;
+  align-self: center;
 }
 
 /* Photo tile: upload happens in place — the empty state is itself the picker,

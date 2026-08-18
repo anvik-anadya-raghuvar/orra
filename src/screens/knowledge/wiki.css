@@ -1,0 +1,599 @@
+/* Wiki tab — local styles. Reuses the shared vocabulary from
+   src/styles/theme.css (.btn/.chip/.srch/.filters/.eyebrow/.tip/.lk/.tagc).
+   Mobile-first: the tree is a disclosure panel on a phone and a sticky rail
+   from 641px up. Every tap target is ≥44px below the desktop breakpoint. */
+
+.wk-wrap {
+  min-width: 0;
+}
+.wk-panes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  min-width: 0;
+}
+@media (min-width: 641px) {
+  .wk-panes {
+    grid-template-columns: minmax(180px, 250px) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.wk-aside,
+.wk-main {
+  min-width: 0;
+}
+.wk-aside {
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 8px 6px;
+}
+@media (min-width: 641px) {
+  .wk-aside {
+    position: sticky;
+    top: 8px;
+    max-height: calc(100vh - 130px);
+    overflow: auto;
+  }
+}
+.wk-treetoggle {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.wk-treerow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 8px;
+  min-width: 0;
+}
+.wk-treerow.sel {
+  background: var(--indigo-s);
+}
+.wk-twist,
+.wk-treelabel {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.wk-twist {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  color: var(--mute);
+  font-size: 12px;
+}
+.wk-twist:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.wk-treelabel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 4px;
+  min-height: 44px;
+  font-size: 13.5px;
+  text-align: left;
+}
+.wk-treerow.sel .wk-treelabel {
+  color: var(--indigo);
+  font-weight: 600;
+}
+.wk-treetitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wk-arch {
+  font-family: 'IBM Plex Mono';
+  font-size: 9px;
+  color: var(--mute);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 5px;
+  flex: none;
+}
+@media (min-width: 1025px) {
+  .wk-twist {
+    width: 26px;
+    height: 30px;
+  }
+  .wk-treelabel {
+    min-height: 30px;
+  }
+}
+
+/* ── page header ──────────────────────────────────────────────────────── */
+.wk-page {
+  min-width: 0;
+}
+.wk-pagehead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.wk-icon-input {
+  width: 48px;
+  min-height: 44px;
+  text-align: center;
+  font-size: 24px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+}
+.wk-title-input {
+  flex: 1;
+  min-width: 140px;
+  min-height: 44px;
+  font-size: 22px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  padding: 0 6px;
+}
+.wk-icon-input:focus,
+.wk-title-input:focus {
+  border-color: var(--line);
+  background: var(--surf2);
+  outline: none;
+}
+.wk-save {
+  font-family: 'IBM Plex Mono';
+  font-size: 10px;
+  color: var(--mute);
+  min-width: 48px;
+}
+.wk-save-saved {
+  color: var(--teal);
+}
+.wk-pagemeta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-family: 'IBM Plex Mono';
+  font-size: 10px;
+  color: var(--mute);
+  margin: 2px 0 10px 6px;
+}
+.wk-tags,
+.wk-pageactions,
+.wk-linkedrow {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.wk-tags {
+  margin-bottom: 10px;
+}
+.wk-pageactions {
+  margin-bottom: 14px;
+}
+.wk-pageactions .btn {
+  min-height: 44px;
+}
+.wk-linked {
+  margin-bottom: 16px;
+}
+.wk-linked .eyebrow {
+  display: block;
+  margin-bottom: 6px;
+}
+.wk-taskchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 6px 4px 11px;
+  font-size: 12.5px;
+  max-width: 100%;
+}
+.wk-taskchip .lk {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wk-taskchip button {
+  border: 0;
+  background: none;
+  color: var(--mute);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  font-size: 15px;
+  flex: none;
+}
+.wk-input {
+  border: 1px solid var(--line);
+  background: var(--surf2);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  min-height: 40px;
+  max-width: 100%;
+}
+.wk-taginput {
+  width: 110px;
+}
+.wk-taskpick {
+  max-width: 100%;
+}
+
+/* ── blocks ───────────────────────────────────────────────────────────── */
+.wk-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wk-block {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  border-radius: 10px;
+  padding: 2px 2px 2px 0;
+  min-width: 0;
+  position: relative;
+}
+.wk-block.active {
+  background: var(--surf2);
+}
+.wk-block-tools {
+  display: flex;
+  flex: none;
+}
+.wk-tool {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: none;
+  color: var(--mute);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.wk-tool:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.wk-tool.danger {
+  color: var(--rose);
+}
+@media (min-width: 1025px) {
+  .wk-tool {
+    width: 26px;
+    height: 26px;
+  }
+}
+.wk-block-body {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.wk-readview {
+  cursor: text;
+  border-radius: 8px;
+  padding: 2px 4px;
+  min-height: 32px;
+  min-width: 0;
+}
+.wk-readview:focus-visible {
+  outline: 2px solid var(--indigo);
+}
+.wk-empty {
+  color: var(--mute);
+  font-size: 13.5px;
+}
+.wk-ta {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.62;
+  resize: none;
+  overflow: hidden;
+  padding: 3px 4px;
+  min-height: 32px;
+}
+.wk-ta:focus {
+  outline: none;
+}
+.wk-ta-heading {
+  font-size: 19px;
+  font-weight: 700;
+}
+.wk-ta-code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  background: var(--surf3);
+  border-radius: 8px;
+}
+.wk-mini {
+  border: 1px solid var(--line);
+  background: var(--surf);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 6px;
+  width: 76px;
+  margin-bottom: 4px;
+}
+.wk-divider-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 10px 0;
+  cursor: pointer;
+  min-height: 44px;
+}
+.wk-image-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wk-addblock {
+  margin-top: 10px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  background: none;
+  color: var(--mute);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.wk-addblock:hover,
+.wk-addblock:focus-visible {
+  color: var(--indigo);
+  border-color: var(--indigo);
+}
+
+/* block-type picker (also opened by typing "/" in an empty block) */
+.wk-slash {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  width: min(280px, calc(100vw - 56px));
+  max-height: 280px;
+  overflow: auto;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--sh2);
+  padding: 5px;
+}
+.wk-slash button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  padding: 6px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.wk-slash button:hover,
+.wk-slash button:focus-visible,
+.wk-slash button.on {
+  background: var(--indigo-s);
+}
+.wk-slash button strong {
+  font-size: 13px;
+}
+.wk-slash button span {
+  font-size: 11px;
+  color: var(--mute);
+}
+
+/* ── rendered block content ───────────────────────────────────────────── */
+.wk-h {
+  margin: 8px 0 4px;
+  line-height: 1.3;
+}
+.wk-h1 {
+  font-size: 21px;
+}
+.wk-h2 {
+  font-size: 17px;
+}
+.wk-h3 {
+  font-size: 15px;
+}
+.wk-p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wk-quote {
+  margin: 4px 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--violet);
+  color: var(--slate);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.wk-callout {
+  display: flex;
+  gap: 10px;
+  background: var(--indigo-s);
+  border-radius: var(--r);
+  padding: 11px 13px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.wk-callout-icon {
+  flex: none;
+  font-size: 16px;
+}
+.wk-code {
+  position: relative;
+  background: var(--surf3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  min-width: 0;
+}
+.wk-code pre {
+  margin: 0;
+  padding: 12px 13px;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.wk-code code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre;
+}
+.wk-lang {
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  font-family: 'IBM Plex Mono';
+  font-size: 9.5px;
+  color: var(--mute);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  pointer-events: none;
+}
+.wk-list {
+  margin: 4px 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.wk-todos {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wk-todo {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.wk-check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  background: var(--surf);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.wk-check.on {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+.wk-todo .done {
+  text-decoration: line-through;
+  color: var(--mute);
+}
+.wk-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--r);
+  display: block;
+}
+.wk-divider {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 10px 0;
+}
+.wk-mention {
+  font-family: 'IBM Plex Mono';
+  font-size: 0.9em;
+  color: var(--indigo);
+  background: var(--indigo-s);
+  border-radius: 5px;
+  padding: 1px 5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* ── comments ─────────────────────────────────────────────────────────── */
+.wk-comments {
+  margin-top: 26px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.wk-comments .eyebrow {
+  display: block;
+  margin-bottom: 9px;
+}
+.wk-comment {
+  display: flex;
+  gap: 9px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.wk-comment-meta {
+  font-family: 'IBM Plex Mono';
+  font-size: 10px;
+  color: var(--mute);
+  margin-bottom: 2px;
+}
+.wk-comment-body {
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wk-composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.wk-composer textarea {
+  flex: 1;
+  min-width: 170px;
+  min-height: 62px;
+  resize: vertical;
+}
+.wk-composer .btn {
+  min-height: 44px;
+}
