@@ -369,7 +369,7 @@ export function seedDataset(): Dataset {
     day_plans: [],
     sprints: [
       { id: 'sprint-1', name: 'Current sprint', starts_on: D('2026-08-15'), ends_on: D('2026-08-29'), is_archived: false, position: 1 },
-      { id: 'sprint-0', name: 'Sprint 0 (archived)', starts_on: D('2026-08-01'), ends_on: D('2026-08-14'), is_archived: true, position: 0 },
+      { id: 'sprint-0', name: 'Sprint 0', starts_on: D('2026-08-01'), ends_on: D('2026-08-14'), is_archived: true, position: 0 },
     ],
     task_links: [
       { id: 'tl-1', from_task_id: 'T-44', to_task_id: 'T-42', type: 'blocked_by', created_by: RG, created_at: T('2026-08-17T09:00:00') },

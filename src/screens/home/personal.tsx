@@ -9,6 +9,7 @@ import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import { isYouTubeUrl, playUrl, youTubeThumb } from '../../lib/song';
 import { ChevronRight } from 'lucide-react';
+import { ResetArrangement } from './tilechrome';
 import type { Personalization, Project, SharedDaily } from '../../types';
 
 /* ── One consistent "open full page" affordance, shared with index.tsx.
@@ -94,6 +95,7 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
           </div>
         );
       })}
+      <ResetArrangement />
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
         <button className="btn solid" onClick={onClose}>
           Done

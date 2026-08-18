@@ -431,10 +431,13 @@ export default function BoardTab({
           onChange={(e) => setSprintSel(e.target.value)}
         >
           <option value="all">All work</option>
-          {current && <option value="current">Current sprint ({current.name})</option>}
+          {/* Each sprint appears exactly once. A separate "current" shortcut
+              listed the live sprint twice under two different values, which
+              read as two destinations for one place. */}
           {sprints.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
+              {current?.id === s.id ? ' · current' : ''}
             </option>
           ))}
           <option value="none">Backlog (no sprint)</option>

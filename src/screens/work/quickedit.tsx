@@ -15,6 +15,7 @@ import {
   WORK_TAG_COLORS,
   linkLabel,
   liveSprints,
+  linkExists,
   statusLabel,
 } from './common';
 
@@ -148,11 +149,10 @@ export default function QuickEdit({
 
   const addLink = () => {
     if (!linkTarget || linkTarget === live.id) return;
-    const dupe = ds.task_links.some(
-      (l) => l.from_task_id === live.id && l.to_task_id === linkTarget && l.type === linkType,
-    );
-    if (dupe) {
-      toast('That link already exists');
+    // Catches the reverse spelling too: "A relates to B" and "B relates to A"
+    // are one fact, as are "A blocks B" and "B is blocked by A".
+    if (linkExists(ds.task_links, live.id, linkTarget, linkType)) {
+      toast('That relationship is already recorded');
       return;
     }
     store.insert(

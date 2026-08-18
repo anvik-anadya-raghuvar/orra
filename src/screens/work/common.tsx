@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import type { Dataset, Project, Sprint, TaskLinkType, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { PRIORITY_LABEL } from '../../types';
 
@@ -131,11 +131,64 @@ export function Segment<T extends string>({
   );
 }
 
+/**
+ * A labelled form field.
+ *
+ * The label is associated with its control, not merely drawn above it — a
+ * styled span leaves a screen reader announcing "combo box" with no name. A
+ * single element child is given a generated id and matched with htmlFor;
+ * anything else (a segmented control of buttons, say) falls back to a group
+ * label, since htmlFor can only point at one control.
+ */
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
+  const only = React.isValidElement(children) ? children : null;
+  if (only) {
+    return (
+      <div>
+        <label className="wk-lbl" htmlFor={id}>
+          {label}
+        </label>
+        {React.cloneElement(only as React.ReactElement<{ id?: string }>, { id })}
+      </div>
+    );
+  }
   return (
-    <div>
+    <div role="group" aria-label={label}>
       <span className="wk-lbl">{label}</span>
       {children}
     </div>
   );
+}
+
+/**
+ * Canonical form of a task relationship, so the same fact cannot be stored
+ * twice under two spellings.
+ *
+ *  - `related` is symmetric: A relates to B IS B relates to A.
+ *  - `blocks` and `blocked_by` are inverses: A blocks B IS B blocked_by A.
+ *  - `child_of` is directional and has no inverse in this model, so it is
+ *    canonical already — A child_of B is genuinely not B child_of A.
+ *
+ * The database's UNIQUE(from, to, type) cannot express any of that, which is
+ * why the check lives here and runs before the insert.
+ */
+export function canonicalLink(from: string, to: string, type: TaskLinkType): string {
+  if (type === 'blocked_by') return `${to}|blocks|${from}`;
+  if (type === 'related') {
+    const [a, b] = [from, to].sort();
+    return `${a}|related|${b}`;
+  }
+  return `${from}|${type}|${to}`;
+}
+
+/** True when this relationship is already recorded, in any equivalent form. */
+export function linkExists(
+  links: { from_task_id: string; to_task_id: string; type: TaskLinkType }[],
+  from: string,
+  to: string,
+  type: TaskLinkType,
+): boolean {
+  const key = canonicalLink(from, to, type);
+  return links.some((l) => canonicalLink(l.from_task_id, l.to_task_id, l.type) === key);
 }

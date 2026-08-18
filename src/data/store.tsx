@@ -85,6 +85,24 @@ export class AppStore {
     return irregular[key] ?? key.replace(/s$/, '');
   }
 
+  /**
+   * Render one field value for the trail.
+   *
+   * `String(value)` turns any object into the literal text "[object Object]",
+   * and `audit_trail` has UPDATE and DELETE revoked at the database level
+   * (principle 3), so a value logged wrong is logged wrong forever. Objects —
+   * personalization, a win-condition list, a layout — serialise as JSON instead.
+   */
+  private auditValue(value: unknown): string | null {
+    if (value == null) return null;
+    if (Array.isArray(value)) {
+      return value.every((v) => v == null || typeof v !== 'object')
+        ? value.join(', ')
+        : JSON.stringify(value);
+    }
+    return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  }
+
   private audit(entry: Omit<Dataset['audit_trail'][number], 'id' | 'occurred_at'>) {
     const row = { ...entry, id: newId('a'), occurred_at: nowIso() };
     this.ds = { ...this.ds, audit_trail: [row, ...this.ds.audit_trail] };
@@ -136,8 +154,8 @@ export class AppStore {
           entity_type: this.entityType(key),
           entity_id: id,
           field_name: field,
-          old_value: oldVal == null ? null : String(Array.isArray(oldVal) ? oldVal.join(', ') : oldVal),
-          new_value: newVal == null ? null : String(Array.isArray(newVal) ? newVal.join(', ') : newVal),
+          old_value: this.auditValue(oldVal),
+          new_value: this.auditValue(newVal),
           source: meta.source ?? 'portal',
         });
       }

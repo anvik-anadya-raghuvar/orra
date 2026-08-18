@@ -5,7 +5,7 @@ import { AlertTriangle, ChevronRight, Plus, Settings2, Sparkles } from 'lucide-r
 import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
 import { packBento } from '../../lib/bento';
 import { Avatar, CountUp, Modal, ProgressBar, useToast } from '../../ui/bits';
-import { entrance, micro, staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { entrance, micro, staggerParent } from '../../ui/motion';
 import { daysSinceTs, daysUntil, dayModeNow, fmtDay, fmtTime, inr, todayIso, type DayMode } from '../../lib/dates';
 import {
   CAPACITY_MINUTES,
@@ -27,6 +27,8 @@ import {
   TileOpen,
   WorthTile,
 } from './personal';
+import { arrange } from './layout';
+import { BentoTile, TILE_TITLE, TileSheetHost, useHomeArrange } from './tilechrome';
 import type { Capacity, DayPlan, Task, WinCondition } from '../../types';
 import './style.css';
 
@@ -257,41 +259,66 @@ export default function Home() {
     ),
   });
 
+  // Two passes, deliberately separate. First the user's own arrangement — the
+  // order they dragged tiles into and any size they set — applied to whatever
+  // is visible right now (./layout.ts). Then the packer, which takes those
+  // spans as a floor and works out actual placement.
+  //
   // No filler tile, and no trailing holes: placement is computed rather than
   // left to `grid-auto-flow: dense`, because a two-row tile also consumes a
   // cell in the row beneath it. Recomputed fresh from whatever is visible, so
-  // hiding a widget makes a genuine neighbour bigger, not a fake patch.
+  // hiding a widget makes a genuine neighbour bigger, not a fake patch — and
+  // so dragging a tile can never open one either.
+  const arrangeApi = useHomeArrange();
+  const laid = arrange(
+    tiles.map((t) => ({ ...t, cols: t.cols as number, rows: t.tall ? 2 : 1 })),
+    arrangeApi.layout,
+  );
+  arrangeApi.syncKeys(laid.map((t) => t.key));
+
   const { rc4, rc2 } = useMemo(
-    () => packBento(tiles.map((t) => ({ key: t.key, cols: t.cols, rows: t.tall ? 2 : 1 }))),
+    () => packBento(laid.map((t) => ({ key: t.key, cols: t.cols, rows: t.rows }))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tiles.map((t) => t.key + t.cols).join(',')],
+    [laid.map((t) => `${t.key}:${t.cols}x${t.rows}`).join(',')],
   );
 
   return (
     <div className="home-screen">
-      <motion.div className="bento" {...staggerParent()}>
-        {tiles.map((t) => (
-          <motion.section
+      <motion.div className="bento" ref={arrangeApi.gridRef} {...staggerParent()}>
+        {laid.map((t) => (
+          <BentoTile
             key={t.key}
-            className={`bt${t.tall ? ' bt-tall' : ''}${t.cls ? ` ${t.cls}` : ''}`}
+            tileKey={t.key}
+            span={{ cols: t.cols, rows: t.rows }}
+            api={arrangeApi}
+            className={`bt${t.cls ? ` ${t.cls}` : ''}`}
             style={
               {
                 '--rc4': rc4.get(t.key)?.renderCols ?? t.cols,
-                '--rr4': rc4.get(t.key)?.renderRows ?? (t.tall ? 2 : 1),
+                '--rr4': rc4.get(t.key)?.renderRows ?? t.rows,
                 '--gc4': rc4.get(t.key)?.col ?? 'auto',
                 '--gr4': rc4.get(t.key)?.row ?? 'auto',
                 '--rc2': rc2.get(t.key)?.renderCols ?? Math.min(t.cols, 2),
-                '--rr2': rc2.get(t.key)?.renderRows ?? (t.tall ? 2 : 1),
+                '--rr2': rc2.get(t.key)?.renderRows ?? t.rows,
                 '--gc2': rc2.get(t.key)?.col ?? 'auto',
                 '--gr2': rc2.get(t.key)?.row ?? 'auto',
               } as React.CSSProperties
             }
-            variants={staggerItem}
           >
             {t.node}
-          </motion.section>
+          </BentoTile>
         ))}
       </motion.div>
+
+      <TileSheetHost
+        api={arrangeApi}
+        tiles={laid.map((t) => ({
+          key: t.key,
+          title: TILE_TITLE[t.key] ?? t.key,
+          span: { cols: t.cols, rows: t.rows },
+          node: t.node,
+        }))}
+      />
 
       <CustomiseModal open={customising} onClose={() => setCustomising(false)} />
       <AddBlockModal open={addingBlock} onClose={() => setAddingBlock(false)} store={store} today={today} />
