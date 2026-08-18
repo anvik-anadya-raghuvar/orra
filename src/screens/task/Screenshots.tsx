@@ -6,6 +6,7 @@ import { useToast } from '../../ui/bits';
 import { entrance, spring } from '../../ui/motion';
 import { pinNumber } from '../../lib/exportTask';
 import { compressImage, jpegName, prettyBytes } from './imageCompress';
+import { PIN_LABELS } from '../../types';
 import type { ScreenshotAttachment, Task } from '../../types';
 
 /** Same deterministic ordering the export engine uses. */
@@ -44,6 +45,8 @@ function GridPlaceholder({ shot }: { shot: ScreenshotAttachment }) {
 }
 
 interface Draft {
+  /** Optional category — 'bug', 'copy', … — carried into the export. */
+  label?: string;
   shotId: string;
   x: number;
   y: number;
@@ -79,6 +82,7 @@ export default function Screenshots({ task }: { task: Task }) {
       x: clampPct(((e.clientX - rect.left) / rect.width) * 100),
       y: clampPct(((e.clientY - rect.top) / rect.height) * 100),
       note: '',
+      label: '',
     });
   };
 
@@ -97,6 +101,7 @@ export default function Screenshots({ task }: { task: Task }) {
         x_pct: clampPct(draft.x),
         y_pct: clampPct(draft.y),
         note,
+        label: draft.label ?? '',
         author_id: store.me.id,
         is_resolved: false,
         created_at: new Date().toISOString(),
@@ -211,7 +216,7 @@ export default function Screenshots({ task }: { task: Task }) {
                       exit={{ scale: 0, opacity: 0 }}
                       transition={spring}
                       aria-pressed={sel}
-                      aria-label={`Pin ${n}: ${p.note}`}
+                      aria-label={`Pin ${n}${p.label ? `, ${p.label}` : ''}: ${p.note}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelected(sel ? null : p.id);
@@ -266,6 +271,22 @@ export default function Screenshots({ task }: { task: Task }) {
                       if (e.key === 'Escape') setDraft(null);
                     }}
                   />
+                  {/* Categorising the pin is what lets the exported TASK.md
+                      say "[bug]" or "[copy]" instead of leaving a coding agent
+                      to infer the kind of change from prose. */}
+                  <div className="pinlabels">
+                    {PIN_LABELS.map((l) => (
+                      <button
+                        key={l}
+                        type="button"
+                        className="chip"
+                        aria-pressed={draft.label === l}
+                        onClick={() => setDraft({ ...draft, label: draft.label === l ? '' : l })}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
                   <div className="coords">
                     <label>
                       x %
@@ -335,7 +356,10 @@ export default function Screenshots({ task }: { task: Task }) {
                       aria-pressed={sel}
                       onClick={() => setSelected(sel ? null : p.id)}
                     >
-                      <p className={p.is_resolved ? 'resolved' : undefined}>{p.note}</p>
+                      <p className={p.is_resolved ? 'resolved' : undefined}>
+                        {p.label && <span className="pinlabel">{p.label}</span>}
+                        {p.note}
+                      </p>
                       <span className="co">
                         x {p.x_pct.toFixed(1)}% · y {p.y_pct.toFixed(1)}% — {author?.name ?? '—'}
                         {p.is_resolved ? ' · resolved' : ''}

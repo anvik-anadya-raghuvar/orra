@@ -37,14 +37,30 @@ export function generateTaskExport(ds: Dataset, taskId: string): string {
     const n = si + 1;
     lines.push('');
     lines.push(`## Screenshot ${n} — ${shot.filename} (${shot.width}×${shot.height})`);
-    lines.push(`![screenshot-${n}](assets/${shot.filename})`);
+    if (shot.data_url) {
+      lines.push(`![screenshot-${n}](assets/${shot.filename})`);
+      lines.push(
+        '_Numbered markers are drawn on this image; each matches a pin below._',
+      );
+    } else {
+      // Better an explicit note than a broken image link to a file the zip
+      // could never contain.
+      lines.push(
+        `> No image data stored for this screenshot — the pin coordinates below still locate each change.`,
+      );
+    }
     lines.push('Pins:');
     const pins = ds.annotation_pins
       .filter((p) => p.screenshot_id === shot.id)
       .sort(byCreatedAt);
     pins.forEach((pin, pi) => {
+      // The label goes in front of the note so an agent reading this can tell
+      // a copy tweak from a logic bug without inferring it from prose. Omitted
+      // entirely when unset, so output stays stable for uncategorised pins.
+      const label = pin.label ? `[${pin.label}] ` : '';
+      const state = pin.is_resolved ? ' (resolved)' : '';
       lines.push(
-        `${pi + 1}. (x ${one(pin.x_pct)}%, y ${one(pin.y_pct)}%) ${profiles.get(pin.author_id) ?? '—'} — ${pin.note}`,
+        `${pi + 1}. (x ${one(pin.x_pct)}%, y ${one(pin.y_pct)}%) ${profiles.get(pin.author_id) ?? '—'} — ${label}${pin.note}${state}`,
       );
     });
   });
@@ -68,7 +84,12 @@ export function generateTaskExport(ds: Dataset, taskId: string): string {
     .filter((n) => n.task_id === task.id)
     .sort(byCreatedAt);
   for (const n of linkedNotes) {
-    lines.push(`- Note "${n.title}": ${(n.body || '').split('\n')[0]}`);
+    // Attribute the note: either of them can add context to a task, and who
+    // said it changes how a reader weighs it.
+    const who = profiles.get(n.created_by);
+    lines.push(
+      `- Note "${n.title}"${who ? ` (${who})` : ''}: ${(n.body || '').split('\n')[0]}`,
+    );
   }
   const linkedMail = ds.mail_items
     .filter((m) => m.converted_to_id === task.id || (m.project_id === task.project_id && m.flag_reason))
@@ -113,22 +134,70 @@ export function generateTaskExport(ds: Dataset, taskId: string): string {
   return lines.join('\n');
 }
 
-/** Bundle TASK.md + assets/ into a zip for download. Lazy-loads jszip. */
+/**
+ * Bundle TASK.md + assets/ into a zip. Lazy-loads jszip.
+ *
+ * Screenshots are written with their pin markers BURNED IN, numbered to match
+ * the list in TASK.md. Shipping the raw image plus a list of percentages would
+ * make the reader compute where "x 32.4%" lands and hope they picked the right
+ * element; a marker drawn at that point removes the guess entirely.
+ */
 export async function exportTaskZip(ds: Dataset, taskId: string): Promise<Blob> {
-  const { default: JSZip } = await import('jszip');
+  const [{ default: JSZip }, { annotateScreenshot }] = await Promise.all([
+    import('jszip'),
+    import('./annotateImage'),
+  ]);
   const zip = new JSZip();
   zip.file('TASK.md', generateTaskExport(ds, taskId));
+  zip.file('README.md', bundleReadme(ds, taskId));
+
   const assets = zip.folder('assets');
-  const shots = ds.screenshot_attachments
-    .filter((s) => s.task_id === taskId)
-    .sort(byCreatedAt);
+  const shots = ds.screenshot_attachments.filter((s) => s.task_id === taskId).sort(byCreatedAt);
+
   for (const shot of shots) {
-    if (shot.data_url) {
-      const b64 = shot.data_url.split(',')[1];
-      assets?.file(shot.filename, b64, { base64: true });
+    if (!shot.data_url) continue; // nothing stored to annotate
+    const pins = ds.annotation_pins
+      .filter((p) => p.screenshot_id === shot.id)
+      .sort(byCreatedAt);
+    try {
+      const annotated = await annotateScreenshot(shot.data_url, pins);
+      assets?.file(shot.filename, annotated.dataUrl.split(',')[1], { base64: true });
+      // The clean original travels too, for anyone who wants the unmarked view.
+      assets?.file(`original-${shot.filename}`, shot.data_url.split(',')[1], { base64: true });
+    } catch {
+      // Annotation is an enhancement; never lose the evidence because of it.
+      assets?.file(shot.filename, shot.data_url.split(',')[1], { base64: true });
     }
   }
   return zip.generateAsync({ type: 'blob' });
+}
+
+/** Orientation for whoever opens the bundle — human or coding agent. */
+function bundleReadme(ds: Dataset, taskId: string): string {
+  const task = ds.tasks.find((t) => t.id === taskId);
+  const shots = ds.screenshot_attachments.filter((s) => s.task_id === taskId);
+  const withImages = shots.filter((s) => s.data_url).length;
+  return [
+    `# ${taskId} — handoff bundle`,
+    '',
+    'Contents:',
+    '- `TASK.md` — the brief: objective, located change requests, decisions, acceptance criteria.',
+    withImages
+      ? '- `assets/*.png` — screenshots with **numbered markers drawn on them**. Marker ① is pin 1 in TASK.md, ② is pin 2, and so on.'
+      : '- `assets/` — empty: no screenshot image data was stored for this task.',
+    withImages ? '- `assets/original-*.png` — the same screenshots without markers.' : '',
+    '',
+    'How to read it:',
+    '1. Open `TASK.md`.',
+    '2. For each pin, look at the matching numbered marker in the screenshot — that is the exact region being talked about. Percentages are given too, measured from the top-left.',
+    '3. A pin is tagged with the kind of change it wants: `[bug]`, `[copy]`, `[layout]`, `[styling]`, `[logic]`, `[question]`.',
+    '4. Implement the acceptance criteria only. Do not expand scope.',
+    '',
+    task ? `Task type: ${task.type}. Status: ${task.status}.` : '',
+    '',
+  ]
+    .filter((l) => l !== '')
+    .join('\n');
 }
 
 /** Derived pin numbering — row_number() over created_at, never stored. */

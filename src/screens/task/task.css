@@ -731,3 +731,25 @@
   color: var(--mute);
   margin: 0;
 }
+
+/* Pin category chips in the composer. */
+.tpage .pinlabels {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.tpage .pinlabels .chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: lowercase;
+}
+.tpage .pinlabel {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surf3);
+  color: var(--slate);
+  margin-right: 6px;
+}

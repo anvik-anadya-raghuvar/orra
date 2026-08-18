@@ -18,12 +18,26 @@ const KEY = process.env.SUPABASE_ANON_KEY;
 // Each URL verified to return 200 (post-redirect) at time of writing. A feed
 // that dies is logged and skipped, never fatal — one dead source must not cost
 // you the whole tile.
+//
+// Anthropic publishes no RSS feed of its own (every candidate path 404s), so
+// it comes via a Google News query instead. Aggregated, not official — the
+// tile shows the real publisher per item so the difference stays visible.
 const FEEDS = [
   { url: 'https://openai.com/news/rss.xml', source: 'OpenAI' },
   { url: 'https://deepmind.google/blog/rss.xml', source: 'Google DeepMind' },
   { url: 'https://huggingface.co/blog/feed.xml', source: 'Hugging Face' },
   { url: 'https://blog.google/innovation-and-ai/technology/ai/rss/', source: 'Google AI' },
   { url: 'https://simonwillison.net/atom/everything/', source: 'Simon Willison' },
+  {
+    url: 'https://news.google.com/rss/search?q=Anthropic+Claude&hl=en-US&gl=US&ceid=US:en',
+    source: 'Anthropic',
+    viaGoogleNews: true,
+  },
+  {
+    url: 'https://news.google.com/rss/search?q=%22large+language+model%22+OR+LLM+release&hl=en-US&gl=US&ceid=US:en',
+    source: 'LLM releases',
+    viaGoogleNews: true,
+  },
 ];
 
 const KEEP = 12; // rows retained; the tile shows three
@@ -51,7 +65,7 @@ const pick = (block, ...tags) => {
   return '';
 };
 
-async function readFeed({ url, source }) {
+async function readFeed({ url, source, viaGoogleNews }) {
   try {
     const res = await fetch(url, {
       headers: { 'user-agent': 'anvik-ops-pulse/1.0' },
@@ -65,16 +79,26 @@ async function readFeed({ url, source }) {
     const xml = await res.text();
     const blocks = xml.match(/<(item|entry)[\s\S]*?<\/(item|entry)>/gi) ?? [];
     return blocks.slice(0, 5).flatMap((b) => {
-      const title = pick(b, 'title');
+      let title = pick(b, 'title');
       const link = pick(b, 'link', 'id');
       const date = pick(b, 'pubDate', 'published', 'updated');
       if (!title || !link) return [];
+      // Google News appends " - Publisher" to every headline. Split it off so
+      // the real publisher shows as the source instead of the query name.
+      let label = source;
+      if (viaGoogleNews) {
+        const cut = title.lastIndexOf(' - ');
+        if (cut > 20) {
+          label = `${source} · ${title.slice(cut + 3)}`;
+          title = title.slice(0, cut);
+        }
+      }
       const when = date ? new Date(date) : new Date();
       return [
         {
           id: 'pulse-' + createHash('sha1').update(link).digest('hex').slice(0, 16),
           title: title.slice(0, 300),
-          source,
+          source: label,
           url: link,
           published_at: (isNaN(when) ? new Date() : when).toISOString(),
           origin: 'auto',
@@ -109,6 +133,7 @@ if (!all.length) {
 all.sort((a, b) => b.published_at.localeCompare(a.published_at));
 const items = all.slice(0, KEEP);
 
+if (process.env.DRY_RUN) { for (const i of items) console.log(`[${i.source}] ${i.title}`); process.exit(0); }
 const res = await rest('pulse_items', 'POST', items, {
   prefer: 'resolution=merge-duplicates',
 });

@@ -195,12 +195,19 @@ export interface ScreenshotAttachment {
   data_url?: string;
 }
 
+/** What kind of change a pin is asking for. Free-form on purpose — these are
+ *  the common ones the UI offers, not a closed set stored as an enum. */
+export const PIN_LABELS = ['bug', 'copy', 'layout', 'styling', 'logic', 'question'] as const;
+
 export interface AnnotationPin {
   id: string;
   screenshot_id: string;
   x_pct: number; // 0–100, one decimal
   y_pct: number;
+  /** The requested change, in the author's words. */
   note: string;
+  /** Category, e.g. 'bug' or 'copy'. Empty when uncategorised. */
+  label: string;
   author_id: UserId;
   is_resolved: boolean;
   created_at: string;

@@ -18,6 +18,17 @@ describe('export determinism (gate §6 correctness)', () => {
     expect(md).toMatch(/\(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\):/);
   });
 
+  it('carries the pin label so an agent can tell a bug from a copy tweak', () => {
+    const md = generateTaskExport(seedDataset(), 'T-42');
+    expect(md).toContain('[bug] Date column shifted');
+    expect(md).toContain('[logic] Case number truncated');
+  });
+
+  it('attributes linked notes to whoever wrote them', () => {
+    const md = generateTaskExport(seedDataset(), 'T-42');
+    expect(md).toMatch(/- Note "[^"]+" \((Anadya|Raghuvar)\):/);
+  });
+
   it('coordinates render to exactly one decimal', () => {
     const md = generateTaskExport(seedDataset(), 'T-42');
     expect(md).toContain('(x 32.4%, y 41.0%)');
@@ -42,6 +53,7 @@ describe('pin numbering', () => {
       x_pct: 10.0,
       y_pct: 10.0,
       note: 'third',
+      label: '',
       author_id: 'u-anadya',
       is_resolved: false,
       created_at: '2026-08-17T09:20:00+05:30',
@@ -116,5 +128,23 @@ describe('declared capacity — "how heavy do I want today to be"', () => {
     // and a blocked task is pushed down the ranking
     const ranked = rankTasks(ds, '2026-08-18');
     expect(ranked[0].task.id).not.toBe('T-44');
+  });
+});
+
+describe('handoff bundle honesty', () => {
+  it('does not link an image the zip cannot contain', () => {
+    // seed shot-1 has no stored image data
+    const md = generateTaskExport(seedDataset(), 'T-42');
+    expect(md).not.toContain('![screenshot-1](assets/');
+    expect(md).toContain('No image data stored');
+  });
+
+  it('links the image and promises markers when data exists', () => {
+    const ds = seedDataset();
+    const shot = ds.screenshot_attachments.find((s) => s.id === 'shot-1')!;
+    shot.data_url = 'data:image/png;base64,iVBORw0KGgo=';
+    const md = generateTaskExport(ds, 'T-42');
+    expect(md).toContain('![screenshot-1](assets/samadhaan_grid.png)');
+    expect(md).toContain('Numbered markers are drawn on this image');
   });
 });
