@@ -18,7 +18,7 @@ With no `.env`, the app runs on the **local mock adapter** (localStorage-persist
 ## Connect the real backend
 
 1. Create a Supabase project (free tier).
-2. In the SQL editor, run `supabase/migrations/0001_init.sql`, then `0002_day_plan.sql`, in that order.
+2. In the SQL editor, run every file in `supabase/migrations/` in numeric order, `0001_init.sql` through `0008_pin_label.sql`. (`0007` carries the board, the wiki, and the `integration_grants` table the Google connectors write to.)
 3. Auth is **email + password** (no Google OAuth). In Authentication → Users, create the two
    member accounts `anvik.anadya@gmail.com` and `raghuvar.anvik@gmail.com` with temp passwords,
    and disable public signups. Each member changes their password from the in-app account menu.
@@ -26,11 +26,47 @@ With no `.env`, the app runs on the **local mock adapter** (localStorage-persist
 4. Copy `.env.example` → `.env`, fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 5. Restart dev / rebuild. The data adapter switches automatically; the sign-in gate starts checking real Supabase credentials against the allowlist trigger.
 
+## Google setup (Gmail, Calendar, Drive)
+
+All three connectors run off **one** OAuth **client id**. There is no client secret anywhere in
+this codebase, so none can leak from it, and access tokens live in browser memory for their hour —
+never in Postgres, never in localStorage. What the database stores is only *which scopes were
+granted* (`integration_grants`), so the Connections screen can be honest.
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → new project, e.g. `anvik-ops`.
+2. **APIs & Services → Library** → enable **Gmail API**, **Google Calendar API**, **Google Drive API**.
+3. **APIs & Services → OAuth consent screen** → **External** → app name + support email →
+   **Audience → Test users**: add `anvik.anadya@gmail.com` and `raghuvar.anvik@gmail.com`.
+   Leave it in **Testing**; with two users it never needs Google verification.
+4. **Credentials → Create credentials → OAuth client ID → Web application**. Under
+   **Authorised JavaScript origins** add both:
+   ```
+   https://anvik-ops.vercel.app
+   http://localhost:5180
+   ```
+   No redirect URIs — the token flow doesn't use them.
+5. Copy the client id (`….apps.googleusercontent.com`) into `.env` as `VITE_GOOGLE_CLIENT_ID`,
+   and add the same variable in Vercel → Settings → Environment Variables. Restart dev / redeploy.
+6. In the app: **Admin → Connections → Connect & sync all**. One consent dialog covers all three.
+
+What each one then does:
+
+| Connector | After connecting | Scope |
+| --- | --- | --- |
+| Gmail | Last 20 inbox messages sync into Knowledge → Mail and convert to tasks/notes/decisions | `gmail.readonly` |
+| Calendar | Today's events appear on the Home day ribbon; cancellations disappear on the next sync | `calendar.events` |
+| Drive | Knowledge → Documents → **+ Document** searches Drive and attaches a file by reference | `drive.readonly` |
+
+**The honest limit:** this syncs while the portal is open. Background sync (mail arriving while
+you're asleep) needs a refresh token held server-side — a different security posture and a
+separate build. Re-syncing is idempotent: row ids derive from the Google id, and a message you
+already converted keeps its conversion, flag, and project.
+
 ## Deploy (Vercel)
 
 - Import the repo in Vercel — it auto-detects Vite (`npm run build`, output `dist`).
 - `vercel.json` carries the SPA rewrite so client-side routes (`/work`, `/task/:id`, …) don't 404 on refresh.
-- Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as Vercel project environment variables (same values as `.env`).
+- Add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_GOOGLE_CLIENT_ID` as Vercel project environment variables (same values as `.env`).
 - GitHub secrets `SUPABASE_URL` + `SUPABASE_ANON_KEY` power `.github/workflows/keepalive.yml` (3-day cron so the free Supabase project never pauses).
 
 ## Tests

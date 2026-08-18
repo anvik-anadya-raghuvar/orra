@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId } from '../../data/store';
 import { Modal, ProgressBar, useToast } from '../../ui/bits';
@@ -6,6 +6,9 @@ import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil } from '../../lib/dates';
 import { BarRows } from '../../ui/viz';
 import type { DocumentRef } from '../../types';
+import type { DriveFile } from '../../lib/google';
+import { getToken, googleConfigured, recentDrive, searchDrive } from '../../lib/google';
+import { hasScope } from '../../lib/googleSync';
 
 function urgency(doc: DocumentRef): 'ok' | 'soon' | 'over' {
   if (doc.expiry_date) {
@@ -174,6 +177,12 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal open onClose={onClose} title="New document">
+      <DrivePicker
+        onPick={(f) => {
+          if (!title.trim()) setTitle(f.name);
+          setUrl(f.link);
+        }}
+      />
       <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" style={inputStyle} />
       <select value={projectId} onChange={(e) => setProjectId(e.target.value)} style={inputStyle}>
         {projects.map((p) => (
@@ -203,6 +212,118 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
         </button>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Search Drive and attach a file by reference.
+ *
+ * Deliberately not a full Drive sync: `documents` tracks the handful of things
+ * with an expiry you care about, so mirroring a whole Drive would bury them.
+ * Picking a file fills the title and the reference URL; the file never moves.
+ */
+function DrivePicker({ onPick }: { onPick: (f: DriveFile) => void }) {
+  const store = useStore();
+  useData((ds) => ds.integration_grants);
+  const [q, setQ] = useState('');
+  const [files, setFiles] = useState<DriveFile[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  /**
+   * Opening a modal must never make a Google popup appear out of nowhere, so
+   * the picker only searches once a *silent* token is in hand. If the session
+   * has none, it offers a button and waits to be asked.
+   */
+  const [ready, setReady] = useState(false);
+  const connected = googleConfigured() && hasScope(store, 'drive');
+
+  useEffect(() => {
+    if (!connected) return;
+    let alive = true;
+    getToken(['drive'], { interactive: false })
+      .then((t) => alive && setReady(!!t))
+      .catch(() => alive && setReady(false));
+    return () => {
+      alive = false;
+    };
+  }, [connected]);
+
+  // Debounced: one request per pause in typing, not one per keystroke.
+  useEffect(() => {
+    if (!connected || !ready) return;
+    let alive = true;
+    setLoading(true);
+    const t = setTimeout(() => {
+      const run = q.trim() ? searchDrive(q.trim()) : recentDrive();
+      run
+        .then((r) => alive && setFiles(r))
+        .catch((e) => alive && setError(e instanceof Error ? e.message : 'Drive search failed'))
+        .finally(() => alive && setLoading(false));
+    }, 280);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [q, connected, ready]);
+
+  if (!connected)
+    return (
+      <p className="tip" style={{ marginTop: 0 }}>
+        {googleConfigured()
+          ? 'Connect Google in Admin → Connections to search Drive instead of pasting a URL.'
+          : 'Paste the Drive URL below. Searching Drive needs the Google client id.'}
+      </p>
+    );
+
+  if (!ready)
+    return (
+      <div style={{ marginBottom: 11 }}>
+        <p className="tip" style={{ marginTop: 0 }}>
+          Drive is granted, but this session has no access token yet.
+        </p>
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() =>
+            getToken(['drive'])
+              .then((t) => setReady(!!t))
+              .catch((e) => setError(e instanceof Error ? e.message : 'Google declined'))
+          }
+        >
+          Ask Google for Drive access
+        </button>
+      </div>
+    );
+
+  return (
+    <div>
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search Drive by name"
+        style={inputStyle}
+      />
+      {error && (
+        <p className="tip" style={{ marginTop: 0 }}>
+          {error}
+        </p>
+      )}
+      {files.length > 0 && (
+        <div className="drive-results">
+          {files.map((f) => (
+            <button key={f.id} type="button" onClick={() => onPick(f)}>
+              {f.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {!loading && !error && files.length === 0 && (
+        <p className="tip" style={{ marginTop: 0 }}>
+          Nothing in Drive matches that.
+        </p>
+      )}
+    </div>
   );
 }
 

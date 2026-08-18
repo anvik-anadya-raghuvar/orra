@@ -276,3 +276,24 @@ export async function searchDrive(query: string, max = 12): Promise<DriveFile[]>
     modifiedAt: f.modifiedTime ?? '',
   }));
 }
+
+/** Recently touched files — what the Documents picker shows before you type. */
+export async function recentDrive(max = 12): Promise<DriveFile[]> {
+  const token = await getToken(['drive']);
+  if (!token) return [];
+  const res = await api<{
+    files?: { id: string; name: string; mimeType: string; webViewLink?: string; modifiedTime?: string }[];
+  }>(
+    `https://www.googleapis.com/drive/v3/files?pageSize=${max}&orderBy=${encodeURIComponent(
+      'modifiedTime desc',
+    )}&q=${encodeURIComponent('trashed = false')}&fields=files(id,name,mimeType,webViewLink,modifiedTime)`,
+    token,
+  );
+  return (res.files ?? []).map((f) => ({
+    id: f.id,
+    name: f.name,
+    mimeType: f.mimeType,
+    link: f.webViewLink ?? `https://drive.google.com/file/d/${f.id}/view`,
+    modifiedAt: f.modifiedTime ?? '',
+  }));
+}

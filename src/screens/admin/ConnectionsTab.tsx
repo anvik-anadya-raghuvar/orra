@@ -1,9 +1,19 @@
 import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ExternalLink, RefreshCw } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
+import { googleConfigured } from '../../lib/google';
+import {
+  connectGoogle,
+  describeSync,
+  disconnectGoogle,
+  googleGrant,
+  hasScope,
+  syncAll,
+} from '../../lib/googleSync';
+import { fmtDateTime } from '../../lib/dates';
 
 /**
  * Connections.
@@ -13,10 +23,11 @@ import { staggerItem, staggerParent } from '../../ui/motion';
  * one thing this screen must never fake, because a green dot that lies is
  * worse than an empty screen.
  *
- * "live"    — verified from the running app (adapter kind, committed workflow)
+ * "live"    — verified from the running app: an adapter kind, a committed
+ *             workflow, or a Google grant this account actually holds
  * "usable"  — works right now with no account linking, because it is a deep
  *             link into a service you're already signed into. Not a sync.
- * "planned" — needs OAuth + token storage in an edge function. Honestly off.
+ * "planned" — needs something that does not exist yet. Honestly off.
  */
 type ConnState = 'live' | 'usable' | 'planned';
 
@@ -25,10 +36,7 @@ const STATE_LABEL: Record<ConnState, string> = {
   usable: 'ready to use',
   planned: 'not connected',
 };
-const STATE_PILL: Record<ConnState, string> = { live: 'ok', usable: 'soon', off: 'q', planned: 'q' } as Record<
-  ConnState,
-  string
->;
+const STATE_PILL: Record<ConnState, string> = { live: 'ok', usable: 'soon', planned: 'q' };
 
 interface Action {
   label: string;
@@ -50,6 +58,28 @@ export default function ConnectionsTab() {
   const ds = useData((d) => d);
   const toast = useToast();
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [busy, setBusy] = useState<'connect' | 'sync' | null>(null);
+  /**
+   * Consent is stored; the access token is not (it lives in memory for its
+   * hour and never touches the database). So a reload has a grant but no
+   * token — this tries a silent re-grant, and the panel says which is true.
+   */
+  const [tokenLive, setTokenLive] = useState(false);
+
+  const configured = googleConfigured();
+  const grant = googleGrant(store);
+  const linked = !!grant;
+
+  useEffect(() => {
+    if (!configured || !linked) return;
+    let alive = true;
+    connectGoogle(store, { interactive: false })
+      .then((ok) => alive && setTokenLive(ok))
+      .catch(() => alive && setTokenLive(false));
+    return () => {
+      alive = false;
+    };
+  }, [configured, linked, store]);
 
   const supabaseLive = store.adapter.kind === 'supabase';
   const me = store.me;
@@ -74,6 +104,52 @@ export default function ConnectionsTab() {
     ].join('\n');
   }, [ds.tasks, ds.decisions]);
 
+  const runSync = async () => {
+    setBusy('sync');
+    try {
+      const result = await syncAll(store);
+      setTokenLive(true);
+      toast(describeSync(result));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Google sync failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const connectAndSync = async () => {
+    setBusy('connect');
+    try {
+      const ok = await connectGoogle(store);
+      if (!ok) {
+        toast('Google sign-in was closed');
+        return;
+      }
+      setTokenLive(true);
+      const result = await syncAll(store);
+      toast(describeSync(result));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not connect Google');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const unlink = () => {
+    disconnectGoogle(store);
+    setTokenLive(false);
+    toast('Google disconnected');
+  };
+
+  /* Every Google-shaped card reads from the one grant, so three of them can
+     never disagree about whether you are connected. */
+  const googleState = (key: 'gmail' | 'calendar' | 'drive'): ConnState => {
+    if (!configured) return 'planned';
+    return hasScope(store, key) ? 'live' : 'usable';
+  };
+  const clientIdNeeded =
+    'An OAuth client id from Google Cloud Console, set as VITE_GOOGLE_CLIENT_ID (README → Google setup). No client secret is used anywhere in this codebase, so none can leak from it.';
+
   const conns: Conn[] = [
     {
       key: 'supabase',
@@ -97,10 +173,33 @@ export default function ConnectionsTab() {
       ],
     },
     {
+      key: 'gmail',
+      name: 'Gmail',
+      state: googleState('gmail'),
+      desc: hasScope(store, 'gmail')
+        ? 'Your last 20 inbox messages sync into Knowledge → Mail, where they convert to tasks, notes and decisions. Read-only: nothing is ever sent on your behalf.'
+        : configured
+          ? 'Compose opens prefilled in your own mailbox. Inbox sync starts the moment you connect Google above.'
+          : 'Compose opens prefilled in your own mailbox. Reading the inbox into the Mail tab needs the client id.',
+      needs: configured ? undefined : clientIdNeeded,
+      actions: [
+        { label: `Email ${other.name}`, href: gmailCompose(other.email, 'Anvik Ops', '') },
+        {
+          label: 'Send the digest',
+          href: gmailCompose(`${me.email},${other.email}`, 'Anvik Ops — digest', digest),
+        },
+      ],
+    },
+    {
       key: 'calendar',
       name: 'Google Calendar',
-      state: 'usable',
-      desc: 'Task pages and people cards open a prefilled event. One-way, no linking needed.',
+      state: googleState('calendar'),
+      desc: hasScope(store, 'calendar')
+        ? "Today's events land on the Home day ribbon, and a meeting cancelled in Google disappears from it on the next sync."
+        : configured
+          ? 'Opens a prefilled event today. Connect Google to pull your real day onto the ribbon.'
+          : 'Task pages and people cards open a prefilled event. One-way, no linking needed.',
+      needs: configured ? undefined : clientIdNeeded,
       actions: [
         {
           label: 'New event',
@@ -109,22 +208,15 @@ export default function ConnectionsTab() {
       ],
     },
     {
-      key: 'gmail',
-      name: 'Gmail',
-      state: 'usable',
-      desc: `Compose opens prefilled in your own mailbox. Reading your inbox into the Mail tab is a different thing — that needs OAuth.`,
-      needs:
-        'Inbox sync needs the Gmail API with an OAuth consent screen and refresh tokens held in an edge function.',
-      actions: [
-        {
-          label: `Email ${other.name}`,
-          href: gmailCompose(other.email, 'Anvik Ops', ''),
-        },
-        {
-          label: 'Send the digest',
-          href: gmailCompose(`${me.email},${other.email}`, 'Anvik Ops — digest', digest),
-        },
-      ],
+      key: 'drive',
+      name: 'Google Drive',
+      state: googleState('drive'),
+      desc: hasScope(store, 'drive')
+        ? 'Knowledge → Documents → + Document searches your Drive and attaches a file by reference. Files stay in Drive; only the link and the date live here.'
+        : configured
+          ? 'Documents take a URL you paste. Connect Google to search Drive instead of pasting.'
+          : 'Documents currently store a URL you paste. Search is not wired.',
+      needs: configured ? undefined : clientIdNeeded,
     },
     {
       key: 'whatsapp',
@@ -137,14 +229,6 @@ export default function ConnectionsTab() {
           href: `https://wa.me/?text=${encodeURIComponent('Anvik Ops — need you on something.')}`,
         },
       ],
-    },
-    {
-      key: 'drive',
-      name: 'Google Drive',
-      state: 'planned',
-      desc: 'Documents currently store a URL you paste. The picker is not wired.',
-      needs:
-        'The Drive Picker API needs an OAuth client id and a token exchange; the reference URL itself already works today.',
     },
     {
       key: 'plaud',
@@ -167,6 +251,66 @@ export default function ConnectionsTab() {
 
   return (
     <div>
+      {/* One account, one consent, one button — the three Google cards below
+          are all downstream of this. */}
+      <div className="ad-goog">
+        <div className="ad-conn-head">
+          <h4>Google account</h4>
+          <span className={`pill ${linked ? 'ok' : configured ? 'soon' : 'q'}`}>
+            {linked ? 'connected' : configured ? 'ready to connect' : 'client id missing'}
+          </span>
+        </div>
+        <p>
+          {!configured
+            ? 'Gmail, Calendar and Drive all run off one browser grant. Set VITE_GOOGLE_CLIENT_ID and this becomes a single button.'
+            : linked
+              ? `Gmail, Calendar and Drive granted${
+                  grant?.last_sync_at
+                    ? ` · last synced ${fmtDateTime(grant.last_sync_at)}`
+                    : ' · never synced'
+                }.`
+              : 'One click grants Gmail, Calendar and Drive together, then pulls the first sync.'}
+        </p>
+        {configured && linked && (
+          <p className="tip" style={{ margin: '8px 0 0' }}>
+            {tokenLive
+              ? 'Access token active for this session. Tokens live in memory only — never in the database, never in local storage.'
+              : 'Consent is on record but this session holds no token, so the next sync asks Google again. That is the trade for storing nothing long-lived.'}
+          </p>
+        )}
+        <div className="ad-conn-acts">
+          {!configured ? (
+            <button type="button" className="btn sm" onClick={() => setOpenKey('gmail')}>
+              What it needs
+            </button>
+          ) : linked ? (
+            <>
+              <button
+                type="button"
+                className="btn sm solid"
+                onClick={runSync}
+                disabled={busy !== null}
+              >
+                <RefreshCw size={12} strokeWidth={2} />{' '}
+                {busy === 'sync' ? 'Syncing…' : 'Sync all connectors'}
+              </button>
+              <button type="button" className="btn sm" onClick={unlink} disabled={busy !== null}>
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn sm solid"
+              onClick={connectAndSync}
+              disabled={busy !== null}
+            >
+              {busy === 'connect' ? 'Waiting for Google…' : 'Connect & sync all'}
+            </button>
+          )}
+        </div>
+      </div>
+
       <motion.div className="ad-conns" {...staggerParent()}>
         {conns.map((c) => (
           <motion.div key={c.key} className="ad-conn" variants={staggerItem}>
@@ -204,7 +348,11 @@ export default function ConnectionsTab() {
         ))}
       </motion.div>
 
-      <Modal open={!!open} onClose={() => setOpenKey(null)} title={open ? `${open.name} — what it needs` : ''}>
+      <Modal
+        open={!!open}
+        onClose={() => setOpenKey(null)}
+        title={open ? `${open.name} — what it needs` : ''}
+      >
         <p style={{ margin: '0 0 10px', fontSize: 13.5, color: 'var(--slate)' }}>{open?.needs}</p>
         <p className="tip" style={{ margin: 0 }}>
           Until that exists this card stays "not connected". Nothing here reports a link it does

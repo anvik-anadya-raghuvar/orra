@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { RefreshCw } from 'lucide-react';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { useToast } from '../../ui/bits';
 import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
@@ -8,6 +9,54 @@ import { fmtDateTime } from '../../lib/dates';
 import { MiniBars } from '../../ui/viz';
 import type { MailItem } from '../../types';
 import { makeTask } from '../../lib/taskFactory';
+import { googleConfigured } from '../../lib/google';
+import { describeSync, googleGrant, hasScope, syncAll } from '../../lib/googleSync';
+
+/**
+ * Sync control for the inbox.
+ *
+ * Says one of three true things: connect Google in Admin, sync now, or (with
+ * no client id configured) nothing at all — rather than implying a live link
+ * to a mailbox that was never granted.
+ */
+function MailSyncBar() {
+  const store = useStore();
+  useData((ds) => ds.integration_grants);
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  if (!googleConfigured()) return null;
+  const grant = googleGrant(store);
+  const connected = hasScope(store, 'gmail');
+
+  const run = async () => {
+    setBusy(true);
+    try {
+      toast(describeSync(await syncAll(store)));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Gmail sync failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mail-sync">
+      <span className="tip" style={{ margin: 0 }}>
+        {connected
+          ? grant?.last_sync_at
+            ? `Last synced ${fmtDateTime(grant.last_sync_at)}`
+            : 'Connected — not synced yet'
+          : 'Gmail is not connected. Admin → Connections links it in one click.'}
+      </span>
+      {connected && (
+        <button type="button" className="btn sm" onClick={run} disabled={busy}>
+          <RefreshCw size={12} strokeWidth={2} /> {busy ? 'Syncing…' : 'Sync inbox'}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function MailTab() {
   const mail = useData((ds) => ds.mail_items);
@@ -32,10 +81,17 @@ export default function MailTab() {
     return [...byAccount.entries()];
   }, [mail]);
 
-  if (groups.length === 0) return <p className="tip">Nothing synced yet.</p>;
+  if (groups.length === 0)
+    return (
+      <div>
+        <MailSyncBar />
+        <p className="tip">Nothing synced yet.</p>
+      </div>
+    );
 
   return (
     <div>
+      <MailSyncBar />
       <div className="kn-ov-panel" style={{ marginBottom: 16 }}>
         <span className="eyebrow">Inbox at a glance</span>
         <MiniBars
@@ -61,8 +117,9 @@ export default function MailTab() {
         </div>
       ))}
       <p className="tip">
-        Read-only sync across both mailboxes. Conversions keep the source message reference so a task, note, or
-        decision traces back to its email.
+        Read-only, and each of you syncs your own mailbox — the grant is per account, so signing in as
+        Anadya never reaches Raghuvar's inbox. Conversions keep the source message reference, so a task,
+        note, or decision traces back to its email.
       </p>
     </div>
   );
