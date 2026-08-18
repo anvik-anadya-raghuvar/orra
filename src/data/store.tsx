@@ -50,12 +50,26 @@ export class AppStore {
   ds: Dataset;
   adapter: DataAdapter;
   private listeners = new Set<() => void>();
+  private syncErrorListeners = new Set<(msg: string | null) => void>();
   meId: UserId;
+  /** Last background save/delete failure, if any — surfaced by a banner rather than swallowed. */
+  syncError: string | null = null;
 
   constructor(ds: Dataset, adapter: DataAdapter, meId: UserId) {
     this.ds = ds;
     this.adapter = adapter;
     this.meId = meId;
+  }
+
+  subscribeSyncError = (cb: (msg: string | null) => void) => {
+    this.syncErrorListeners.add(cb);
+    return () => this.syncErrorListeners.delete(cb);
+  };
+
+  /** A write to the backend failed — every UI surface stays reactive to the store, so route it there. */
+  reportSyncError(msg: string | null) {
+    this.syncError = msg;
+    this.syncErrorListeners.forEach((cb) => cb(msg));
   }
 
   get me() {
@@ -387,37 +401,93 @@ export class AppStore {
 
 const StoreCtx = createContext<AppStore | null>(null);
 
+/**
+ * Boot state machine: 'loading' shows a skeleton, 'error' shows a retry
+ * screen instead of hanging blank forever, 'ready' mounts the app.
+ *
+ * A blank white screen with nothing in it is the single worst failure mode
+ * this app can have — it looks identical to "still loading" and to "broken",
+ * and there is no way back in short of knowing to open devtools. Every path
+ * through boot must end in one of these three states, never in limbo.
+ */
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [store, setStore] = useState<AppStore | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     let alive = true;
-    pickAdapter().then(async (adapter) => {
-      const ds = await adapter.load();
-      if (!alive) return;
-      let me = ds.profiles[0]?.id ?? 'u-anadya';
-      // Real auth wins: the signed-in Supabase email decides who "me" is.
-      const email = await adapter.authedEmail?.();
-      const authed = email
-        ? ds.profiles.find((p) => p.email.toLowerCase() === email.toLowerCase())
-        : null;
-      if (authed) {
-        me = authed.id;
-      } else {
-        try {
-          const saved = localStorage.getItem('anvik:me');
-          if (saved && ds.profiles.some((p) => p.id === saved)) me = saved;
-        } catch {}
+    setBootError(null);
+    (async () => {
+      try {
+        const adapter = await pickAdapter();
+        const ds = await adapter.load();
+        if (!alive) return;
+        let me = ds.profiles[0]?.id ?? 'u-anadya';
+        // Real auth wins: the signed-in Supabase email decides who "me" is.
+        const email = await adapter.authedEmail?.();
+        const authed = email
+          ? ds.profiles.find((p) => p.email.toLowerCase() === email.toLowerCase())
+          : null;
+        if (authed) {
+          me = authed.id;
+        } else {
+          // A local "signed in" flag with no real Supabase session behind it
+          // (expired token, revoked session) must not render an empty app as
+          // if that were the truth — send it back to the sign-in screen,
+          // where signing in again gets a token that actually works.
+          if (adapter.kind === 'supabase') {
+            try {
+              localStorage.removeItem('anvik:signedin');
+            } catch {}
+          }
+          try {
+            const saved = localStorage.getItem('anvik:me');
+            if (saved && ds.profiles.some((p) => p.id === saved)) me = saved;
+          } catch {}
+        }
+        const s = new AppStore(ds, adapter, me);
+        adapter.onRemoteChange?.((partial) => s.applyRemote(partial));
+        adapter.onSyncError?.((msg) => s.reportSyncError(msg));
+        setStore(s);
+      } catch (e) {
+        if (!alive) return;
+        setBootError(e instanceof Error ? e.message : 'Could not load the portal.');
       }
-      const s = new AppStore(ds, adapter, me);
-      adapter.onRemoteChange?.((partial) => s.applyRemote(partial));
-      setStore(s);
-    });
+    })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [attempt]);
+
+  if (bootError) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div style={{ maxWidth: 420, textAlign: 'center' }}>
+          <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Couldn't load the portal</p>
+          <p style={{ fontSize: 13.5, color: 'var(--slate)', marginBottom: 16 }}>{bootError}</p>
+          <button className="btn solid" type="button" onClick={() => setAttempt((n) => n + 1)}>
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (!store) return null; // App shows its own skeleton until provider mounts
   return <StoreCtx.Provider value={store}>{children}</StoreCtx.Provider>;
+}
+
+/** Reactive: the last background save/delete failure, or null once it clears. */
+export function useSyncError(): string | null {
+  const store = useStore();
+  const [err, setErr] = useState(store.syncError);
+  useEffect(() => {
+    const unsub = store.subscribeSyncError(setErr);
+    return () => {
+      unsub();
+    };
+  }, [store]);
+  return err;
 }
 
 export function useStore(): AppStore {

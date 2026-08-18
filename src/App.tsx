@@ -11,8 +11,9 @@ import {
   Wallet,
   Shield,
 } from 'lucide-react';
-import { StoreProvider, useData, useStore } from './data/store';
+import { StoreProvider, useData, useStore, useSyncError } from './data/store';
 import { ToastProvider, Avatar, Skeleton, Modal } from './ui/bits';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 import { Gate } from './ui/gate';
 import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
@@ -278,6 +279,27 @@ function Nav() {
   );
 }
 
+/** A background save/delete that failed — visible until the next one succeeds, not a toast that vanishes in 2.6s. */
+function SyncErrorBanner() {
+  const err = useSyncError();
+  if (!err) return null;
+  return (
+    <div
+      role="alert"
+      style={{
+        background: 'var(--rose)',
+        color: '#fff',
+        borderRadius: 12,
+        padding: '10px 14px',
+        fontSize: 13,
+        marginBottom: 12,
+      }}
+    >
+      {err} — your change may not have saved. Check your connection and try again.
+    </div>
+  );
+}
+
 function ScreenFallback() {
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -325,8 +347,11 @@ function Gated() {
       <NotificationProvider>
         <div className="shell">
           <Header />
+          <SyncErrorBanner />
           <Nav />
-          <AnimatedRoutes />
+          <ErrorBoundary>
+            <AnimatedRoutes />
+          </ErrorBoundary>
         </div>
       </NotificationProvider>
     </BrowserRouter>
@@ -351,10 +376,12 @@ function useSkipAnimationsWhenHidden() {
 export default function App() {
   useSkipAnimationsWhenHidden();
   return (
-    <StoreProvider>
-      <ToastProvider>
-        <Gated />
-      </ToastProvider>
-    </StoreProvider>
+    <ErrorBoundary>
+      <StoreProvider>
+        <ToastProvider>
+          <Gated />
+        </ToastProvider>
+      </StoreProvider>
+    </ErrorBoundary>
   );
 }

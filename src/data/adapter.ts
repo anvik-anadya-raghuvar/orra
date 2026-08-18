@@ -15,6 +15,13 @@ export interface DataAdapter {
   onRemoteChange?(cb: (partial: Partial<Dataset>) => void): () => void;
   /** Supabase only: the signed-in auth email, so the store can pick the right profile. */
   authedEmail?(): Promise<string | null>;
+  /**
+   * Called with a callback to receive background write/delete failures.
+   * `saveCollection`/`saveWeights` are fire-and-forget (the UI updates
+   * optimistically) — without this, a failed write is indistinguishable from
+   * a successful one until the row silently reverts on the next reload.
+   */
+  onSyncError?(cb: (msg: string) => void): void;
 }
 
 export async function pickAdapter(): Promise<DataAdapter> {

@@ -51,14 +51,33 @@ const TABLE: Record<CollectionKey, string> = {
  */
 export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
   const knownIds = new Map<CollectionKey, Set<string>>();
+  let onError: ((msg: string) => void) | null = null;
 
   return {
     kind: 'supabase',
     async load() {
       const keys = Object.keys(TABLE) as CollectionKey[];
-      const results = await Promise.all(
-        keys.map((k) => sb.from(TABLE[k]).select('*').then((r) => [k, r.data ?? []] as const)),
+      const raw = await Promise.all(
+        keys.map((k) => sb.from(TABLE[k]).select('*').then((r) => [k, r] as const)),
       );
+      // A table that failed to load is not the same fact as a table that is
+      // genuinely empty — collapsing them (r.data ?? []) makes an expired
+      // session or a network hiccup render as "you have no data anywhere",
+      // indistinguishable from a fresh, workspace-wiping bug. If most/every
+      // table failed the same way, that is one failure (a dead session, most
+      // likely), not forty — surface it once and let the caller retry.
+      const failed = raw.filter(([, r]) => r.error);
+      if (failed.length > keys.length / 2) {
+        const first = failed[0][1].error;
+        throw new Error(
+          `Couldn't load your data (${first?.message ?? 'unknown error'}). ` +
+            `Your session may have expired — try signing in again.`,
+        );
+      }
+      for (const [k, r] of failed) {
+        console.error(`[supabaseAdapter] failed to load ${TABLE[k]}:`, r.error?.message);
+      }
+      const results = raw.map(([k, r]) => [k, r.data ?? []] as const);
       const weights = await sb.from('ranking_weights').select('*').limit(1).single();
       const ds = Object.fromEntries(results) as unknown as Dataset;
       ds.ranking_weights = (weights.data as Dataset['ranking_weights']) ?? {
@@ -80,11 +99,19 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
         changed = (changed as Record<string, unknown>[]).map(({ password: _pw, ...rest }) => rest);
       }
       if (changed && changed.length) {
-        if (key === 'audit_trail') {
-          void sb.from(table).insert(changed as never[]);
-        } else {
-          void sb.from(table).upsert(changed as never[]);
-        }
+        const write =
+          key === 'audit_trail'
+            ? sb.from(table).insert(changed as never[])
+            : sb.from(table).upsert(changed as never[]);
+        // Fire-and-forget from the caller's point of view (the UI already
+        // updated optimistically), but a failure here must not vanish —
+        // that is exactly "I created it and it's gone after refresh."
+        void write.then(({ error }) => {
+          if (error) {
+            console.error(`[supabaseAdapter] failed to save ${table}:`, error.message);
+            onError?.(`Couldn't save to ${table.replace(/_/g, ' ')} — ${error.message}`);
+          }
+        });
         const known = knownIds.get(key) ?? new Set<string>();
         for (const row of changed as { id: string }[]) known.add(row.id);
         knownIds.set(key, known);
@@ -95,17 +122,37 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
         const present = new Set((rows as { id: string }[]).map((r) => r.id));
         const gone = [...known].filter((id) => !present.has(id));
         if (gone.length && key !== 'audit_trail') {
-          void sb.from(table).delete().in('id', gone);
+          void sb
+            .from(table)
+            .delete()
+            .in('id', gone)
+            .then(({ error }) => {
+              if (error) {
+                console.error(`[supabaseAdapter] failed to delete from ${table}:`, error.message);
+                onError?.(`Couldn't delete from ${table.replace(/_/g, ' ')} — ${error.message}`);
+              }
+            });
           gone.forEach((id) => known.delete(id));
         }
       }
     },
     saveWeights(w) {
-      void sb.from('ranking_weights').upsert(w);
+      void sb
+        .from('ranking_weights')
+        .upsert(w)
+        .then(({ error }) => {
+          if (error) {
+            console.error('[supabaseAdapter] failed to save ranking_weights:', error.message);
+            onError?.(`Couldn't save ranking weights — ${error.message}`);
+          }
+        });
     },
     async authedEmail() {
       const { data } = await sb.auth.getUser();
       return data.user?.email ?? null;
+    },
+    onSyncError(cb) {
+      onError = cb;
     },
     onRemoteChange(cb) {
       // Realtime on the chat-critical tables; other screens refetch on focus.

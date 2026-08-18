@@ -176,6 +176,14 @@ export default function QuickEdit({
     toast('Link removed');
   };
 
+  const deleteTask = () => {
+    if (!window.confirm(`Delete ${live.id} — "${live.title}"? It moves to Trash and can be restored from Admin → Data.`))
+      return;
+    store.remove('tasks', live.id, store.asMe({ summary: `Task deleted — ${live.title}` }));
+    toast(`${live.id} deleted`);
+    onClose();
+  };
+
   return (
     <Modal open onClose={onClose} title={`Quick edit · ${live.id}`}>
       <Field label="Title">
@@ -354,6 +362,9 @@ export default function QuickEdit({
         <Link className="btn" to={`/task/${live.id}`} onClick={onClose}>
           Open full task →
         </Link>
+        <button className="btn danger" type="button" onClick={deleteTask}>
+          Delete
+        </button>
         <div className="spacer" />
         <button className="btn" type="button" onClick={onClose}>
           Cancel

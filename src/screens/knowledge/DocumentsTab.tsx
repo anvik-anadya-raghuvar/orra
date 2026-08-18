@@ -45,9 +45,18 @@ const URGENCY_COLOR: Record<'ok' | 'soon' | 'over', string> = {
 export default function DocumentsTab() {
   const docs = useData((ds) => ds.documents);
   const projects = useData((ds) => ds.projects);
+  const store = useStore();
+  const toast = useToast();
   const [adding, setAdding] = useState(false);
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
   const projectColor = (id: string) => projects.find((p) => p.id === id)?.color ?? 'var(--slate)';
+
+  const remove = (d: DocumentRef) => {
+    if (!window.confirm(`Delete "${d.title}"? It moves to Trash and can be restored from Admin → Data.`))
+      return;
+    store.remove('documents', d.id, store.asMe({ summary: `Document removed — ${d.title}` }));
+    toast('Document removed');
+  };
 
   // Most urgent first — impossible to miss, not something you have to sort for.
   const sorted = useMemo(
@@ -98,6 +107,7 @@ export default function DocumentsTab() {
                 <th>Expiry or deadline</th>
                 <th>Proximity</th>
                 <th>Reference</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -128,6 +138,16 @@ export default function DocumentsTab() {
                       <a className="lk" href={d.cloud_ref_url} target="_blank" rel="noreferrer">
                         Open in Drive
                       </a>
+                    </td>
+                    <td data-label="Actions">
+                      <button
+                        type="button"
+                        className="btn sm danger"
+                        style={{ minHeight: 44 }}
+                        onClick={() => remove(d)}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </motion.tr>
                 );

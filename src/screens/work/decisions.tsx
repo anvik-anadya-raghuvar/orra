@@ -59,6 +59,13 @@ export default function DecisionsTab({
     setNote('');
   };
 
+  const remove = (d: Decision) => {
+    if (!window.confirm(`Delete "${d.question}"? It moves to Trash and can be restored from Admin → Data.`))
+      return;
+    store.remove('decisions', d.id, store.asMe({ summary: `Decision deleted — ${d.question}` }));
+    toast('Decision deleted');
+  };
+
   return (
     <div>
       <p style={{ fontSize: 14, color: 'var(--slate)', maxWidth: '66ch', margin: '0 0 14px' }}>
@@ -107,6 +114,14 @@ export default function DecisionsTab({
                 <Avatar userId={d.owner_id} size={22} />
                 <div className="spacer" />
                 <button
+                  className="btn sm danger"
+                  type="button"
+                  style={{ minHeight: 44 }}
+                  onClick={() => remove(d)}
+                >
+                  Delete
+                </button>
+                <button
                   className="btn sm"
                   type="button"
                   style={{ minHeight: 44 }}
@@ -147,6 +162,15 @@ export default function DecisionsTab({
                 {d.ruled_at ? fmtDateTime(d.ruled_at) : '—'}
               </span>
               <Avatar userId={d.owner_id} size={22} />
+              <div className="spacer" />
+              <button
+                className="btn sm danger"
+                type="button"
+                style={{ minHeight: 44 }}
+                onClick={() => remove(d)}
+              >
+                Delete
+              </button>
             </div>
           </motion.div>
         ))}

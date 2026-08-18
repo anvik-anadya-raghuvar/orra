@@ -191,6 +191,18 @@ function TaskDetail({ task }: { task: Task }) {
     setIsDecision(false);
   };
 
+  const deleteTask = () => {
+    if (
+      !window.confirm(
+        `Delete ${task.id} — "${task.title}"? It moves to Trash and can be restored from Admin → Data.`,
+      )
+    )
+      return;
+    store.remove('tasks', task.id, store.asMe({ summary: `Task deleted — ${task.title}` }));
+    toast(`${task.id} deleted`);
+    navigate('/work');
+  };
+
   const messageAboutThis = () => {
     store.insert(
       'messages',
@@ -553,6 +565,9 @@ function TaskDetail({ task }: { task: Task }) {
               </a>
               <button type="button" className="btn" onClick={messageAboutThis}>
                 Message about this
+              </button>
+              <button type="button" className="btn danger" onClick={deleteTask}>
+                Delete task
               </button>
             </div>
           </div>
