@@ -898,7 +898,8 @@
   .home-screen .mini-row,
   .home-screen .pulselast,
   .home-screen .amb,
-  .home-screen .lk {
+  .home-screen .lk,
+  .home-screen .pj-row {
     min-height: 44px;
   }
   .home-screen .btn.sm {
@@ -912,4 +913,71 @@
     display: inline-flex;
     align-items: center;
   }
+}
+
+/* Photo tile: upload happens in place — the empty state is itself the picker,
+   so there is no trip to another screen to press a second Upload button. */
+.home-screen .photoempty-btn {
+  width: 100%;
+  border: 1px dashed var(--line);
+  background: var(--surf2);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.18s, background 0.18s;
+}
+.home-screen .photoempty-btn:hover:not(:disabled),
+.home-screen .photoempty-btn:focus-visible {
+  border-color: var(--indigo);
+  background: var(--surf3);
+}
+.home-screen .photoempty-btn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+.home-screen .photoacts {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+}
+.home-screen .photoacts .btn {
+  background: rgba(12, 16, 26, 0.72);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(6px);
+}
+
+/* Song art shows the real YouTube thumbnail when the pick has one; the
+   gradient stays as the fallback so an unlinked pick still looks deliberate. */
+.home-screen .songart {
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+.home-screen .songart[style*='background-image']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(10, 13, 20, 0.15), rgba(10, 13, 20, 0.78));
+}
+.home-screen .songart[style*='background-image'] > * {
+  position: relative;
+  z-index: 1;
+}
+
+.home-screen .colgap {
+  display: grid;
+  gap: 7px;
+}
+.home-screen a.aiitem {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.home-screen a.aiitem:hover b {
+  color: var(--indigo);
 }

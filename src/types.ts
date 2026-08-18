@@ -261,6 +261,11 @@ export interface Message {
   song_ref: { title: string; artist: string; url: string } | null;
   promoted_to_type: 'task' | 'note' | 'decision' | null;
   promoted_to_id: string | null;
+  /** When the *other* person read it. Null/absent = still unread. Two people
+   *  only, so one column is unambiguous: the reader is never the sender.
+   *  Optional so a newly-sent message is unread by omission — every creation
+   *  site would otherwise have to remember to write `read_at: null`. */
+  read_at?: string | null;
   created_at: string;
 }
 
@@ -364,6 +369,18 @@ export interface AutomationRule {
   last_fired_at: string | null;
 }
 
+/** A "worth knowing" headline — filled by the AI-pulse cron, or pinned by hand. */
+export interface PulseItem {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  published_at: string;
+  origin: 'auto' | 'manual';
+  is_pinned: boolean;
+  created_at: string;
+}
+
 export interface DailyCloseout {
   id: string;
   user_id: UserId;
@@ -408,6 +425,7 @@ export interface Dataset {
   daily_closeouts: DailyCloseout[];
   day_plans: DayPlan[];
   day_events: DayEvent[];
+  pulse_items: PulseItem[];
 }
 
 export type CollectionKey = keyof Omit<Dataset, 'ranking_weights'>;

@@ -35,6 +35,7 @@ const TABLE: Record<CollectionKey, string> = {
   daily_closeouts: 'daily_closeouts',
   day_plans: 'day_plans',
   day_events: 'day_events',
+  pulse_items: 'pulse_items',
 };
 
 /**

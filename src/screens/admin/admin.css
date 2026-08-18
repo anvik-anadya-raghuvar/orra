@@ -77,8 +77,10 @@
   margin-top: 3px;
 }
 
-/* switch — 38×22, knob translates, teal on / line off */
+/* switch — 38×22 visible, but the tap target is expanded to 44×44 via
+   an invisible ::before so the control still meets the touch-target rule. */
 .admin-screen .ad-sw {
+  position: relative;
   width: 38px;
   height: 22px;
   border-radius: 999px;
@@ -90,6 +92,15 @@
   flex: none;
   min-height: 22px;
   transition: background 0.2s;
+}
+.admin-screen .ad-sw::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 .admin-screen .ad-sw.off {
   background: var(--line);
@@ -204,4 +215,19 @@
     width: 22px;
     height: 22px;
   }
+}
+
+/* Connections: action row on each card. */
+.ad-conn-acts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 11px;
+}
+.ad-conn-acts .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  color: inherit;
 }

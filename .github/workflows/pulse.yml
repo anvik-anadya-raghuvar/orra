@@ -1,0 +1,29 @@
+name: AI pulse
+
+# Fetches LLM/AI headlines into public.pulse_items so the "Worth knowing" tile
+# shows real news instead of hard-coded strings.
+#
+# Why a cron and not a fetch in the app: these feeds send no CORS headers, so a
+# browser cannot read them, and this stack has no server. GitHub Actions is the
+# only always-on thing here — and it stays free.
+
+on:
+  schedule:
+    - cron: '0 1,13 * * *' # 06:30 and 18:30 IST
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch feeds and upsert
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "SUPABASE_URL not set — skipping."; exit 0
+          fi
+          node .github/scripts/pulse.mjs

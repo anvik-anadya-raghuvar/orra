@@ -29,7 +29,14 @@ export default function EntryModal({ open, onClose }: { open: boolean; onClose: 
   const submit = () => {
     const cleanParty = party.trim();
     const n = Math.abs(Number(amount));
-    if (!cleanParty || !n || Number.isNaN(n)) return;
+    if (!cleanParty) {
+      toast('Who paid or was paid — party is required');
+      return;
+    }
+    if (!n || Number.isNaN(n)) {
+      toast('Enter an amount greater than zero');
+      return;
+    }
     store.insert(
       'ledger',
       {

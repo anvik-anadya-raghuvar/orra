@@ -265,3 +265,15 @@ a.tl-summary {
     grid-column: 1 / -1;
   }
 }
+
+/* ── touch targets: 44px minimum on phone and tablet ────────────────────── */
+@media (max-width: 1024px) {
+  .tl-iconbtn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+  .tl-head .btn {
+    min-height: 44px;
+  }
+}

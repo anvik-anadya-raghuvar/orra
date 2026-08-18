@@ -1,8 +1,8 @@
 /**
  * Client-side photo compression for "Photo of the day".
- * Self-contained (no cross-screen imports) — draws to a canvas capped at
- * 640px wide, then steps JPEG quality down until the encoded payload is
- * ≤200KB, matching the Us spec.
+ * Draws to a canvas capped at 640px wide, then steps JPEG quality down until
+ * the encoded payload is ≤200KB. Shared: both the Us sidebar and the Home
+ * tile upload in place, so neither has to bounce the user to the other.
  */
 
 const MAX_WIDTH = 640;

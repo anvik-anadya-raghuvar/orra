@@ -27,26 +27,38 @@ export function createMockAdapter(): DataAdapter {
   return {
     kind: 'mock',
     async load() {
+      const fresh = seedDataset();
       try {
         const raw = localStorage.getItem(LS_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as Dataset;
-          // Reseed if the stored shape predates the current schema
-          // Reseed when the stored shape predates a schema addition.
-          if (parsed.profiles && parsed.ranking_weights && parsed.day_events) {
-            // Backfill credentials on datasets stored before password auth existed.
-            const seeds = seedDataset().profiles;
-            parsed.profiles = parsed.profiles.map((p) =>
+          const parsed = JSON.parse(raw) as Partial<Dataset>;
+          if (parsed.profiles && parsed.ranking_weights) {
+            // Merge, never wipe. A dataset saved before a collection existed
+            // must not crash the app (a missing array is not iterable) and must
+            // not be thrown away either — backfill only what is absent, so
+            // every future schema addition is survivable.
+            const merged = { ...fresh } as unknown as Record<string, unknown>;
+            for (const key of Object.keys(fresh)) {
+              const stored = (parsed as Record<string, unknown>)[key];
+              if (key === 'ranking_weights') {
+                if (stored) merged[key] = stored;
+              } else if (Array.isArray(stored)) {
+                merged[key] = stored;
+              }
+            }
+            const out = merged as unknown as Dataset;
+            // Credentials predate the password field on older saves.
+            out.profiles = out.profiles.map((p) =>
               p.password
                 ? p
-                : { ...p, password: seeds.find((s) => s.email === p.email)?.password ?? 'Anvik@2026' },
+                : { ...p, password: fresh.profiles.find((s) => s.email === p.email)?.password },
             );
-            current = parsed;
-            return parsed;
+            current = out;
+            return out;
           }
         }
       } catch {}
-      current = seedDataset();
+      current = fresh;
       return current;
     },
     saveCollection(key, rows) {

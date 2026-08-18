@@ -15,6 +15,7 @@ import { StoreProvider, useData, useStore } from './data/store';
 import { ToastProvider, Avatar, Skeleton, Modal } from './ui/bits';
 import { Gate } from './ui/gate';
 import { getSupabase } from './lib/supabaseClient';
+import { NotificationBell, NotificationProvider } from './ui/notifications';
 import { pageRise } from './ui/motion';
 import { clockIn, TZ_IN, TZ_IT } from './lib/dates';
 
@@ -244,6 +245,7 @@ function Header() {
       </span>
       <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{clock}</span>
       <div className="spacer" />
+      <NotificationBell />
       <AccountMenu />
       <button className="chip" onClick={toggle} aria-label="Toggle theme">
         {theme === 'dark' ? 'Light' : 'Dark'}
@@ -320,11 +322,13 @@ function Gated() {
   if (!signedIn) return <Gate onEnter={() => setSignedIn(true)} />;
   return (
     <BrowserRouter>
-      <div className="shell">
-        <Header />
-        <Nav />
-        <AnimatedRoutes />
-      </div>
+      <NotificationProvider>
+        <div className="shell">
+          <Header />
+          <Nav />
+          <AnimatedRoutes />
+        </div>
+      </NotificationProvider>
     </BrowserRouter>
   );
 }

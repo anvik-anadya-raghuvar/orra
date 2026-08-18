@@ -1,0 +1,120 @@
+/**
+ * Pulls AI/LLM headlines from public RSS/Atom feeds and upserts the newest few
+ * into public.pulse_items.
+ *
+ * No dependencies on purpose — Node 20's fetch plus a deliberately small regex
+ * parser. These feeds are simple and well-formed; adding an XML library to a
+ * cron that reads four URLs is not worth the supply chain.
+ *
+ * Deterministic ids (hash of the link) mean re-running never duplicates a row.
+ */
+
+import { createHash } from 'node:crypto';
+
+const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/+$/, '');
+const KEY = process.env.SUPABASE_ANON_KEY;
+
+/** Official/primary sources — release notes and regulators, not aggregators. */
+// Each URL verified to return 200 (post-redirect) at time of writing. A feed
+// that dies is logged and skipped, never fatal — one dead source must not cost
+// you the whole tile.
+const FEEDS = [
+  { url: 'https://openai.com/news/rss.xml', source: 'OpenAI' },
+  { url: 'https://deepmind.google/blog/rss.xml', source: 'Google DeepMind' },
+  { url: 'https://huggingface.co/blog/feed.xml', source: 'Hugging Face' },
+  { url: 'https://blog.google/innovation-and-ai/technology/ai/rss/', source: 'Google AI' },
+  { url: 'https://simonwillison.net/atom/everything/', source: 'Simon Willison' },
+];
+
+const KEEP = 12; // rows retained; the tile shows three
+
+const strip = (s) =>
+  s
+    .replace(/<!\[CDATA\[|\]\]>/g, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const pick = (block, ...tags) => {
+  for (const tag of tags) {
+    const m = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'));
+    if (m) return strip(m[1]);
+    // Atom <link href="..."/>
+    const self = block.match(new RegExp(`<${tag}[^>]*href=["']([^"']+)["']`, 'i'));
+    if (self) return self[1];
+  }
+  return '';
+};
+
+async function readFeed({ url, source }) {
+  try {
+    const res = await fetch(url, {
+      headers: { 'user-agent': 'anvik-ops-pulse/1.0' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) {
+      console.warn(`${source}: HTTP ${res.status}`);
+      return [];
+    }
+    const xml = await res.text();
+    const blocks = xml.match(/<(item|entry)[\s\S]*?<\/(item|entry)>/gi) ?? [];
+    return blocks.slice(0, 5).flatMap((b) => {
+      const title = pick(b, 'title');
+      const link = pick(b, 'link', 'id');
+      const date = pick(b, 'pubDate', 'published', 'updated');
+      if (!title || !link) return [];
+      const when = date ? new Date(date) : new Date();
+      return [
+        {
+          id: 'pulse-' + createHash('sha1').update(link).digest('hex').slice(0, 16),
+          title: title.slice(0, 300),
+          source,
+          url: link,
+          published_at: (isNaN(when) ? new Date() : when).toISOString(),
+          origin: 'auto',
+        },
+      ];
+    });
+  } catch (err) {
+    console.warn(`${source}: ${err.message}`);
+    return [];
+  }
+}
+
+const rest = (path, method, body, extraHeaders = {}) =>
+  fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method,
+    headers: {
+      apikey: KEY,
+      authorization: `Bearer ${KEY}`,
+      'content-type': 'application/json',
+      ...extraHeaders,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+const all = (await Promise.all(FEEDS.map(readFeed))).flat();
+if (!all.length) {
+  // Never wipe good rows just because every feed happened to fail.
+  console.log('No items fetched — leaving existing rows untouched.');
+  process.exit(0);
+}
+
+all.sort((a, b) => b.published_at.localeCompare(a.published_at));
+const items = all.slice(0, KEEP);
+
+const res = await rest('pulse_items', 'POST', items, {
+  prefer: 'resolution=merge-duplicates',
+});
+if (!res.ok) {
+  console.error(`Upsert failed: ${res.status} ${await res.text()}`);
+  process.exit(1);
+}
+console.log(`Upserted ${items.length} pulse items:`);
+for (const i of items.slice(0, 5)) console.log(` · ${i.source}: ${i.title}`);

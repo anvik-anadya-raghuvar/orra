@@ -140,7 +140,13 @@ export default function People() {
                 open.
               </div>
             </div>
-            <button className="btn sm" onClick={() => setDriftOnly(true)}>
+            <button
+              className="btn sm"
+              onClick={() => {
+                setDriftOnly(true);
+                setTypeFilter('all');
+              }}
+            >
               Show
             </button>
           </div>
@@ -179,7 +185,17 @@ export default function People() {
               {label}
             </button>
           ))}
-          <button className="chip" aria-pressed={driftOnly} onClick={() => setDriftOnly((d) => !d)}>
+          <button
+            className="chip"
+            aria-pressed={driftOnly}
+            onClick={() =>
+              setDriftOnly((d) => {
+                const next = !d;
+                if (next) setTypeFilter('all');
+                return next;
+              })
+            }
+          >
             Drifting
           </button>
         </div>

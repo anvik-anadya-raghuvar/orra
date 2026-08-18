@@ -305,6 +305,14 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     onClose();
   };
 
+  const remove = () => {
+    if (!existing) return;
+    if (!window.confirm(`Delete "${existing.title || 'this note'}"? This cannot be undone.`)) return;
+    store.remove('notes', existing.id, store.asMe({ summary: `Note deleted — ${existing.title}` }));
+    toast('Note deleted');
+    onClose();
+  };
+
   return (
     <Modal open onClose={onClose} title={existing ? 'Edit note' : 'New note'}>
       <input
@@ -405,6 +413,11 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       </button>
 
       <div className="mrowbtns" style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        {existing && (
+          <button className="btn sm" onClick={remove} style={{ color: 'var(--rose)', marginRight: 'auto' }}>
+            Delete
+          </button>
+        )}
         <button className="btn" onClick={onClose}>
           Cancel
         </button>

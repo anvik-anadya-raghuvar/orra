@@ -287,7 +287,7 @@ export function seedDataset(): Dataset {
       { id: 'msg-3', sender_id: RG, body: "Obviously. Surat still hasn't revised the MOQ, chasing today.", task_ref_id: null, attachment_url: null, song_ref: null, promoted_to_type: null, promoted_to_id: null, created_at: T('2026-08-18T09:02:00') },
     ],
     shared_daily: [
-      { id: 'sd-1', date: D('2026-08-18'), song_title: 'Ilahi', song_artist: 'Pritam · Arijit Singh', song_url: 'https://open.spotify.com/', picked_by: RG, photo_url: null, photo_caption: null },
+      { id: 'sd-1', date: D('2026-08-18'), song_title: 'Ilahi', song_artist: 'Pritam · Arijit Singh', song_url: 'https://www.youtube.com/watch?v=UBscsdrK0Bo', picked_by: RG, photo_url: null, photo_caption: null },
     ],
     courses: [
       { id: 'crs-1', title: 'Foundations of machine learning', schedule_label: 'Mon · Wed', is_expanded: true, position: 1 },
@@ -357,6 +357,11 @@ export function seedDataset(): Dataset {
       { id: 'dc-1', user_id: AN, date: D('2026-08-17'), shipped: 'Export engine skeleton', stuck: 'Fixture drift on golden cases', tomorrow: 'Freeze v3.8', created_at: T('2026-08-17T21:30:00') },
     ],
     day_plans: [],
+    pulse_items: [
+      { id: 'pulse-1', title: 'Open-weights model matches frontier on code benchmarks', source: 'Release notes', url: '', published_at: T('2026-08-18T06:00:00'), origin: 'auto', is_pinned: false, created_at: T('2026-08-18T06:00:00') },
+      { id: 'pulse-2', title: 'EU AI Act — first GPAI obligations take effect', source: 'Commission notice', url: '', published_at: T('2026-08-17T09:00:00'), origin: 'auto', is_pinned: false, created_at: T('2026-08-17T09:00:00') },
+      { id: 'pulse-3', title: 'New long-context eval suite published', source: 'Lab blog', url: '', published_at: T('2026-08-16T09:00:00'), origin: 'auto', is_pinned: false, created_at: T('2026-08-16T09:00:00') },
+    ],
     day_events: [
       { id: 'ev-1', user_id: AN, date: D('2026-08-18'), start_min: 9 * 60 + 30, end_min: 12 * 60, label: 'Build · Registry', kind: 'focus', task_id: 'T-42' },
       { id: 'ev-2', user_id: AN, date: D('2026-08-18'), start_min: 12 * 60 + 15, end_min: 13 * 60, label: 'Admin batch', kind: 'admin', task_id: null },

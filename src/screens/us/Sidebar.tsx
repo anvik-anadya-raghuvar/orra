@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { Avatar, CountUp, useToast } from '../../ui/bits';
 import { lift, staggerItem, staggerList, staggerParent } from '../../ui/motion';
-import { compressPhoto } from './photo';
+import { compressPhoto } from '../../lib/photo';
 
 type Expiry = '' | '1h' | '3h' | 'eod';
 

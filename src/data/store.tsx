@@ -75,6 +75,7 @@ export class AppStore {
       shared_daily: 'shared_daily',
       day_plans: 'day_plan',
       day_events: 'day_event',
+      pulse_items: 'pulse_item',
     };
     return irregular[key] ?? key.replace(/s$/, '');
   }

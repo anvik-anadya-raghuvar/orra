@@ -169,7 +169,10 @@ function TaskDetail({ task }: { task: Task }) {
 
   const submitComment = () => {
     const body = commentBody.trim();
-    if (!body) return;
+    if (!body) {
+      toast('Write something before posting');
+      return;
+    }
     store.insert(
       'comments',
       {
