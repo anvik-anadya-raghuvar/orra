@@ -1,11 +1,14 @@
 /* Home screen — a dense bento grid.
 
-   Layout contract: every tile declares a column span (1 / 2 / 4) and either one
-   or two row units. Row units are a FIXED height on tablet and desktop, so tiles
-   tessellate instead of ragging out, and `grid-auto-flow: row dense` backfills
-   any hole a hidden widget leaves behind. The last tile is sized in index.tsx so
-   the total cell count is always a multiple of four — the grid therefore always
-   closes as a complete rectangle with no dead whitespace.
+   Layout contract: every tile declares a PREFERRED column span in index.tsx.
+   packBento() (src/lib/bento.ts) recomputes on every render, walking tiles in
+   order and growing whichever real tile already ends a row to consume any
+   leftover width — never a synthetic filler. The result lands in --rc4/--rc2
+   custom properties per tile; this stylesheet just clamps them to the grid's
+   actual track count with min(). Hide a widget and its neighbours visibly
+   grow into the freed space, because the whole grid re-packs from scratch.
+   Row units are a fixed height on tablet/desktop so tiles tessellate, and
+   `grid-auto-flow: row dense` backfills the vertical gaps a tall tile leaves.
 
    Everything is scoped under .home-screen. Mobile-first: one column, auto height.
 */
@@ -462,10 +465,6 @@
 .home-screen .statlink.alert .bignum {
   color: var(--rose);
 }
-.home-screen .bt-filler {
-  justify-content: center;
-}
-
 /* ── photo tile: the image is the tile ─────────────────────────────────── */
 /* .photofill is absolutely positioned, so the tile's padding never shows when
    there is an image; the empty state keeps the normal padded layout. */
@@ -749,18 +748,18 @@
 }
 
 /* ── tablet: two columns, fixed row unit ───────────────────────────────── */
+/* Column span comes from --rc2, computed fresh every render by packBento()
+   (src/lib/bento.ts): whichever real tile ends a row grows to close it, so
+   there is never a gap to patch with a filler. min(...) is a hard clamp —
+   even a bad value can never span past the grid's actual track count. */
 @media (min-width: 641px) {
   .home-screen .bento {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: 178px;
     gap: 13px;
   }
-  .home-screen .bt-c1 {
-    grid-column: span 1;
-  }
-  .home-screen .bt-c2,
-  .home-screen .bt-c4 {
-    grid-column: span 2;
+  .home-screen .bt {
+    grid-column: span min(var(--rc2, 1), 2);
   }
   .home-screen .bt-tall {
     grid-row: span 2;
@@ -781,17 +780,10 @@
     grid-auto-rows: 186px;
     gap: 14px;
   }
-  .home-screen .bt-c1 {
-    grid-column: span 1;
-  }
-  .home-screen .bt-c2 {
-    grid-column: span 2;
-  }
-  .home-screen .bt-c4 {
-    grid-column: span 4;
-  }
   .home-screen .bt {
+    grid-column: span min(var(--rc4, 1), 4);
     padding: 15px 17px;
+    transition: box-shadow 0.26s var(--ease), border-color 0.26s var(--ease), grid-column 0.3s var(--ease);
   }
   .home-screen .greetrow h1 {
     font-size: 30px;

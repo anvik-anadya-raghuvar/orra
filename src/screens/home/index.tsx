@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, Plus, Settings2, Sparkles } from 'lucide-react';
 import { newId, useData, useStore, type AppStore } from '../../data/store';
+import { packBento } from '../../lib/bento';
 import { CountUp, Modal, ProgressBar, useToast } from '../../ui/bits';
 import { entrance, micro, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { daysSinceTs, daysUntil, dayModeNow, fmtDay, inr, todayIso, type DayMode } from '../../lib/dates';
@@ -139,6 +140,7 @@ export default function Home() {
           runway={runway}
           nextFixed={nextFixed ? { label: nextFixed.label, days: daysUntil(nextFixed.date, today) } : null}
           stale={staleDecisions.length}
+          onCustomise={() => setCustomising(true)}
         />
       ),
     },
@@ -253,15 +255,14 @@ export default function Home() {
     ),
   });
 
-  // The tail tile is sized so the grid always closes as a full rectangle.
-  const cells = tiles.reduce((a, t) => a + t.cols * (t.tall ? 2 : 1), 0);
-  const rem = (4 - (cells % 4)) % 4;
-  tiles.push({
-    key: 'filler',
-    cols: rem === 0 ? 4 : rem === 3 ? 2 : (rem as 1 | 2),
-    cls: 'bt-filler',
-    node: <FillerTile hidden={6 - Object.values(p).filter(Boolean).length} onOpen={() => setCustomising(true)} />,
-  });
+  // No filler tile: every row closes by growing whichever real tile already
+  // ends it, recomputed fresh from whatever's actually visible right now —
+  // so hiding a widget makes a genuine neighbour bigger, not a fake patch.
+  const { rc4, rc2 } = useMemo(
+    () => packBento(tiles.map((t) => ({ key: t.key, cols: t.cols }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tiles.map((t) => t.key + t.cols).join(',')],
+  );
 
   return (
     <div className="home-screen">
@@ -269,7 +270,8 @@ export default function Home() {
         {tiles.map((t) => (
           <motion.section
             key={t.key}
-            className={`bt bt-c${t.cols}${t.tall ? ' bt-tall' : ''}${t.cls ? ` ${t.cls}` : ''}`}
+            className={`bt${t.tall ? ' bt-tall' : ''}${t.cls ? ` ${t.cls}` : ''}`}
+            style={{ '--rc4': rc4.get(t.key) ?? t.cols, '--rc2': rc2.get(t.key) ?? Math.min(t.cols, 2) } as React.CSSProperties}
             variants={staggerItem}
           >
             {t.node}
@@ -303,6 +305,7 @@ function GreetTile({
   runway,
   nextFixed,
   stale,
+  onCustomise,
 }: {
   mode: DayMode;
   manual: DayMode | null;
@@ -313,6 +316,7 @@ function GreetTile({
   runway: number;
   nextFixed: { label: string; days: number } | null;
   stale: number;
+  onCustomise: () => void;
 }) {
   return (
     <>
@@ -331,6 +335,10 @@ function GreetTile({
             Auto
           </button>
         )}
+        <button className="chip" onClick={onCustomise} title="Choose which widgets show on Home">
+          <Settings2 size={13} strokeWidth={1.8} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+          Customise
+        </button>
       </div>
       <div className="greetrow">
         <h1>
@@ -829,28 +837,6 @@ function StatTile({
       </div>
       <MiniBars items={items.map((i) => ({ ...i, max }))} />
     </Link>
-  );
-}
-
-/* ── Tail tile — sized so the grid always closes as a rectangle ────────── */
-function FillerTile({ hidden, onOpen }: { hidden: number; onOpen: () => void }) {
-  return (
-    <>
-      <div className="bt-hd">
-        <span className="eyebrow">Your Home, your shape</span>
-      </div>
-      <p className="tip" style={{ margin: 0 }}>
-        {hidden > 0
-          ? `${hidden} widget${hidden === 1 ? '' : 's'} hidden. The grid re-flowed to fill the space they left.`
-          : 'Every widget is on. Turn any of them off and the rest close the gap.'}
-      </p>
-      <div className="rowgap">
-        <button className="btn sm" onClick={onOpen}>
-          <Settings2 size={14} strokeWidth={1.8} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-          Customise this layer
-        </button>
-      </div>
-    </>
   );
 }
 
