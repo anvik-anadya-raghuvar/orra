@@ -62,6 +62,23 @@ you're asleep) needs a refresh token held server-side — a different security p
 separate build. Re-syncing is idempotent: row ids derive from the Google id, and a message you
 already converted keeps its conversion, flag, and project.
 
+## YouTube setup (song of the day) — optional
+
+Different credential from the one above: an **API key**, not an OAuth client. It reads public
+search data and touches nobody's account, which is why there's no consent dialog.
+
+1. Same Cloud project → **APIs & Services → Library** → enable **YouTube Data API v3**.
+2. **Credentials → Create credentials → API key**.
+3. **Restrict it before use** — this key ships inside the JS bundle:
+   - **Application restrictions → Websites**: `https://anvik-ops.vercel.app/*` and `http://localhost:5180/*`
+   - **API restrictions → Restrict key**: YouTube Data API v3 only
+4. Set it as `VITE_YOUTUBE_API_KEY` in `.env` and in Vercel.
+
+With the key set, picking a song by title and artist alone resolves to the real video — artwork on
+the tile and a direct Play link. Without it, Play falls back to a YouTube search page, which is
+what happens today. One lookup costs 100 of the 10,000 free daily quota units, and only runs when
+you save a pick with no URL, so a day of normal use is roughly 1% of the allowance.
+
 ## Deploy (Vercel)
 
 - Import the repo in Vercel — it auto-detects Vite (`npm run build`, output `dist`).

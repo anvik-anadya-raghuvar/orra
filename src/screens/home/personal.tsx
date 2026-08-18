@@ -8,6 +8,7 @@ import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import { isYouTubeUrl, playUrl, youTubeThumb } from '../../lib/song';
+import { resolveSong } from '../../lib/youtube';
 import { ChevronRight } from 'lucide-react';
 import { ResetArrangement } from './tilechrome';
 import type { Personalization, Project, SharedDaily } from '../../types';
@@ -294,14 +295,17 @@ export function SongTile() {
     setEditing(true);
   };
 
-  const save = () => {
+  const save = async () => {
     const t = title.trim();
     if (!t) return;
+    // Left the URL blank? Let YouTube find it, once, here — so the tile gets
+    // real artwork instead of a search link. Silently keeps '' if it can't.
+    const resolved = url.trim() || (await resolveSong(t, artist.trim()))?.url || '';
     if (todaysRow) {
       store.update(
         'shared_daily',
         todaysRow.id,
-        { song_title: t, song_artist: artist.trim(), song_url: url.trim(), picked_by: store.meId },
+        { song_title: t, song_artist: artist.trim(), song_url: resolved, picked_by: store.meId },
         store.asMe({ summary: 'Song of the day updated' }),
       );
     } else {
@@ -312,7 +316,7 @@ export function SongTile() {
           date: today(),
           song_title: t,
           song_artist: artist.trim(),
-          song_url: url.trim(),
+          song_url: resolved,
           picked_by: store.meId,
           photo_url: null,
           photo_caption: null,

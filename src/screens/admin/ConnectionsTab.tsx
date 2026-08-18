@@ -5,6 +5,7 @@ import { useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { googleConfigured } from '../../lib/google';
+import { youtubeConfigured } from '../../lib/youtube';
 import {
   connectGoogle,
   describeSync,
@@ -217,6 +218,19 @@ export default function ConnectionsTab() {
           ? 'Documents take a URL you paste. Connect Google to search Drive instead of pasting.'
           : 'Documents currently store a URL you paste. Search is not wired.',
       needs: configured ? undefined : clientIdNeeded,
+    },
+    {
+      key: 'youtube',
+      name: 'YouTube',
+      // Separate credential, separate story: a public API key, not the OAuth
+      // grant above. It reads public search data and touches no account.
+      state: youtubeConfigured() ? 'live' : 'usable',
+      desc: youtubeConfigured()
+        ? 'A song picked with just a title and artist resolves to the real video — artwork on the tile, Play opens the track.'
+        : 'Play opens a YouTube search for the title and artist. An API key would resolve it to the actual video instead.',
+      needs: youtubeConfigured()
+        ? undefined
+        : 'A YouTube Data API v3 key set as VITE_YOUTUBE_API_KEY. It ships in the bundle, so restrict it in Cloud Console to these two site referrers and to the YouTube Data API alone — an unrestricted key lets a stranger spend your 10,000-unit daily quota.',
     },
     {
       key: 'whatsapp',

@@ -4,6 +4,7 @@ import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { Avatar, CountUp, useToast } from '../../ui/bits';
 import { lift, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { compressPhoto } from '../../lib/photo';
+import { resolveSong } from '../../lib/youtube';
 
 type Expiry = '' | '1h' | '3h' | 'eod';
 
@@ -96,13 +97,16 @@ function SongCard() {
   const [artist, setArtist] = useState('');
   const [url, setUrl] = useState('');
 
-  const save = () => {
+  const save = async () => {
     if (!title.trim()) return;
+    // Same rule as the Home tile: a blank URL is resolved by YouTube once, at
+    // save time, so Play opens the track rather than a search page.
+    const resolved = url.trim() || (await resolveSong(title.trim(), artist.trim()))?.url || '';
     if (daily) {
       store.update(
         'shared_daily',
         daily.id,
-        { song_title: title.trim(), song_artist: artist.trim(), song_url: url.trim(), picked_by: store.meId },
+        { song_title: title.trim(), song_artist: artist.trim(), song_url: resolved, picked_by: store.meId },
         store.asMe({ summary: 'Song of the day updated' }),
       );
     } else {
@@ -113,7 +117,7 @@ function SongCard() {
           date: today(),
           song_title: title.trim(),
           song_artist: artist.trim(),
-          song_url: url.trim(),
+          song_url: resolved,
           picked_by: store.meId,
           photo_url: null,
           photo_caption: null,
