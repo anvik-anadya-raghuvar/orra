@@ -2,6 +2,10 @@
 
 export type UserId = string; // profile id
 export type TaskType = 'code_change' | 'ops' | 'finance' | 'research';
+/** How much brain a task costs. Matched against the day's declared capacity. */
+export type Effort = 'light' | 'medium' | 'heavy';
+/** Declared capacity for the day — "how heavy do I want today to be". */
+export type Capacity = 'light' | 'medium' | 'heavy';
 export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'done';
 export type TaskPriority = 'urgent' | 'high' | 'normal' | 'low';
 export type RelationshipType = 'customer' | 'vendor' | 'investor' | 'university' | 'personal';
@@ -87,8 +91,41 @@ export interface Task {
   objective_id: string | null;
   tags: string[];
   progress_pct: number;
+  /** Founder-life metadata — drives capacity matching and the stuck zone. */
+  effort: Effort;
+  estimate_minutes: number;
+  impact: number; // 1–5, leverage
+  is_stuck: boolean;
+  blocked_reason: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** One row per user per day: declared capacity, intention, and win conditions. */
+export interface DayPlan {
+  id: string;
+  user_id: UserId;
+  date: string; // YYYY-MM-DD
+  capacity: Capacity;
+  intention: string;
+  wins: WinCondition[];
+  created_at: string;
+}
+export interface WinCondition {
+  text: string;
+  done: boolean;
+}
+
+/** A block on today's timeline — meetings, protected study, focus blocks. */
+export interface DayEvent {
+  id: string;
+  user_id: UserId | null; // null = shared
+  date: string;
+  start_min: number; // minutes from midnight, local
+  end_min: number;
+  label: string;
+  kind: 'focus' | 'meeting' | 'study' | 'admin' | 'personal';
+  task_id: string | null;
 }
 
 export interface Subtask {
@@ -369,6 +406,8 @@ export interface Dataset {
   audit_trail: AuditEntry[];
   automation_rules: AutomationRule[];
   daily_closeouts: DailyCloseout[];
+  day_plans: DayPlan[];
+  day_events: DayEvent[];
 }
 
 export type CollectionKey = keyof Omit<Dataset, 'ranking_weights'>;

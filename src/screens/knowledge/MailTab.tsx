@@ -6,6 +6,7 @@ import { useToast } from '../../ui/bits';
 import { staggerList, staggerItem } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
 import type { MailItem } from '../../types';
+import { makeTask } from '../../lib/taskFactory';
 
 export default function MailTab() {
   const mail = useData((ds) => ds.mail_items);
@@ -53,25 +54,13 @@ function MailRow({ mail }: { mail: MailItem }) {
     const id = store.nextTaskId();
     store.insert(
       'tasks',
-      {
+      makeTask({
         id,
         title: mail.subject,
         description: mail.snippet,
-        acceptance_criteria: '',
         project_id: mail.project_id ?? 'anvik',
-        type: 'ops',
-        status: 'todo',
-        priority: 'normal',
-        assignee_id: store.meId,
         created_by: store.meId,
-        start_date: null,
-        due_date: null,
-        objective_id: null,
-        tags: [],
-        progress_pct: 0,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      },
+      }),
       store.asMe({ summary: `Task created from mail — ${mail.subject}` }),
     );
     store.update('mail_items', mail.id, { converted_to_type: 'task', converted_to_id: id }, store.asMe());

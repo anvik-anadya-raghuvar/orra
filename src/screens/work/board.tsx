@@ -2,11 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Dataset, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
+import type { Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { nowIso, useData, useStore } from '../../data/store';
 import { Avatar, Modal, TagChip, useToast } from '../../ui/bits';
 import { entrance, lift, micro, spring, staggerItem, staggerList } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
+import { makeTask } from '../../lib/taskFactory';
 import {
   Field,
   PRIORITIES,
@@ -572,31 +573,28 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [priority, setPriority] = useState<TaskPriority>('normal');
   const [assignee, setAssignee] = useState(store.meId);
   const [due, setDue] = useState(todayIso());
+  const [effort, setEffort] = useState<Effort>('medium');
+  const [estimate, setEstimate] = useState(45);
 
   const submit = () => {
     const id = store.nextTaskId();
     const clean = title.trim() || 'Untitled task';
     store.insert(
       'tasks',
-      {
+      makeTask({
         id,
         title: clean,
         description,
-        acceptance_criteria: '',
         project_id: projectId,
         type,
-        status: 'todo',
         priority,
         assignee_id: assignee,
         created_by: store.meId,
         start_date: todayIso(),
         due_date: due || null,
-        objective_id: null,
-        tags: [],
-        progress_pct: 0,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      },
+        effort,
+        estimate_minutes: estimate,
+      }),
       store.asMe({ summary: `Task ${id} created — ${clean}` }),
     );
     toast(`${id} created`);
@@ -653,6 +651,30 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
         </Field>
         <Field label="Due date">
           <input className="wk-in" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+        </Field>
+        <Field label="Effort">
+          <div className="wk-seg">
+            {(['light', 'medium', 'heavy'] as Effort[]).map((e) => (
+              <button
+                key={e}
+                type="button"
+                aria-pressed={effort === e}
+                onClick={() => setEffort(e)}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label="Estimate (min)">
+          <input
+            className="wk-in"
+            type="number"
+            min={5}
+            step={5}
+            value={estimate}
+            onChange={(e) => setEstimate(Math.max(5, Number(e.target.value) || 45))}
+          />
         </Field>
       </div>
       <div className="wk-acts">

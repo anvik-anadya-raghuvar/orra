@@ -1,22 +1,39 @@
-import type { Dataset, Task } from '../types';
+import type { Capacity, Dataset, Effort, Task } from '../types';
 
 export interface RankedTask {
   task: Task;
   objectiveFit: number; // 0–100 before weighting
   unblocks: number;
   deadline: number;
-  score: number; // weighted total, 0–100
+  /** Capacity match is a modifier, not a weighted factor — it never lets a
+   *  light task outrank an urgent one, it only breaks ties toward what fits. */
+  capacityFit: number; // -18 … +14
+  score: number;
   why: string[];
 }
 
 const DAY_MS = 86_400_000;
 
+/** How well a task's effort matches the declared capacity for the day. */
+export function capacityFit(effort: Effort, capacity: Capacity): number {
+  const table: Record<Capacity, Record<Effort, number>> = {
+    light: { light: 14, medium: 4, heavy: -18 },
+    medium: { light: 6, medium: 10, heavy: 2 },
+    heavy: { light: 2, medium: 8, heavy: 14 },
+  };
+  return table[capacity][effort];
+}
+
 /**
- * Business task ranking — pure, reads weights from ranking_weights (never
- * constants; plan correction #2). Personal-project tasks are excluded
- * entirely (principle 7).
+ * Business task ranking — pure. Weights come from ranking_weights (never
+ * constants), capacity comes from the day plan. Personal-project tasks are
+ * excluded entirely (principle 7: personal life never feeds business ranking).
  */
-export function rankTasks(ds: Dataset, todayIso: string): RankedTask[] {
+export function rankTasks(
+  ds: Dataset,
+  todayIso: string,
+  capacity: Capacity = 'medium',
+): RankedTask[] {
   const w = ds.ranking_weights;
   const total = w.objective_fit + w.unblocks + w.deadline || 1;
   const personal = new Set(ds.projects.filter((p) => p.is_personal).map((p) => p.id));
@@ -33,14 +50,17 @@ export function rankTasks(ds: Dataset, todayIso: string): RankedTask[] {
       if (task.objective_id) {
         const krs = ds.key_results.filter((k) => k.objective_id === task.objective_id);
         const avg = krs.length ? krs.reduce((a, k) => a + k.progress_pct, 0) / krs.length : 0;
-        objectiveFit = 60 + (100 - avg) * 0.4; // linked floor 60, urgency of the objective on top
+        objectiveFit = 60 + (100 - avg) * 0.4;
         const obj = ds.objectives.find((o) => o.id === task.objective_id);
-        if (obj) why.push(`Advances "${obj.title}" (${Math.round(avg)}% complete)`);
+        if (obj) why.push(`Advances "${obj.title}" (${Math.round(avg)}% done)`);
       } else {
         why.push('No linked objective — sinks in rank');
       }
+      // Leverage nudges fit: a high-impact task on the same objective wins.
+      objectiveFit = Math.min(100, objectiveFit + (task.impact - 3) * 6);
+      if (task.impact >= 5) why.push('High leverage');
 
-      // Unblocks: tags that signal coupling, other-person tasks in review, priority.
+      // Unblocks: coupling signals, review state, priority.
       let unblocks = 0;
       if (task.tags.includes('blocked')) unblocks += 10;
       if (task.tags.includes('urgent-path')) unblocks += 45;
@@ -63,10 +83,78 @@ export function rankTasks(ds: Dataset, todayIso: string): RankedTask[] {
         else if (days <= 3) why.push(`Due in ${days}d`);
       }
 
-      const score =
+      const weighted =
         (objectiveFit * w.objective_fit + unblocks * w.unblocks + deadline * w.deadline) / total;
 
-      return { task, objectiveFit: Math.round(objectiveFit), unblocks, deadline, score: Math.round(score * 10) / 10, why };
+      // A stuck task should be surfaced in the stuck zone, not pushed as "start here".
+      const stuckPenalty = task.is_stuck || task.blocked_reason ? -30 : 0;
+      if (stuckPenalty) why.push('Stuck — needs unblocking first');
+
+      const fit = capacityFit(task.effort, capacity);
+      if (fit >= 10) why.push(`Fits a ${capacity} day`);
+      else if (fit <= -10) why.push(`Heavy for a ${capacity} day`);
+
+      const score = Math.max(0, weighted + fit + stuckPenalty);
+
+      return {
+        task,
+        objectiveFit: Math.round(objectiveFit),
+        unblocks,
+        deadline,
+        capacityFit: fit,
+        score: Math.round(score * 10) / 10,
+        why,
+      };
     })
     .sort((a, b) => b.score - a.score || a.task.id.localeCompare(b.task.id));
+}
+
+/** Tasks that need surfacing rather than starting: stuck, blocked, or aging evidence. */
+export function stuckTasks(ds: Dataset): { task: Task; reason: string }[] {
+  const out: { task: Task; reason: string }[] = [];
+  for (const task of ds.tasks) {
+    if (task.status === 'done') continue;
+    if (task.blocked_reason) {
+      out.push({ task, reason: task.blocked_reason });
+      continue;
+    }
+    if (task.is_stuck) {
+      out.push({ task, reason: 'Marked stuck by its owner' });
+      continue;
+    }
+    // Evidence aging: an unresolved pin older than 48h on this task's screenshots.
+    const shots = ds.screenshot_attachments.filter((s) => s.task_id === task.id).map((s) => s.id);
+    const oldest = ds.annotation_pins
+      .filter((p) => shots.includes(p.screenshot_id) && !p.is_resolved)
+      .map((p) => Date.parse(p.created_at))
+      .sort((a, b) => a - b)[0];
+    if (oldest) {
+      const hours = Math.floor((Date.now() - oldest) / 3_600_000);
+      if (hours >= 48) {
+        out.push({ task, reason: `Evidence pin unresolved for ${hours}h — resolve or park it` });
+      }
+    }
+  }
+  return out;
+}
+
+/** Planned minutes for the day vs what the declared capacity realistically holds. */
+export const CAPACITY_MINUTES: Record<Capacity, number> = {
+  light: 180,
+  medium: 330,
+  heavy: 480,
+};
+
+/** Greedy plan: fill the day's capacity from the ranked list. */
+export function planDay(ranked: RankedTask[], capacity: Capacity): RankedTask[] {
+  const budget = CAPACITY_MINUTES[capacity];
+  let used = 0;
+  const picked: RankedTask[] = [];
+  for (const r of ranked) {
+    if (used + r.task.estimate_minutes > budget) continue;
+    picked.push(r);
+    used += r.task.estimate_minutes;
+    if (used >= budget * 0.92) break;
+  }
+  return picked;
 }

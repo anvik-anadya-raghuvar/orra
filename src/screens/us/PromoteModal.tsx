@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Message } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
+import { makeTask } from '../../lib/taskFactory';
 
 export type PromoteKind = 'task' | 'note' | 'decision';
 export interface PromoteTarget {
@@ -66,25 +67,13 @@ export function PromoteModal({ promote, onClose }: { promote: PromoteTarget | nu
       const id = store.nextTaskId();
       store.insert(
         'tasks',
-        {
+        makeTask({
           id,
           title: title.trim() || 'Untitled task',
           description: desc,
-          acceptance_criteria: '',
           project_id: projectId,
-          type: 'ops',
-          status: 'todo',
-          priority: 'normal',
-          assignee_id: store.meId,
           created_by: store.meId,
-          start_date: null,
-          due_date: null,
-          objective_id: null,
-          tags: [],
-          progress_pct: 0,
-          created_at: nowIso(),
-          updated_at: nowIso(),
-        },
+        }),
         store.asMe({ summary: `Task ${id} created from a message` }),
       );
       store.update(

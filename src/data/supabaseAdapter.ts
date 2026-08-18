@@ -33,6 +33,8 @@ const TABLE: Record<CollectionKey, string> = {
   audit_trail: 'audit_trail',
   automation_rules: 'automation_rules',
   daily_closeouts: 'daily_closeouts',
+  day_plans: 'day_plans',
+  day_events: 'day_events',
 };
 
 /**

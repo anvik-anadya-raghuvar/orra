@@ -1,0 +1,300 @@
+/* ──────────────────────────────────────────────────────────────────────
+   Chart tokens + primitives.
+
+   Every value below was checked with the dataviz validator (all-pairs gate)
+   against the light surface (#FFF) and the dark surface (#151B28):
+
+     3-categorical  light #4A47D8,#CE6A10,#0E8267   → ALL CHECKS PASS
+     3-categorical  dark  #7C7AF0,#C97A2E,#1E9C74   → ALL CHECKS PASS
+     in/out pair    light #0E8267,#CE6A10           → ALL CHECKS PASS
+     in/out pair    dark  #1E9C74,#C97A2E           → ALL CHECKS PASS
+
+   Dark is SELECTED (its own steps from the same hues), never an auto-flip.
+   Categorical stops at three: four hues cannot clear CVD separation inside
+   the dark lightness band, so four-way splits use <MiniBars> small multiples.
+   Money in/out is teal↔orange, not green↔red — the red/green pair fails
+   deuteranopia (ΔE 4.7) — and always ships with +/− signs and text labels.
+   ────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --viz-1: #4a47d8;
+  --viz-2: #ce6a10;
+  --viz-3: #0e8267;
+  --viz-in: #0e8267;
+  --viz-out: #ce6a10;
+  --viz-seq: #4a47d8;
+}
+html[data-theme='dark'] {
+  --viz-1: #7c7af0;
+  --viz-2: #c97a2e;
+  --viz-3: #1e9c74;
+  --viz-in: #1e9c74;
+  --viz-out: #c97a2e;
+  --viz-seq: #7c7af0;
+}
+
+/* ── legend + tooltip ─────────────────────────────────────────────────── */
+.viz-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--slate); /* text wears text tokens, never the series colour */
+}
+.viz-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.viz-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+.viz-tip {
+  position: absolute;
+  right: 0;
+  top: -18px;
+  font-size: 10.5px;
+  color: var(--slate);
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 7px;
+  pointer-events: none;
+}
+
+/* ── grouped bars ─────────────────────────────────────────────────────── */
+.viz-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  position: relative;
+  padding-top: 10px;
+}
+.viz-bargroup {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.viz-barpair {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px; /* 2px surface gap between adjacent bars */
+  height: 100%;
+  width: 100%;
+  justify-content: center;
+}
+.viz-bar {
+  width: 46%;
+  max-width: 18px;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0; /* 4px rounded data-end, anchored to baseline */
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.viz-barlabel {
+  font-size: 9.5px;
+  color: var(--mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── ranked rows ──────────────────────────────────────────────────────── */
+.viz-rows {
+  display: grid;
+  gap: 8px;
+}
+.viz-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) 2.2fr auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 12.5px;
+}
+.viz-rowlabel {
+  color: var(--slate);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.viz-rowtrack {
+  background: var(--surf3);
+  border-radius: 4px;
+  height: 9px;
+  overflow: hidden;
+}
+.viz-rowtrack i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.viz-rowvalue {
+  font-size: 11.5px;
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── donut ────────────────────────────────────────────────────────────── */
+.viz-donutwrap {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+.viz-donutcenter {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  line-height: 1.15;
+}
+.viz-donutcenter b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+}
+.viz-donutcenter span {
+  font-size: 9.5px;
+  color: var(--mute);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ── heat strip ───────────────────────────────────────────────────────── */
+.viz-heat {
+  display: flex;
+  gap: 3px;
+  position: relative;
+  padding-top: 6px;
+}
+.viz-heatcell {
+  flex: 1;
+  height: 26px;
+  border-radius: 4px;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  min-width: 6px;
+}
+
+/* ── split bar ────────────────────────────────────────────────────────── */
+.viz-split {
+  display: flex;
+  gap: 2px; /* 2px surface gap between stacked segments */
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surf3);
+}
+.viz-split span {
+  display: block;
+  flex-basis: 0;
+  border-radius: 3px;
+}
+
+/* ── small multiples ──────────────────────────────────────────────────── */
+.viz-minis {
+  display: grid;
+  gap: 9px;
+}
+.viz-mini {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) 2fr auto;
+  gap: 9px;
+  align-items: center;
+  font-size: 12px;
+}
+.viz-minilabel {
+  color: var(--slate);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.viz-minitrack {
+  background: var(--surf3);
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+}
+.viz-minitrack i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.viz-mini b {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* ── day ribbon ───────────────────────────────────────────────────────── */
+.viz-ribbon {
+  padding: 14px 0 4px;
+}
+.viz-ribbontrack {
+  position: relative;
+  height: 40px;
+  background: var(--surf3);
+  border-radius: 10px;
+}
+.viz-ribbontick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+.viz-ribbontick i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+.viz-ribbontick em {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  transform: translateX(-50%);
+  font-style: normal;
+  font-size: 9px;
+  color: var(--mute);
+  margin-top: 3px;
+}
+.viz-ribbonev {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 10.5px;
+  padding: 0 7px;
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+.viz-ribbonev span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.viz-ribbonnow {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--rose);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--rose) 22%, transparent);
+}

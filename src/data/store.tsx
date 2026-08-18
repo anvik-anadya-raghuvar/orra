@@ -73,6 +73,8 @@ export class AppStore {
       reading_queue: 'reading_item',
       life_admin: 'life_admin_item',
       shared_daily: 'shared_daily',
+      day_plans: 'day_plan',
+      day_events: 'day_event',
     };
     return irregular[key] ?? key.replace(/s$/, '');
   }

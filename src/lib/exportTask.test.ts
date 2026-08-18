@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { seedDataset } from '../data/seed';
 import { generateTaskExport, pinNumber } from './exportTask';
-import { rankTasks } from './ranking';
+import { capacityFit, planDay, rankTasks, stuckTasks } from './ranking';
 
 describe('export determinism (gate §6 correctness)', () => {
   it('two consecutive exports of identical task state are byte-identical', () => {
@@ -74,5 +74,47 @@ describe('ranking', () => {
     const ranked = rankTasks(seedDataset(), '2026-08-18');
     const noObj = ranked.findIndex((r) => r.task.id === 'T-38');
     expect(noObj).toBeGreaterThan(ranked.length / 2);
+  });
+});
+
+describe('declared capacity — "how heavy do I want today to be"', () => {
+  it('scores light work up and heavy work down on a light day', () => {
+    expect(capacityFit('light', 'light')).toBeGreaterThan(capacityFit('heavy', 'light'));
+    expect(capacityFit('heavy', 'light')).toBeLessThan(0);
+    expect(capacityFit('heavy', 'heavy')).toBeGreaterThan(capacityFit('heavy', 'light'));
+  });
+
+  it('reshuffles the ranking when capacity changes', () => {
+    const ds = seedDataset();
+    const light = rankTasks(ds, '2026-08-18', 'light').map((r) => r.task.id);
+    const heavy = rankTasks(ds, '2026-08-18', 'heavy').map((r) => r.task.id);
+    expect(light).not.toEqual(heavy);
+    // T-45 is a 90-minute heavy task: it must rank higher on a heavy day
+    expect(heavy.indexOf('T-45')).toBeLessThan(light.indexOf('T-45'));
+  });
+
+  it('never lets capacity outrank urgency entirely', () => {
+    // the top of a light day is still real work, not merely the lightest thing
+    const top = rankTasks(seedDataset(), '2026-08-18', 'light')[0];
+    expect(top.score).toBeGreaterThan(0);
+    expect(['urgent', 'high', 'normal']).toContain(top.task.priority);
+  });
+
+  it('plans a day inside its minute budget', () => {
+    const ds = seedDataset();
+    const ranked = rankTasks(ds, '2026-08-18', 'light');
+    const picked = planDay(ranked, 'light');
+    const minutes = picked.reduce((a, r) => a + r.task.estimate_minutes, 0);
+    expect(minutes).toBeLessThanOrEqual(180);
+    expect(picked.length).toBeGreaterThan(0);
+  });
+
+  it('surfaces blocked work in the stuck zone instead of as "start here"', () => {
+    const ds = seedDataset();
+    const stuck = stuckTasks(ds);
+    expect(stuck.some((s) => s.task.id === 'T-44')).toBe(true);
+    // and a blocked task is pushed down the ranking
+    const ranked = rankTasks(ds, '2026-08-18');
+    expect(ranked[0].task.id).not.toBe('T-44');
   });
 });
