@@ -5,15 +5,17 @@ import TrailTab from './TrailTab';
 import RulesTab from './RulesTab';
 import TagsTab from './TagsTab';
 import ConnectionsTab from './ConnectionsTab';
+import DataTab from './DataTab';
 import './admin.css';
 
-type Tab = 'trail' | 'rules' | 'tags' | 'connections';
+type Tab = 'trail' | 'rules' | 'tags' | 'connections' | 'data';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'trail', label: 'Trail' },
   { key: 'rules', label: 'Rules' },
   { key: 'tags', label: 'Tags' },
   { key: 'connections', label: 'Connections' },
+  { key: 'data', label: 'Data' },
 ];
 
 export default function Admin() {
@@ -51,6 +53,7 @@ export default function Admin() {
             {tab === 'rules' && <RulesTab />}
             {tab === 'tags' && <TagsTab />}
             {tab === 'connections' && <ConnectionsTab />}
+            {tab === 'data' && <DataTab />}
           </motion.div>
         </AnimatePresence>
       </div>

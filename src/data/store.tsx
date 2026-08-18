@@ -183,6 +183,55 @@ export class AppStore {
     this.emit();
   }
 
+  /**
+   * Remove many rows from one collection in a single pass.
+   *
+   * One state update and one `saveCollection` call, so the Supabase adapter
+   * issues a single `delete().in('id', …)` instead of one round-trip per row.
+   * Row-level audit is deliberately skipped — a bulk purge writes one summary
+   * line via `note()` rather than a hundred, which keeps the append-only trail
+   * readable (and it cannot be tidied up afterwards).
+   */
+  removeMany<K extends CollectionKey>(key: K, ids: string[], meta: MutationMeta) {
+    if (!ids.length) return 0;
+    const drop = new Set(ids);
+    const rows = this.ds[key] as Row[];
+    const kept = rows.filter((r) => !drop.has(r.id));
+    const removed = rows.length - kept.length;
+    if (!removed) return 0;
+    this.ds = { ...this.ds, [key]: kept as Dataset[K] };
+    this.adapter.saveCollection(key, this.ds[key]);
+    if (!meta.silent) {
+      this.audit({
+        actor_id: meta.actor,
+        actor_label: meta.actorLabel,
+        entity_type: this.entityType(key),
+        entity_id: `${removed} rows`,
+        field_name: null,
+        old_value: meta.summary ?? `${removed} rows removed`,
+        new_value: null,
+        source: meta.source ?? 'portal',
+      });
+    }
+    this.emit();
+    return removed;
+  }
+
+  /** Append one free-standing line to the trail — for things no single row owns. */
+  note(entityType: string, summary: string, meta: MutationMeta) {
+    this.audit({
+      actor_id: meta.actor,
+      actor_label: meta.actorLabel,
+      entity_type: entityType,
+      entity_id: '-',
+      field_name: null,
+      old_value: null,
+      new_value: summary,
+      source: meta.source ?? 'portal',
+    });
+    this.emit();
+  }
+
   setWeights(patch: Partial<RankingWeights>, meta: MutationMeta) {
     const before = this.ds.ranking_weights;
     const after = { ...before, ...patch, updated_at: nowIso() };

@@ -13,6 +13,7 @@ import {
   googleGrant,
   hasScope,
   syncAll,
+  trySilentConnect,
 } from '../../lib/googleSync';
 import { fmtDateTime } from '../../lib/dates';
 
@@ -74,7 +75,7 @@ export default function ConnectionsTab() {
   useEffect(() => {
     if (!configured || !linked) return;
     let alive = true;
-    connectGoogle(store, { interactive: false })
+    trySilentConnect(store)
       .then((ok) => alive && setTokenLive(ok))
       .catch(() => alive && setTokenLive(false));
     return () => {

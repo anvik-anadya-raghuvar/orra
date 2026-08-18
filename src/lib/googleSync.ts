@@ -28,6 +28,7 @@ import {
   forgetToken,
   getToken,
   googleConfigured,
+  hasLiveToken,
 } from './google';
 
 /** Everything the portal asks for, requested together so consent happens once. */
@@ -97,7 +98,27 @@ export async function connectGoogle(
   return true;
 }
 
+/**
+ * The silent re-grant, attempted at most once per page load.
+ *
+ * Google Identity Services still reaches for a popup even with `prompt: none`,
+ * so retrying it on every mount means a window flashing each time you open
+ * Connections. One attempt per session is enough: if it works the token is
+ * cached, and if it doesn't the UI says so and the next sync asks properly.
+ */
+let silentTried = false;
+export async function trySilentConnect(store: AppStore): Promise<boolean> {
+  if (silentTried) return hasLiveToken();
+  silentTried = true;
+  try {
+    return await connectGoogle(store, { interactive: false });
+  } catch {
+    return false;
+  }
+}
+
 export function disconnectGoogle(store: AppStore) {
+  silentTried = false;
   forgetToken();
   const g = googleGrant(store);
   if (g) store.remove('integration_grants', g.id, store.asMe({ summary: 'Google disconnected' }));

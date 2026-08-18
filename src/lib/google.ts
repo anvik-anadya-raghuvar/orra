@@ -131,6 +131,9 @@ export function forgetToken() {
 
 export const grantedScopes = (): string[] => (cached ? [...cached.scopes] : []);
 
+/** True while an unexpired token is held in memory for this session. */
+export const hasLiveToken = (): boolean => !!cached && cached.expiresAt > Date.now();
+
 /* ── API helpers ────────────────────────────────────────────────────── */
 
 async function api<T>(url: string, token: string): Promise<T> {
