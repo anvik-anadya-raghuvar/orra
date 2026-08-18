@@ -514,6 +514,23 @@ export interface IntegrationGrant {
   last_sync_at: string | null;
 }
 
+/**
+ * A snapshot of a removed row, kept so any delete in the app is recoverable —
+ * not just the demo purge. `row_data` is the full row as it was the instant
+ * before it was removed, so Restore can put it back byte-for-byte rather than
+ * reconstructing it from the audit trail's one-line summary.
+ */
+export interface TrashItem {
+  id: string;
+  collection: string;
+  row_id: string;
+  row_data: Record<string, unknown>;
+  label: string;
+  deleted_by: UserId | null;
+  deleted_by_label: string;
+  deleted_at: string;
+}
+
 export interface DailyCloseout {
   id: string;
   user_id: UserId;
@@ -564,6 +581,7 @@ export interface Dataset {
   pages: Page[];
   page_comments: PageComment[];
   integration_grants: IntegrationGrant[];
+  trash_items: TrashItem[];
 }
 
 export type CollectionKey = keyof Omit<Dataset, 'ranking_weights'>;

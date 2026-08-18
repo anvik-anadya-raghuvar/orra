@@ -240,6 +240,20 @@ button {
   color: #fff;
   box-shadow: 0 8px 20px var(--glow);
 }
+/* Irreversible actions only — emptying trash, deleting for good. */
+.btn.danger {
+  border-color: var(--rose);
+  color: var(--rose);
+}
+.btn.danger:hover {
+  background: var(--rose);
+  color: #fff;
+}
+.btn.solid.danger {
+  background: var(--rose);
+  color: #fff;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--rose) 35%, transparent);
+}
 .btn.sm {
   padding: 6px 11px;
   font-size: 12px;

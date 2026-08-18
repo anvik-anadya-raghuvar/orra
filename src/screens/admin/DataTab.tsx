@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2 } from 'lucide-react';
+import { RotateCcw, Trash2, X } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
+import { fmtDateTime } from '../../lib/dates';
 import { planPurge, prettyKey, purgeDemo, type PurgePlan } from '../../lib/purgeDemo';
+import type { TrashItem } from '../../types';
 
 /**
- * Data — currently one job: get the worked example out of the way.
+ * Data — demo cleanup, plus Trash for everything else.
  *
- * The count is computed by matching seeded ids against what is actually in the
- * database, so it drops to zero once and stays there. If it says 0, there is
- * nothing demo left and the button has nothing to do.
+ * The demo count is computed by matching seeded ids against what is actually
+ * in the database, so it drops to zero once and stays there. Trash is every
+ * delete that has gone through the store since — the purge above included,
+ * since it removes rows the same way any other delete in the app does.
  */
 export default function DataTab() {
   const store = useStore();
@@ -19,7 +22,9 @@ export default function DataTab() {
   const toast = useToast();
   const [plan, setPlan] = useState<PurgePlan | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [emptying, setEmptying] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmForever, setConfirmForever] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     let alive = true;
@@ -36,7 +41,7 @@ export default function DataTab() {
     setBusy(true);
     try {
       const removed = await purgeDemo(store);
-      toast(removed ? `Removed ${removed} demo rows` : 'Nothing left to remove');
+      toast(removed ? `Removed ${removed} demo rows — recoverable from Trash below` : 'Nothing left to remove');
       setConfirming(false);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Purge failed');
@@ -46,6 +51,30 @@ export default function DataTab() {
   };
 
   const total = plan?.total ?? 0;
+
+  const trash = [...ds.trash_items].sort((a, b) => b.deleted_at.localeCompare(a.deleted_at));
+
+  const restore = (item: TrashItem) => {
+    const ok = store.restoreFromTrash(item.id, store.asMe());
+    toast(ok ? `Restored — ${item.label}` : 'Already gone');
+  };
+
+  const forever = (item: TrashItem) => {
+    if (confirmForever !== item.id) {
+      setConfirmForever(item.id);
+      setTimeout(() => setConfirmForever((cur) => (cur === item.id ? null : cur)), 3000);
+      return;
+    }
+    store.purgeTrashItem(item.id, store.asMe());
+    setConfirmForever(null);
+    toast(`Deleted for good — ${item.label}`);
+  };
+
+  const emptyAll = () => {
+    const n = store.emptyTrash(store.asMe());
+    toast(n ? `Trash emptied — ${n} rows gone for good` : 'Trash was already empty');
+    setEmptying(false);
+  };
 
   return (
     <div>
@@ -79,7 +108,7 @@ export default function DataTab() {
       </div>
 
       {plan && total > 0 && (
-        <motion.div className="ad-conns" {...staggerParent()}>
+        <motion.div className="ad-conns" {...staggerParent()} style={{ marginBottom: 16 }}>
           {plan.hits.map((h) => (
             <motion.div key={h.key} className="ad-conn" variants={staggerItem}>
               <div className="ad-conn-head">
@@ -95,11 +124,59 @@ export default function DataTab() {
         </motion.div>
       )}
 
+      <div className="ad-goog">
+        <div className="ad-conn-head">
+          <h4>Trash</h4>
+          <span className={`pill ${trash.length ? 'soon' : 'ok'}`}>
+            {trash.length ? `${trash.length} rows` : 'empty'}
+          </span>
+        </div>
+        <p>
+          Anything deleted anywhere in the portal — a task, a note, a person, the demo purge above
+          — lands here first. Restore puts a row back exactly as it was; deleting from Trash is the
+          only step in the app that cannot be undone.
+        </p>
+        {trash.length > 0 && (
+          <div className="ad-conn-acts">
+            <button type="button" className="btn sm" onClick={() => setEmptying(true)}>
+              Empty trash
+            </button>
+          </div>
+        )}
+      </div>
+
+      {trash.length > 0 && (
+        <motion.div className="trash-list" {...staggerParent()}>
+          {trash.map((item) => (
+            <motion.div className="trash-row" key={item.id} variants={staggerItem}>
+              <div className="tr-main">
+                <div className="tr-label">{item.label}</div>
+                <div className="tr-meta mono">
+                  {prettyKey(item.collection)} · {item.deleted_by_label} · {fmtDateTime(item.deleted_at)}
+                </div>
+              </div>
+              <div className="tr-acts">
+                <button type="button" className="btn sm" onClick={() => restore(item)}>
+                  <RotateCcw size={12} strokeWidth={2} /> Restore
+                </button>
+                <button
+                  type="button"
+                  className={`btn sm ${confirmForever === item.id ? 'danger' : ''}`}
+                  onClick={() => forever(item)}
+                >
+                  <X size={12} strokeWidth={2} /> {confirmForever === item.id ? 'Confirm?' : 'Delete forever'}
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+
       <Modal open={confirming} onClose={() => setConfirming(false)} title="Remove demo content">
         <p style={{ margin: '0 0 10px', fontSize: 13.5, color: 'var(--slate)' }}>
           This deletes {total} seeded rows across {plan?.hits.length ?? 0} collections, for both
-          Anadya and Raghuvar. It cannot be undone from inside the portal — the seed only reappears
-          by re-running migration <span className="mono">0004</span>.
+          Anadya and Raghuvar. Every row lands in Trash below first, so this is recoverable — until
+          Trash is emptied.
         </p>
         <p className="tip" style={{ margin: '0 0 14px' }}>
           One line goes into the audit trail recording that it happened, not {total} of them.
@@ -110,6 +187,21 @@ export default function DataTab() {
           </button>
           <button className="btn solid" onClick={run} disabled={busy}>
             {busy ? 'Removing…' : `Remove ${total} rows`}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={emptying} onClose={() => setEmptying(false)} title="Empty trash">
+        <p style={{ margin: '0 0 14px', fontSize: 13.5, color: 'var(--slate)' }}>
+          Permanently deletes all {trash.length} rows currently in Trash. This is the one action in
+          the whole portal that cannot be undone.
+        </p>
+        <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <button className="btn" onClick={() => setEmptying(false)}>
+            Cancel
+          </button>
+          <button className="btn solid danger" onClick={emptyAll}>
+            Empty trash for good
           </button>
         </div>
       </Modal>

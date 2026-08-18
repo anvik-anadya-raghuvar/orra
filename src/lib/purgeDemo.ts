@@ -112,4 +112,4 @@ export async function purgeDemo(store: AppStore): Promise<number> {
 }
 
 /** "mail_items" → "mail items", for the confirmation list. */
-export const prettyKey = (k: CollectionKey) => k.replace(/_/g, ' ');
+export const prettyKey = (k: CollectionKey | string) => k.replace(/_/g, ' ');

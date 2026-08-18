@@ -1,0 +1,186 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Migration: 0009_multi_accounts.sql
+-- Purpose: Add multi-account system for Google, IMAP, YouTube
+-- Date: 2026-08-18
+-- Reversible: false (external_accounts carries operational data)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ═══ New Table: external_accounts ═══════════════════════════════════════════
+
+CREATE TABLE public.external_accounts (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  account_type TEXT NOT NULL CHECK (account_type IN ('google_workspace', 'gmail', 'youtube', 'imap')),
+  provider TEXT NOT NULL CHECK (provider IN ('google', 'titan', 'gmail', 'proton', 'outlook', 'fastmail')),
+  display_email TEXT NOT NULL,
+  display_name TEXT NOT NULL DEFAULT '',
+
+  -- Google OAuth fields
+  google_user_id TEXT,
+  google_refresh_token_encrypted TEXT,
+
+  -- IMAP connection fields
+  imap_host TEXT,
+  imap_port INT,
+  imap_use_tls BOOLEAN,
+  imap_username TEXT,
+  imap_password_encrypted TEXT,
+
+  -- Sync metadata
+  last_sync_at TIMESTAMPTZ,
+  next_sync_at TIMESTAMPTZ,
+  sync_status TEXT NOT NULL DEFAULT 'idle' CHECK (sync_status IN ('idle', 'syncing', 'error')),
+  last_sync_error TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+
+  -- OAuth scopes granted (array of scope strings)
+  scope_granted TEXT[] NOT NULL DEFAULT '{}',
+
+  -- User-facing settings
+  color_badge TEXT NOT NULL DEFAULT 'slate',
+  auto_sync BOOLEAN NOT NULL DEFAULT true,
+  sync_interval_minutes INT NOT NULL DEFAULT 5,
+
+  created_by UUID REFERENCES public.profiles (id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_external_accounts_user ON public.external_accounts (user_id);
+CREATE INDEX idx_external_accounts_sync ON public.external_accounts (next_sync_at) WHERE is_active = true;
+CREATE INDEX idx_external_accounts_provider ON public.external_accounts (provider);
+
+-- ═══ RLS for external_accounts ═════════════════════════════════════════════
+
+ALTER TABLE public.external_accounts ENABLE ROW LEVEL SECURITY;
+
+-- All team members can READ all accounts (mail is unified across team)
+CREATE POLICY "team_read_accounts" ON public.external_accounts
+  FOR SELECT USING (public.is_team_member());
+
+-- Only account owner (user_id) can UPDATE their own accounts
+CREATE POLICY "owner_modify_account" ON public.external_accounts
+  FOR UPDATE USING (user_id = auth.uid());
+
+-- Only account owner (user_id) can DELETE their own accounts
+CREATE POLICY "owner_delete_account" ON public.external_accounts
+  FOR DELETE USING (user_id = auth.uid());
+
+-- Only team members can INSERT, and only for their own user_id
+CREATE POLICY "user_create_own_account" ON public.external_accounts
+  FOR INSERT WITH CHECK (user_id = auth.uid() AND public.is_team_member());
+
+-- ═══ New Table: account_credentials_vault ═════════════════════════════════
+
+-- Encrypted storage for sensitive credentials (OAuth tokens, IMAP passwords)
+-- Separate table to isolate secrets and enable encryption at rest
+CREATE TABLE public.account_credentials_vault (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES public.external_accounts (id) ON DELETE CASCADE,
+  credential_type TEXT NOT NULL CHECK (credential_type IN ('oauth_refresh_token', 'imap_password', 'oauth_access_token')),
+  encrypted_value bytea NOT NULL,
+  encryption_key TEXT NOT NULL DEFAULT 'default',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_creds_account ON public.account_credentials_vault (account_id);
+
+-- ═══ RLS for account_credentials_vault ═════════════════════════════════════
+
+ALTER TABLE public.account_credentials_vault ENABLE ROW LEVEL SECURITY;
+
+-- RESTRICTIVE policy: deny all direct access from client
+-- Only Edge Functions (via service_role key) can decrypt credentials
+CREATE POLICY "deny_all_client_access" ON public.account_credentials_vault AS RESTRICTIVE
+  FOR ALL USING (false);
+
+-- ═══ New Table: account_sync_logs ══════════════════════════════════════════
+
+-- Audit trail for sync operations (when, what, how many, errors)
+CREATE TABLE public.account_sync_logs (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES public.external_accounts (id) ON DELETE CASCADE,
+  sync_type TEXT NOT NULL CHECK (sync_type IN ('full', 'incremental', 'error')),
+  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  items_synced INT NOT NULL DEFAULT 0,
+  items_new INT NOT NULL DEFAULT 0,
+  items_updated INT NOT NULL DEFAULT 0,
+  error_message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'partial', 'error')),
+
+  -- For resuming syncs: Gmail history ID or IMAP UID cursor
+  remote_cursor TEXT,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_sync_logs_account ON public.account_sync_logs (account_id, completed_at DESC);
+
+-- ═══ RLS for account_sync_logs ═════════════════════════════════════════════
+
+ALTER TABLE public.account_sync_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "team_read_sync_logs" ON public.account_sync_logs
+  FOR SELECT USING (public.is_team_member());
+
+-- ═══ Modify: mail_items table ══════════════════════════════════════════════
+
+-- Add account linkage so mail can be filtered by source account
+ALTER TABLE public.mail_items
+  ADD COLUMN IF NOT EXISTS external_account_id TEXT REFERENCES public.external_accounts (id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS gmail_message_id TEXT,
+  ADD COLUMN IF NOT EXISTS imap_uid INT,
+  ADD COLUMN IF NOT EXISTS remote_message_hash TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_mail_account ON public.mail_items (external_account_id);
+CREATE INDEX IF NOT EXISTS idx_mail_gmail_id ON public.mail_items (gmail_message_id);
+
+-- ═══ Modify: shared_daily table ════════════════════════════════════════════
+
+-- Add YouTube account tracking for song picks
+ALTER TABLE public.shared_daily
+  ADD COLUMN IF NOT EXISTS youtube_account_id TEXT REFERENCES public.external_accounts (id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS youtube_video_id TEXT,
+  ADD COLUMN IF NOT EXISTS song_platform TEXT NOT NULL DEFAULT 'youtube' CHECK (song_platform IN ('youtube', 'spotify', 'manual'));
+
+-- ═══ Optional: Modify messages table ═══════════════════════════════════════
+
+-- Allow song picks shared via Us chat to reference the YouTube account
+ALTER TABLE public.messages
+  ADD COLUMN IF NOT EXISTS youtube_account_id TEXT REFERENCES public.external_accounts (id) ON DELETE SET NULL;
+
+-- ═══ Audit Trail: Record schema changes ════════════════════════════════════
+
+INSERT INTO public.audit_trail (
+  actor_label, entity_type, entity_id, field_name, old_value, new_value, source
+) VALUES (
+  'automated', 'system', 'schema', 'migration', '0008_pin_label', '0009_multi_accounts', 'rule'
+);
+
+-- ═══ End of Migration ══════════════════════════════════════════════════════
+
+-- Post-migration verification queries (paste into SQL editor to verify):
+/*
+
+-- Verify tables exist
+SELECT tablename FROM pg_tables WHERE tablename IN (
+  'external_accounts', 'account_credentials_vault', 'account_sync_logs'
+);
+
+-- Verify RLS is enabled
+SELECT tablename, rowsecurity FROM pg_tables
+WHERE tablename IN ('external_accounts', 'account_credentials_vault', 'account_sync_logs')
+AND schemaname = 'public';
+
+-- Test RLS: This should FAIL for non-owner
+-- (After seeding test data with user_id different from current auth.uid())
+UPDATE public.external_accounts SET display_name = 'Hacked' WHERE id = 'acc_test_other_user';
+-- Expected: ERROR new row violates row-level security policy
+
+-- Test vault: This should FAIL even for team members
+SELECT * FROM public.account_credentials_vault LIMIT 1;
+-- Expected: ERROR new row violates row-level security policy "deny_all_client_access"
+
+*/

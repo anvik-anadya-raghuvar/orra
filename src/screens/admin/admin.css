@@ -249,3 +249,52 @@
   color: var(--slate);
   margin: 0;
 }
+
+/* ── Trash: a scrollable row list, not cards — could hold hundreds ──────── */
+.trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 480px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+.trash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 10px 13px;
+}
+.tr-main {
+  min-width: 0;
+  flex: 1 1 200px;
+}
+.tr-label {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tr-meta {
+  font-size: 10.5px;
+  color: var(--mute);
+  margin-top: 2px;
+}
+.tr-acts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── touch targets: 44px minimum on phone and tablet ─────────────────── */
+@media (max-width: 1024px) {
+  .trash-row .btn {
+    min-height: 44px;
+  }
+}

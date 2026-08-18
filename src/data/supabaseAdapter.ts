@@ -41,6 +41,7 @@ const TABLE: Record<CollectionKey, string> = {
   pages: 'pages',
   page_comments: 'page_comments',
   integration_grants: 'integration_grants',
+  trash_items: 'trash_items',
 };
 
 /**

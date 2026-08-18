@@ -12,6 +12,26 @@ export const today = () => new Date().toISOString().slice(0, 10);
 
 type Row = { id: string };
 
+/**
+ * Collections a delete must never route through Trash.
+ *
+ * `audit_trail` has DELETE revoked at the database (principle 3) — trashing
+ * a row from it would be a lie, since it could never actually be removed.
+ * `trash_items` is exempt so restoring one doesn't create a trash entry for
+ * the trash entry.
+ */
+const TRASH_EXEMPT = new Set<CollectionKey>(['audit_trail', 'trash_items']);
+
+/** Best-effort human label for a trashed row — whatever field reads like a title. */
+function trashLabel(key: string, row: Record<string, unknown>): string {
+  const candidates = ['title', 'name', 'subject', 'question', 'label', 'text', 'summary', 'item'];
+  for (const f of candidates) {
+    const v = row[f];
+    if (typeof v === 'string' && v.trim()) return v;
+  }
+  return `${key.replace(/_/g, ' ').replace(/s$/, '')} ${row.id ?? ''}`.trim();
+}
+
 export interface MutationMeta {
   actor: UserId | null;
   actorLabel: string;
@@ -81,6 +101,7 @@ export class AppStore {
       pages: 'page',
       page_comments: 'page_comment',
       integration_grants: 'integration_grant',
+      trash_items: 'trash_item',
     };
     return irregular[key] ?? key.replace(/s$/, '');
   }
@@ -165,9 +186,11 @@ export class AppStore {
 
   remove<K extends CollectionKey>(key: K, id: string, meta: MutationMeta) {
     const rows = this.ds[key] as Row[];
-    if (!rows.some((r) => r.id === id)) return;
+    const before = rows.find((r) => r.id === id);
+    if (!before) return;
     this.ds = { ...this.ds, [key]: rows.filter((r) => r.id !== id) as Dataset[K] };
     this.adapter.saveCollection(key, this.ds[key]);
+    if (!TRASH_EXEMPT.has(key)) this.snapshotToTrash(key, [before], meta);
     if (!meta.silent) {
       this.audit({
         actor_id: meta.actor,
@@ -184,6 +207,90 @@ export class AppStore {
   }
 
   /**
+   * Snapshot rows into Trash before they're gone for good.
+   *
+   * One state update and one `saveCollection` call for however many rows are
+   * being removed — `removeMany` on 126 demo rows should not mean 126 writes
+   * here either. Writes no audit line of its own: the delete this accompanies
+   * already writes the visible one, and a second "trashed" line per row would
+   * double every entry in the trail.
+   */
+  private snapshotToTrash(key: CollectionKey, rows: Row[], meta: MutationMeta) {
+    if (!rows.length) return;
+    const now = nowIso();
+    const items = rows.map((row) => {
+      const data = row as unknown as Record<string, unknown>;
+      return {
+        id: newId('trash'),
+        collection: key,
+        row_id: row.id,
+        row_data: data,
+        label: trashLabel(key, data),
+        deleted_by: meta.actor,
+        deleted_by_label: meta.actorLabel,
+        deleted_at: now,
+      };
+    });
+    this.ds = { ...this.ds, trash_items: [...this.ds.trash_items, ...items] };
+    this.adapter.saveCollection('trash_items', this.ds.trash_items, items);
+  }
+
+  /** Put a trashed row back where it came from. False if it's gone from Trash already. */
+  restoreFromTrash(trashId: string, meta: MutationMeta): boolean {
+    const item = this.ds.trash_items.find((t) => t.id === trashId);
+    if (!item) return false;
+    const key = item.collection as CollectionKey;
+    const rows = this.ds[key] as Row[];
+    // The id could only collide if something new reused it — ids are
+    // timestamp-derived, so treat that as "already handled" rather than clobber it.
+    if (!rows.some((r) => r.id === item.row_id)) {
+      const restored = item.row_data as unknown as Row;
+      this.ds = { ...this.ds, [key]: [...rows, restored] as Dataset[CollectionKey] };
+      this.adapter.saveCollection(key, this.ds[key], [restored]);
+    }
+    this.ds = { ...this.ds, trash_items: this.ds.trash_items.filter((t) => t.id !== trashId) };
+    this.adapter.saveCollection('trash_items', this.ds.trash_items);
+    if (!meta.silent) {
+      this.audit({
+        actor_id: meta.actor,
+        actor_label: meta.actorLabel,
+        entity_type: this.entityType(key),
+        entity_id: item.row_id,
+        field_name: null,
+        old_value: null,
+        new_value: meta.summary ?? `Restored from trash — ${item.label}`,
+        source: meta.source ?? 'portal',
+      });
+    }
+    this.emit();
+    return true;
+  }
+
+  /** Delete a trash entry for good — the one action Trash cannot undo. */
+  purgeTrashItem(trashId: string, meta: MutationMeta) {
+    const item = this.ds.trash_items.find((t) => t.id === trashId);
+    if (!item) return;
+    this.ds = { ...this.ds, trash_items: this.ds.trash_items.filter((t) => t.id !== trashId) };
+    this.adapter.saveCollection('trash_items', this.ds.trash_items);
+    if (!meta.silent) {
+      this.note('trash_item', meta.summary ?? `Permanently deleted — ${item.label}`, meta);
+      return;
+    }
+    this.emit();
+  }
+
+  /** Empty the whole bin for good. Same single-line-not-a-hundred rule as removeMany. */
+  emptyTrash(meta: MutationMeta) {
+    const count = this.ds.trash_items.length;
+    if (!count) return 0;
+    this.ds = { ...this.ds, trash_items: [] };
+    this.adapter.saveCollection('trash_items', this.ds.trash_items);
+    if (!meta.silent) this.note('trash_item', meta.summary ?? `Trash emptied — ${count} rows gone for good`, meta);
+    else this.emit();
+    return count;
+  }
+
+  /**
    * Remove many rows from one collection in a single pass.
    *
    * One state update and one `saveCollection` call, so the Supabase adapter
@@ -196,11 +303,13 @@ export class AppStore {
     if (!ids.length) return 0;
     const drop = new Set(ids);
     const rows = this.ds[key] as Row[];
+    const gone = rows.filter((r) => drop.has(r.id));
     const kept = rows.filter((r) => !drop.has(r.id));
     const removed = rows.length - kept.length;
     if (!removed) return 0;
     this.ds = { ...this.ds, [key]: kept as Dataset[K] };
     this.adapter.saveCollection(key, this.ds[key]);
+    if (!TRASH_EXEMPT.has(key)) this.snapshotToTrash(key, gone, meta);
     if (!meta.silent) {
       this.audit({
         actor_id: meta.actor,

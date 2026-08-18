@@ -376,6 +376,7 @@ export function seedDataset(): Dataset {
       { id: 'tl-2', from_task_id: 'T-45', to_task_id: 'T-36', type: 'related', created_by: AN, created_at: T('2026-08-16T09:00:00') },
     ],
     integration_grants: [],
+    trash_items: [],
     page_comments: [
       { id: 'pc-1', page_id: 'pg-2', author_id: RG, body: 'Added the Karnataka bench case — see T-42.', created_at: T('2026-08-17T12:00:00') },
     ],
