@@ -6,6 +6,7 @@ import { Avatar, TagChip, useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
 import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
 import { fmtTime, inr } from '../../lib/dates';
+import { notifyAssignment } from '../../lib/handoff';
 import { PRIORITIES, STATUSES, TYPES } from '../work/common';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
@@ -81,8 +82,13 @@ function TaskDetail({ task }: { task: Task }) {
     }
   };
 
-  const setField = <K extends keyof Task>(field: K, value: Task[K]) =>
+  const setField = <K extends keyof Task>(field: K, value: Task[K]) => {
     store.update('tasks', task.id, { [field]: value } as Partial<Task>, store.asMe());
+    // Reassignment moves this task to the other workspace — announce it.
+    if (field === 'assignee_id') {
+      notifyAssignment(store, task, value as Task['assignee_id']);
+    }
+  };
 
   const commitTag = () => {
     const name = tagDraft.trim();

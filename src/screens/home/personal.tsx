@@ -6,6 +6,7 @@ import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { CountUp, Modal, useToast } from '../../ui/bits';
 import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
+import { myTasks } from '../../lib/workspace';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import { isYouTubeUrl, playUrl, youTubeThumb } from '../../lib/song';
 import { resolveSong } from '../../lib/youtube';
@@ -605,11 +606,14 @@ export function MoneyTile() {
 /* ── Projects — small multiples, never four colours in one chart ───────── */
 export function ProjectsTile() {
   const ds = useData((d) => d);
+  const meId = useData((_, s) => s.meId);
   const [snapshotId, setSnapshotId] = useState<string | null>(null);
+  // Counts are for my workspace — this tile sits on my Home.
+  const mine = useMemo(() => myTasks(ds.tasks, meId), [ds.tasks, meId]);
   const items = ds.projects.map((pj) => ({
     id: pj.id,
     label: pj.name,
-    value: ds.tasks.filter((t) => t.project_id === pj.id && t.status !== 'done').length,
+    value: mine.filter((t) => t.project_id === pj.id && t.status !== 'done').length,
   }));
   const max = Math.max(...items.map((i) => i.value), 1);
   const snapshot = snapshotId ? ds.projects.find((p) => p.id === snapshotId) ?? null : null;
@@ -654,9 +658,12 @@ export function ProjectsTile() {
  * leaving Home is to see the shape of a project without losing your place. */
 function ProjectSnapshotModal({ project, onClose }: { project: Project | null; onClose: () => void }) {
   const ds = useData((d) => d);
+  const meId = useData((_, s) => s.meId);
   const open = !!project;
-  const openTasks = project ? ds.tasks.filter((t) => t.project_id === project.id && t.status !== 'done') : [];
-  const doneTasks = project ? ds.tasks.filter((t) => t.project_id === project.id && t.status === 'done') : [];
+  // Opened from my Home's project bars, so it shows the same slice they count.
+  const mine = useMemo(() => myTasks(ds.tasks, meId), [ds.tasks, meId]);
+  const openTasks = project ? mine.filter((t) => t.project_id === project.id && t.status !== 'done') : [];
+  const doneTasks = project ? mine.filter((t) => t.project_id === project.id && t.status === 'done') : [];
   const openDecisions = project ? ds.decisions.filter((d) => d.project_id === project.id && d.status === 'open') : [];
   const net = project
     ? ds.ledger

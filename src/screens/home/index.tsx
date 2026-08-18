@@ -14,6 +14,7 @@ import {
   stuckTasks,
   type RankedTask,
 } from '../../lib/ranking';
+import { isMyTask, myTasks } from '../../lib/workspace';
 import { CAPACITY_COPY, DEFAULT_WINS, eventsFor, planFor } from '../../lib/dayPlan';
 import { warmth } from '../../lib/warmth';
 import { BarRows, DayRibbon, MiniBars, Ring, Sparkline, SplitBar, VIZ } from '../../ui/viz';
@@ -108,13 +109,18 @@ export default function Home() {
   };
 
   /* ── the automation: declare capacity, the portal assigns the work ── */
-  const ranked = useMemo(() => rankTasks(ds, today, capacity), [ds, today, capacity]);
+  /* Home is my workspace: rank, plan, stuck and counts all read my own work
+     only (principle 1). Money, decisions and people stay shared below. */
+  const ranked = useMemo(() => rankTasks(ds, today, capacity, me.id), [ds, today, capacity, me.id]);
   const picked = useMemo(() => planDay(ranked, capacity), [ranked, capacity]);
-  const top: RankedTask | undefined = ranked.find((r) => r.task.assignee_id === me.id) ?? ranked[0];
-  const stuck = useMemo(() => stuckTasks(ds), [ds]);
+  const top: RankedTask | undefined = ranked[0];
+  const stuck = useMemo(
+    () => stuckTasks(ds).filter((s) => isMyTask(s.task, me.id)),
+    [ds, me.id],
+  );
   const events = useMemo(() => eventsFor(ds, me.id, today), [ds, me.id, today]);
 
-  const openTasks = ds.tasks.filter((t) => t.status !== 'done');
+  const openTasks = myTasks(ds.tasks, me.id).filter((t) => t.status !== 'done');
   const openDecisions = ds.decisions.filter((d) => d.status === 'open');
   const staleDecisions = openDecisions.filter((d) => daysSinceTs(d.opened_at) > STALE_DECISION_DAYS);
   const drifting = ds.people.filter((p) => warmth(p, today).drifting);
@@ -898,7 +904,11 @@ function ThreadTile() {
 
 /* ── Weekly momentum ───────────────────────────────────────────────────── */
 function MomentumTile() {
-  const tasks = useData((ds) => ds.tasks);
+  const meId = useData((_, s) => s.meId);
+  const all = useData((ds) => ds.tasks);
+  // My momentum, not ours — the other person closing five things should not
+  // read on my Home as a productive week.
+  const tasks = useMemo(() => myTasks(all, meId), [all, meId]);
   const { values, labels, total } = useMemo(() => {
     const days: string[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -1207,6 +1217,7 @@ function QuickCapture() {
         checklist: null,
         source_ref: null,
         created_by: store.me.id,
+        owner_id: store.me.id,
         created_at: new Date().toISOString(),
       },
       store.asMe({ summary: `Quick capture — "${title}"` }),

@@ -9,6 +9,8 @@ import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../..
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
 import { stuckTasks } from '../../lib/ranking';
+import { inboxTasks, isMyTask, myTasks } from '../../lib/workspace';
+import { notifyAssignment } from '../../lib/handoff';
 import { MiniBars } from '../../ui/viz';
 import QuickEdit from './quickedit';
 import {
@@ -78,6 +80,54 @@ const toggle = <T,>(set: Set<T>, v: T): Set<T> => {
   else next.add(v);
   return next;
 };
+
+/* ── work the other person pushed at me ───────────────────────────────── */
+/** Arrivals land here first rather than appearing mid-column, so a task can
+ *  never turn up on the board without the owner noticing it turned up. */
+function Inbox({ tasks }: { tasks: Task[] }) {
+  const store = useStore();
+  const other = useData((_, s) => s.other);
+  const toast = useToast();
+  if (!tasks.length) return null;
+
+  const accept = (t: Task) => {
+    store.update(
+      'tasks',
+      t.id,
+      { acknowledged_at: new Date().toISOString() },
+      store.asMe({ summary: `Accepted ${t.id} from ${other.name}` }),
+    );
+    toast(`${t.id} is on your board.`);
+  };
+
+  return (
+    <motion.section
+      className="wk-inbox"
+      aria-label={`Assigned to you by ${other.name}`}
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0, transition: entrance }}
+    >
+      <div className="wk-inbox-hd">
+        <span className="eyebrow">Assigned to you by {other.name}</span>
+        <span className="mono">{tasks.length}</span>
+      </div>
+      <motion.ul className="wk-inbox-list" {...staggerParent()}>
+        {tasks.map((t) => (
+          <motion.li key={t.id} variants={staggerItem}>
+            <Link to={`/task/${t.id}`} className="wk-inbox-task">
+              <span className="mono">{t.id}</span>
+              <span className="wk-inbox-title">{t.title}</span>
+              {t.due_date && <span className="mono planmin">due {fmtDay(t.due_date)}</span>}
+            </Link>
+            <button type="button" className="btn sm solid" onClick={() => accept(t)}>
+              Got it
+            </button>
+          </motion.li>
+        ))}
+      </motion.ul>
+    </motion.section>
+  );
+}
 
 /* ── the card body, shared by kanban ──────────────────────────────────── */
 function TaskCard({
@@ -242,10 +292,8 @@ export default function BoardTab({
   const [colLimits, setColLimits] = useState<Record<string, number>>({});
   const [listLimit, setListLimit] = useState(50);
   const [projects, setProjects] = useState<Set<string>>(new Set());
-  const [mine, setMine] = useState(false);
   const [types, setTypes] = useState<Set<TaskType>>(new Set());
   const [tags, setTags] = useState<Set<string>>(new Set());
-  const [assignees, setAssignees] = useState<Set<string>>(new Set());
   const [priorities, setPriorities] = useState<Set<TaskPriority>>(new Set());
   const [monthOffset, setMonthOffset] = useState(0);
   const [stuckOnly, setStuckOnly] = useState(false);
@@ -275,12 +323,21 @@ export default function BoardTab({
         return t.sprint_id === sprintSel;
     }
   };
+  /* This board is my workspace (principle 1). Everything below reads from
+     `mineAll` rather than ds.tasks, so a task the other person owns can never
+     leak into a column, a count, or the tag list. */
+  const mineAll = useMemo(() => myTasks(ds.tasks, store.meId), [ds.tasks, store.meId]);
+  const inbox = useMemo(() => inboxTasks(ds.tasks, store.meId), [ds.tasks, store.meId]);
+
   const liveTags = useMemo(
-    () => [...new Set(ds.tasks.flatMap((t) => t.tags))].sort(),
-    [ds.tasks],
+    () => [...new Set(mineAll.flatMap((t) => t.tags))].sort(),
+    [mineAll],
   );
 
-  const stuck = useMemo(() => stuckTasks(ds), [ds]);
+  const stuck = useMemo(
+    () => stuckTasks(ds).filter((s) => isMyTask(s.task, store.meId)),
+    [ds, store.meId],
+  );
   const stuckReasons = useMemo(
     () => new Map(stuck.map((s) => [s.task.id, s.reason])),
     [stuck],
@@ -288,10 +345,8 @@ export default function BoardTab({
 
   const list = useMemo(
     () =>
-      ds.tasks.filter((t) => {
+      mineAll.filter((t) => {
         if (projects.size && !projects.has(t.project_id)) return false;
-        if (mine && t.assignee_id !== store.meId) return false;
-        if (assignees.size && !assignees.has(t.assignee_id ?? '__none')) return false;
         if (priorities.size && !priorities.has(t.priority)) return false;
         if (types.size && !types.has(t.type)) return false;
         if (tags.size && !t.tags.some((x) => tags.has(x))) return false;
@@ -300,10 +355,8 @@ export default function BoardTab({
         return true;
       }),
     [
-      ds.tasks,
+      mineAll,
       projects,
-      mine,
-      assignees,
       priorities,
       types,
       tags,
@@ -408,16 +461,12 @@ export default function BoardTab({
   };
 
   const anyFilter =
-    projects.size > 0 ||
-    mine ||
-    types.size > 0 ||
-    tags.size > 0 ||
-    stuckOnly ||
-    assignees.size > 0 ||
-    priorities.size > 0;
+    projects.size > 0 || types.size > 0 || tags.size > 0 || stuckOnly || priorities.size > 0;
 
   return (
     <div>
+      <Inbox tasks={inbox} />
+
       {/* sprint scope — a filter on this board, never a mode for the portal */}
       <div className="wk-bar">
         <label className="wk-lbl" htmlFor="wk-sprint" style={{ marginBottom: 0 }}>
@@ -463,9 +512,6 @@ export default function BoardTab({
           </button>
         ))}
         <span style={{ width: 8 }} />
-        <button className="chip" type="button" aria-pressed={mine} onClick={() => setMine((m) => !m)}>
-          Assigned to me
-        </button>
         {stuck.length > 0 && (
           <button
             className="chip"
@@ -476,26 +522,8 @@ export default function BoardTab({
             Stuck ({stuck.length})
           </button>
         )}
-        <span style={{ width: 8 }} />
-        {ds.profiles.map((p) => (
-          <button
-            key={p.id}
-            className="chip"
-            type="button"
-            aria-pressed={assignees.has(p.id)}
-            onClick={() => setAssignees((s) => toggle(s, p.id))}
-          >
-            {p.name}
-          </button>
-        ))}
-        <button
-          className="chip"
-          type="button"
-          aria-pressed={assignees.has('__none')}
-          onClick={() => setAssignees((s) => toggle(s, '__none'))}
-        >
-          Unassigned
-        </button>
+        {/* No assignee chips: this board only ever holds my own work now, so
+            filtering it by person would always be a no-op or an empty board. */}
         <span style={{ width: 8 }} />
         {PRIORITIES.map((p) => (
           <button
@@ -540,11 +568,9 @@ export default function BoardTab({
             type="button"
             onClick={() => {
               setProjects(new Set());
-              setMine(false);
               setTypes(new Set());
               setTags(new Set());
               setStuckOnly(false);
-              setAssignees(new Set());
               setPriorities(new Set());
             }}
           >
@@ -947,6 +973,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       }),
       store.asMe({ summary: `Task ${id} created — ${clean}` }),
     );
+    notifyAssignment(store, { id, title: clean, due_date: due || null }, assignee);
     toast(`${id} created`);
     setTitle('');
     setDescription('');

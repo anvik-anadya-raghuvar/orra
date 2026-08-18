@@ -159,6 +159,7 @@ export default function WikiPage({
       is_archived: false,
       position: kids.length + 1,
       created_by: store.meId,
+      owner_id: store.meId,
       created_at: nowIso(),
       last_edited_by: store.meId,
       last_edited_at: nowIso(),

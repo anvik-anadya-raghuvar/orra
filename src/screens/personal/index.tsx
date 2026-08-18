@@ -6,6 +6,7 @@ import { newId, useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
 import { entrance, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { Donut, MiniBars, Ring, VIZ } from '../../ui/viz';
+import { ownRows } from '../../lib/workspace';
 import {
   DeleteBtn,
   FixedDates,
@@ -202,7 +203,11 @@ function Courses() {
   const [title, setTitle] = useState('');
   const [schedule, setSchedule] = useState('');
 
-  const courses = useMemo(() => [...ds.courses].sort((a, b) => a.position - b.position), [ds.courses]);
+  const meId = useData((_, s) => s.meId);
+  const courses = useMemo(
+    () => ownRows(ds.courses, meId).sort((a, b) => a.position - b.position),
+    [ds.courses, meId],
+  );
 
   const progress = useMemo(
     () =>
@@ -219,7 +224,14 @@ function Courses() {
     if (!t) return;
     store.insert(
       'courses',
-      { id: newId('crs'), title: t, schedule_label: schedule.trim(), is_expanded: true, position: courses.length + 1 },
+      {
+        id: newId('crs'),
+        title: t,
+        schedule_label: schedule.trim(),
+        is_expanded: true,
+        position: courses.length + 1,
+        owner_id: meId,
+      },
       store.asMe({ summary: `Course added — ${t}` }),
     );
     setTitle('');
@@ -296,7 +308,11 @@ function ReadingQueue() {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
 
-  const rows = useMemo(() => [...ds.reading_queue].sort((a, b) => a.position - b.position), [ds.reading_queue]);
+  const meId = useData((_, s) => s.meId);
+  const rows = useMemo(
+    () => ownRows(ds.reading_queue, meId).sort((a, b) => a.position - b.position),
+    [ds.reading_queue, meId],
+  );
   const counts = useMemo(
     () => READ_CYCLE.map((s) => ({ label: s, value: rows.filter((r) => r.status === s).length })),
     [rows],
@@ -312,7 +328,14 @@ function ReadingQueue() {
     if (!t) return;
     store.insert(
       'reading_queue',
-      { id: newId('rd'), title: t, author: author.trim(), status: 'queued', position: rows.length + 1 },
+      {
+        id: newId('rd'),
+        title: t,
+        author: author.trim(),
+        status: 'queued',
+        position: rows.length + 1,
+        owner_id: meId,
+      },
       store.asMe({ summary: `Reading item added — ${t}` }),
     );
     setTitle('');

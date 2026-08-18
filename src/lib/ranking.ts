@@ -1,4 +1,5 @@
-import type { Capacity, Dataset, Effort, Task } from '../types';
+import type { Capacity, Dataset, Effort, Task, UserId } from '../types';
+import { isMyTask } from './workspace';
 
 export interface RankedTask {
   task: Task;
@@ -27,19 +28,29 @@ export function capacityFit(effort: Effort, capacity: Capacity): number {
 /**
  * Business task ranking — pure. Weights come from ranking_weights (never
  * constants), capacity comes from the day plan. Personal-project tasks are
- * excluded entirely (principle 7: personal life never feeds business ranking).
+ * excluded entirely (principle 6: personal life never feeds business ranking).
+ *
+ * `ownerId` scopes the ranking to one workspace (principle 1). Omit it and
+ * every open business task is ranked, which is what the shared Goals view
+ * still wants.
  */
 export function rankTasks(
   ds: Dataset,
   todayIso: string,
   capacity: Capacity = 'medium',
+  ownerId?: UserId,
 ): RankedTask[] {
   const w = ds.ranking_weights;
   const total = w.objective_fit + w.unblocks + w.deadline || 1;
   const personal = new Set(ds.projects.filter((p) => p.is_personal).map((p) => p.id));
   const today = new Date(todayIso + 'T00:00:00Z').getTime();
 
-  const open = ds.tasks.filter((t) => t.status !== 'done' && !personal.has(t.project_id));
+  const open = ds.tasks.filter(
+    (t) =>
+      t.status !== 'done' &&
+      !personal.has(t.project_id) &&
+      (!ownerId || isMyTask(t, ownerId)),
+  );
 
   return open
     .map((task) => {

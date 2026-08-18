@@ -6,6 +6,7 @@ import type { Task, TaskLinkType, TaskPriority, TaskStatus } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Modal, TagChip, useToast } from '../../ui/bits';
 import { micro } from '../../ui/motion';
+import { notifyAssignment } from '../../lib/handoff';
 import {
   Field,
   LINK_TYPES,
@@ -112,6 +113,11 @@ export default function QuickEdit({
       return;
     }
     store.update('tasks', live.id, patch, store.asMe());
+    // A handed-off task leaves this board entirely, so it has to announce
+    // itself rather than just vanishing from one side and appearing on the other.
+    if (patch.assignee_id !== undefined) {
+      notifyAssignment(store, { ...live, ...patch }, patch.assignee_id);
+    }
     toast(`${live.id} updated`);
     onClose();
   };

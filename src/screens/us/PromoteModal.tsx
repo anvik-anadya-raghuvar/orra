@@ -100,6 +100,7 @@ export function PromoteModal({ promote, onClose }: { promote: PromoteTarget | nu
           checklist: null,
           source_ref: null,
           created_by: store.meId,
+          owner_id: store.meId,
           created_at: nowIso(),
         },
         store.asMe({ summary: 'Note created from a message' }),

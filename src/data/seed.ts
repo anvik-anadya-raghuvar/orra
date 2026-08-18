@@ -23,6 +23,17 @@ const D = (s: string) => s; // date literal helper, YYYY-MM-DD
 const T = (s: string) => `${s}+05:30`; // IST timestamp literal
 
 export function seedDataset(): Dataset {
+  const ds = rawSeed();
+  // Mirror 0012_workspaces.sql: notes and wiki pages belong to their author, so
+  // mock mode splits the workspaces exactly the way the database does.
+  return {
+    ...ds,
+    notes: ds.notes.map((n) => ({ ...n, owner_id: n.owner_id ?? n.created_by })),
+    pages: ds.pages.map((p) => ({ ...p, owner_id: p.owner_id ?? p.created_by })),
+  };
+}
+
+function rawSeed(): Dataset {
   return {
     profiles: [
       {
@@ -134,6 +145,9 @@ export function seedDataset(): Dataset {
         start_date: D('2026-08-16'), due_date: D('2026-08-20'), objective_id: 'okr-reg', tags: ['urgent-path'], progress_pct: 80,
         effort: 'medium', estimate_minutes: 70, impact: 5, is_stuck: false, blocked_reason: null,
         sprint_id: 'sprint-1', board_order: 0,
+        // Handed over and long since picked up — in review at 80%. T-38 is the
+        // one left unacknowledged, so the inbox strip has something to show.
+        acknowledged_at: T('2026-08-10T10:00:00'),
         created_at: T('2026-08-10T09:00:00'), updated_at: T('2026-08-17T09:14:00'),
       },
       {

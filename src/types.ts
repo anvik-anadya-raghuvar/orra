@@ -150,6 +150,10 @@ export interface Task {
   impact: number; // 1–5, leverage
   is_stuck: boolean;
   blocked_reason: string | null;
+  /** Set when the assignee accepts work the other person pushed at them.
+   *  Absent or null while it still sits in their "Assigned to you" inbox —
+   *  optional so every task-creation site does not have to write it. */
+  acknowledged_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -255,6 +259,8 @@ export interface Note {
   checklist: ChecklistItem[] | null;
   source_ref: string | null;
   created_by: UserId;
+  /** Whose workspace this sits in. Null = shared, shows for both. */
+  owner_id?: UserId | null;
   created_at: string;
 }
 export interface TranscriptLine {
@@ -288,6 +294,7 @@ export interface DocumentRef {
   deadline_note: string;
   cloud_ref_url: string;
   status_cache: 'ok' | 'soon' | 'over';
+  owner_id?: UserId | null;
 }
 
 export interface Person {
@@ -312,10 +319,16 @@ export interface PersonInteraction {
   logged_by: UserId;
 }
 
+/** Everything that travels between the two people rides this one table, so
+ *  the bell, unread counts, realtime and read receipts work for all of it. */
+export type MessageKind = 'chat' | 'photo' | 'song' | 'task_assign';
+
 export interface Message {
   id: string;
   sender_id: UserId;
   body: string;
+  /** Optional so pre-0012 rows read as plain chat. */
+  kind?: MessageKind;
   task_ref_id: string | null;
   attachment_url: string | null;
   song_ref: { title: string; artist: string; url: string } | null;
@@ -346,6 +359,7 @@ export interface Course {
   schedule_label: string;
   is_expanded: boolean;
   position: number;
+  owner_id?: UserId | null;
 }
 export interface CourseItem {
   id: string;
@@ -360,6 +374,7 @@ export interface ReadingItem {
   author: string;
   status: 'queued' | 'reading' | 'done';
   position: number;
+  owner_id?: UserId | null;
 }
 export interface TimeLog {
   id: string;
@@ -381,6 +396,7 @@ export interface FixedDate {
   label: string;
   date: string;
   category: string;
+  owner_id?: UserId | null;
 }
 
 export interface LedgerEntry {
@@ -487,6 +503,7 @@ export interface Page {
   is_archived: boolean;
   position: number;
   created_by: UserId;
+  owner_id?: UserId | null;
   created_at: string;
   last_edited_by: UserId;
   last_edited_at: string;

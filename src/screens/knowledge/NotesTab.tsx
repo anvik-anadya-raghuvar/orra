@@ -4,6 +4,7 @@ import { useData, useStore, newId, nowIso } from '../../data/store';
 import { Modal, TagChip, useToast } from '../../ui/bits';
 import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay } from '../../lib/dates';
+import { ownRows } from '../../lib/workspace';
 import { HeatStrip, MiniBars } from '../../ui/viz';
 import type { ChecklistItem, Note, NoteType } from '../../types';
 
@@ -38,7 +39,10 @@ function noteHaystack(n: Note): string {
 }
 
 export default function NotesTab() {
-  const notes = useData((ds) => ds.notes);
+  const allNotes = useData((ds) => ds.notes);
+  const meId = useData((_, s) => s.meId);
+  // My notes plus anything still unclaimed (principle 1).
+  const notes = useMemo(() => ownRows(allNotes, meId), [allNotes, meId]);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<NoteType | 'all'>('all');
   const [openId, setOpenId] = useState<string | 'new' | null>(null);
@@ -296,6 +300,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
           checklist: checklist.length ? checklist : null,
           source_ref: null,
           created_by: store.meId,
+          owner_id: store.meId,
           created_at: nowIso(),
         },
         store.asMe({ summary: `Note created — ${t}` }),

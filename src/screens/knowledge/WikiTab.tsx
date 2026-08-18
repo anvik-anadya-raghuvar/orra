@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import './wiki.css';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { entrance } from '../../ui/motion';
+import { ownRows } from '../../lib/workspace';
 import type { Page } from '../../types';
 import { blockText, makeBlock } from './WikiBlocks';
 import WikiPage from './WikiPage';
@@ -47,7 +48,11 @@ function useIsNarrow(): boolean {
 
 export default function WikiTab() {
   const store = useStore();
-  const allPages = useData((ds) => ds.pages);
+  const everyPage = useData((ds) => ds.pages);
+  const meId = useData((_, s) => s.meId);
+  // My wiki. Pages written before ownership existed have no owner and stay
+  // visible to both until someone claims them.
+  const allPages = useMemo(() => ownRows(everyPage, meId), [everyPage, meId]);
   const [showArchived, setShowArchived] = useState(false);
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -111,6 +116,7 @@ export default function WikiTab() {
       is_archived: false,
       position: roots.length + 1,
       created_by: store.meId,
+      owner_id: store.meId,
       created_at: nowIso(),
       last_edited_by: store.meId,
       last_edited_at: nowIso(),
@@ -133,6 +139,7 @@ export default function WikiTab() {
       is_archived: false,
       position: kids.length + 1,
       created_by: store.meId,
+      owner_id: store.meId,
       created_at: nowIso(),
       last_edited_by: store.meId,
       last_edited_at: nowIso(),

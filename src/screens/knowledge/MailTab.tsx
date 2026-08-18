@@ -163,6 +163,7 @@ function MailRow({ mail }: { mail: MailItem }) {
         checklist: null,
         source_ref: 'gmail:' + mail.id,
         created_by: store.meId,
+        owner_id: store.meId,
         created_at: nowIso(),
       },
       store.asMe({ summary: `Note created from mail — ${mail.subject}` }),
