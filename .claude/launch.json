@@ -33,6 +33,19 @@
         "5182"
       ],
       "port": 5182
+    },
+    {
+      "name": "anvik-ops-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--outDir",
+        "dist-audit",
+        "--port",
+        "5183"
+      ],
+      "port": 5183
     }
   ]
 }
