@@ -17,11 +17,18 @@ export interface DataAdapter {
   authedEmail?(): Promise<string | null>;
 }
 
-export function pickAdapter(): Promise<DataAdapter> {
+export async function pickAdapter(): Promise<DataAdapter> {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
   if (url && key) {
-    return import('./supabaseAdapter').then((m) => m.createSupabaseAdapter(url, key));
+    // One shared client — a second one would fight over the auth session and
+    // break the password-recovery link.
+    const [{ getSupabase }, m] = await Promise.all([
+      import('../lib/supabaseClient'),
+      import('./supabaseAdapter'),
+    ]);
+    return m.createSupabaseAdapter(await getSupabase());
   }
-  return import('./mockAdapter').then((m) => m.createMockAdapter());
+  const m = await import('./mockAdapter');
+  return m.createMockAdapter();
 }

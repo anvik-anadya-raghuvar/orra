@@ -14,6 +14,7 @@ import {
 import { StoreProvider, useData, useStore } from './data/store';
 import { ToastProvider, Avatar, Skeleton, Modal } from './ui/bits';
 import { Gate } from './ui/gate';
+import { getSupabase } from './lib/supabaseClient';
 import { pageRise } from './ui/motion';
 import { clockIn, TZ_IN, TZ_IT } from './lib/dates';
 
@@ -73,11 +74,7 @@ function AccountMenu() {
       return;
     }
     if (store.adapter.kind === 'supabase') {
-      const { createClient } = await import('@supabase/supabase-js');
-      const sb = createClient(
-        import.meta.env.VITE_SUPABASE_URL!,
-        import.meta.env.VITE_SUPABASE_ANON_KEY!,
-      );
+      const sb = await getSupabase();
       const { error } = await sb.auth.updateUser({ password: next });
       if (error) {
         setMsg(error.message);
@@ -103,11 +100,7 @@ function AccountMenu() {
     } catch {}
     if (store.adapter.kind === 'supabase') {
       // Revoke the real session too, not just the UI flag.
-      const { createClient } = await import('@supabase/supabase-js');
-      const sb = createClient(
-        import.meta.env.VITE_SUPABASE_URL!,
-        import.meta.env.VITE_SUPABASE_ANON_KEY!,
-      );
+      const sb = await getSupabase();
       await sb.auth.signOut().catch(() => {});
     }
     window.location.href = '/';

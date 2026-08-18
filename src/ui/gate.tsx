@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../data/store';
 import { checkCredentials } from '../lib/auth';
+import { getSupabase, isRecoveryUrl } from '../lib/supabaseClient';
 import { entrance } from './motion';
 
 /**
- * Sign-in gate — email + password for the two member accounts.
- * Mock mode: checked against the local profile credentials (temp passwords
- * Anadya@2026 / Raghuvar@2026, changeable from the account menu).
- * Supabase mode: signInWithPassword against Supabase email auth.
+ * Sign-in gate — email + password for the member accounts.
+ * Mock mode: checked against the local profile credentials.
+ * Supabase mode: signInWithPassword, plus a real reset-password flow.
  */
 export function Gate({ onEnter }: { onEnter: () => void }) {
   const store = useStore();
@@ -16,20 +16,98 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<'signin' | 'forgot' | 'recover'>('signin');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const isSupabase = store.adapter.kind === 'supabase';
+
+  // Landing back from a reset email → show the "set a new password" form.
+  useEffect(() => {
+    if (!isSupabase || !isRecoveryUrl()) return;
+    setMode('recover');
+    void getSupabase().then((sb) =>
+      sb.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') setMode('recover');
+      }),
+    );
+  }, [isSupabase]);
+
+  const sendReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      setError('Enter your email address first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      if (!isSupabase) {
+        setError('Password reset needs the Supabase backend. In local mode, use the account menu.');
+        return;
+      }
+      const sb = await getSupabase();
+      const { error: err } = await sb.auth.resetPasswordForEmail(normalized, {
+        redirectTo: `${window.location.origin}/`,
+      });
+      if (err) {
+        setError(err.message);
+        return;
+      }
+      // Deliberately not confirming whether the address exists.
+      setNotice(
+        `If ${normalized} is a member account, a reset link is on its way. The link opens right back here.`,
+      );
+      setMode('signin');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    if (newPassword.length < 8) {
+      setError('New password needs at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('The two passwords do not match.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const sb = await getSupabase();
+      const { error: err } = await sb.auth.updateUser({ password: newPassword });
+      if (err) {
+        setError(err.message);
+        return;
+      }
+      // Clear the recovery fragment so a refresh doesn't re-enter this mode.
+      window.history.replaceState({}, '', window.location.pathname);
+      try {
+        localStorage.setItem('anvik:signedin', '1');
+      } catch {}
+      window.location.reload();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setBusy(true);
     try {
       const normalized = email.trim().toLowerCase();
-      if (store.adapter.kind === 'supabase') {
-        const { createClient } = await import('@supabase/supabase-js');
-        const sb = createClient(
-          import.meta.env.VITE_SUPABASE_URL!,
-          import.meta.env.VITE_SUPABASE_ANON_KEY!,
-        );
+      if (isSupabase) {
+        const sb = await getSupabase();
         const { error: err } = await sb.auth.signInWithPassword({ email: normalized, password });
         if (err) {
           setError(err.message);
@@ -117,43 +195,143 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
               </em>
               .
             </h1>
-            <form onSubmit={signIn} style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
-              <label className="eyebrow" htmlFor="gate-email">Email</label>
-              <input
-                id="gate-email"
-                className="srch"
-                type="email"
-                autoComplete="username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@anvik"
-                required
-                style={{ flex: 'none' }}
-              />
-              <label className="eyebrow" htmlFor="gate-pw">Password</label>
-              <input
-                id="gate-pw"
-                className="srch"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                style={{ flex: 'none' }}
-              />
-              {error && (
-                <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--rose)' }}>
-                  {error}
+            {mode === 'recover' ? (
+              <form onSubmit={applyNewPassword} style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
+                <p style={{ margin: 0, fontSize: 14, color: 'var(--slate)' }}>
+                  Set a new password for your account.
                 </p>
-              )}
-              <button type="submit" className="btn solid" disabled={busy} style={{ padding: '13px 22px', fontSize: 14.5 }}>
-                {busy ? 'Signing in…' : 'Sign in'}
-              </button>
-            </form>
+                <label className="eyebrow" htmlFor="gate-new">New password</label>
+                <input
+                  id="gate-new"
+                  className="srch"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  required
+                  style={{ flex: 'none' }}
+                />
+                <label className="eyebrow" htmlFor="gate-new2">Repeat</label>
+                <input
+                  id="gate-new2"
+                  className="srch"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  style={{ flex: 'none' }}
+                />
+                {error && (
+                  <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--rose)' }}>
+                    {error}
+                  </p>
+                )}
+                <button type="submit" className="btn solid" disabled={busy} style={{ padding: '13px 22px', fontSize: 14.5 }}>
+                  {busy ? 'Saving…' : 'Set password and sign in'}
+                </button>
+              </form>
+            ) : mode === 'forgot' ? (
+              <form onSubmit={sendReset} style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
+                <p style={{ margin: 0, fontSize: 14, color: 'var(--slate)' }}>
+                  We'll email a link that brings you straight back here to set a new password.
+                </p>
+                <label className="eyebrow" htmlFor="gate-fmail">Email</label>
+                <input
+                  id="gate-fmail"
+                  className="srch"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@anvik"
+                  required
+                  style={{ flex: 'none' }}
+                />
+                {error && (
+                  <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--rose)' }}>
+                    {error}
+                  </p>
+                )}
+                <button type="submit" className="btn solid" disabled={busy} style={{ padding: '13px 22px', fontSize: 14.5 }}>
+                  {busy ? 'Sending…' : 'Send reset link'}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setMode('signin');
+                    setError(null);
+                  }}
+                  style={{ background: 'none', boxShadow: 'none', border: 0, color: 'var(--indigo)' }}
+                >
+                  Back to sign in
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={signIn} style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
+                <label className="eyebrow" htmlFor="gate-email">Email</label>
+                <input
+                  id="gate-email"
+                  className="srch"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@anvik"
+                  required
+                  style={{ flex: 'none' }}
+                />
+                <label className="eyebrow" htmlFor="gate-pw">Password</label>
+                <input
+                  id="gate-pw"
+                  className="srch"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  style={{ flex: 'none' }}
+                />
+                {error && (
+                  <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--rose)' }}>
+                    {error}
+                  </p>
+                )}
+                {notice && (
+                  <p role="status" style={{ margin: 0, fontSize: 13, color: 'var(--teal)' }}>
+                    {notice}
+                  </p>
+                )}
+                <button type="submit" className="btn solid" disabled={busy} style={{ padding: '13px 22px', fontSize: 14.5 }}>
+                  {busy ? 'Signing in…' : 'Sign in'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('forgot');
+                    setError(null);
+                    setNotice(null);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 0,
+                    color: 'var(--indigo)',
+                    fontSize: 13,
+                    textAlign: 'left',
+                    padding: '4px 0',
+                    minHeight: 44,
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </form>
+            )}
             <p style={{ fontSize: 13, color: 'var(--mute)', borderLeft: '2px solid var(--stamp)', paddingLeft: 12, margin: 0 }}>
-              Two member accounts only. Temp passwords were shared privately — change yours from
-              the account menu after signing in.
+              Member accounts only. Change your password any time from the account menu.
             </p>
           </div>
           <div

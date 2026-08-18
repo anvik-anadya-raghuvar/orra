@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CollectionKey, Dataset } from '../types';
 import type { DataAdapter } from './adapter';
 
@@ -42,8 +42,7 @@ const TABLE: Record<CollectionKey, string> = {
  * upserts of only the changed rows. audit_trail is INSERT-only (UPDATE/DELETE
  * are revoked at the database — see migration 0001).
  */
-export function createSupabaseAdapter(url: string, anonKey: string): DataAdapter {
-  const sb: SupabaseClient = createClient(url, anonKey);
+export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
   const knownIds = new Map<CollectionKey, Set<string>>();
 
   return {

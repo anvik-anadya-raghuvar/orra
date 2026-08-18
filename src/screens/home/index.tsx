@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, Plus, Settings2, Sparkles } from 'lucide-react';
-import { newId, useData, useStore, type AppStore } from '../../data/store';
+import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
 import { packBento } from '../../lib/bento';
-import { CountUp, Modal, ProgressBar, useToast } from '../../ui/bits';
+import { Avatar, CountUp, Modal, ProgressBar, useToast } from '../../ui/bits';
 import { entrance, micro, staggerItem, staggerList, staggerParent } from '../../ui/motion';
-import { daysSinceTs, daysUntil, dayModeNow, fmtDay, inr, todayIso, type DayMode } from '../../lib/dates';
+import { daysSinceTs, daysUntil, dayModeNow, fmtDay, fmtTime, inr, todayIso, type DayMode } from '../../lib/dates';
 import {
   CAPACITY_MINUTES,
   planDay,
@@ -187,6 +187,7 @@ export default function Home() {
       node: <RibbonTile events={events} onAdd={() => setAddingBlock(true)} />,
     },
     { key: 'pulse', cols: 2, node: <PulseTile /> },
+    { key: 'thread', cols: 2, tall: true, node: <ThreadTile /> },
   ];
 
   if (p.photo) tiles.push({ key: 'photo', cols: 2, tall: true, cls: 'bt-photo', node: <PhotoTile /> });
@@ -715,6 +716,115 @@ function PulseTile() {
         <Link className="btn sm" to="/us">
           Open Us
         </Link>
+      </div>
+    </>
+  );
+}
+
+/* ── Between us: the actual thread, live on Home ────────────────────────── */
+function ThreadTile() {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const other = useData((_, s) => s.other);
+  const [body, setBody] = useState('');
+  const streamRef = useRef<HTMLDivElement>(null);
+
+  const sorted = useMemo(
+    () => [...ds.messages].sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    [ds.messages],
+  );
+  const recent = sorted.slice(-6);
+  const unread = useMemo(
+    () => ds.messages.filter((m) => m.sender_id === other.id && daysSinceTs(m.created_at) < 1).length,
+    [ds.messages, other.id],
+  );
+
+  useEffect(() => {
+    const el = streamRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [recent.length]);
+
+  const send = () => {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    store.insert(
+      'messages',
+      {
+        id: newId('msg'),
+        sender_id: store.me.id,
+        body: trimmed,
+        task_ref_id: null,
+        attachment_url: null,
+        song_ref: null,
+        promoted_to_type: null,
+        promoted_to_id: null,
+        created_at: nowIso(),
+      },
+      store.asMe(),
+    );
+    setBody('');
+  };
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Between us</span>
+        <span className="spacer" />
+        {unread > 0 && (
+          <span className="mono bt-num alert">
+            {unread} new
+          </span>
+        )}
+        <Link className="lk" to="/us">
+          Open Us →
+        </Link>
+      </div>
+      <div className="threadstream" ref={streamRef}>
+        {recent.length === 0 ? (
+          <div className="threadempty">
+            <b>Nothing here yet.</b>
+            <span>Say something — the first line is always the hardest.</span>
+          </div>
+        ) : (
+          recent.map((m) => {
+            const mine = m.sender_id === store.meId;
+            const sender = ds.profiles.find((p) => p.id === m.sender_id);
+            const task = m.task_ref_id ? ds.tasks.find((t) => t.id === m.task_ref_id) : undefined;
+            return (
+              <div className={`threadrow${mine ? ' me' : ''}`} key={m.id}>
+                <Avatar userId={m.sender_id} size={22} />
+                <div className="threadbubble">
+                  <div className="threadmeta">
+                    {sender?.name ?? 'Someone'} · <span className="mono">{fmtTime(m.created_at)}</span>
+                  </div>
+                  <p>{m.body}</p>
+                  {task && (
+                    <Link className="lk" style={{ marginTop: 6, display: 'inline-block' }} to={`/task/${task.id}`}>
+                      {task.id} · {task.title}
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <div className="threadcompose">
+        <textarea
+          value={body}
+          placeholder={`Message ${other.name}…`}
+          aria-label={`Message ${other.name}`}
+          onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+        />
+        <button className="btn sm solid" type="button" onClick={send} disabled={!body.trim()}>
+          Send
+        </button>
       </div>
     </>
   );
