@@ -1,0 +1,283 @@
+/* Personal screen — local component vocabulary, scoped under .personal-screen
+   so nothing leaks to (or is inherited from) any other route. Ported from
+   prototype v10 (.course/.citems/.kr/.krbar/.check/.addin), mobile-first. */
+
+.personal-screen .pgrid2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* ── shared field vocabulary ────────────────────────────────────────────── */
+.personal-screen .pin {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surf);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  min-height: 44px;
+}
+.personal-screen .addin {
+  width: 100%;
+  border: 1px dashed var(--line);
+  background: none;
+  border-radius: 9px;
+  padding: 11px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  min-height: 44px;
+}
+.personal-screen .addin:focus {
+  border-style: solid;
+  border-color: var(--indigo);
+  background: var(--surf);
+}
+.personal-screen .check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  padding: 8px 0;
+  min-height: 44px;
+}
+.personal-screen .bx {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1.5px solid var(--line);
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.personal-screen .bx.on {
+  background: var(--teal);
+  border-color: var(--teal);
+  position: relative;
+}
+.personal-screen .bx.on::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 1.7px 1.7px 0;
+  transform: rotate(42deg) translate(-1px, -1px);
+}
+.personal-screen .off {
+  text-decoration: line-through;
+  color: var(--mute);
+}
+
+/* ── courses ─────────────────────────────────────────────────────────────── */
+.personal-screen .pcourse {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--surf);
+}
+.personal-screen .pchead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 13px;
+  min-height: 48px;
+}
+.personal-screen .pctxt {
+  flex: 1;
+  min-width: 0;
+}
+.personal-screen .pctxt b {
+  font-weight: 500;
+  display: block;
+  font-size: 13.5px;
+}
+.personal-screen .pctxt span {
+  display: block;
+  font-size: 10.5px;
+  color: var(--mute);
+}
+.personal-screen .pcbar {
+  flex: 0 0 84px;
+  display: none;
+}
+.personal-screen .pcpct {
+  font-size: 11px;
+  width: 34px;
+  text-align: right;
+  color: var(--slate);
+  flex: none;
+}
+.personal-screen .pcitems {
+  padding: 0 13px 12px;
+  overflow: hidden;
+}
+
+/* ── reading queue ──────────────────────────────────────────────────────── */
+.personal-screen .prow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 13px;
+}
+.personal-screen .prow:last-of-type {
+  border-bottom: 0;
+}
+
+/* ── generic card ("big" in the prototype) ─────────────────────────────── */
+.personal-screen .pbig {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  padding: 16px;
+  box-shadow: var(--sh1);
+  margin-bottom: 14px;
+}
+.personal-screen .pbig h3 {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+/* ── study timer ─────────────────────────────────────────────────────────── */
+.personal-screen .pclock {
+  font-size: 26px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── split bar ───────────────────────────────────────────────────────────── */
+.personal-screen .psplitbar {
+  display: flex;
+  height: 26px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--line);
+  margin-top: 12px;
+}
+.personal-screen .psplitbar .study {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--indigo));
+}
+.personal-screen .psplitbar .founder {
+  display: block;
+  height: 100%;
+  background: var(--stamp);
+}
+.personal-screen .psplitlegend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--slate);
+}
+.personal-screen .psplitlegend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.personal-screen .psplitlegend .dot.study {
+  background: var(--indigo);
+}
+.personal-screen .psplitlegend .dot.founder {
+  background: var(--stamp);
+}
+
+/* ── life admin ─────────────────────────────────────────────────────────── */
+.personal-screen .plifer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.personal-screen .pxdel {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--mute);
+  border-radius: 8px;
+  transition: 0.18s;
+}
+.personal-screen .pxdel:hover,
+.personal-screen .pxdel:focus-visible {
+  color: var(--rose);
+  background: var(--rose-s);
+}
+
+/* ── fixed dates ────────────────────────────────────────────────────────── */
+.personal-screen .pfixed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 13px;
+}
+.personal-screen .pfixed:last-of-type {
+  border-bottom: 0;
+}
+.personal-screen .pfixedform {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.personal-screen .pfixedform .addin {
+  flex: 1 1 120px;
+}
+.personal-screen .pfixedform select {
+  flex: 1 1 120px;
+}
+
+/* ── relocation documents ──────────────────────────────────────────────── */
+.personal-screen .pdocrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 13px;
+}
+.personal-screen .pdocrow:last-of-type {
+  border-bottom: 0;
+}
+
+/* ── tablet + desktop ───────────────────────────────────────────────────── */
+@media (min-width: 641px) {
+  .personal-screen .pcbar {
+    display: block;
+  }
+}
+@media (min-width: 981px) {
+  .personal-screen .pgrid2 {
+    grid-template-columns: 1.05fr 0.95fr;
+  }
+}
+
+/* ── touch targets: 44px minimum on phone and tablet ───────────────────── */
+@media (max-width: 1024px) {
+  .personal-screen .btn,
+  .personal-screen .chip,
+  .personal-screen .pill,
+  .personal-screen select,
+  .personal-screen input,
+  .personal-screen textarea {
+    min-height: 44px;
+  }
+}

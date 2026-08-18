@@ -50,7 +50,7 @@ export default function NotesTab() {
           placeholder="Search notes, transcripts, tags…"
           aria-label="Search notes"
         />
-        <button className="btn sm solid" onClick={() => setOpenId('new')} style={{ minHeight: 38 }}>
+        <button className="btn sm solid" onClick={() => setOpenId('new')}>
           + Note
         </button>
       </div>

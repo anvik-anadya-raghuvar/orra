@@ -61,6 +61,22 @@ export class AppStore {
     this.listeners.forEach((cb) => cb());
   }
 
+  /** Collection key → singular entity_type label for the trail. */
+  private entityType(key: string): string {
+    const irregular: Record<string, string> = {
+      import_batches: 'import_batch',
+      people: 'person',
+      people_interactions: 'person_interaction',
+      daily_closeouts: 'daily_closeout',
+      audit_trail: 'audit_entry',
+      ranking_weights: 'ranking_weights',
+      reading_queue: 'reading_item',
+      life_admin: 'life_admin_item',
+      shared_daily: 'shared_daily',
+    };
+    return irregular[key] ?? key.replace(/s$/, '');
+  }
+
   private audit(entry: Omit<Dataset['audit_trail'][number], 'id' | 'occurred_at'>) {
     const row = { ...entry, id: newId('a'), occurred_at: nowIso() };
     this.ds = { ...this.ds, audit_trail: [row, ...this.ds.audit_trail] };
@@ -74,7 +90,7 @@ export class AppStore {
       this.audit({
         actor_id: meta.actor,
         actor_label: meta.actorLabel,
-        entity_type: key.replace(/s$/, ''),
+        entity_type: this.entityType(key),
         entity_id: (row as Row).id,
         field_name: null,
         old_value: null,
@@ -109,7 +125,7 @@ export class AppStore {
         this.audit({
           actor_id: meta.actor,
           actor_label: meta.actorLabel,
-          entity_type: key.replace(/s$/, ''),
+          entity_type: this.entityType(key),
           entity_id: id,
           field_name: field,
           old_value: oldVal == null ? null : String(Array.isArray(oldVal) ? oldVal.join(', ') : oldVal),
@@ -130,7 +146,7 @@ export class AppStore {
       this.audit({
         actor_id: meta.actor,
         actor_label: meta.actorLabel,
-        entity_type: key.replace(/s$/, ''),
+        entity_type: this.entityType(key),
         entity_id: id,
         field_name: null,
         old_value: meta.summary ?? 'removed',

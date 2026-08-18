@@ -81,7 +81,7 @@
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 44px;
   border-radius: 6px;
 }
 .tpage .crumb a:hover {
@@ -218,7 +218,7 @@
   font-size: 11px;
   color: var(--mute);
   font-family: 'IBM Plex Mono', monospace;
-  min-height: 36px;
+  min-height: 44px;
   transition: border-color 0.18s, color 0.18s;
 }
 .tpage .tagadd:hover,
@@ -233,12 +233,12 @@
   padding: 6px 13px;
   font-size: 12px;
   font-family: 'IBM Plex Mono', monospace;
-  min-height: 36px;
+  min-height: 44px;
   min-width: 150px;
 }
 .tpage .tagc .x {
-  min-width: 20px;
-  min-height: 20px;
+  min-width: 24px;
+  min-height: 24px;
   display: inline-grid;
   place-items: center;
   border-radius: 999px;

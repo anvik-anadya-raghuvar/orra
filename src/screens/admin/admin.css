@@ -1,0 +1,207 @@
+/* Admin screen — local component vocabulary, prefixed `ad-` so this file
+   can never collide with another screen's local CSS. Mobile-first. */
+
+.admin-screen {
+  display: block;
+}
+
+/* ── trail table → cards under 640px ─────────────────────────────────── */
+.admin-screen .ad-table {
+  width: 100%;
+}
+@media (max-width: 640px) {
+  .admin-screen .ad-table thead {
+    display: none;
+  }
+  .admin-screen .ad-table,
+  .admin-screen .ad-table tbody,
+  .admin-screen .ad-table tr,
+  .admin-screen .ad-table td {
+    display: block;
+    width: 100%;
+  }
+  .admin-screen .ad-table tr {
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    background: var(--surf);
+    box-shadow: var(--sh1);
+  }
+  .admin-screen .ad-table td {
+    border: 0;
+    padding: 5px 0;
+  }
+  .admin-screen .ad-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-family: 'IBM Plex Mono';
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--mute);
+    margin-bottom: 2px;
+  }
+}
+
+/* ── rules ────────────────────────────────────────────────────────────── */
+.admin-screen .ad-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  background: var(--surf);
+  border-radius: var(--r);
+  box-shadow: var(--sh1);
+  margin-bottom: 9px;
+  flex-wrap: wrap;
+}
+.admin-screen .ad-rule-text {
+  flex: 1;
+  min-width: 200px;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.admin-screen .ad-w {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mute);
+}
+.admin-screen .ad-fired {
+  display: block;
+  font-size: 10.5px;
+  color: var(--mute);
+  margin-top: 3px;
+}
+
+/* switch — 38×22, knob translates, teal on / line off */
+.admin-screen .ad-sw {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--teal);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: none;
+  min-height: 22px;
+  transition: background 0.2s;
+}
+.admin-screen .ad-sw.off {
+  background: var(--line);
+  justify-content: flex-start;
+}
+.admin-screen .ad-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--sh1);
+  display: block;
+}
+
+/* ── tags ─────────────────────────────────────────────────────────────── */
+.admin-screen .ad-tag-create {
+  align-items: center;
+}
+.admin-screen .ad-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px dashed var(--line);
+  flex-wrap: wrap;
+  min-height: 44px;
+}
+.admin-screen .ad-tag-row:last-child {
+  border-bottom: 0;
+}
+.admin-screen .ad-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex: none;
+}
+.admin-screen .ad-tag-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  flex: 1 1 120px;
+}
+.admin-screen .ad-tag-count {
+  font-size: 11px;
+  color: var(--mute);
+  flex: none;
+}
+.admin-screen .ad-tag-select {
+  flex: 0 0 110px;
+  min-width: 0;
+}
+
+/* ── connections ──────────────────────────────────────────────────────── */
+.admin-screen .ad-conns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.admin-screen .ad-conn {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 15px 16px;
+  box-shadow: var(--sh1);
+  transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.admin-screen .ad-conn:hover {
+  box-shadow: var(--sh2);
+  transform: translateY(-2px);
+}
+.admin-screen .ad-conn-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.admin-screen .ad-conn h4 {
+  font-size: 14.5px;
+}
+.admin-screen .ad-conn p {
+  font-size: 12.5px;
+  color: var(--slate);
+  margin: 0;
+}
+
+/* ── tablet+ ──────────────────────────────────────────────────────────── */
+@media (min-width: 641px) {
+  .admin-screen .ad-conns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1025px) {
+  .admin-screen .ad-conns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── touch targets: 44px minimum on phone and tablet ─────────────────── */
+@media (max-width: 1024px) {
+  .admin-screen .btn,
+  .admin-screen .chip,
+  .admin-screen .srch,
+  .admin-screen .pill {
+    min-height: 44px;
+  }
+  .admin-screen .ad-sw {
+    width: 44px;
+    height: 26px;
+  }
+  .admin-screen .ad-knob {
+    width: 22px;
+    height: 22px;
+  }
+}

@@ -24,6 +24,9 @@ import {
 
 type View = 'kanban' | 'list' | 'calendar' | 'timeline';
 
+/** Cards mounted per column before "show more" — keeps board render under budget. */
+const COLUMN_PAGE = 25;
+
 const VIEWS: { key: View; label: string }[] = [
   { key: 'kanban', label: 'Kanban' },
   { key: 'list', label: 'List' },
@@ -169,6 +172,8 @@ export default function BoardTab({
   const toast = useToast();
 
   const [view, setView] = useState<View>('kanban');
+  const [colLimits, setColLimits] = useState<Record<string, number>>({});
+  const [listLimit, setListLimit] = useState(50);
   const [projects, setProjects] = useState<Set<string>>(new Set());
   const [mine, setMine] = useState(false);
   const [types, setTypes] = useState<Set<TaskType>>(new Set());
@@ -301,6 +306,10 @@ export default function BoardTab({
             <div className="wk-cols">
               {STATUSES.map((s) => {
                 const col = list.filter((t) => t.status === s.key);
+                // Render a window, not the whole column: a 500-task board that
+                // mounts every card blows the 300ms p95 render budget.
+                const shown = colLimits[s.key] ?? COLUMN_PAGE;
+                const visible = col.slice(0, shown);
                 return (
                   <motion.div layout className="wk-col" key={s.key}>
                     <h3>
@@ -311,10 +320,23 @@ export default function BoardTab({
                       <span>{col.length}</span>
                     </h3>
                     <AnimatePresence initial={false}>
-                      {col.map((t) => (
+                      {visible.map((t) => (
                         <TaskCard key={t.id} t={t} ds={ds} pins={pins[t.id] ?? 0} onMove={move} />
                       ))}
                     </AnimatePresence>
+                    {col.length > visible.length && (
+                      <button
+                        className="btn sm"
+                        type="button"
+                        style={{ width: '100%' }}
+                        onClick={() =>
+                          setColLimits((m) => ({ ...m, [s.key]: shown + COLUMN_PAGE }))
+                        }
+                      >
+                        Show {Math.min(COLUMN_PAGE, col.length - visible.length)} more ·{' '}
+                        {col.length - visible.length} hidden
+                      </button>
+                    )}
                     {col.length === 0 && (
                       <p className="tip" style={{ margin: 0 }}>
                         Empty
@@ -328,7 +350,7 @@ export default function BoardTab({
 
           {view === 'list' && (
             <motion.div variants={staggerList} initial="initial" animate="animate">
-              {list.map((t) => (
+              {list.slice(0, listLimit).map((t) => (
                 <motion.div
                   key={t.id}
                   variants={staggerItem}
@@ -360,6 +382,16 @@ export default function BoardTab({
                   </span>
                 </motion.div>
               ))}
+              {list.length > listLimit && (
+                <button
+                  className="btn sm"
+                  type="button"
+                  style={{ width: '100%' }}
+                  onClick={() => setListLimit((n) => n + 50)}
+                >
+                  Show 50 more · {list.length - listLimit} hidden
+                </button>
+              )}
               {list.length === 0 && <p className="wk-empty">Nothing matches these filters.</p>}
             </motion.div>
           )}

@@ -390,6 +390,70 @@ tbody tr:hover {
   }
 }
 
+/* Touch targets: 44×44 minimum on mobile and tablet (CLAUDE.md responsive rules).
+   Applies to the shared control vocabulary; screens reuse these classes. */
+@media (max-width: 1024px) {
+  .chip,
+  .btn,
+  .btn.sm,
+  .sub2 button,
+  .pillbtn,
+  [role='tab'],
+  .nav-pills a,
+  .srch,
+  .frame input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  .frame select {
+    min-height: 44px;
+  }
+  .chip,
+  .btn.sm,
+  .sub2 button,
+  [role='tab'] {
+    padding-inline: 14px;
+  }
+  /* icon-only controls also need width */
+  button[aria-label]:not(.tagc .x) {
+    min-width: 44px;
+  }
+
+  /* Interactive variants of otherwise-decorative classes. Static badges
+     (span.pill, span.lk) are untouched — only the clickable ones grow. */
+  button.pill,
+  a.pill,
+  button.lk,
+  a.lk,
+  .tagadd,
+  .statuslike {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  /* Annotation pins and tag-remove buttons keep their small visual — enlarging
+     them would cover the screenshot / burst the chip — but carry a 44px
+     invisible tap area so the touch target still meets the minimum. */
+  .pin,
+  .tagc .x {
+    position: relative;
+  }
+  .pin::after,
+  .tagc .x::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* sign-in gate */
 .gate-grid {
   display: grid;

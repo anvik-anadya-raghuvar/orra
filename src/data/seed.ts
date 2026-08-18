@@ -8,6 +8,17 @@ import type { Dataset } from '../types';
 export const AN = 'u-anadya';
 export const RG = 'u-raghuvar';
 
+/**
+ * Local dev credentials for mock mode ONLY.
+ *
+ * These are stripped from production builds: a production bundle must never
+ * carry a plaintext password, and mock mode is not an authentication system.
+ * A production build without VITE_SUPABASE_URL therefore cannot sign anyone
+ * in at all (see gate.tsx), which is the correct failure mode — real auth is
+ * Supabase email+password, and the allowlist trigger is the actual gate.
+ */
+const devPassword = (pw: string): string | undefined => (import.meta.env.DEV ? pw : undefined);
+
 const D = (s: string) => s; // date literal helper, YYYY-MM-DD
 const T = (s: string) => `${s}+05:30`; // IST timestamp literal
 
@@ -17,7 +28,7 @@ export function seedDataset(): Dataset {
       {
         id: AN,
         email: 'anvik.anadya@gmail.com',
-        password: 'Anadya@2026',
+        password: devPassword('Anadya@2026'),
         name: 'Anadya',
         avatar_url: null,
         time_zone: 'Europe/Rome',
@@ -35,7 +46,7 @@ export function seedDataset(): Dataset {
       {
         id: RG,
         email: 'raghuvar.anvik@gmail.com',
-        password: 'Raghuvar@2026',
+        password: devPassword('Raghuvar@2026'),
         name: 'Raghuvar',
         avatar_url: null,
         time_zone: 'Asia/Kolkata',

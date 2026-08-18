@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../data/store';
+import { checkCredentials } from '../lib/auth';
 import { entrance } from './motion';
 
 /**
@@ -35,16 +36,18 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
           return;
         }
       } else {
-        const profile = profiles.find((p) => p.email.toLowerCase() === normalized);
-        if (!profile) {
-          setError('This address is not on the Anvik Ops member list.');
+        const res = checkCredentials(profiles, normalized, password);
+        if (!res.ok) {
+          setError(
+            res.reason === 'unknown_email'
+              ? 'This address is not on the Anvik Ops member list.'
+              : res.reason === 'no_local_credentials'
+                ? 'This build has no local credentials. Connect Supabase (VITE_SUPABASE_URL) to sign in.'
+                : 'Wrong password for this account.',
+          );
           return;
         }
-        if ((profile.password ?? '') !== password) {
-          setError('Wrong password for this account.');
-          return;
-        }
-        store.setMe(profile.id);
+        store.setMe(res.profile.id);
       }
       try {
         localStorage.setItem('anvik:signedin', '1');
