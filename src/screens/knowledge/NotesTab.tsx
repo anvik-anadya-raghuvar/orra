@@ -110,14 +110,19 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
     toast(`${unchecked.length} action item${unchecked.length === 1 ? '' : 's'} pushed as subtasks`);
   };
 
+  // A div, not a button: the card contains its own action button and nesting
+  // buttons is invalid HTML. The title is the real focusable control; the card
+  // surface is a mouse convenience that delegates to it.
   return (
-    <motion.button
+    <motion.div
       variants={staggerItem}
       className={`note-card type-${note.type}`}
       onClick={onOpen}
     >
       <h4>
-        {note.title || 'Untitled'}
+        <button type="button" className="note-open" onClick={(e) => { e.stopPropagation(); onOpen(); }}>
+          {note.title || 'Untitled'}
+        </button>
         {note.is_pinned && <span className="pinflag">pinned</span>}
       </h4>
       {note.type === 'voice' && (
@@ -151,7 +156,14 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
         </div>
       )}
       {canPushSubtasks && (
-        <button className="btn sm subtask-btn" onClick={pushSubtasks}>
+        <button
+          type="button"
+          className="btn sm subtask-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            pushSubtasks(e);
+          }}
+        >
           Turn action items into subtasks
         </button>
       )}
@@ -162,7 +174,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
         ))}
         {note.source_ref && <span className="src">{note.source_ref.split(':')[0]}</span>}
       </div>
-    </motion.button>
+    </motion.div>
   );
 }
 
