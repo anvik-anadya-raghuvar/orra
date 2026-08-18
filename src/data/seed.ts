@@ -17,6 +17,7 @@ export function seedDataset(): Dataset {
       {
         id: AN,
         email: 'anvik.anadya@gmail.com',
+        password: 'Anadya@2026',
         name: 'Anadya',
         avatar_url: null,
         time_zone: 'Europe/Rome',
@@ -33,8 +34,8 @@ export function seedDataset(): Dataset {
       },
       {
         id: RG,
-        // TODO(blocking §1.1): replace with Raghuvar's real Google sign-in address
         email: 'raghuvar.anvik@gmail.com',
+        password: 'Raghuvar@2026',
         name: 'Raghuvar',
         avatar_url: null,
         time_zone: 'Asia/Kolkata',

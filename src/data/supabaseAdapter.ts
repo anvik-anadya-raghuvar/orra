@@ -67,6 +67,10 @@ export function createSupabaseAdapter(url: string, anonKey: string): DataAdapter
     },
     saveCollection(key, rows, changed) {
       const table = TABLE[key];
+      // The local-only password field must never reach the profiles table.
+      if (key === 'profiles' && changed) {
+        changed = (changed as Record<string, unknown>[]).map(({ password: _pw, ...rest }) => rest);
+      }
       if (changed && changed.length) {
         if (key === 'audit_trail') {
           void sb.from(table).insert(changed as never[]);

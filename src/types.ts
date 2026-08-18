@@ -11,6 +11,8 @@ export type AuditSource = 'portal' | 'gmail' | 'plaud' | 'drive' | 'claude_expor
 export interface Profile {
   id: UserId;
   email: string;
+  /** Mock-mode only: local password (never synced to Supabase, never audited). */
+  password?: string;
   name: string;
   avatar_url: string | null;
   time_zone: string;

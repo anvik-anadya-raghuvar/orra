@@ -33,6 +33,13 @@ export function createMockAdapter(): DataAdapter {
           const parsed = JSON.parse(raw) as Dataset;
           // Reseed if the stored shape predates the current schema
           if (parsed.profiles && parsed.ranking_weights && parsed.daily_closeouts) {
+            // Backfill credentials on datasets stored before password auth existed.
+            const seeds = seedDataset().profiles;
+            parsed.profiles = parsed.profiles.map((p) =>
+              p.password
+                ? p
+                : { ...p, password: seeds.find((s) => s.email === p.email)?.password ?? 'Anvik@2026' },
+            );
             current = parsed;
             return parsed;
           }

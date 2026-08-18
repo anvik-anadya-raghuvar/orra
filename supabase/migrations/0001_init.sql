@@ -10,8 +10,9 @@ CREATE TABLE public.allowlist (
   invited_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- The two real Google sign-in addresses (§1.1).
--- ⚠ TODO(blocking): confirm Raghuvar's real address before enabling auth.
+-- The two member addresses. Auth is Supabase email+password (no Google OAuth):
+-- create these two users in Authentication → Users with temp passwords and
+-- disable public signups. The trigger below still hard-rejects any other email.
 INSERT INTO public.allowlist (email, name, role) VALUES
   ('anvik.anadya@gmail.com', 'Anadya', 'member'),
   ('raghuvar.anvik@gmail.com', 'Raghuvar', 'member');

@@ -1,0 +1,123 @@
+/* People screen — local styles (card grid, warmth bar, history).
+   Reuses shared vocabulary from src/styles/theme.css: .frame/.top/.wrap/
+   .chip/.filters/.pill/.tagc/.btn/.modal-sheet/.av. */
+
+/* ── Grid — mobile-first: 1 → 2 → 3 columns ──────────────────────────── */
+.pgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 641px) {
+  .pgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1025px) {
+  .pgrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.pcard {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 15px;
+  box-shadow: var(--sh1);
+  transition: transform 0.25s var(--ease), box-shadow 0.25s;
+}
+.pcard:hover,
+.pcard:focus-within {
+  transform: translateY(-4px);
+  box-shadow: var(--sh2);
+}
+.pcard-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  cursor: pointer;
+  min-height: 44px;
+}
+.pcard-head:hover .pcard-name,
+.pcard-head:focus-visible .pcard-name {
+  color: var(--indigo);
+}
+.pcard-name {
+  font-size: 14.5px;
+  font-weight: 500;
+  display: block;
+  color: var(--ink);
+  transition: color 0.18s;
+}
+.pcard-sub {
+  font-size: 12.5px;
+  color: var(--mute);
+}
+.pcard-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.pcard-next {
+  font-size: 13px;
+  color: var(--slate);
+  margin: 12px 0 0;
+}
+.warm {
+  height: 5px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.pcard-foot {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.pcard-touch {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ── Drifting banner ──────────────────────────────────────────────────── */
+.drift-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  background: var(--rose-s);
+  border: 1px solid var(--rose);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.drift-banner .db-body {
+  flex: 1;
+  min-width: 200px;
+}
+.drift-banner .eyebrow {
+  color: var(--rose);
+}
+.drift-banner .db-text {
+  font-size: 14px;
+  margin-top: 3px;
+}
+
+/* ── Interaction history (profile modal) ─────────────────────────────── */
+.hist {
+  font-size: 12.5px;
+  color: var(--slate);
+  border-left: 2px solid var(--line);
+  padding-left: 12px;
+  margin: 6px 0;
+}

@@ -1,0 +1,733 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Task detail page vocabulary — ported from prototype v10 (.tw/.tside/.shot/
+   .pin/.exportbox …). EVERY rule is scoped under `.tpage` so this file can
+   never leak into another screen's markup. Mobile-first: the base rules are
+   the 375px layout, min-width queries widen it.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ── two-column shell ─────────────────────────────────────────────────── */
+.tpage .tw {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+.tpage .tl-main {
+  padding: 16px;
+  min-width: 0;
+}
+.tpage .tside {
+  padding: 16px;
+  background: var(--surf2);
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+@media (min-width: 981px) {
+  .tpage .tw {
+    grid-template-columns: 1.4fr 1fr;
+  }
+  .tpage .tl-main {
+    padding: 20px;
+    border-right: 1px solid var(--line);
+  }
+  .tpage .tside {
+    padding: 20px;
+    border-top: 0;
+  }
+}
+
+/* ── shared field resets ──────────────────────────────────────────────── */
+.tpage input,
+.tpage select,
+.tpage textarea {
+  font: inherit;
+  color: var(--ink);
+}
+.tpage a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: inherit;
+}
+.tpage .btn,
+.tpage .chip {
+  min-height: 44px;
+}
+.tpage .btn.sm {
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .tpage .btn,
+  .tpage .chip {
+    min-height: 38px;
+  }
+  .tpage .btn.sm {
+    min-height: 32px;
+  }
+}
+
+/* ── header: crumb + inline title + description ───────────────────────── */
+.tpage .crumb {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--mute);
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tpage .crumb a {
+  color: var(--indigo);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border-radius: 6px;
+}
+.tpage .crumb a:hover {
+  text-decoration: underline;
+}
+.tpage .tin {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  width: 100%;
+  border: 1px solid transparent;
+  background: none;
+  border-radius: 8px;
+  padding: 6px 7px;
+  margin: 0 0 10px -7px;
+  color: var(--ink);
+  letter-spacing: -0.022em;
+  min-height: 44px;
+}
+.tpage .tin:hover {
+  background: var(--surf2);
+}
+.tpage .tin:focus {
+  outline: 2px solid var(--indigo);
+  background: var(--surf);
+}
+@media (min-width: 981px) {
+  .tpage .tin {
+    font-size: 23px;
+  }
+}
+.tpage .ta {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf2);
+  padding: 11px 13px;
+  font-size: 13.5px;
+  resize: vertical;
+  min-height: 84px;
+}
+.tpage .ta:focus {
+  background: var(--surf);
+}
+
+/* ── controls grid: 1 → 2 → 3 columns ─────────────────────────────────── */
+.tpage .ctl {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 14px 0 16px;
+}
+@media (min-width: 641px) {
+  .tpage .ctl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1025px) {
+  .tpage .ctl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.tpage .ctl .wide {
+  grid-column: 1 / -1;
+}
+.tpage .ctl label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 4px;
+}
+.tpage .ctl select,
+.tpage .ctl input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surf);
+  border-radius: 9px;
+  padding: 10px;
+  font-size: 13px;
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .tpage .ctl select,
+  .tpage .ctl input {
+    min-height: 38px;
+    padding: 8px 10px;
+  }
+}
+
+/* ── segmented control ────────────────────────────────────────────────── */
+.tpage .seg {
+  display: flex;
+  gap: 4px;
+  background: var(--surf3);
+  padding: 3px;
+  border-radius: 9px;
+}
+.tpage .seg button {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  color: var(--slate);
+  transition: background 0.2s, color 0.2s;
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .tpage .seg button {
+    min-height: 32px;
+  }
+}
+.tpage .seg button[aria-pressed='true'] {
+  background: var(--surf);
+  color: var(--ink);
+  box-shadow: var(--sh1);
+  font-weight: 500;
+}
+
+/* ── free-form tags ───────────────────────────────────────────────────── */
+.tpage .tagrow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.tpage .tagadd {
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 11px;
+  color: var(--mute);
+  font-family: 'IBM Plex Mono', monospace;
+  min-height: 36px;
+  transition: border-color 0.18s, color 0.18s;
+}
+.tpage .tagadd:hover,
+.tpage .tagadd:focus-visible {
+  border-color: var(--indigo);
+  color: var(--indigo);
+}
+.tpage .taginput {
+  border: 1px solid var(--indigo);
+  background: var(--surf);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  min-height: 36px;
+  min-width: 150px;
+}
+.tpage .tagc .x {
+  min-width: 20px;
+  min-height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* ── screenshot surface + pins ────────────────────────────────────────── */
+.tpage .shot {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--surf);
+  box-shadow: var(--sh2);
+  margin-bottom: 12px;
+}
+.tpage .shotbar {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 8px 11px;
+  background: var(--surf2);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.tpage .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  flex: none;
+}
+.tpage .shotbar em {
+  font-style: normal;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--mute);
+  margin-left: 7px;
+  overflow-wrap: anywhere;
+}
+
+/* the pin coordinate space — aspect ratio is reserved from width/height so
+   nothing shifts while the image loads and % coords survive every width. */
+.tpage .shotsurf {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--surf);
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+.tpage .shotimg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* stylised placeholder for attachments with no stored image data */
+.tpage .gm {
+  position: absolute;
+  inset: 0;
+  padding: 13px 15px 20px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--slate);
+  background: var(--surf);
+  overflow: hidden;
+}
+.tpage .gm .hd,
+.tpage .gm .row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 0.8fr;
+  gap: 8px;
+}
+.tpage .gm .hd {
+  color: var(--mute);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 7px;
+  margin-bottom: 7px;
+}
+.tpage .gm .row {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.tpage .gm .nodata {
+  margin-top: 12px;
+  font-size: 10px;
+  color: var(--mute);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tpage .pin {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--surf);
+  background: linear-gradient(145deg, #f0a45a, var(--stamp));
+  box-shadow: 0 4px 12px rgba(206, 106, 16, 0.42);
+  padding: 0;
+}
+.tpage .pin.res {
+  background: linear-gradient(145deg, #7fdcc0, var(--teal));
+  box-shadow: 0 4px 12px rgba(14, 130, 103, 0.38);
+}
+.tpage .pin.sel {
+  background: linear-gradient(145deg, var(--violet), var(--indigo));
+  box-shadow: 0 6px 18px var(--glow);
+}
+@media (min-width: 1025px) {
+  .tpage .pin {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+}
+.tpage .ghost {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px dashed var(--indigo);
+  background: var(--indigo-s);
+  display: grid;
+  place-items: center;
+  color: var(--indigo);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 15px;
+  pointer-events: none;
+}
+
+/* draft-pin composer (below the surface — safe at 375px, unlike a popover) */
+.tpage .pindraft {
+  border: 1px solid var(--indigo);
+  background: var(--indigo-s);
+  border-radius: var(--r);
+  padding: 12px;
+  margin-bottom: 12px;
+  display: grid;
+  gap: 9px;
+}
+.tpage .pindraft .coords {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.tpage .pindraft .coords > label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+  display: grid;
+  gap: 4px;
+}
+.tpage .pindraft input {
+  border: 1px solid var(--line);
+  background: var(--surf);
+  border-radius: 9px;
+  padding: 10px;
+  font-size: 13px;
+  min-height: 44px;
+  width: 100%;
+}
+.tpage .pindraft .coords input {
+  width: 96px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ── pin list ─────────────────────────────────────────────────────────── */
+.tpage .pinrow {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 11px 13px;
+  background: var(--surf);
+  width: 100%;
+  text-align: left;
+  box-shadow: var(--sh1);
+  margin-top: 9px;
+}
+.tpage .pinrow.sel {
+  border-color: var(--indigo);
+  box-shadow: 0 6px 18px var(--glow);
+}
+.tpage .pinno {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f0a45a, var(--stamp));
+  color: #fff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-top: 2px;
+}
+.tpage .pinno.res {
+  background: linear-gradient(145deg, #7fdcc0, var(--teal));
+}
+.tpage .pinbody {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 0;
+  background: none;
+}
+.tpage .pinbody p {
+  margin: 0;
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+.tpage .pinbody p.resolved {
+  text-decoration: line-through;
+  color: var(--mute);
+}
+.tpage .co {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--mute);
+  display: block;
+  margin-top: 4px;
+}
+.tpage .pinacts {
+  display: flex;
+  gap: 4px;
+  flex: none;
+  align-items: flex-start;
+}
+.tpage .iconbtn {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--mute);
+  border: 1px solid transparent;
+}
+.tpage .iconbtn:hover,
+.tpage .iconbtn:focus-visible {
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--surf2);
+}
+.tpage .iconbtn.danger:hover,
+.tpage .iconbtn.danger:focus-visible {
+  color: var(--rose);
+}
+
+/* ── upload ───────────────────────────────────────────────────────────── */
+.tpage .uploader {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.tpage .uploader input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.tpage .empty {
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  padding: 20px;
+  text-align: center;
+  background: var(--surf2);
+}
+
+/* ── checklist / subtasks ─────────────────────────────────────────────── */
+.tpage .sub {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}
+.tpage .tick {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 13.5px;
+  padding: 11px 6px;
+  border-radius: 9px;
+  min-height: 44px;
+}
+.tpage .tick:hover {
+  background: var(--surf3);
+}
+.tpage .box {
+  width: 18px;
+  height: 18px;
+  border: 1.6px solid var(--line);
+  border-radius: 5px;
+  flex: none;
+  margin-top: 2px;
+}
+.tpage .box.on {
+  background: var(--teal);
+  border-color: var(--teal);
+  position: relative;
+}
+.tpage .box.on::after {
+  content: '';
+  position: absolute;
+  left: 5.5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 1.7px 1.7px 0;
+  transform: rotate(42deg);
+}
+.tpage .done {
+  color: var(--mute);
+  text-decoration: line-through;
+}
+.tpage .addin {
+  width: 100%;
+  border: 1px dashed var(--line);
+  background: none;
+  border-radius: 9px;
+  padding: 11px;
+  font-size: 13px;
+  min-height: 44px;
+}
+.tpage .addin:focus {
+  border-style: solid;
+  border-color: var(--indigo);
+  background: var(--surf);
+}
+
+/* ── sidebar sections ─────────────────────────────────────────────────── */
+.tpage .tside h3 {
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin: 0 0 10px;
+}
+.tpage .tside section {
+  margin-bottom: 20px;
+}
+.tpage .exportbox {
+  border: 1px solid var(--indigo);
+  background: var(--indigo-s);
+  border-radius: var(--r);
+  padding: 14px;
+  margin-bottom: 18px;
+}
+.tpage .exportbox p {
+  margin: 6px 0 11px;
+  font-size: 13px;
+  color: var(--slate);
+}
+.tpage .exportbox .acts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tpage .lrow {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--surf);
+  border-radius: var(--r);
+  padding: 11px 13px;
+  box-shadow: var(--sh1);
+  margin-bottom: 7px;
+  min-height: 44px;
+}
+.tpage .lrow b {
+  font-weight: 600;
+  font-size: 13px;
+}
+.tpage .lrow .sn {
+  display: block;
+  font-size: 12px;
+  color: var(--mute);
+  overflow-wrap: anywhere;
+}
+
+/* ── comments ─────────────────────────────────────────────────────────── */
+.tpage .cmt {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.tpage .cmt .n {
+  font-size: 13px;
+  font-weight: 600;
+}
+.tpage .cmt .w {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--mute);
+  margin-left: 5px;
+  font-weight: 400;
+}
+.tpage .cmt p {
+  margin: 3px 0 0;
+  font-size: 13.5px;
+  color: var(--slate);
+  overflow-wrap: anywhere;
+}
+.tpage .dec {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--teal);
+  background: var(--teal-s);
+  border-radius: 5px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.tpage .composer {
+  display: grid;
+  gap: 8px;
+}
+.tpage .composer textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf);
+  padding: 11px 13px;
+  font-size: 13.5px;
+  resize: vertical;
+  min-height: 66px;
+}
+.tpage .flagline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--slate);
+  min-height: 44px;
+}
+.tpage .flagline input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--teal);
+}
+
+/* ── connected items ──────────────────────────────────────────────────── */
+.tpage .conn {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: var(--surf);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  margin-bottom: 7px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.tpage .conn .spacer {
+  flex: 1;
+}
+.tpage .sideacts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tpage .sideacts > * {
+  flex: 1 1 150px;
+}
+
+.tpage .none {
+  font-size: 12.5px;
+  color: var(--mute);
+  margin: 0;
+}

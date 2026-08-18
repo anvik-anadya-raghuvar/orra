@@ -1,0 +1,502 @@
+/* Home screen — local vocabulary ported from prototype v10 (.welc/.wxb/.one/.ring/
+   .tiles/.pgrid/.pcard2/.rit). Everything is scoped under .home-screen so no other
+   screen inherits it and no other screen's CSS reaches in. Mobile-first. */
+
+.home-screen {
+  display: block;
+}
+
+/* ── welcome card ──────────────────────────────────────────────────────── */
+.home-screen .welc {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: var(--sh2);
+  padding: 18px 15px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.home-screen .welc::after {
+  content: '';
+  position: absolute;
+  right: -60px;
+  top: -70px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--indigo-s), transparent);
+  opacity: 0.8;
+  pointer-events: none;
+}
+.home-screen .welc > * {
+  position: relative;
+  z-index: 1;
+}
+.home-screen .welc h1 {
+  font-size: 24px;
+  margin-top: 10px;
+}
+.home-screen .welc .sub {
+  color: var(--slate);
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  max-width: 56ch;
+}
+.home-screen .welc-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── ambient facts row ─────────────────────────────────────────────────── */
+.home-screen .hz {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+.home-screen .wxb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  color: var(--slate);
+  text-decoration: none;
+  min-height: 36px;
+}
+.home-screen .wxb b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  color: var(--ink);
+}
+.home-screen a.wxb:hover,
+.home-screen button.wxb:hover {
+  border-color: var(--indigo);
+}
+.home-screen .wxb.alert {
+  border-color: var(--rose);
+  color: var(--rose);
+}
+.home-screen .wxb.alert b {
+  color: var(--rose);
+}
+.home-screen .sun {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  background: linear-gradient(145deg, #ffc46b, var(--stamp));
+  animation: home-glowp 3s ease-in-out infinite;
+}
+.home-screen .moon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  background: linear-gradient(145deg, #cfe0ff, var(--sky));
+}
+@keyframes home-glowp {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(206, 106, 16, 0.14);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(206, 106, 16, 0.05);
+  }
+}
+
+/* ── mode block (the "one thing" card) ─────────────────────────────────── */
+.home-screen .one {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 17px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--indigo-s), var(--surf2));
+  border: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.home-screen .one .ttl {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px;
+  margin-top: 3px;
+  color: var(--ink);
+  text-decoration: none;
+  display: inline-block;
+}
+.home-screen .one .ttl:hover {
+  color: var(--indigo);
+}
+.home-screen .one .meta {
+  font-size: 11px;
+  color: var(--mute);
+  margin-top: 3px;
+}
+.home-screen .ring {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  transform: rotate(-90deg);
+}
+.home-screen .ring circle {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.home-screen .ring .bgc {
+  stroke: var(--line);
+}
+
+/* why-this-one panel */
+.home-screen .why {
+  width: 100%;
+  border-top: 1px dashed var(--line);
+  margin-top: 4px;
+  padding-top: 11px;
+  overflow: hidden;
+}
+.home-screen .why ul {
+  margin: 0 0 10px;
+  padding-left: 17px;
+  font-size: 13px;
+  color: var(--slate);
+}
+.home-screen .whyrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+.home-screen .whyrow .lbl {
+  flex: 0 0 118px;
+  color: var(--slate);
+}
+.home-screen .whyrow .bar {
+  flex: 1;
+  min-width: 70px;
+}
+.home-screen .whyrow .num {
+  flex: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--mute);
+}
+
+/* focus timer */
+.home-screen .clock {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.home-screen .timerbtns {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* ── evening ritual ────────────────────────────────────────────────────── */
+.home-screen .rit textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surf2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  resize: vertical;
+  min-height: 52px;
+  margin: 4px 0 11px;
+}
+.home-screen .rit label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.home-screen .rit .done-line {
+  font-size: 13.5px;
+  color: var(--slate);
+  margin: 2px 0 10px;
+  white-space: pre-wrap;
+}
+.home-screen .dots {
+  display: inline-flex;
+  gap: 4px;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+.home-screen .dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  display: inline-block;
+}
+.home-screen .dots i.on {
+  background: var(--teal);
+}
+
+/* ── quick capture ─────────────────────────────────────────────────────── */
+.home-screen .capture {
+  display: flex;
+  gap: 9px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+/* ── tiles ─────────────────────────────────────────────────────────────── */
+.home-screen .tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.home-screen .tile {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  padding: 16px 18px;
+  box-shadow: var(--sh1);
+  text-align: left;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  min-height: 76px;
+  transition: box-shadow 0.26s var(--ease);
+}
+.home-screen .tile:hover,
+.home-screen .tile:focus-visible {
+  box-shadow: var(--sh2);
+}
+.home-screen .tile .n {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 26px;
+}
+.home-screen .tile .k {
+  font-size: 13px;
+  color: var(--slate);
+  margin-top: 2px;
+}
+
+/* ── personal layer ────────────────────────────────────────────────────── */
+.home-screen .pgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.home-screen .pcard2 {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  padding: 16px;
+  box-shadow: var(--sh1);
+  transition: box-shadow 0.26s var(--ease);
+}
+.home-screen .pcard2:hover,
+.home-screen .pcard2:focus-within {
+  box-shadow: var(--sh2);
+}
+.home-screen .pcard2 h4 {
+  font-size: 14px;
+  margin: 6px 0 9px;
+}
+.home-screen .songart {
+  height: 70px;
+  border-radius: 12px;
+  background: linear-gradient(140deg, var(--violet), var(--indigo));
+  color: #fff;
+  display: flex;
+  align-items: flex-end;
+  padding: 11px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+}
+.home-screen .photobox {
+  height: 88px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  background: var(--surf2);
+  display: grid;
+  place-items: center;
+  color: var(--mute);
+  font-size: 12px;
+  text-align: center;
+  padding: 8px;
+  overflow: hidden;
+}
+.home-screen .photobox img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.home-screen .aiitem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 13px;
+  color: inherit;
+  text-decoration: none;
+  min-height: 44px;
+}
+.home-screen .aiitem span {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--mute);
+}
+.home-screen .check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  padding: 7px 0;
+  min-height: 44px;
+}
+.home-screen .check .bx {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1.5px solid var(--line);
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  color: #fff;
+}
+.home-screen .check .bx.on {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+.home-screen .check .off {
+  text-decoration: line-through;
+  color: var(--mute);
+}
+.home-screen .mini-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.home-screen .mini-row:last-child {
+  border-bottom: 0;
+}
+
+/* project strip */
+.home-screen .pjchip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  text-align: left;
+  min-width: 168px;
+  flex: 1 1 168px;
+  min-height: 58px;
+  padding: 9px 12px;
+}
+.home-screen .pjchip .hd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+}
+
+/* switches (customise modal) */
+.home-screen .swrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+  min-height: 48px;
+}
+.home-screen .swrow .txt {
+  flex: 1;
+  font-size: 13.5px;
+}
+.home-screen .swrow .txt small {
+  display: block;
+  color: var(--mute);
+  font-size: 11.5px;
+}
+.home-screen .sw {
+  width: 46px;
+  height: 27px;
+  border-radius: 999px;
+  background: var(--line);
+  padding: 3px;
+  display: flex;
+  flex: none;
+  transition: background 0.2s;
+}
+.home-screen .sw[aria-checked='true'] {
+  background: var(--indigo);
+  justify-content: flex-end;
+}
+.home-screen .sw .knob {
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--sh1);
+}
+
+/* ── tablet ────────────────────────────────────────────────────────────── */
+@media (min-width: 641px) {
+  .home-screen .welc {
+    padding: 26px;
+  }
+  .home-screen .welc h1 {
+    font-size: 31px;
+  }
+  .home-screen .tiles,
+  .home-screen .pgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── desktop ───────────────────────────────────────────────────────────── */
+@media (min-width: 1025px) {
+  .home-screen .tiles,
+  .home-screen .pgrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── touch targets: 44px minimum on phone and tablet ───────────────────── */
+@media (max-width: 1024px) {
+  .home-screen .btn,
+  .home-screen .chip,
+  .home-screen .wxb,
+  .home-screen .sub2 button,
+  .home-screen .srch {
+    min-height: 44px;
+  }
+  .home-screen .btn.sm {
+    min-height: 44px;
+    padding: 10px 13px;
+  }
+  .home-screen .capture .btn,
+  .home-screen .capture .srch {
+    flex: 1 1 140px;
+  }
+}
