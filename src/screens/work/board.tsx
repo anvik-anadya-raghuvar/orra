@@ -1033,7 +1033,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
         </Field>
         <Field label="Assignee">
           <select className="wk-in" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
-            {ds.profiles.map((p) => (
+            {store.members.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>

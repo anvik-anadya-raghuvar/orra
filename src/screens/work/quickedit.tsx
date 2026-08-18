@@ -241,7 +241,7 @@ export default function QuickEdit({
         <Field label="Assignee">
           <select className="wk-in" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
             <option value="">Unassigned</option>
-            {ds.profiles.map((p) => (
+            {store.members.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>

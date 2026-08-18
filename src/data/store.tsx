@@ -16,6 +16,10 @@ export const today = () => {
 
 type Row = { id: string };
 
+/** The demo/test account seeded by migration 0011. A real profile row, but not
+ *  one of the two people the portal is for. */
+export const DEMO_USER_ID = '00000000-0000-4000-8000-000000000001';
+
 /**
  * Collections a delete must never route through Trash.
  *
@@ -79,8 +83,25 @@ export class AppStore {
   get me() {
     return this.ds.profiles.find((p) => p.id === this.meId) ?? this.ds.profiles[0];
   }
+  /**
+   * The other member.
+   *
+   * This used to be "the first profile that is not me", which was true only
+   * while exactly two rows existed. The demo account (0011) is a real third
+   * profile, so depending on the order the rows came back, signing in as
+   * Anadya could make "the other one" resolve to Test — mislabelling the
+   * partner tile, the Us thread, and every assignment notice. Skip the demo
+   * account, and only fall back to it if there is genuinely nobody else.
+   */
   get other() {
-    return this.ds.profiles.find((p) => p.id !== this.meId) ?? this.ds.profiles[0];
+    const real = this.ds.profiles.filter((p) => p.id !== this.meId && p.id !== DEMO_USER_ID);
+    return real[0] ?? this.ds.profiles.find((p) => p.id !== this.meId) ?? this.ds.profiles[0];
+  }
+  /** The people this portal is for — everyone a task can be handed to. Excludes
+   *  the demo account, which owns no workspace anyone reads. */
+  get members() {
+    const real = this.ds.profiles.filter((p) => p.id !== DEMO_USER_ID);
+    return real.length ? real : this.ds.profiles;
   }
   setMe(id: UserId) {
     this.meId = id;

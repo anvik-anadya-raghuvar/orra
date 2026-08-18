@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AppStore } from './store';
+import { AppStore, DEMO_USER_ID } from './store';
 import { seedDataset } from './seed';
 import type { DataAdapter } from './adapter';
 import type { CollectionKey, Dataset } from '../types';
@@ -36,6 +36,46 @@ function confirmingAdapter(failFor: CollectionKey | null = null): DataAdapter {
     },
   };
 }
+
+describe('who "the other one" is', () => {
+  /** The live database carries a third row: the demo account from 0011. */
+  const withDemo = (): Dataset => {
+    const ds = seedDataset();
+    return {
+      ...ds,
+      profiles: [
+        // deliberately before the real partner, which is what broke it
+        { ...ds.profiles[0], id: DEMO_USER_ID, email: 'test@anvik.ops', name: 'Test' },
+        ...ds.profiles,
+      ],
+    };
+  };
+
+  it('is the real partner, never the demo account', () => {
+    // "first profile that is not me" resolved to Test, which mislabelled the
+    // partner tile, the Us thread and every assignment notice.
+    const store = new AppStore(withDemo(), fakeAdapter(), 'u-anadya');
+    expect(store.other.name).toBe('Raghuvar');
+  });
+
+  it('still works from the other side', () => {
+    const store = new AppStore(withDemo(), fakeAdapter(), 'u-raghuvar');
+    expect(store.other.name).toBe('Anadya');
+  });
+
+  it('falls back to the demo account only when signed in as the sole member', () => {
+    const ds = seedDataset();
+    const onlyMeAndDemo: Dataset = {
+      ...ds,
+      profiles: [
+        ds.profiles[0],
+        { ...ds.profiles[0], id: DEMO_USER_ID, email: 'test@anvik.ops', name: 'Test' },
+      ],
+    };
+    const store = new AppStore(onlyMeAndDemo, fakeAdapter(), 'u-anadya');
+    expect(store.other.name).toBe('Test');
+  });
+});
 
 describe('remove() → Trash', () => {
   it('snapshots the exact row before removing it', () => {

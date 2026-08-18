@@ -343,7 +343,7 @@ function TaskDetail({ task }: { task: Task }) {
                   onChange={(e) => setField('assignee_id', e.target.value || null)}
                 >
                   <option value="">Unassigned</option>
-                  {ds.profiles.map((p) => (
+                  {store.members.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>

@@ -270,7 +270,7 @@ function NewDecisionModal({ open, onClose }: { open: boolean; onClose: () => voi
         </Field>
         <Field label="Owner">
           <select className="wk-in" value={owner} onChange={(e) => setOwner(e.target.value)}>
-            {ds.profiles.map((p) => (
+            {store.members.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
