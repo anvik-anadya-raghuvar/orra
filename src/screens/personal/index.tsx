@@ -1,27 +1,89 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
-import type { Course, ReadingItem } from '../../types';
+import type { Course, CourseItem, ReadingItem } from '../../types';
 import { newId, useData, useStore } from '../../data/store';
+import { useToast } from '../../ui/bits';
 import { entrance, staggerItem, staggerList } from '../../ui/motion';
-import { SplitBar, StudyTimer, LifeAdmin, FixedDates, RelocationDocs } from './widgets';
+import { Donut, MiniBars, Ring, VIZ } from '../../ui/viz';
+import {
+  DeleteBtn,
+  FixedDates,
+  InlineText,
+  LifeAdmin,
+  MoveBtns,
+  RelocationDocs,
+  StudyRhythm,
+  StudyTimer,
+  TimeLedger,
+  moveRows,
+} from './widgets';
 import './personal.css';
 
-/* ── courses — expandable, progress driven by their items ──────────────── */
-function CourseCard({ course }: { course: Course }) {
+/* ══════════════════════════════════════════════════════════════════════
+   Courses — a ring per course, and every part of it editable in place.
+   ══════════════════════════════════════════════════════════════════════ */
+
+function CourseItemRow({ item, siblings, index }: { item: CourseItem; siblings: CourseItem[]; index: number }) {
+  const store = useStore();
+  const toast = useToast();
+
+  return (
+    <motion.div className="prow" variants={staggerItem}>
+      <button
+        className="bxbtn"
+        type="button"
+        aria-pressed={item.completed}
+        aria-label={item.completed ? `Reopen ${item.title}` : `Complete ${item.title}`}
+        onClick={() =>
+          store.update(
+            'course_items',
+            item.id,
+            { completed: !item.completed },
+            store.asMe({ summary: `${item.title} ${!item.completed ? 'completed' : 'reopened'}` }),
+          )
+        }
+      >
+        <span className={`bx${item.completed ? ' on' : ''}`} aria-hidden />
+      </button>
+      <InlineText
+        value={item.title}
+        label="course item"
+        className={`grow${item.completed ? ' off' : ''}`}
+        onSave={(title) =>
+          store.update('course_items', item.id, { title }, store.asMe({ summary: `Course item renamed — ${title}` }))
+        }
+      />
+      <MoveBtns
+        label={item.title}
+        canUp={index > 0}
+        canDown={index < siblings.length - 1}
+        onUp={() => moveRows(store, 'course_items', siblings, index, index - 1)}
+        onDown={() => moveRows(store, 'course_items', siblings, index, index + 1)}
+      />
+      <DeleteBtn
+        label={item.title}
+        onConfirm={() => {
+          store.remove('course_items', item.id, store.asMe({ summary: `Course item removed — ${item.title}` }));
+          toast('Item removed');
+        }}
+      />
+    </motion.div>
+  );
+}
+
+function CourseCard({ course, siblings, index }: { course: Course; siblings: Course[]; index: number }) {
   const ds = useData((d) => d);
   const store = useStore();
+  const toast = useToast();
   const [newItem, setNewItem] = useState('');
 
   const items = useMemo(
     () => ds.course_items.filter((ci) => ci.course_id === course.id).sort((a, b) => a.position - b.position),
     [ds.course_items, course.id],
   );
-  const pct = items.length ? Math.round((items.filter((i) => i.completed).length / items.length) * 100) : 0;
-
-  const toggleExpand = () => {
-    store.update('courses', course.id, { is_expanded: !course.is_expanded }, store.asMe({ silent: true }));
-  };
+  const done = items.filter((i) => i.completed).length;
+  const pct = items.length ? Math.round((done / items.length) * 100) : 0;
 
   const addItem = () => {
     const title = newItem.trim();
@@ -36,28 +98,65 @@ function CourseCard({ course }: { course: Course }) {
 
   return (
     <motion.div className="pcourse" layout variants={staggerItem}>
-      <button className="pchead" type="button" onClick={toggleExpand} aria-expanded={course.is_expanded}>
+      <div className="pchead">
+        <span className="pcring">
+          <Ring pct={pct} size={44} color={VIZ.cat[0]} label={`${course.title}, ${pct}% done`} />
+          <em className="mono">{pct}%</em>
+        </span>
         <span className="pctxt">
-          <b>{course.title}</b>
-          <span className="mono">{course.schedule_label}</span>
+          <InlineText
+            value={course.title}
+            label="course title"
+            className="pctitle"
+            onSave={(title) => store.update('courses', course.id, { title }, store.asMe({ summary: `Course renamed — ${title}` }))}
+          />
+          <InlineText
+            value={course.schedule_label}
+            label="course schedule"
+            placeholder="+ schedule"
+            allowEmpty
+            className="pcsched mono"
+            onSave={(schedule_label) =>
+              store.update('courses', course.id, { schedule_label }, store.asMe({ summary: `Schedule set — ${schedule_label}` }))
+            }
+          />
         </span>
-        <span className="pcbar">
-          <div style={{ height: 6, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              style={{ height: '100%', background: 'linear-gradient(90deg,var(--sky),var(--indigo))' }}
+        <span className="pcactions">
+          <MoveBtns
+            label={course.title}
+            canUp={index > 0}
+            canDown={index < siblings.length - 1}
+            onUp={() => moveRows(store, 'courses', siblings, index, index - 1)}
+            onDown={() => moveRows(store, 'courses', siblings, index, index + 1)}
+          />
+          <DeleteBtn
+            label={course.title}
+            onConfirm={() => {
+              items.forEach((i) =>
+                store.remove('course_items', i.id, store.asMe({ summary: `Course item removed with course — ${i.title}` })),
+              );
+              store.remove('courses', course.id, store.asMe({ summary: `Course removed — ${course.title}` }));
+              toast('Course removed');
+            }}
+          />
+          <button
+            className="picon"
+            type="button"
+            aria-expanded={course.is_expanded}
+            aria-label={`${course.is_expanded ? 'Collapse' : 'Expand'} ${course.title}`}
+            onClick={() =>
+              store.update('courses', course.id, { is_expanded: !course.is_expanded }, store.asMe({ silent: true }))
+            }
+          >
+            <ChevronDown
+              size={16}
+              strokeWidth={1.8}
+              style={{ transform: course.is_expanded ? 'rotate(180deg)' : undefined, transition: 'transform .18s' }}
             />
-          </div>
+          </button>
         </span>
-        <span className="pcpct mono">{pct}%</span>
-        <ChevronDown
-          size={16}
-          strokeWidth={1.8}
-          style={{ transform: course.is_expanded ? 'rotate(180deg)' : undefined, transition: 'transform .2s', flex: 'none' }}
-        />
-      </button>
+      </div>
+
       <AnimatePresence initial={false}>
         {course.is_expanded && (
           <motion.div
@@ -66,36 +165,29 @@ function CourseCard({ course }: { course: Course }) {
             animate={{ height: 'auto', opacity: 1, transition: entrance }}
             exit={{ height: 0, opacity: 0, transition: { duration: 0.16 } }}
           >
-            {items.map((it) => (
-              <button
-                key={it.id}
-                className="check"
-                type="button"
-                onClick={() =>
-                  store.update(
-                    'course_items',
-                    it.id,
-                    { completed: !it.completed },
-                    store.asMe({ summary: `${it.title} ${!it.completed ? 'completed' : 'reopened'}` }),
-                  )
-                }
-              >
-                <span className={`bx${it.completed ? ' on' : ''}`} aria-hidden />
-                <span className={it.completed ? 'off' : ''}>{it.title}</span>
+            <motion.div variants={staggerList} initial="initial" animate="animate">
+              {items.map((it, i) => (
+                <CourseItemRow key={it.id} item={it} siblings={items} index={i} />
+              ))}
+            </motion.div>
+            <div className="paddrow">
+              <input
+                className="addin"
+                placeholder="+ Add an item"
+                value={newItem}
+                aria-label={`New item for ${course.title}`}
+                onChange={(e) => setNewItem(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+              />
+              <button className="btn sm" type="button" onClick={addItem}>
+                Add
               </button>
-            ))}
-            <input
-              className="addin"
-              placeholder="+ Add an item"
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addItem();
-                }
-              }}
-            />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -103,15 +195,112 @@ function CourseCard({ course }: { course: Course }) {
   );
 }
 
-/* ── reading queue — tap the pill to cycle its status ───────────────────── */
+function Courses() {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const toast = useToast();
+  const [title, setTitle] = useState('');
+  const [schedule, setSchedule] = useState('');
+
+  const courses = useMemo(() => [...ds.courses].sort((a, b) => a.position - b.position), [ds.courses]);
+
+  const progress = useMemo(
+    () =>
+      courses.map((c) => {
+        const items = ds.course_items.filter((ci) => ci.course_id === c.id);
+        const done = items.filter((i) => i.completed).length;
+        return { label: c.title, value: items.length ? Math.round((done / items.length) * 100) : 0, max: 100 };
+      }),
+    [courses, ds.course_items],
+  );
+
+  const add = () => {
+    const t = title.trim();
+    if (!t) return;
+    store.insert(
+      'courses',
+      { id: newId('crs'), title: t, schedule_label: schedule.trim(), is_expanded: true, position: courses.length + 1 },
+      store.asMe({ summary: `Course added — ${t}` }),
+    );
+    setTitle('');
+    setSchedule('');
+    toast('Course added');
+  };
+
+  return (
+    <div className="pbig">
+      <div className="phead">
+        <h3>Courses</h3>
+        <span className="eyebrow">tick items to move the ring</span>
+      </div>
+
+      {progress.length > 1 && (
+        <div className="pbars">
+          <MiniBars items={progress.map((p) => ({ ...p, color: VIZ.seq }))} format={(n) => `${n}%`} />
+        </div>
+      )}
+
+      <motion.div variants={staggerList} initial="initial" animate="animate" className="pcourses">
+        {courses.map((c, i) => (
+          <CourseCard key={c.id} course={c} siblings={courses} index={i} />
+        ))}
+      </motion.div>
+      {courses.length === 0 && <p className="tip">No courses yet. Add the first one below.</p>}
+
+      <div className="pform">
+        <input
+          className="addin"
+          placeholder="Course title"
+          value={title}
+          aria-label="New course title"
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <input
+          className="addin"
+          placeholder="Schedule, e.g. Mon · Wed"
+          value={schedule}
+          aria-label="New course schedule"
+          onChange={(e) => setSchedule(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <button className="btn sm" type="button" onClick={add}>
+          Add course
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Reading queue — a donut for the shape of it, everything else editable.
+   ══════════════════════════════════════════════════════════════════════ */
+
 const READ_CYCLE: ReadingItem['status'][] = ['queued', 'reading', 'done'];
 const READ_PILL: Record<ReadingItem['status'], string> = { queued: 'q', reading: 'soon', done: 'ok' };
 
 function ReadingQueue() {
   const ds = useData((d) => d);
   const store = useStore();
+  const toast = useToast();
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+
+  const rows = useMemo(() => [...ds.reading_queue].sort((a, b) => a.position - b.position), [ds.reading_queue]);
+  const counts = useMemo(
+    () => READ_CYCLE.map((s) => ({ label: s, value: rows.filter((r) => r.status === s).length })),
+    [rows],
+  );
 
   const cycle = (r: ReadingItem) => {
     const next = READ_CYCLE[(READ_CYCLE.indexOf(r.status) + 1) % READ_CYCLE.length];
@@ -119,46 +308,117 @@ function ReadingQueue() {
   };
 
   const add = () => {
-    if (!title.trim()) return;
+    const t = title.trim();
+    if (!t) return;
     store.insert(
       'reading_queue',
-      { id: newId('rd'), title: title.trim(), author: author.trim(), status: 'queued', position: ds.reading_queue.length + 1 },
-      store.asMe({ summary: `Reading item added — ${title.trim()}` }),
+      { id: newId('rd'), title: t, author: author.trim(), status: 'queued', position: rows.length + 1 },
+      store.asMe({ summary: `Reading item added — ${t}` }),
     );
     setTitle('');
     setAuthor('');
+    toast('Added to the queue');
   };
 
   return (
-    <div>
-      <div className="eyebrow" style={{ margin: '18px 0 8px' }}>
-        Reading queue · tap the pill to move it along
+    <div className="pbig">
+      <div className="phead">
+        <h3>Reading queue</h3>
+        <span className="eyebrow">tap the pill to move it along</span>
       </div>
-      <motion.div variants={staggerList} initial="initial" animate="animate">
-        {ds.reading_queue.map((r) => (
-          <motion.div className="prow" key={r.id} variants={staggerItem}>
-            <span style={{ flex: 1 }}>
-              {r.title}
-              {r.author && (
-                <span className="mono" style={{ display: 'block', fontSize: 10.5, color: 'var(--mute)' }}>
-                  {r.author}
-                </span>
-              )}
+
+      <div className="preadtop">
+        <Donut
+          slices={counts.map((c, i) => ({ ...c, color: VIZ.cat[i] }))}
+          size={92}
+          centerValue={String(rows.length)}
+          centerLabel="items"
+        />
+        <div className="viz-legend pcol">
+          {counts.map((c, i) => (
+            <span key={c.label}>
+              <i style={{ background: VIZ.cat[i] }} />
+              {c.label} · {c.value}
             </span>
-            <button className={`pill ${READ_PILL[r.status]}`} type="button" onClick={() => cycle(r)}>
+          ))}
+        </div>
+      </div>
+
+      <motion.div variants={staggerList} initial="initial" animate="animate">
+        {rows.map((r, i) => (
+          <motion.div className="prow" key={r.id} variants={staggerItem}>
+            <span className="grow pstack">
+              <InlineText
+                value={r.title}
+                label="reading title"
+                onSave={(t) =>
+                  store.update('reading_queue', r.id, { title: t }, store.asMe({ summary: `Reading renamed — ${t}` }))
+                }
+              />
+              <InlineText
+                value={r.author}
+                label="author"
+                placeholder="+ author"
+                allowEmpty
+                className="mono sub"
+                onSave={(a) =>
+                  store.update('reading_queue', r.id, { author: a }, store.asMe({ summary: `Author set — ${a || '—'}` }))
+                }
+              />
+            </span>
+            <button
+              className={`pill ${READ_PILL[r.status]}`}
+              type="button"
+              aria-label={`${r.title} is ${r.status}, tap to advance`}
+              onClick={() => cycle(r)}
+            >
               {r.status}
             </button>
+            <MoveBtns
+              label={r.title}
+              canUp={i > 0}
+              canDown={i < rows.length - 1}
+              onUp={() => moveRows(store, 'reading_queue', rows, i, i - 1)}
+              onDown={() => moveRows(store, 'reading_queue', rows, i, i + 1)}
+            />
+            <DeleteBtn
+              label={r.title}
+              onConfirm={() => {
+                store.remove('reading_queue', r.id, store.asMe({ summary: `Reading item removed — ${r.title}` }));
+                toast('Removed');
+              }}
+            />
           </motion.div>
         ))}
+        {rows.length === 0 && <p className="tip">Nothing queued.</p>}
       </motion.div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-        <input className="addin" placeholder="Title" value={title} style={{ flex: '1 1 140px' }} onChange={(e) => setTitle(e.target.value)} />
+
+      <div className="pform">
+        <input
+          className="addin"
+          placeholder="Title"
+          value={title}
+          aria-label="New reading title"
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
         <input
           className="addin"
           placeholder="Author (optional)"
           value={author}
-          style={{ flex: '1 1 120px' }}
+          aria-label="New reading author"
           onChange={(e) => setAuthor(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
         />
         <button className="btn sm" type="button" onClick={add}>
           Add
@@ -168,10 +428,9 @@ function ReadingQueue() {
   );
 }
 
-export default function Personal() {
-  const ds = useData((d) => d);
-  const courses = useMemo(() => [...ds.courses].sort((a, b) => a.position - b.position), [ds.courses]);
+/* ══════════════════════════════════════════════════════════════════════ */
 
+export default function Personal() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="personal-screen">
@@ -183,22 +442,15 @@ export default function Personal() {
           </div>
           <div className="wrap">
             <div className="pgrid2">
-              <div>
-                <div className="eyebrow" style={{ marginBottom: 10 }}>
-                  Courses · tick items to move the bar
-                </div>
-                <motion.div variants={staggerList} initial="initial" animate="animate">
-                  {courses.map((c) => (
-                    <CourseCard key={c.id} course={c} />
-                  ))}
-                </motion.div>
+              <div className="pcol-l">
+                <Courses />
                 <ReadingQueue />
-                <div style={{ height: 6 }} />
                 <LifeAdmin />
               </div>
-              <div>
-                <SplitBar />
+              <div className="pcol-r">
+                <StudyRhythm />
                 <StudyTimer />
+                <TimeLedger />
                 <FixedDates />
                 <RelocationDocs />
               </div>

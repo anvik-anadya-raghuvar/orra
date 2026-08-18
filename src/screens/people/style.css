@@ -1,6 +1,33 @@
-/* People screen — local styles (card grid, warmth bar, history).
+/* People screen — local styles (card grid, warmth ring, heat strip, timeline).
    Reuses shared vocabulary from src/styles/theme.css: .frame/.top/.wrap/
-   .chip/.filters/.pill/.tagc/.btn/.modal-sheet/.av. */
+   .chip/.filters/.pill/.tagc/.btn/.modal-sheet/.av and src/styles/viz.css
+   for the chart primitives (BarRows/MiniBars/Ring/HeatStrip). */
+
+/* ── Relationships-at-a-glance strip ─────────────────────────────────── */
+.glance-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+@media (min-width: 768px) {
+  .glance-grid {
+    grid-template-columns: 1.4fr 1fr;
+  }
+}
+.glance-card {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 15px;
+  box-shadow: var(--sh1);
+  min-width: 0;
+}
+.glance-sub {
+  font-size: 12px;
+  color: var(--mute);
+  margin: 3px 0 12px;
+}
 
 /* ── Grid — mobile-first: 1 → 2 → 3 columns ──────────────────────────── */
 .pgrid {
@@ -26,17 +53,24 @@
   padding: 15px;
   box-shadow: var(--sh1);
   transition: transform 0.25s var(--ease), box-shadow 0.25s;
+  min-width: 0;
 }
 .pcard:hover,
 .pcard:focus-within {
   transform: translateY(-4px);
   box-shadow: var(--sh2);
 }
+.pcard-headrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .pcard-head {
   display: flex;
   gap: 10px;
   align-items: center;
   width: 100%;
+  min-width: 0;
   text-align: left;
   background: none;
   border: 0;
@@ -54,10 +88,17 @@
   display: block;
   color: var(--ink);
   transition: color 0.18s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pcard-sub {
   font-size: 12.5px;
   color: var(--mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
 }
 .pcard-chips {
   display: flex;
@@ -69,12 +110,11 @@
   font-size: 13px;
   color: var(--slate);
   margin: 12px 0 0;
-}
-.warm {
-  height: 5px;
-  border-radius: 4px;
-  background: var(--line);
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcard-heat {
   margin-top: 12px;
 }
 .pcard-foot {
@@ -113,11 +153,115 @@
   margin-top: 3px;
 }
 
-/* ── Interaction history (profile modal) ─────────────────────────────── */
-.hist {
-  font-size: 12.5px;
-  color: var(--slate);
-  border-left: 2px solid var(--line);
-  padding-left: 12px;
-  margin: 6px 0;
+/* ── Profile modal — warmth row ───────────────────────────────────────── */
+.pm-warmrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+/* ── Contact timeline (profile modal) ─────────────────────────────────── */
+.tl-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+.tl-head .eyebrow {
+  margin: 0;
+}
+.tl-head .btn {
+  margin-left: auto;
+  min-height: 36px;
+}
+.timeline {
+  display: grid;
+  gap: 2px;
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 4px;
+  background: var(--surf2);
+}
+.tl-entry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px;
+  border-radius: 8px;
+  background: var(--surf);
+  min-width: 0;
+}
+.tl-chip {
+  font-family: 'IBM Plex Mono';
+  font-size: 9.5px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+.tl-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 8px;
+  min-width: 0;
+}
+.tl-date {
+  font-size: 10.5px;
+  color: var(--mute);
+  flex: none;
+}
+.tl-summary {
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+a.tl-summary {
+  color: var(--indigo);
+}
+.tl-meta {
+  font-size: 11px;
+  color: var(--mute);
+  white-space: nowrap;
+}
+.tl-actions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+.tl-iconbtn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--mute);
+  cursor: pointer;
+  transition: 0.15s;
+}
+.tl-iconbtn:hover,
+.tl-iconbtn:focus-visible {
+  background: var(--surf3);
+  color: var(--indigo);
+}
+
+@media (max-width: 480px) {
+  .tl-entry {
+    grid-template-columns: 1fr auto;
+  }
+  .tl-chip {
+    grid-column: 1 / -1;
+  }
 }

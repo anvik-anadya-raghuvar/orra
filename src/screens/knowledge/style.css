@@ -2,6 +2,29 @@
    Reuses shared vocabulary from src/styles/theme.css: .frame/.top/.wrap/.sub2/
    .chip/.filters/.srch/.tagc/.pill/.src/.lk/.btn/.modal-sheet. */
 
+/* ── overview strips — reused across Notes / Mail / Documents ─────────── */
+.kn-overview {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+@media (min-width: 641px) {
+  .kn-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.kn-ov-panel {
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px;
+}
+.kn-ov-panel .eyebrow {
+  display: block;
+  margin-bottom: 10px;
+}
+
 /* ── Notes — masonry columns, mobile-first ───────────────────────────── */
 .notes-grid {
   columns: 1;

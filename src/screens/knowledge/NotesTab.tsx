@@ -3,7 +3,18 @@ import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { Modal, TagChip, useToast } from '../../ui/bits';
 import { staggerList, staggerItem } from '../../ui/motion';
+import { fmtDay } from '../../lib/dates';
+import { HeatStrip, MiniBars } from '../../ui/viz';
 import type { ChecklistItem, Note, NoteType } from '../../types';
+
+const NOTE_TYPE_ORDER: NoteType[] = ['plain', 'checklist', 'meeting', 'voice', 'email'];
+const NOTE_TYPE_LABEL: Record<NoteType, string> = {
+  plain: 'Plain',
+  checklist: 'Checklist',
+  meeting: 'Meeting',
+  voice: 'Voice',
+  email: 'Email',
+};
 
 const TYPE_FILTERS: { key: NoteType | 'all'; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -40,8 +51,46 @@ export default function NotesTab() {
       .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned) || b.created_at.localeCompare(a.created_at));
   }, [notes, query, typeFilter]);
 
+  /* ── overview strip: counts by type + creation activity, last 21 days ─── */
+  const typeCounts = useMemo(
+    () =>
+      NOTE_TYPE_ORDER.map((t) => ({
+        label: NOTE_TYPE_LABEL[t],
+        value: notes.filter((n) => n.type === t).length,
+        // voice notes get the same accent used on their card border, so the
+        // strip and the grid below speak the same visual language.
+        color: t === 'voice' ? 'var(--stamp)' : undefined,
+      })),
+    [notes],
+  );
+  const activityCells = useMemo(() => {
+    const days = 21;
+    const cells: { label: string; value: number }[] = [];
+    const today = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      const count = notes.filter((n) => n.created_at.slice(0, 10) === iso).length;
+      cells.push({ label: fmtDay(iso), value: count });
+    }
+    return cells;
+  }, [notes]);
+
   return (
     <div>
+      {notes.length > 0 && (
+        <div className="kn-overview">
+          <div className="kn-ov-panel">
+            <span className="eyebrow">Notes by type</span>
+            <MiniBars items={typeCounts} />
+          </div>
+          <div className="kn-ov-panel">
+            <span className="eyebrow">Created · last 21 days</span>
+            <HeatStrip cells={activityCells} />
+          </div>
+        </div>
+      )}
       <div className="filters">
         <input
           className="srch"

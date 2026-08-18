@@ -5,11 +5,19 @@ import { useData, useStore, newId, nowIso } from '../../data/store';
 import { useToast } from '../../ui/bits';
 import { staggerList, staggerItem } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
+import { MiniBars } from '../../ui/viz';
 import type { MailItem } from '../../types';
 import { makeTask } from '../../lib/taskFactory';
 
 export default function MailTab() {
   const mail = useData((ds) => ds.mail_items);
+
+  const summary = useMemo(() => {
+    const total = mail.length;
+    const flagged = mail.filter((m) => m.flag_reason).length;
+    const unconverted = mail.filter((m) => !m.converted_to_type).length;
+    return { total, flagged, unconverted };
+  }, [mail]);
 
   const groups = useMemo(() => {
     const byAccount = new Map<string, MailItem[]>();
@@ -28,6 +36,20 @@ export default function MailTab() {
 
   return (
     <div>
+      <div className="kn-ov-panel" style={{ marginBottom: 16 }}>
+        <span className="eyebrow">Inbox at a glance</span>
+        <MiniBars
+          items={[
+            { label: 'Flagged', value: summary.flagged, max: summary.total || 1, color: 'var(--rose)' },
+            {
+              label: 'Unconverted',
+              value: summary.unconverted,
+              max: summary.total || 1,
+              color: 'var(--stamp)',
+            },
+          ]}
+        />
+      </div>
       {groups.map(([account, rows]) => (
         <div className="mail-group" key={account}>
           <h4>{account}</h4>
@@ -157,12 +179,16 @@ function ConvertedChip({ mail }: { mail: MailItem }) {
       : mail.converted_to_type === 'note'
         ? 'Note created'
         : 'Decision raised';
+  const chip = <span className="pill ok">✓ {label}</span>;
   if (mail.converted_to_type === 'task') {
     return (
-      <Link className="lk" to={`/task/${mail.converted_to_id}`}>
-        → {label}
+      <Link
+        to={`/task/${mail.converted_to_id}`}
+        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: 44 }}
+      >
+        {chip}
       </Link>
     );
   }
-  return <span className="lk">→ {label}</span>;
+  return chip;
 }

@@ -52,6 +52,68 @@ export interface CategoryTotal {
   total: number;
 }
 
+export interface AttentionBucket {
+  count: number;
+  total: number;
+}
+export interface AttentionSummary {
+  due: AttentionBucket;
+  overdue: AttentionBucket;
+}
+
+/** Counts + totals of ledger rows that need a look — the "what matters" strip. */
+export function attentionSummary(ledger: LedgerEntry[]): AttentionSummary {
+  const due: AttentionBucket = { count: 0, total: 0 };
+  const overdue: AttentionBucket = { count: 0, total: 0 };
+  for (const row of ledger) {
+    if (row.status === 'due') {
+      due.count += 1;
+      due.total += row.amount;
+    } else if (row.status === 'overdue') {
+      overdue.count += 1;
+      overdue.total += row.amount;
+    }
+  }
+  return { due, overdue };
+}
+
+export interface ProjectSpend {
+  project_id: string;
+  total: number;
+}
+
+/** Out-only spend grouped by project — the four-way split for MiniBars small multiples. */
+export function projectSpend(ledger: LedgerEntry[]): ProjectSpend[] {
+  const map = new Map<string, number>();
+  for (const row of ledger) {
+    if (row.direction !== 'out') continue;
+    map.set(row.project_id, (map.get(row.project_id) ?? 0) + row.amount);
+  }
+  return [...map.entries()]
+    .map(([project_id, total]) => ({ project_id, total }))
+    .sort((a, b) => b.total - a.total);
+}
+
+export interface NetPoint {
+  date: string;
+  net: number;
+}
+
+/** Running (cumulative) net across every date that has ledger activity, oldest first. */
+export function cumulativeNet(ledger: LedgerEntry[]): NetPoint[] {
+  const byDate = new Map<string, number>();
+  for (const row of ledger) {
+    const delta = row.direction === 'in' ? row.amount : -row.amount;
+    byDate.set(row.date, (byDate.get(row.date) ?? 0) + delta);
+  }
+  const dates = [...byDate.keys()].sort();
+  let running = 0;
+  return dates.map((date) => {
+    running += byDate.get(date)!;
+    return { date, net: running };
+  });
+}
+
 /** Out-only spend grouped by category, descending. */
 export function categoryBreakdown(ledger: LedgerEntry[]): CategoryTotal[] {
   const map = new Map<string, number>();

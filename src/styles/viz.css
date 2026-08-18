@@ -178,13 +178,34 @@ html[data-theme='dark'] {
   padding-top: 6px;
 }
 .viz-heatcell {
-  flex: 1;
+  flex: 1 1 0;
   height: 26px;
   border-radius: 4px;
   border: 0;
   padding: 0;
   cursor: pointer;
+  /* min-width stays tiny on purpose: a 21-cell strip must fit a 300px column.
+     The global 44px touch floor explicitly exempts this class — the cell earns
+     its target through height on touch sizes instead (below). */
   min-width: 6px;
+}
+@media (max-width: 1024px) {
+  .viz-heatcell {
+    height: 38px;
+  }
+}
+/* Never let a strip force its container wider than the column it sits in. */
+.viz-heat,
+.viz-bars,
+.viz-rows,
+.viz-minis,
+.viz-split {
+  min-width: 0;
+  max-width: 100%;
+}
+.viz-row,
+.viz-mini {
+  min-width: 0;
 }
 
 /* ── split bar ────────────────────────────────────────────────────────── */

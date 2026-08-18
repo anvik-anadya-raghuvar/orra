@@ -42,6 +42,47 @@
   flex-wrap: wrap;
   margin-bottom: 14px;
 }
+
+/* ── overview strip: status distribution + workload ────────────────────── */
+.wk-overview {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+@media (min-width: 641px) {
+  .wk-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.wk-ovpanel {
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px;
+}
+.wk-ovpanel .eyebrow {
+  display: block;
+  margin-bottom: 10px;
+}
+
+/* ── effort / estimate chips, stuck pill ──────────────────────────────── */
+.wk-chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--slate);
+  background: var(--surf3);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.wk-stuck {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--rose);
+  background: var(--rose-s);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
 .wk-lbl {
   display: block;
   font-family: 'IBM Plex Mono', monospace;

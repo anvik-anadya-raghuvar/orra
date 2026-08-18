@@ -1,11 +1,76 @@
-/* Personal screen — local component vocabulary, scoped under .personal-screen
-   so nothing leaks to (or is inherited from) any other route. Ported from
-   prototype v10 (.course/.citems/.kr/.krbar/.check/.addin), mobile-first. */
+/* Personal screen — local vocabulary, scoped under .personal-screen so
+   nothing leaks to (or is inherited from) any other route.
+   Mobile-first: every layout below starts as a single column and widens.
+   Nothing here is a table, so nothing has to become a card on a phone. */
 
 .personal-screen .pgrid2 {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+  align-items: start;
+}
+/* grid children may not push the track past the viewport (min-content floor) */
+.personal-screen .pgrid2 > * {
+  min-width: 0;
+}
+
+/* ── card shell ─────────────────────────────────────────────────────────── */
+.personal-screen .pbig {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  padding: 16px;
+  box-shadow: var(--sh1);
+  margin-bottom: 14px;
+}
+.personal-screen .pbig h3 {
+  font-size: 14px;
+  margin: 0;
+}
+.personal-screen .phead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.personal-screen .phead .eyebrow {
+  margin-left: auto;
+}
+.personal-screen .psub {
+  margin: 16px 0 6px;
+}
+.personal-screen .pbars {
+  margin: 4px 0 14px;
+}
+
+/* ── headline stats ─────────────────────────────────────────────────────── */
+.personal-screen .pstats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.personal-screen .pstat {
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  min-width: 0;
+}
+.personal-screen .pstat b {
+  display: block;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 19px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.personal-screen .pstat span {
+  display: block;
+  font-size: 10.5px;
+  color: var(--mute);
+  margin-top: 2px;
 }
 
 /* ── shared field vocabulary ────────────────────────────────────────────── */
@@ -19,6 +84,12 @@
   font-size: 13px;
   color: var(--ink);
   min-height: 44px;
+}
+.personal-screen .pin.sm {
+  padding: 6px 9px;
+  font-size: 12px;
+  border-radius: 8px;
+  width: auto;
 }
 .personal-screen .addin {
   width: 100%;
@@ -36,29 +107,97 @@
   border-color: var(--indigo);
   background: var(--surf);
 }
-.personal-screen .check {
+.personal-screen .paddrow,
+.personal-screen .pform {
   display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 9px;
+  margin-top: 10px;
+}
+.personal-screen .paddrow .addin,
+.personal-screen .pform .addin {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.personal-screen .pform .pin.sm {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+/* ── inline click-to-edit ───────────────────────────────────────────────── */
+.personal-screen .inl {
+  display: block;
   width: 100%;
   text-align: left;
   font-size: 13px;
-  padding: 8px 0;
-  min-height: 44px;
+  line-height: 1.35;
+  padding: 5px 2px;
+  border-radius: 6px;
+  border-bottom: 1px dashed var(--line);
+  overflow-wrap: anywhere;
 }
-.personal-screen .bx {
-  width: 16px;
-  height: 16px;
-  border-radius: 5px;
-  border: 1.5px solid var(--line);
+.personal-screen .inl:hover,
+.personal-screen .inl:focus-visible {
+  border-bottom-color: var(--indigo);
+  background: var(--surf2);
+}
+.personal-screen .inl-ph {
+  color: var(--mute);
+}
+.personal-screen .inl-in {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surf);
+  border: 1px solid var(--indigo);
+  border-radius: 8px;
+  padding: 4px 7px;
+}
+.personal-screen .inl.mono,
+.personal-screen .inl-in.mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+.personal-screen .sub {
+  font-size: 10.5px;
+  color: var(--mute);
+}
+.personal-screen .off {
+  text-decoration: line-through;
+  color: var(--mute);
+}
+.personal-screen .grow {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.personal-screen .pstack {
+  display: grid;
+  gap: 1px;
+}
+
+/* ── checkbox ───────────────────────────────────────────────────────────── */
+.personal-screen .bxbtn {
   flex: none;
   display: grid;
   place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+.personal-screen .bx {
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid var(--line);
+  display: grid;
+  place-items: center;
+  transition: background 0.16s, border-color 0.16s;
 }
 .personal-screen .bx.on {
   background: var(--teal);
   border-color: var(--teal);
-  position: relative;
 }
 .personal-screen .bx.on::after {
   content: '';
@@ -68,64 +207,64 @@
   border-width: 0 1.7px 1.7px 0;
   transform: rotate(42deg) translate(-1px, -1px);
 }
-.personal-screen .off {
-  text-decoration: line-through;
+
+/* ── icon buttons: move + delete ───────────────────────────────────────── */
+.personal-screen .picon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   color: var(--mute);
+  transition: color 0.16s, background 0.16s;
+}
+.personal-screen .picon:hover:not(:disabled),
+.personal-screen .picon:focus-visible {
+  color: var(--ink);
+  background: var(--surf3);
+}
+.personal-screen .picon:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.personal-screen .picon.armed {
+  width: auto;
+  padding: 0 9px;
+  font-size: 10px;
+  color: var(--rose);
+  background: var(--rose-s);
+}
+.personal-screen .pmove {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  margin-left: auto;
 }
 
-/* ── courses ─────────────────────────────────────────────────────────────── */
-.personal-screen .pcourse {
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  margin-bottom: 10px;
-  overflow: hidden;
-  background: var(--surf);
-}
-.personal-screen .pchead {
-  display: flex;
+.personal-screen .numf {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  padding: 12px 13px;
-  min-height: 48px;
-}
-.personal-screen .pctxt {
-  flex: 1;
-  min-width: 0;
-}
-.personal-screen .pctxt b {
-  font-weight: 500;
-  display: block;
-  font-size: 13.5px;
-}
-.personal-screen .pctxt span {
-  display: block;
-  font-size: 10.5px;
-  color: var(--mute);
-}
-.personal-screen .pcbar {
-  flex: 0 0 84px;
-  display: none;
-}
-.personal-screen .pcpct {
-  font-size: 11px;
-  width: 34px;
-  text-align: right;
-  color: var(--slate);
+  gap: 4px;
   flex: none;
 }
-.personal-screen .pcitems {
-  padding: 0 13px 12px;
-  overflow: hidden;
+.personal-screen .numf .pin.sm {
+  width: 62px;
+  text-align: right;
+}
+.personal-screen .numf em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--mute);
 }
 
-/* ── reading queue ──────────────────────────────────────────────────────── */
+/* ── generic editable row ──────────────────────────────────────────────── */
 .personal-screen .prow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 5px 0;
   border-bottom: 1px dashed var(--line);
   font-size: 13px;
 }
@@ -133,116 +272,197 @@
   border-bottom: 0;
 }
 
-/* ── generic card ("big" in the prototype) ─────────────────────────────── */
-.personal-screen .pbig {
-  background: var(--surf);
+/* ── courses ───────────────────────────────────────────────────────────── */
+.personal-screen .pcourses {
+  display: grid;
+  gap: 10px;
+}
+.personal-screen .pcourse {
   border: 1px solid var(--line);
-  border-radius: var(--rl);
-  padding: 16px;
-  box-shadow: var(--sh1);
-  margin-bottom: 14px;
-}
-.personal-screen .pbig h3 {
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-/* ── study timer ─────────────────────────────────────────────────────────── */
-.personal-screen .pclock {
-  font-size: 26px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── split bar ───────────────────────────────────────────────────────────── */
-.personal-screen .psplitbar {
-  display: flex;
-  height: 26px;
-  border-radius: 8px;
+  border-radius: var(--r);
   overflow: hidden;
-  background: var(--line);
-  margin-top: 12px;
+  background: var(--surf2);
 }
-.personal-screen .psplitbar .study {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, var(--violet), var(--indigo));
-}
-.personal-screen .psplitbar .founder {
-  display: block;
-  height: 100%;
-  background: var(--stamp);
-}
-.personal-screen .psplitlegend {
+.personal-screen .pchead {
   display: flex;
-  gap: 18px;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 11px;
   flex-wrap: wrap;
-  margin-top: 10px;
-  font-size: 12.5px;
+}
+.personal-screen .pcring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.personal-screen .pcring em {
+  position: absolute;
+  font-style: normal;
+  font-size: 9.5px;
   color: var(--slate);
 }
-.personal-screen .psplitlegend .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 6px;
-  vertical-align: middle;
+.personal-screen .pctxt {
+  flex: 1 1 140px;
+  min-width: 0;
 }
-.personal-screen .psplitlegend .dot.study {
-  background: var(--indigo);
+.personal-screen .pctitle {
+  font-weight: 500;
+  font-size: 13.5px;
 }
-.personal-screen .psplitlegend .dot.founder {
-  background: var(--stamp);
+.personal-screen .pcsched {
+  font-size: 10.5px;
+  color: var(--mute);
+}
+.personal-screen .pcactions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  margin-left: auto;
+}
+.personal-screen .pcactions .pmove {
+  margin-left: 0;
+}
+.personal-screen .pcitems {
+  padding: 0 11px 10px;
+  overflow: hidden;
 }
 
-/* ── life admin ─────────────────────────────────────────────────────────── */
-.personal-screen .plifer {
+/* ── reading queue ─────────────────────────────────────────────────────── */
+.personal-screen .preadtop {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.personal-screen .viz-legend.pcol {
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 0;
+}
+
+/* ── study timer ───────────────────────────────────────────────────────── */
+.personal-screen .ptimer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.personal-screen .ptimer .pin {
+  flex: 1 1 150px;
+  width: auto;
+}
+.personal-screen .pclock {
+  font-size: 30px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  flex: none;
+}
+
+/* ── time ledger ───────────────────────────────────────────────────────── */
+.personal-screen .pledger {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.personal-screen .plog {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf2);
 }
-.personal-screen .pxdel {
+.personal-screen .plog .pin.sm {
+  flex: 1 1 106px;
+  min-width: 0;
+}
+.personal-screen .plog .numf .pin.sm {
   flex: none;
-  width: 32px;
-  height: 32px;
-  min-width: 44px;
-  min-height: 44px;
-  display: grid;
-  place-items: center;
-  color: var(--mute);
-  border-radius: 8px;
-  transition: 0.18s;
 }
-.personal-screen .pxdel:hover,
-.personal-screen .pxdel:focus-visible {
-  color: var(--rose);
-  background: var(--rose-s);
+.personal-screen .pdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  display: block;
+}
+.personal-screen .plog .picon {
+  margin-left: auto;
 }
 
-/* ── fixed dates ────────────────────────────────────────────────────────── */
+/* ── fixed dates ───────────────────────────────────────────────────────── */
+.personal-screen .phero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surf2);
+  margin-bottom: 14px;
+}
+.personal-screen .pheroring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.personal-screen .pheronum {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  line-height: 1.05;
+}
+.personal-screen .pheronum b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 21px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.personal-screen .pheronum em {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--mute);
+}
+.personal-screen .pherotxt {
+  flex: 1 1 150px;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.personal-screen .pherotxt b {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.personal-screen .pherotxt .mono {
+  font-size: 11px;
+  color: var(--mute);
+}
 .personal-screen .pfixed {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 0;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding: 6px 0;
   border-bottom: 1px dashed var(--line);
   font-size: 13px;
 }
 .personal-screen .pfixed:last-of-type {
   border-bottom: 0;
 }
-.personal-screen .pfixedform {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 10px;
+.personal-screen .pfixed .pin.sm {
+  flex: 0 1 auto;
 }
-.personal-screen .pfixedform .addin {
-  flex: 1 1 120px;
-}
-.personal-screen .pfixedform select {
-  flex: 1 1 120px;
+.personal-screen .pfixed .picon {
+  margin-left: auto;
 }
 
 /* ── relocation documents ──────────────────────────────────────────────── */
@@ -250,23 +470,40 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 0;
+  padding: 10px 4px;
   border-bottom: 1px dashed var(--line);
   font-size: 13px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: background 0.16s;
 }
 .personal-screen .pdocrow:last-of-type {
   border-bottom: 0;
 }
+.personal-screen .pdocrow:hover,
+.personal-screen .pdocrow:focus-visible {
+  background: var(--surf2);
+}
+.personal-screen .pdocrow .sub {
+  display: block;
+}
+.personal-screen .pgo {
+  flex: none;
+  color: var(--mute);
+}
 
-/* ── tablet + desktop ───────────────────────────────────────────────────── */
+/* ── tablet ────────────────────────────────────────────────────────────── */
 @media (min-width: 641px) {
-  .personal-screen .pcbar {
-    display: block;
+  .personal-screen .pstat b {
+    font-size: 22px;
   }
 }
-@media (min-width: 981px) {
+
+/* ── desktop: two columns, tighter controls ────────────────────────────── */
+@media (min-width: 1025px) {
   .personal-screen .pgrid2 {
-    grid-template-columns: 1.05fr 0.95fr;
+    grid-template-columns: 1.02fr 0.98fr;
   }
 }
 
@@ -274,10 +511,28 @@
 @media (max-width: 1024px) {
   .personal-screen .btn,
   .personal-screen .chip,
-  .personal-screen .pill,
+  .personal-screen button.pill,
   .personal-screen select,
   .personal-screen input,
-  .personal-screen textarea {
+  .personal-screen textarea,
+  .personal-screen .picon,
+  .personal-screen .bxbtn,
+  .personal-screen .inl,
+  .personal-screen .pdocrow {
     min-height: 44px;
+  }
+  .personal-screen .picon,
+  .personal-screen .bxbtn {
+    min-width: 44px;
+  }
+  .personal-screen .numf .pin.sm {
+    width: 72px;
+  }
+  /* The 21-day heat strip is a read-only glance, not a control: 21 cells can
+     never be 44px wide on a phone. Its numbers are also stated as text above,
+     so the cells keep the primitive's own 6px floor and gain height instead. */
+  .personal-screen .viz-heat button[aria-label] {
+    min-width: 6px;
+    height: 34px;
   }
 }

@@ -411,8 +411,11 @@ tbody tr:hover {
   [role='tab'] {
     padding-inline: 14px;
   }
-  /* icon-only controls also need width */
-  button[aria-label]:not(.tagc .x) {
+  /* Icon-only controls also need width. Chart marks are excluded: a heat cell
+     or a ribbon block is a data mark whose width encodes meaning — forcing it
+     to 44px blows the track out past its container. They get height instead,
+     plus a tooltip, the same way annotation pins do. */
+  button[aria-label]:not(.tagc .x):not(.viz-heatcell):not(.viz-ribbonev):not(.viz-bar) {
     min-width: 44px;
   }
 

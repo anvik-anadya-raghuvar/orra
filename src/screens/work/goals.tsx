@@ -6,6 +6,7 @@ import { useToast } from '../../ui/bits';
 import { entrance, spring, staggerItem, staggerList } from '../../ui/motion';
 import { todayIso } from '../../lib/dates';
 import { rankTasks } from '../../lib/ranking';
+import { BarRows, MiniBars, Ring, VIZ } from '../../ui/viz';
 import { Field, projColor, projName } from './common';
 
 const WEIGHTS = [
@@ -49,12 +50,43 @@ export default function GoalsTab() {
     (t) => t.status !== 'done' && !personal.has(t.project_id) && !t.objective_id,
   );
 
+  /** average KR progress per objective — drives the Ring on each card and the MiniBars snapshot. */
+  const objAvg = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const o of ds.objectives) {
+      const krs = ds.key_results.filter((k) => k.objective_id === o.id);
+      map.set(
+        o.id,
+        krs.length ? Math.round(krs.reduce((a, k) => a + k.progress_pct, 0) / krs.length) : 0,
+      );
+    }
+    return map;
+  }, [ds.objectives, ds.key_results]);
+
   return (
     <div>
       <p style={{ fontSize: 14, color: 'var(--slate)', maxWidth: '66ch', margin: '0 0 14px' }}>
         Objectives are what make the ranking honest. Every business task points at one; the pointer
         is what lets the portal tell you where to start. Today's order, with the maths visible.
       </p>
+
+      {/* objective progress snapshot — a glance instead of parsing per-KR percentages */}
+      {ds.objectives.length > 0 && (
+        <div className="wk-ovpanel" style={{ marginBottom: 14 }}>
+          <span className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>
+            Objective progress · avg KR
+          </span>
+          <MiniBars
+            items={ds.objectives.map((o) => ({
+              label: o.title,
+              value: objAvg.get(o.id) ?? 0,
+              max: 100,
+              color: VIZ.seq,
+            }))}
+            format={(n) => `${n}%`}
+          />
+        </div>
+      )}
 
       {/* weights editor — changing a number re-ranks the table instantly */}
       <div className="wk-okr">
@@ -84,6 +116,16 @@ export default function GoalsTab() {
           below changes as you type.
         </p>
       </div>
+
+      {/* score, visualised — the table below still has the maths, this is the shape of it */}
+      {ranked.length > 0 && (
+        <div className="wk-ovpanel" style={{ marginBottom: 14 }}>
+          <span className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>
+            Score, top 10
+          </span>
+          <BarRows rows={ranked.slice(0, 10).map((r) => ({ label: r.task.title, value: r.score }))} />
+        </div>
+      )}
 
       {/* ranking table — tablet+ */}
       <div className="wk-wide wk-tblwrap">
@@ -210,6 +252,13 @@ export default function GoalsTab() {
                   {projName(ds, o.project_id)}
                 </span>
                 <span className="pill q">{o.quarter}</span>
+                <div className="spacer" />
+                <Ring
+                  pct={objAvg.get(o.id) ?? 0}
+                  size={36}
+                  color={VIZ.seq}
+                  label={`Average key result progress ${objAvg.get(o.id) ?? 0}%`}
+                />
               </div>
               <h4 style={{ fontSize: 17, marginTop: 7 }}>{o.title}</h4>
               {krs.map((kr) => {

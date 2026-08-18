@@ -1,65 +1,366 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import type { LifeAdminItem } from '../../types';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import type { AppStore } from '../../data/store';
+import type { FixedDate, LifeAdminItem, TimeLog } from '../../types';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { CountUp, useToast } from '../../ui/bits';
 import { staggerItem, staggerList } from '../../ui/motion';
 import { daysUntil, fmtDay } from '../../lib/dates';
+import { BarRows, HeatStrip, Ring, Sparkline, SplitBar as VizSplit, VIZ } from '../../ui/viz';
 
-/* ── this week's split — my study minutes vs founder minutes ────────────── */
-function last7DaysCutoff(): string {
-  const d = new Date(today() + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() - 6);
-  return d.toISOString().slice(0, 10);
+/* ══════════════════════════════════════════════════════════════════════
+   Editing primitives — direct manipulation, never a modal for a small
+   change. Every one of them commits through store.* so the trail records it.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Click-to-edit text. Enter or blur saves, Escape reverts. */
+export function InlineText({
+  value,
+  onSave,
+  label,
+  placeholder = 'Untitled',
+  className = '',
+  allowEmpty = false,
+}: {
+  value: string;
+  onSave: (next: string) => void;
+  label: string;
+  placeholder?: string;
+  className?: string;
+  allowEmpty?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const cancelled = useRef(false);
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      ref.current?.focus();
+      ref.current?.select();
+    }
+  }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
+    const next = draft.trim();
+    if (!allowEmpty && !next) return;
+    if (next !== value) onSave(next);
+  };
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className={`inl ${className}`}
+        onClick={() => {
+          setDraft(value);
+          setEditing(true);
+        }}
+        aria-label={`Edit ${label}`}
+      >
+        {value || <span className="inl-ph">{placeholder}</span>}
+      </button>
+    );
+  }
+  return (
+    <input
+      ref={ref}
+      className={`inl-in ${className}`}
+      value={draft}
+      aria-label={label}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          (e.target as HTMLInputElement).blur();
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelled.current = true;
+          setDraft(value);
+          setEditing(false);
+        }
+      }}
+    />
+  );
 }
 
-export function SplitBar() {
+/** Always-live number field. Enter or blur saves, Escape reverts. */
+export function NumberField({
+  value,
+  onSave,
+  label,
+  min = 1,
+  max = 1440,
+  suffix,
+}: {
+  value: number;
+  onSave: (n: number) => void;
+  label: string;
+  min?: number;
+  max?: number;
+  suffix?: string;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const cancelled = useRef(false);
+  useEffect(() => setDraft(String(value)), [value]);
+
+  const commit = () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      setDraft(String(value));
+      return;
+    }
+    const n = Math.max(min, Math.min(max, Math.round(Number(draft))));
+    if (!Number.isFinite(n)) {
+      setDraft(String(value));
+      return;
+    }
+    if (n !== value) onSave(n);
+    setDraft(String(n));
+  };
+
+  return (
+    <span className="numf">
+      <input
+        className="pin sm"
+        type="number"
+        inputMode="numeric"
+        value={draft}
+        aria-label={label}
+        min={min}
+        max={max}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelled.current = true;
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+      />
+      {suffix && <em className="mono">{suffix}</em>}
+    </span>
+  );
+}
+
+/** Date field — commits the moment a valid date is picked. */
+export function DateField({
+  value,
+  onSave,
+  label,
+}: {
+  value: string;
+  onSave: (d: string) => void;
+  label: string;
+}) {
+  return (
+    <input
+      className="pin sm"
+      type="date"
+      value={value}
+      aria-label={label}
+      onChange={(e) => {
+        if (e.target.value && e.target.value !== value) onSave(e.target.value);
+      }}
+    />
+  );
+}
+
+/** Two-step delete — arms for 3s, then confirms. No browser dialog. */
+export function DeleteBtn({ onConfirm, label }: { onConfirm: () => void; label: string }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = window.setTimeout(() => setArmed(false), 3000);
+    return () => window.clearTimeout(t);
+  }, [armed]);
+
+  if (armed) {
+    return (
+      <button
+        type="button"
+        className="picon armed"
+        aria-label={`Confirm delete ${label}`}
+        onClick={() => {
+          setArmed(false);
+          onConfirm();
+        }}
+      >
+        <span className="mono">sure?</span>
+      </button>
+    );
+  }
+  return (
+    <button type="button" className="picon" aria-label={`Delete ${label}`} onClick={() => setArmed(true)}>
+      <Trash2 size={14} strokeWidth={1.8} />
+    </button>
+  );
+}
+
+/** Up/down reorder. No drag — works with a thumb and with a keyboard. */
+export function MoveBtns({
+  onUp,
+  onDown,
+  canUp,
+  canDown,
+  label,
+}: {
+  onUp: () => void;
+  onDown: () => void;
+  canUp: boolean;
+  canDown: boolean;
+  label: string;
+}) {
+  return (
+    <span className="pmove">
+      <button type="button" className="picon" disabled={!canUp} aria-label={`Move ${label} up`} onClick={onUp}>
+        <ChevronUp size={14} strokeWidth={2} />
+      </button>
+      <button type="button" className="picon" disabled={!canDown} aria-label={`Move ${label} down`} onClick={onDown}>
+        <ChevronDown size={14} strokeWidth={2} />
+      </button>
+    </span>
+  );
+}
+
+/** Renumber a positioned list after moving one row. Only changed rows audit. */
+export function moveRows(
+  store: AppStore,
+  key: 'courses' | 'course_items' | 'reading_queue',
+  ordered: { id: string; position: number }[],
+  from: number,
+  to: number,
+) {
+  if (to < 0 || to >= ordered.length) return;
+  const next = [...ordered];
+  const [row] = next.splice(from, 1);
+  next.splice(to, 0, row);
+  next.forEach((r, i) => {
+    if (r.position !== i + 1) {
+      store.update(key, r.id, { position: i + 1 }, store.asMe({ summary: 'Reordered' }));
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Shared date maths for the study visuals.
+   ══════════════════════════════════════════════════════════════════════ */
+
+export function lastDates(n: number): string[] {
+  const out: string[] = [];
+  const d = new Date(today() + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - (n - 1));
+  for (let i = 0; i < n; i++) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+const hrs = (mins: number) => `${(mins / 60).toFixed(1)}h`;
+
+/* ══════════════════════════════════════════════════════════════════════
+   Study rhythm — the screen's headline picture. Streak heat, weekly
+   trend, and the study/founder referee, all from time_logs.
+   ══════════════════════════════════════════════════════════════════════ */
+
+export function StudyRhythm() {
   const ds = useData((d) => d);
   const store = useStore();
 
-  const totals = useMemo(() => {
-    const cutoff = last7DaysCutoff();
-    const mine = ds.time_logs.filter((t) => t.user_id === store.meId && t.date >= cutoff);
-    const study = mine.filter((t) => t.kind === 'study').reduce((s, t) => s + t.minutes, 0);
-    const founder = mine.filter((t) => t.kind === 'founder').reduce((s, t) => s + t.minutes, 0);
-    return { study, founder };
-  }, [ds.time_logs, store.meId]);
+  const { heat, week, study7, founder7, streak, best } = useMemo(() => {
+    const mine = ds.time_logs.filter((t) => t.user_id === store.meId);
+    const byDay = new Map<string, number>();
+    for (const t of mine) {
+      if (t.kind !== 'study') continue;
+      byDay.set(t.date, (byDay.get(t.date) ?? 0) + t.minutes);
+    }
+    const days21 = lastDates(21);
+    const days7 = lastDates(7);
+    const cutoff = days7[0];
 
-  const total = totals.study + totals.founder;
-  const studyPct = total ? Math.round((totals.study / total) * 100) : 0;
-  const fmtHours = (mins: number) => `${(mins / 60).toFixed(1)}h`;
+    let run = 0;
+    for (let i = days21.length - 1; i >= 0; i--) {
+      if ((byDay.get(days21[i]) ?? 0) > 0) run++;
+      else break;
+    }
+
+    return {
+      heat: days21.map((d) => ({ label: fmtDay(d), value: byDay.get(d) ?? 0 })),
+      week: days7.map((d) => ({ label: fmtDay(d), value: byDay.get(d) ?? 0 })),
+      study7: mine.filter((t) => t.kind === 'study' && t.date >= cutoff).reduce((s, t) => s + t.minutes, 0),
+      founder7: mine.filter((t) => t.kind === 'founder' && t.date >= cutoff).reduce((s, t) => s + t.minutes, 0),
+      streak: run,
+      best: Math.max(...days21.map((d) => byDay.get(d) ?? 0), 0),
+    };
+  }, [ds.time_logs, store.meId]);
 
   return (
     <div className="pbig">
-      <h3>This week's split</h3>
-      <div className="psplitbar">
-        <motion.span
-          className="study"
-          initial={{ width: 0 }}
-          animate={{ width: `${studyPct}%` }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        />
-        <motion.span
-          className="founder"
-          initial={{ width: 0 }}
-          animate={{ width: `${total ? 100 - studyPct : 0}%` }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        />
+      <div className="phead">
+        <h3>Study rhythm</h3>
+        <span className="eyebrow">last 21 days</span>
       </div>
-      <div className="psplitlegend">
-        <span>
-          <i className="dot study" /> Study <CountUp value={totals.study} format={fmtHours} />
-        </span>
-        <span>
-          <i className="dot founder" /> Founder <CountUp value={totals.founder} format={fmtHours} />
-        </span>
+
+      <div className="pstats">
+        <div className="pstat">
+          <b>
+            <CountUp value={streak} />
+          </b>
+          <span>day streak</span>
+        </div>
+        <div className="pstat">
+          <b>
+            <CountUp value={study7} format={hrs} />
+          </b>
+          <span>studied this week</span>
+        </div>
+        <div className="pstat">
+          <b>
+            <CountUp value={best} format={hrs} />
+          </b>
+          <span>best day</span>
+        </div>
       </div>
+
+      <HeatStrip cells={heat} format={(n) => (n ? hrs(n) : 'nothing')} />
+
+      <div className="psub eyebrow">This week, minute by minute</div>
+      <Sparkline values={week.map((w) => w.value)} labels={week.map((w) => w.label)} height={44} format={hrs} />
+
+      <div className="psub eyebrow">Study vs founder · last 7 days</div>
+      <VizSplit
+        parts={[
+          { label: `Study ${hrs(study7)}`, value: study7, color: VIZ.cat[0] },
+          { label: `Founder ${hrs(founder7)}`, value: founder7, color: VIZ.cat[1] },
+        ]}
+        height={16}
+      />
       <p className="tip">The degree gets real hours, not leftovers. This bar is the referee.</p>
     </div>
   );
 }
 
-/* ── study timer — logs honest minutes on stop ───────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   Study timer — still one tap, but the entry it creates is editable in
+   the ledger right below, so a forgotten timer is no longer a trap.
+   ══════════════════════════════════════════════════════════════════════ */
+
 export function StudyTimer() {
   const ds = useData((d) => d);
   const store = useStore();
@@ -70,9 +371,7 @@ export function StudyTimer() {
   const intervalRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (running) {
-      intervalRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    }
+    if (running) intervalRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => window.clearInterval(intervalRef.current);
   }, [running]);
 
@@ -82,9 +381,9 @@ export function StudyTimer() {
       store.insert(
         'time_logs',
         { id: newId('tl'), user_id: store.meId, date: today(), kind: 'study', minutes, course_id: courseId || null },
-        store.asMe({ summary: 'Study session logged' }),
+        store.asMe({ summary: `Study session logged — ${minutes}m` }),
       );
-      toast('Study session logged');
+      toast('Logged — edit it in the ledger below');
       setRunning(false);
       setSeconds(0);
     } else {
@@ -98,34 +397,218 @@ export function StudyTimer() {
 
   return (
     <div className="pbig">
-      <h3>Study block</h3>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-        <select className="pin" style={{ flex: '1 1 160px' }} value={courseId} disabled={running} onChange={(e) => setCourseId(e.target.value)}>
+      <div className="phead">
+        <h3>Study block</h3>
+        {running && <span className="pill soon">running</span>}
+      </div>
+      <div className="ptimer">
+        <span className="pclock mono">
+          {mm}:{ss}
+        </span>
+        <select
+          className="pin"
+          value={courseId}
+          disabled={running}
+          aria-label="Course for this block"
+          onChange={(e) => setCourseId(e.target.value)}
+        >
           {ds.courses.map((c) => (
             <option key={c.id} value={c.id}>
               {c.title}
             </option>
           ))}
         </select>
-        <span className="pclock mono">
-          {mm}:{ss}
-        </span>
-        <button className={`btn sm${running ? '' : ' solid'}`} type="button" onClick={toggle}>
+        <button className={`btn${running ? '' : ' solid'}`} type="button" onClick={toggle}>
           {running ? 'Stop and log' : 'Start a block'}
         </button>
       </div>
-      <p className="tip">Stopping logs the minutes to the split and the trail. Honest hours, not vibes.</p>
+      <p className="tip">Forgot to stop it? Fix the minutes in the ledger — nothing here is write-once.</p>
     </div>
   );
 }
 
-/* ── life admin — my open items, add/toggle/delete ───────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   Time ledger — manual entry, plus edit and delete for anything logged.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const KINDS: TimeLog['kind'][] = ['study', 'founder'];
+
+export function TimeLedger() {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(today());
+  const [kind, setKind] = useState<TimeLog['kind']>('study');
+  const [minutes, setMinutes] = useState('45');
+  const [courseId, setCourseId] = useState(ds.courses[0]?.id ?? '');
+
+  const rows = useMemo(
+    () =>
+      ds.time_logs
+        .filter((t) => t.user_id === store.meId)
+        .sort((a, b) => (a.date === b.date ? b.id.localeCompare(a.id) : b.date.localeCompare(a.date)))
+        .slice(0, 8),
+    [ds.time_logs, store.meId],
+  );
+
+  const patch = (t: TimeLog, p: Partial<TimeLog>, what: string) =>
+    store.update('time_logs', t.id, p, store.asMe({ summary: `Time log ${what}` }));
+
+  const add = () => {
+    const m = Math.max(1, Math.min(1440, Math.round(Number(minutes) || 0)));
+    if (!date || !m) return;
+    store.insert(
+      'time_logs',
+      {
+        id: newId('tl'),
+        user_id: store.meId,
+        date,
+        kind,
+        minutes: m,
+        course_id: kind === 'study' ? courseId || null : null,
+      },
+      store.asMe({ summary: `Time logged by hand — ${m}m ${kind}` }),
+    );
+    toast('Entry added');
+    setMinutes('45');
+  };
+
+  return (
+    <div className="pbig">
+      <div className="phead">
+        <h3>Time ledger</h3>
+        <button className="btn sm" type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          {open ? 'Close' : 'Add by hand'}
+        </button>
+      </div>
+
+      {open && (
+        <div className="pform">
+          <input
+            className="pin sm"
+            type="date"
+            value={date}
+            aria-label="Entry date"
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <select
+            className="pin sm"
+            value={kind}
+            aria-label="Entry kind"
+            onChange={(e) => setKind(e.target.value as TimeLog['kind'])}
+          >
+            {KINDS.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+          <input
+            className="pin sm"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={1440}
+            value={minutes}
+            aria-label="Minutes"
+            onChange={(e) => setMinutes(e.target.value)}
+          />
+          <select
+            className="pin sm"
+            value={courseId}
+            disabled={kind !== 'study'}
+            aria-label="Course"
+            onChange={(e) => setCourseId(e.target.value)}
+          >
+            <option value="">No course</option>
+            {ds.courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+          <button className="btn sm solid" type="button" onClick={add}>
+            Log it
+          </button>
+        </div>
+      )}
+
+      <motion.div variants={staggerList} initial="initial" animate="animate" className="pledger">
+        {rows.map((t) => (
+          <motion.div className="plog" key={t.id} variants={staggerItem}>
+            <i className="pdot" style={{ background: t.kind === 'study' ? VIZ.cat[0] : VIZ.cat[1] }} aria-hidden />
+            <input
+              className="pin sm"
+              type="date"
+              value={t.date}
+              aria-label={`Date of ${t.kind} entry`}
+              onChange={(e) => e.target.value && patch(t, { date: e.target.value }, 'date changed')}
+            />
+            <select
+              className="pin sm"
+              value={t.kind}
+              aria-label="Kind"
+              onChange={(e) =>
+                patch(
+                  t,
+                  { kind: e.target.value as TimeLog['kind'], course_id: e.target.value === 'study' ? t.course_id : null },
+                  'kind changed',
+                )
+              }
+            >
+              {KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+            <NumberField
+              value={t.minutes}
+              label={`Minutes on ${t.date}`}
+              suffix="min"
+              onSave={(n) => patch(t, { minutes: n }, 'minutes changed')}
+            />
+            <select
+              className="pin sm"
+              value={t.course_id ?? ''}
+              disabled={t.kind !== 'study'}
+              aria-label="Course"
+              onChange={(e) => patch(t, { course_id: e.target.value || null }, 'course changed')}
+            >
+              <option value="">No course</option>
+              {ds.courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+            <DeleteBtn
+              label={`${t.kind} entry on ${t.date}`}
+              onConfirm={() => {
+                store.remove('time_logs', t.id, store.asMe({ summary: `Time log removed — ${t.minutes}m ${t.kind}` }));
+                toast('Entry removed');
+              }}
+            />
+          </motion.div>
+        ))}
+        {rows.length === 0 && <p className="tip">No hours logged yet. Run a block, or add one by hand.</p>}
+      </motion.div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Life admin — add, rename inline, toggle, delete.
+   ══════════════════════════════════════════════════════════════════════ */
+
 export function LifeAdmin() {
   const ds = useData((d) => d);
   const store = useStore();
   const toast = useToast();
   const [text, setText] = useState('');
   const mine = useMemo(() => ds.life_admin.filter((l) => l.user_id === store.meId), [ds.life_admin, store.meId]);
+  const done = mine.filter((l) => l.completed).length;
 
   const add = () => {
     const item = text.trim();
@@ -138,45 +621,60 @@ export function LifeAdmin() {
     setText('');
   };
 
-  const toggle = (l: LifeAdminItem) => {
+  const toggle = (l: LifeAdminItem) =>
     store.update(
       'life_admin',
       l.id,
       { completed: !l.completed },
       store.asMe({ summary: `${l.item} ${!l.completed ? 'completed' : 'reopened'}` }),
     );
-  };
-
-  const remove = (l: LifeAdminItem) => {
-    store.remove('life_admin', l.id, store.asMe({ summary: `Life admin removed — ${l.item}` }));
-    toast('Removed');
-  };
 
   return (
-    <div>
-      <div className="eyebrow" style={{ margin: '18px 0 8px' }}>
-        Life admin
+    <div className="pbig">
+      <div className="phead">
+        <h3>Life admin</h3>
+        <span className="pmini">
+          <Ring pct={mine.length ? (done / mine.length) * 100 : 0} size={30} color={VIZ.cat[2]} label={`${done} of ${mine.length} done`} />
+          <span className="mono">
+            {done}/{mine.length}
+          </span>
+        </span>
       </div>
       <motion.div variants={staggerList} initial="initial" animate="animate">
         {mine.map((l) => (
-          <motion.div className="plifer" key={l.id} variants={staggerItem}>
-            <button className="check" type="button" style={{ flex: 1 }} onClick={() => toggle(l)}>
+          <motion.div className="prow" key={l.id} variants={staggerItem}>
+            <button
+              className="bxbtn"
+              type="button"
+              aria-label={l.completed ? `Reopen ${l.item}` : `Complete ${l.item}`}
+              aria-pressed={l.completed}
+              onClick={() => toggle(l)}
+            >
               <span className={`bx${l.completed ? ' on' : ''}`} aria-hidden />
-              <span className={l.completed ? 'off' : ''}>{l.item}</span>
             </button>
-            <button className="pxdel" type="button" aria-label={`Remove ${l.item}`} onClick={() => remove(l)}>
-              ×
-            </button>
+            <InlineText
+              value={l.item}
+              label="life admin item"
+              className={`grow${l.completed ? ' off' : ''}`}
+              onSave={(item) => store.update('life_admin', l.id, { item }, store.asMe({ summary: `Life admin renamed — ${item}` }))}
+            />
+            <DeleteBtn
+              label={l.item}
+              onConfirm={() => {
+                store.remove('life_admin', l.id, store.asMe({ summary: `Life admin removed — ${l.item}` }));
+                toast('Removed');
+              }}
+            />
           </motion.div>
         ))}
         {mine.length === 0 && <p className="tip">Life admin is clear.</p>}
       </motion.div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+      <div className="paddrow">
         <input
           className="addin"
-          placeholder="+ Add"
+          placeholder="+ Add something to deal with"
           value={text}
-          style={{ flex: 1 }}
+          aria-label="New life admin item"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -193,21 +691,39 @@ export function LifeAdmin() {
   );
 }
 
-/* ── fixed dates — ascending, with a countdown pill ──────────────────────── */
-function dateBadge(d: number): string {
+/* ══════════════════════════════════════════════════════════════════════
+   Fixed dates — the nearest one gets a ring and the hierarchy; the rest
+   are a proximity chart, not a wall of numbers. All of them editable.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const CATEGORIES = ['relocation', 'university', 'business', 'personal'];
+const HORIZON = 90;
+
+function urgency(d: number): string {
+  if (d < 0) return 'q';
   if (d < 3) return 'over';
-  if (d < 14) return 'due';
+  if (d < 14) return 'soon';
   return 'ok';
 }
 
 export function FixedDates() {
   const ds = useData((d) => d);
   const store = useStore();
+  const toast = useToast();
   const [label, setLabel] = useState('');
   const [date, setDate] = useState('');
   const [category, setCategory] = useState('relocation');
 
   const sorted = useMemo(() => [...ds.fixed_dates].sort((a, b) => a.date.localeCompare(b.date)), [ds.fixed_dates]);
+  const upcoming = useMemo(() => sorted.filter((f) => daysUntil(f.date) >= 0), [sorted]);
+  const hero: FixedDate | undefined = upcoming[0];
+  const heroDays = hero ? daysUntil(hero.date) : 0;
+
+  const bars = useMemo(
+    () => upcoming.slice(0, 6).map((f) => ({ label: f.label, value: Math.max(daysUntil(f.date), 0.4) })),
+    [upcoming],
+  );
+  const barMax = Math.max(HORIZON, ...bars.map((b) => b.value));
 
   const add = () => {
     if (!label.trim() || !date) return;
@@ -218,39 +734,106 @@ export function FixedDates() {
     );
     setLabel('');
     setDate('');
+    toast('Date added');
   };
+
+  const patch = (f: FixedDate, p: Partial<FixedDate>) =>
+    store.update('fixed_dates', f.id, p, store.asMe({ summary: `Fixed date edited — ${f.label}` }));
 
   return (
     <div className="pbig">
-      <h3>Fixed dates</h3>
+      <div className="phead">
+        <h3>Fixed dates</h3>
+        <span className="eyebrow">{HORIZON}-day horizon</span>
+      </div>
+
+      {hero && (
+        <div className="phero">
+          <div className="pheroring">
+            <Ring
+              pct={Math.max(4, 100 - (Math.min(heroDays, HORIZON) / HORIZON) * 100)}
+              size={78}
+              color={VIZ.cat[0]}
+              label={`${heroDays} days until ${hero.label}`}
+            />
+            <span className="pheronum">
+              <b>
+                <CountUp value={heroDays} />
+              </b>
+              <em className="mono">days</em>
+            </span>
+          </div>
+          <div className="pherotxt">
+            <span className="eyebrow">next up</span>
+            <b>{hero.label}</b>
+            <span className="mono">
+              {fmtDay(hero.date)} · {hero.category}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {bars.length > 1 && (
+        <div className="pbars">
+          <BarRows rows={bars} max={barMax} color={VIZ.seq} format={(n) => `${Math.round(n)}d`} />
+        </div>
+      )}
+
+      <div className="psub eyebrow">Every date, editable</div>
       <motion.div variants={staggerList} initial="initial" animate="animate">
         {sorted.map((f) => {
           const d = daysUntil(f.date);
           return (
             <motion.div className="pfixed" key={f.id} variants={staggerItem}>
-              <span style={{ flex: 1 }}>
-                {f.label}
-                <span className="mono" style={{ display: 'block', fontSize: 10, color: 'var(--mute)' }}>
-                  {f.category}
-                </span>
-              </span>
-              <span className="mono" style={{ fontSize: 11.5, color: 'var(--mute)' }}>
-                {fmtDay(f.date)}
-              </span>
-              <span className={`pill ${dateBadge(d)}`}>{d < 0 ? 'past' : `${d}d`}</span>
+              <InlineText value={f.label} label="date label" className="grow" onSave={(v) => patch(f, { label: v })} />
+              <span className={`pill ${urgency(d)}`}>{d < 0 ? 'past' : `${d}d`}</span>
+              <DateField value={f.date} label={`Date for ${f.label}`} onSave={(v) => patch(f, { date: v })} />
+              <select
+                className="pin sm"
+                value={f.category}
+                aria-label={`Category for ${f.label}`}
+                onChange={(e) => patch(f, { category: e.target.value })}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <DeleteBtn
+                label={f.label}
+                onConfirm={() => {
+                  store.remove('fixed_dates', f.id, store.asMe({ summary: `Fixed date removed — ${f.label}` }));
+                  toast('Removed');
+                }}
+              />
             </motion.div>
           );
         })}
         {sorted.length === 0 && <p className="tip">Nothing fixed yet.</p>}
       </motion.div>
-      <div className="pfixedform">
-        <input className="addin" placeholder="Label" value={label} onChange={(e) => setLabel(e.target.value)} />
-        <input className="addin" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Date" />
-        <select className="pin" value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="relocation">Relocation</option>
-          <option value="university">University</option>
-          <option value="business">Business</option>
-          <option value="personal">Personal</option>
+
+      <div className="pform">
+        <input
+          className="addin"
+          placeholder="What is fixed?"
+          value={label}
+          aria-label="New fixed date label"
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <input className="pin sm" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="New fixed date" />
+        <select className="pin sm" value={category} aria-label="New fixed date category" onChange={(e) => setCategory(e.target.value)}>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
         </select>
         <button className="btn sm" type="button" onClick={add}>
           Add
@@ -260,30 +843,38 @@ export function FixedDates() {
   );
 }
 
-/* ── relocation documents — read-only, personal project only ────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   Relocation documents — they live in Knowledge, so this is a read-only
+   mirror that links through rather than dead-ending.
+   ══════════════════════════════════════════════════════════════════════ */
+
 const DOC_LABEL: Record<string, string> = { ok: 'fine', soon: 'coming up', over: 'act now' };
 
 export function RelocationDocs() {
-  const ds = useData((d) => d);
-  const docs = useMemo(() => ds.documents.filter((d) => d.project_id === 'personal'), [ds.documents]);
+  const docs = useData((d) => d.documents.filter((x) => x.project_id === 'personal'));
 
   return (
     <div className="pbig">
-      <h3>Relocation documents</h3>
+      <div className="phead">
+        <h3>Relocation documents</h3>
+        <Link className="btn sm" to="/knowledge">
+          Open in Knowledge
+        </Link>
+      </div>
       {docs.map((d) => (
-        <div className="pdocrow" key={d.id}>
-          <span style={{ flex: 1 }}>
+        <Link className="pdocrow" key={d.id} to="/knowledge" aria-label={`${d.title} — open in Knowledge`}>
+          <span className="grow">
             {d.title}
             {(d.expiry_date || d.deadline_note) && (
-              <span className="mono" style={{ display: 'block', fontSize: 10.5, color: 'var(--mute)' }}>
-                {d.expiry_date ? fmtDay(d.expiry_date) : d.deadline_note}
-              </span>
+              <span className="mono sub">{d.expiry_date ? fmtDay(d.expiry_date) : d.deadline_note}</span>
             )}
           </span>
           <span className={`pill ${d.status_cache}`}>{DOC_LABEL[d.status_cache] ?? d.status_cache}</span>
-        </div>
+          <ArrowUpRight size={14} strokeWidth={1.8} className="pgo" aria-hidden />
+        </Link>
       ))}
       {docs.length === 0 && <p className="tip">Nothing tracked yet.</p>}
+      <p className="tip">Documents are edited in Knowledge so there is one copy of the truth, not two.</p>
     </div>
   );
 }

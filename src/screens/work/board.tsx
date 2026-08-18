@@ -8,6 +8,8 @@ import { Avatar, Modal, TagChip, useToast } from '../../ui/bits';
 import { entrance, lift, micro, spring, staggerItem, staggerList } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
+import { stuckTasks } from '../../lib/ranking';
+import { MiniBars } from '../../ui/viz';
 import {
   Field,
   PRIORITIES,
@@ -48,11 +50,13 @@ function TaskCard({
   ds,
   pins,
   onMove,
+  stuckReason,
 }: {
   t: Task;
   ds: Dataset;
   pins: number;
   onMove: (t: Task, dir: -1 | 1) => void;
+  stuckReason?: string;
 }) {
   const idx = STATUSES.findIndex((s) => s.key === t.status);
   return (
@@ -79,6 +83,15 @@ function TaskCard({
           {t.due_date && <span>{fmtDay(t.due_date)}</span>}
           <span className={priClass(t.priority)}>{t.priority}</span>
           {pins > 0 && <span className="wk-pc">{pins} pins</span>}
+          {stuckReason && (
+            <span className="wk-stuck" title={stuckReason}>
+              stuck
+            </span>
+          )}
+        </span>
+        <span className="wk-meta" style={{ marginTop: 5 }}>
+          <span className="wk-chip mono">{t.effort}</span>
+          <span className="wk-chip mono">{t.estimate_minutes}m</span>
         </span>
         {t.tags.length > 0 && (
           <span className="wk-meta" style={{ marginTop: 7 }}>
@@ -180,11 +193,18 @@ export default function BoardTab({
   const [types, setTypes] = useState<Set<TaskType>>(new Set());
   const [tags, setTags] = useState<Set<string>>(new Set());
   const [monthOffset, setMonthOffset] = useState(0);
+  const [stuckOnly, setStuckOnly] = useState(false);
 
   const pins = useMemo(() => pinCounts(ds), [ds]);
   const liveTags = useMemo(
     () => [...new Set(ds.tasks.flatMap((t) => t.tags))].sort(),
     [ds.tasks],
+  );
+
+  const stuck = useMemo(() => stuckTasks(ds), [ds]);
+  const stuckReasons = useMemo(
+    () => new Map(stuck.map((s) => [s.task.id, s.reason])),
+    [stuck],
   );
 
   const list = useMemo(
@@ -194,10 +214,28 @@ export default function BoardTab({
         if (mine && t.assignee_id !== store.meId) return false;
         if (types.size && !types.has(t.type)) return false;
         if (tags.size && !t.tags.some((x) => tags.has(x))) return false;
+        if (stuckOnly && !stuckReasons.has(t.id)) return false;
         return true;
       }),
-    [ds.tasks, projects, mine, types, tags, store.meId],
+    [ds.tasks, projects, mine, types, tags, stuckOnly, stuckReasons, store.meId],
   );
+
+  /* status distribution + workload — the imbalance strip above the board */
+  const statusCounts = useMemo(
+    () => STATUSES.map((s) => ({ label: s.label, value: list.filter((t) => t.status === s.key).length, color: s.dot })),
+    [list],
+  );
+  const workload = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of list) {
+      if (t.status === 'done') continue;
+      const key = t.assignee_id ?? '__unassigned';
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()]
+      .map(([id, count]) => ({ label: personName(ds, id === '__unassigned' ? null : id), value: count }))
+      .sort((a, b) => b.value - a.value);
+  }, [list, ds]);
 
   const move = (t: Task, dir: -1 | 1) => {
     const i = STATUSES.findIndex((s) => s.key === t.status) + dir;
@@ -223,7 +261,7 @@ export default function BoardTab({
     toast(`${t.id} → ${statusLabel(status)}`);
   };
 
-  const anyFilter = projects.size > 0 || mine || types.size > 0 || tags.size > 0;
+  const anyFilter = projects.size > 0 || mine || types.size > 0 || tags.size > 0 || stuckOnly;
 
   return (
     <div>
@@ -245,6 +283,16 @@ export default function BoardTab({
         <button className="chip" type="button" aria-pressed={mine} onClick={() => setMine((m) => !m)}>
           Assigned to me
         </button>
+        {stuck.length > 0 && (
+          <button
+            className="chip"
+            type="button"
+            aria-pressed={stuckOnly}
+            onClick={() => setStuckOnly((s) => !s)}
+          >
+            Stuck ({stuck.length})
+          </button>
+        )}
         <span style={{ width: 8 }} />
         {TYPES.map((t) => (
           <button
@@ -279,11 +327,30 @@ export default function BoardTab({
               setMine(false);
               setTypes(new Set());
               setTags(new Set());
+              setStuckOnly(false);
             }}
           >
             Clear filters
           </button>
         )}
+      </div>
+
+      {/* status distribution + workload — imbalance visible at a glance */}
+      <div className="wk-overview">
+        <div className="wk-ovpanel">
+          <span className="eyebrow">Status distribution</span>
+          <MiniBars items={statusCounts} />
+        </div>
+        <div className="wk-ovpanel">
+          <span className="eyebrow">Workload per person</span>
+          {workload.length > 0 ? (
+            <MiniBars items={workload} />
+          ) : (
+            <p className="tip" style={{ margin: '10px 0 0' }}>
+              Nothing open.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="wk-bar">
@@ -322,7 +389,14 @@ export default function BoardTab({
                     </h3>
                     <AnimatePresence initial={false}>
                       {visible.map((t) => (
-                        <TaskCard key={t.id} t={t} ds={ds} pins={pins[t.id] ?? 0} onMove={move} />
+                        <TaskCard
+                          key={t.id}
+                          t={t}
+                          ds={ds}
+                          pins={pins[t.id] ?? 0}
+                          onMove={move}
+                          stuckReason={stuckReasons.get(t.id)}
+                        />
                       ))}
                     </AnimatePresence>
                     {col.length > visible.length && (
@@ -374,9 +448,16 @@ export default function BoardTab({
                       {t.due_date ? ` · due ${fmtDay(t.due_date)}` : ''} ·{' '}
                       {personName(ds, t.assignee_id)}
                       {pins[t.id] ? ` · ${pins[t.id]} pins` : ''}
+                      {' · '}
+                      {t.effort} · {t.estimate_minutes}m
                     </span>
                   </Link>
                   <span className="wk-meta" style={{ flex: 'none' }}>
+                    {stuckReasons.has(t.id) && (
+                      <span className="wk-stuck" title={stuckReasons.get(t.id)}>
+                        stuck
+                      </span>
+                    )}
                     {t.tags.map((x) => (
                       <TagChip key={x} name={x} />
                     ))}

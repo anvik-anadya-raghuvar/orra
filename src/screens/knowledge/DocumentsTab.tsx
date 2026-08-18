@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId } from '../../data/store';
-import { Modal, useToast } from '../../ui/bits';
+import { Modal, ProgressBar, useToast } from '../../ui/bits';
 import { staggerList, staggerItem } from '../../ui/motion';
 import { daysUntil } from '../../lib/dates';
+import { BarRows } from '../../ui/viz';
 import type { DocumentRef } from '../../types';
 
 function urgency(doc: DocumentRef): 'ok' | 'soon' | 'over' {
@@ -16,10 +17,26 @@ function urgency(doc: DocumentRef): 'ok' | 'soon' | 'over' {
   return doc.status_cache;
 }
 
+/** How close the expiry is, 0 (far off) → 100 (overdue) — drives the per-row proximity bar. */
+function proximityPct(doc: DocumentRef): number {
+  if (doc.expiry_date) {
+    const d = daysUntil(doc.expiry_date);
+    if (d <= 0) return 100;
+    return Math.max(4, Math.round(100 - (Math.min(d, 90) / 90) * 100));
+  }
+  const bucket = doc.status_cache;
+  return bucket === 'over' ? 100 : bucket === 'soon' ? 55 : 8;
+}
+
 const URGENCY_LABEL: Record<'ok' | 'soon' | 'over', string> = {
   ok: 'fine',
   soon: 'coming up',
   over: 'act now',
+};
+const URGENCY_COLOR: Record<'ok' | 'soon' | 'over', string> = {
+  ok: 'var(--teal)',
+  soon: 'var(--stamp)',
+  over: 'var(--rose)',
 };
 
 export default function DocumentsTab() {
@@ -29,6 +46,24 @@ export default function DocumentsTab() {
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
   const projectColor = (id: string) => projects.find((p) => p.id === id)?.color ?? 'var(--slate)';
 
+  // Most urgent first — impossible to miss, not something you have to sort for.
+  const sorted = useMemo(
+    () => [...docs].sort((a, b) => proximityPct(b) - proximityPct(a)),
+    [docs],
+  );
+  const counts = useMemo(() => {
+    let ok = 0;
+    let soon = 0;
+    let over = 0;
+    for (const d of docs) {
+      const u = urgency(d);
+      if (u === 'ok') ok += 1;
+      else if (u === 'soon') soon += 1;
+      else over += 1;
+    }
+    return { ok, soon, over };
+  }, [docs]);
+
   return (
     <div>
       <div className="filters">
@@ -36,6 +71,18 @@ export default function DocumentsTab() {
           + Document
         </button>
       </div>
+      {docs.length > 0 && (
+        <div className="kn-ov-panel" style={{ marginBottom: 16 }}>
+          <span className="eyebrow">Document health</span>
+          <BarRows
+            rows={[
+              { label: 'Fine', value: counts.ok, color: URGENCY_COLOR.ok },
+              { label: 'Coming up', value: counts.soon, color: URGENCY_COLOR.soon },
+              { label: 'Act now', value: counts.over, color: URGENCY_COLOR.over },
+            ]}
+          />
+        </div>
+      )}
       {docs.length === 0 ? (
         <p className="tip">No documents tracked yet.</p>
       ) : (
@@ -46,12 +93,12 @@ export default function DocumentsTab() {
                 <th>Document</th>
                 <th>Project</th>
                 <th>Expiry or deadline</th>
-                <th>Status</th>
+                <th>Proximity</th>
                 <th>Reference</th>
               </tr>
             </thead>
             <tbody>
-              {docs.map((d) => {
+              {sorted.map((d) => {
                 const u = urgency(d);
                 return (
                   <motion.tr variants={staggerItem} key={d.id}>
@@ -66,8 +113,13 @@ export default function DocumentsTab() {
                     <td data-label="Expiry / deadline" className="mono">
                       {d.expiry_date ?? d.deadline_note ?? '—'}
                     </td>
-                    <td data-label="Status">
-                      <span className={`pill ${u}`}>{URGENCY_LABEL[u]}</span>
+                    <td data-label="Proximity">
+                      <span className={`pill ${u}`} style={{ marginBottom: 6, display: 'inline-block' }}>
+                        {URGENCY_LABEL[u]}
+                      </span>
+                      <div style={{ minWidth: 84 }}>
+                        <ProgressBar pct={proximityPct(d)} grad={URGENCY_COLOR[u]} />
+                      </div>
                     </td>
                     <td data-label="Reference">
                       <a className="lk" href={d.cloud_ref_url} target="_blank" rel="noreferrer">

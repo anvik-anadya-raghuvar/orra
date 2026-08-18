@@ -5,6 +5,7 @@ import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Avatar, Modal, useToast } from '../../ui/bits';
 import { staggerItem, staggerList } from '../../ui/motion';
 import { daysSinceTs, fmtDateTime } from '../../lib/dates';
+import { BarRows, VIZ } from '../../ui/viz';
 import { Field, projColor, projName } from './common';
 
 /** A decision open longer than this many days is stale and turns urgent. */
@@ -33,6 +34,18 @@ export default function DecisionsTab({
     return { open: o, ruled: r };
   }, [ds.decisions]);
 
+  /** worst-first so an ancient decision is impossible to miss. */
+  const ageRows = useMemo(
+    () =>
+      open
+        .map((d) => {
+          const days = Math.max(0, daysSinceTs(d.opened_at));
+          return { label: d.question, value: days, color: days > STALE_DAYS ? 'var(--rose)' : VIZ.seq };
+        })
+        .sort((a, b) => b.value - a.value),
+    [open],
+  );
+
   const rule = () => {
     if (!ruling) return;
     store.update(
@@ -53,6 +66,15 @@ export default function DecisionsTab({
         recommendation. You rule; the portal never decides. Open past {STALE_DAYS} days turns red —
         that is the whole mechanism against quiet indecision.
       </p>
+
+      {ageRows.length > 0 && (
+        <div className="wk-ovpanel" style={{ marginBottom: 14 }}>
+          <span className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>
+            Days open · worst first
+          </span>
+          <BarRows rows={ageRows} format={(n) => `${n}d`} />
+        </div>
+      )}
 
       <div className="wk-sechead" style={{ marginTop: 0 }}>
         Open · {open.length}

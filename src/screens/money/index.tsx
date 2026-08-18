@@ -3,17 +3,21 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { CountUp, useToast } from '../../ui/bits';
-import { entrance, staggerItem, staggerList } from '../../ui/motion';
+import { staggerItem, staggerList } from '../../ui/motion';
 import { fmtDay, inr } from '../../lib/dates';
 import type { LedgerEntry } from '../../types';
+import { BarRows, Donut, GroupedBars, MiniBars, Sparkline, SplitBar, VIZ } from '../../ui/viz';
 import {
   NEXT_STATUS,
+  attentionSummary,
   categoryBreakdown,
+  cumulativeNet,
   exportLedgerCsv,
   exportLedgerXlsx,
   pillClass,
   projColor,
   projName,
+  projectSpend,
   weeklyInOut,
 } from './common';
 import EntryModal from './EntryModal';
@@ -36,6 +40,7 @@ export default function Money() {
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [projects, setProjects] = useState<Set<string>>(new Set());
+  const [statuses, setStatuses] = useState<Set<LedgerEntry['status']>>(new Set());
 
   const totals = useMemo(() => {
     let inTotal = 0;
@@ -48,16 +53,51 @@ export default function Money() {
   }, [ds.ledger]);
 
   const weeks = useMemo(() => weeklyInOut(ds.ledger, 6), [ds.ledger]);
-  const weekMax = Math.max(1, ...weeks.flatMap((w) => [w.in, w.out]));
-
   const categories = useMemo(() => categoryBreakdown(ds.ledger), [ds.ledger]);
-  const catMax = Math.max(1, ...categories.map((c) => c.total));
+
+  /* ── donut: top 2 categories + Other, headline net in the centre ─────── */
+  const spendSlices = useMemo(() => {
+    const top = categories.slice(0, 2).map((c) => ({ label: c.category, value: c.total }));
+    const rest = categories.slice(2).reduce((a, c) => a + c.total, 0);
+    return rest > 0 ? [...top, { label: 'Other', value: rest }] : top;
+  }, [categories]);
+  const netLabel = (totals.net < 0 ? '−' : '') + inr(totals.net);
+
+  /* ── cumulative net sparkline ──────────────────────────────────────── */
+  const netSeries = useMemo(() => cumulativeNet(ds.ledger), [ds.ledger]);
+
+  /* ── spend per project — four-way split, small multiples not colours ─ */
+  const spendByProject = useMemo(
+    () =>
+      projectSpend(ds.ledger).map((p) => ({
+        label: projName(ds, p.project_id),
+        value: p.total,
+        color: projColor(ds, p.project_id),
+      })),
+    [ds.ledger, ds.projects],
+  );
+
+  /* ── needs attention: due + overdue, weighted and one tap from a filter ─ */
+  const attn = useMemo(() => attentionSummary(ds.ledger), [ds.ledger]);
 
   const filtered = useMemo(
-    () => (projects.size ? ds.ledger.filter((r) => projects.has(r.project_id)) : ds.ledger),
-    [ds.ledger, projects],
+    () =>
+      ds.ledger.filter(
+        (r) =>
+          (!projects.size || projects.has(r.project_id)) &&
+          (!statuses.size || statuses.has(r.status)),
+      ),
+    [ds.ledger, projects, statuses],
   );
   const sorted = useMemo(() => [...filtered].sort((a, b) => (a.date < b.date ? 1 : -1)), [filtered]);
+
+  const toggleStatus = (s: LedgerEntry['status']) =>
+    setStatuses((set) => {
+      const next = new Set(set);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
+    });
 
   const cycleStatus = (row: LedgerEntry) => {
     const next = NEXT_STATUS[row.status];
@@ -105,37 +145,101 @@ export default function Money() {
           </div>
         </div>
 
+        {/* ── what needs attention — the screen tells you, you don't scan for it ── */}
+        {(attn.due.count > 0 || attn.overdue.count > 0) && (
+          <div className="mn-panel mn-attn">
+            <div className="mn-panel-head">
+              <span className="eyebrow">Needs attention</span>
+              {statuses.size > 0 && (
+                <button className="chip" type="button" onClick={() => setStatuses(new Set())}>
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="mn-attn-grid">
+              <button
+                type="button"
+                className="mn-attn-card"
+                aria-pressed={statuses.has('due')}
+                onClick={() => toggleStatus('due')}
+              >
+                <span className="mn-attn-n mono" style={{ color: 'var(--stamp)' }}>
+                  <CountUp value={attn.due.count} />
+                </span>
+                <span className="mn-attn-k">due · {inr(attn.due.total)}</span>
+              </button>
+              <button
+                type="button"
+                className="mn-attn-card"
+                aria-pressed={statuses.has('overdue')}
+                onClick={() => toggleStatus('overdue')}
+              >
+                <span className="mn-attn-n mono" style={{ color: 'var(--rose)' }}>
+                  <CountUp value={attn.overdue.count} />
+                </span>
+                <span className="mn-attn-k">overdue · {inr(attn.overdue.total)}</span>
+              </button>
+            </div>
+            <SplitBar
+              parts={[
+                { label: 'Due', value: attn.due.total, color: 'var(--stamp)' },
+                { label: 'Overdue', value: attn.overdue.total, color: 'var(--rose)' },
+              ]}
+              height={10}
+            />
+          </div>
+        )}
+
         {/* ── in vs out, last 6 weeks ───────────────────────────────── */}
         <div className="mn-panel">
           <div className="mn-panel-head">
             <span className="eyebrow">In vs out · last 6 weeks</span>
-            <span className="mn-legend">
-              <i style={{ background: 'var(--teal)' }} /> in
-              <i style={{ background: 'var(--rose)' }} /> out
-            </span>
           </div>
-          <div className="mn-chart">
-            {weeks.map((w) => (
-              <div className="mn-chart-col" key={w.week}>
-                <div className="mn-chart-bars">
-                  <motion.div
-                    className="mn-bar in"
-                    initial={{ height: 0 }}
-                    animate={{ height: `${(w.in / weekMax) * 100}%` }}
-                    transition={entrance}
-                    title={`In: ${inr(w.in)}`}
-                  />
-                  <motion.div
-                    className="mn-bar out"
-                    initial={{ height: 0 }}
-                    animate={{ height: `${(w.out / weekMax) * 100}%` }}
-                    transition={entrance}
-                    title={`Out: ${inr(w.out)}`}
-                  />
+          <GroupedBars
+            groups={weeks.map((w) => fmtDay(w.week))}
+            seriesA={weeks.map((w) => w.in)}
+            seriesB={weeks.map((w) => w.out)}
+            labelA="In"
+            labelB="Out"
+            format={inr}
+          />
+        </div>
+
+        {/* ── spend composition + cumulative net ──────────────────────── */}
+        <div className="mn-panel mn-composition">
+          <div className="mn-comp-col">
+            <span className="eyebrow">Spend composition</span>
+            {spendSlices.length === 0 ? (
+              <p className="tip" style={{ margin: 0 }}>
+                Nothing spent yet.
+              </p>
+            ) : (
+              <>
+                <Donut slices={spendSlices} centerValue={netLabel} centerLabel="net" />
+                <div className="viz-legend">
+                  {spendSlices.map((s, i) => (
+                    <span key={s.label}>
+                      <i style={{ background: VIZ.cat[i % VIZ.cat.length] }} />
+                      {s.label}
+                    </span>
+                  ))}
                 </div>
-                <span className="mn-chart-label mono">{fmtDay(w.week)}</span>
-              </div>
-            ))}
+              </>
+            )}
+          </div>
+          <div className="mn-comp-col">
+            <span className="eyebrow">Cumulative net</span>
+            {netSeries.length < 2 ? (
+              <p className="tip" style={{ margin: 0 }}>
+                Not enough activity yet.
+              </p>
+            ) : (
+              <Sparkline
+                values={netSeries.map((p) => p.net)}
+                labels={netSeries.map((p) => fmtDay(p.date))}
+                format={(n) => (n < 0 ? '−' : '') + inr(n)}
+              />
+            )}
           </div>
         </div>
 
@@ -149,22 +253,21 @@ export default function Money() {
               Nothing spent yet.
             </p>
           ) : (
-            <div className="mn-cat-list">
-              {categories.map((c) => (
-                <div className="mn-cat-row" key={c.category}>
-                  <span className="mn-cat-name">{c.category}</span>
-                  <div className="mn-cat-track">
-                    <motion.div
-                      className="mn-cat-fill"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(c.total / catMax) * 100}%` }}
-                      transition={entrance}
-                    />
-                  </div>
-                  <span className="mn-cat-amt mono">{inr(c.total)}</span>
-                </div>
-              ))}
-            </div>
+            <BarRows rows={categories.map((c) => ({ label: c.category, value: c.total }))} format={inr} />
+          )}
+        </div>
+
+        {/* ── spend per project — small multiples, not four competing colours ── */}
+        <div className="mn-panel">
+          <div className="mn-panel-head">
+            <span className="eyebrow">Spend per project</span>
+          </div>
+          {spendByProject.length === 0 ? (
+            <p className="tip" style={{ margin: 0 }}>
+              Nothing spent yet.
+            </p>
+          ) : (
+            <MiniBars items={spendByProject} format={inr} />
           )}
         </div>
 
@@ -182,8 +285,15 @@ export default function Money() {
               {p.name}
             </button>
           ))}
-          {projects.size > 0 && (
-            <button className="chip" type="button" onClick={() => setProjects(new Set())}>
+          {(projects.size > 0 || statuses.size > 0) && (
+            <button
+              className="chip"
+              type="button"
+              onClick={() => {
+                setProjects(new Set());
+                setStatuses(new Set());
+              }}
+            >
               Clear filters
             </button>
           )}

@@ -45,101 +45,54 @@
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
-.money-screen .mn-legend {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--slate);
-}
-.money-screen .mn-legend i {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  display: inline-block;
-  margin-right: 2px;
-}
-.money-screen .mn-legend i + i {
-  margin-left: 10px;
-}
 
-/* ── weekly in/out chart — pure divs, no chart lib ───────────────────── */
-.money-screen .mn-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 150px;
-  padding-top: 6px;
-}
-.money-screen .mn-chart-col {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  min-width: 0;
-}
-.money-screen .mn-chart-bars {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  width: 100%;
-  justify-content: center;
-}
-.money-screen .mn-bar {
-  width: 40%;
-  max-width: 16px;
-  border-radius: 3px 3px 0 0;
-  min-height: 2px;
-}
-.money-screen .mn-bar.in {
-  background: var(--teal);
-}
-.money-screen .mn-bar.out {
-  background: var(--rose);
-}
-.money-screen .mn-chart-label {
-  margin-top: 7px;
-  font-size: 9.5px;
-  color: var(--mute);
-  white-space: nowrap;
-}
-
-/* ── category breakdown ──────────────────────────────────────────────── */
-.money-screen .mn-cat-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.money-screen .mn-cat-row {
+/* ── needs-attention strip ────────────────────────────────────────────── */
+.money-screen .mn-attn-grid {
   display: grid;
-  grid-template-columns: 96px 1fr auto;
-  align-items: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  margin-bottom: 12px;
 }
-.money-screen .mn-cat-name {
-  font-size: 12.5px;
+.money-screen .mn-attn-card {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  text-align: left;
+  min-height: 44px;
+  transition: border-color 0.18s, transform 0.18s;
+}
+.money-screen .mn-attn-card:hover {
+  transform: translateY(-2px);
+}
+.money-screen .mn-attn-card[aria-pressed='true'] {
+  border-color: var(--indigo);
+  box-shadow: var(--sh1);
+}
+.money-screen .mn-attn-n {
+  display: block;
+  font-size: 22px;
+  font-weight: 500;
+}
+.money-screen .mn-attn-k {
+  font-size: 11.5px;
   color: var(--slate);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.money-screen .mn-cat-track {
-  height: 9px;
-  border-radius: 5px;
-  background: var(--surf3);
-  overflow: hidden;
+
+/* ── spend composition (donut) + cumulative net (sparkline) ──────────── */
+.money-screen .mn-composition {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
 }
-.money-screen .mn-cat-fill {
-  height: 100%;
-  border-radius: 5px;
-  background: linear-gradient(90deg, var(--stamp), var(--rose));
+@media (min-width: 641px) {
+  .money-screen .mn-composition {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
 }
-.money-screen .mn-cat-amt {
-  font-size: 12px;
-  color: var(--ink);
-  text-align: right;
+.money-screen .mn-comp-col {
+  min-width: 0;
 }
 
 /* ── transaction table → cards under 640px ───────────────────────────── */
