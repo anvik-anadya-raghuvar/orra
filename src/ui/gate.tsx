@@ -35,6 +35,13 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
           setError(err.message);
           return;
         }
+        // The store booted with the anonymous (empty) dataset. Reload so the
+        // adapter refetches everything as the authenticated member.
+        try {
+          localStorage.setItem('anvik:signedin', '1');
+        } catch {}
+        window.location.reload();
+        return;
       } else {
         const res = checkCredentials(profiles, normalized, password);
         if (!res.ok) {

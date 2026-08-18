@@ -97,6 +97,10 @@ export function createSupabaseAdapter(url: string, anonKey: string): DataAdapter
     saveWeights(w) {
       void sb.from('ranking_weights').upsert(w);
     },
+    async authedEmail() {
+      const { data } = await sb.auth.getUser();
+      return data.user?.email ?? null;
+    },
     onRemoteChange(cb) {
       // Realtime on the chat-critical tables; other screens refetch on focus.
       const channel = sb

@@ -213,10 +213,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const ds = await adapter.load();
       if (!alive) return;
       let me = ds.profiles[0]?.id ?? 'u-anadya';
-      try {
-        const saved = localStorage.getItem('anvik:me');
-        if (saved && ds.profiles.some((p) => p.id === saved)) me = saved;
-      } catch {}
+      // Real auth wins: the signed-in Supabase email decides who "me" is.
+      const email = await adapter.authedEmail?.();
+      const authed = email
+        ? ds.profiles.find((p) => p.email.toLowerCase() === email.toLowerCase())
+        : null;
+      if (authed) {
+        me = authed.id;
+      } else {
+        try {
+          const saved = localStorage.getItem('anvik:me');
+          if (saved && ds.profiles.some((p) => p.id === saved)) me = saved;
+        } catch {}
+      }
       const s = new AppStore(ds, adapter, me);
       adapter.onRemoteChange?.((partial) => s.applyRemote(partial));
       setStore(s);

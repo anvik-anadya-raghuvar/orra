@@ -13,6 +13,8 @@ export interface DataAdapter {
   saveWeights(w: Dataset['ranking_weights']): void;
   /** Called with a callback to receive externally-originated changes (realtime). */
   onRemoteChange?(cb: (partial: Partial<Dataset>) => void): () => void;
+  /** Supabase only: the signed-in auth email, so the store can pick the right profile. */
+  authedEmail?(): Promise<string | null>;
 }
 
 export function pickAdapter(): Promise<DataAdapter> {

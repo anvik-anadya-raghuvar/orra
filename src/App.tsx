@@ -97,10 +97,19 @@ function AccountMenu() {
     setConfirm('');
   };
 
-  const signOut = () => {
+  const signOut = async () => {
     try {
       localStorage.removeItem('anvik:signedin');
     } catch {}
+    if (store.adapter.kind === 'supabase') {
+      // Revoke the real session too, not just the UI flag.
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(
+        import.meta.env.VITE_SUPABASE_URL!,
+        import.meta.env.VITE_SUPABASE_ANON_KEY!,
+      );
+      await sb.auth.signOut().catch(() => {});
+    }
     window.location.href = '/';
   };
 
