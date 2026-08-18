@@ -13,6 +13,8 @@ import { inboxTasks, isMyTask, myTasks } from '../../lib/workspace';
 import { notifyAssignment } from '../../lib/handoff';
 import { MiniBars } from '../../ui/viz';
 import QuickEdit from './quickedit';
+import ReflowBanner from './reflow';
+import { blockedByOpenDep } from '../../lib/schedule';
 import {
   Field,
   PRIORITIES,
@@ -137,6 +139,7 @@ function TaskCard({
   onMove,
   onEdit,
   stuckReason,
+  waitingOn,
   childOf,
   dragging,
 }: {
@@ -146,6 +149,8 @@ function TaskCard({
   onMove: (t: Task, dir: -1 | 1) => void;
   onEdit: (t: Task) => void;
   stuckReason?: string;
+  /** Id of the unfinished task this one cannot start before. */
+  waitingOn?: string;
   childOf: string | null;
   dragging: boolean;
 }) {
@@ -185,6 +190,14 @@ function TaskCard({
           {stuckReason && (
             <span className="wk-stuck" title={stuckReason}>
               stuck
+            </span>
+          )}
+          {waitingOn && (
+            <span
+              className="wk-wait"
+              title={`Cannot start until ${waitingOn} is done`}
+            >
+              waiting on {waitingOn}
             </span>
           )}
         </span>
@@ -338,6 +351,11 @@ export default function BoardTab({
     () => stuckTasks(ds).filter((s) => isMyTask(s.task, store.meId)),
     [ds, store.meId],
   );
+  /* A card that cannot start yet says so, instead of looking available. */
+  const waiting = useMemo(
+    () => blockedByOpenDep(ds.tasks, ds.task_links),
+    [ds.tasks, ds.task_links],
+  );
   const stuckReasons = useMemo(
     () => new Map(stuck.map((s) => [s.task.id, s.reason])),
     [stuck],
@@ -466,6 +484,7 @@ export default function BoardTab({
   return (
     <div>
       <Inbox tasks={inbox} />
+      <ReflowBanner />
 
       {/* sprint scope — a filter on this board, never a mode for the portal */}
       <div className="wk-bar">
@@ -687,6 +706,7 @@ export default function BoardTab({
                             onMove={move}
                             onEdit={setQuick}
                             stuckReason={stuckReasons.get(t.id)}
+                            waitingOn={waiting.get(t.id)}
                             childOf={childOf}
                             dragging={dragId === t.id}
                           />

@@ -15,6 +15,7 @@ import {
   type RankedTask,
 } from '../../lib/ranking';
 import { isMyTask, myTasks } from '../../lib/workspace';
+import { blockedByOpenDep } from '../../lib/schedule';
 import {
   CAPACITY_COPY,
   eventsFor,
@@ -122,7 +123,12 @@ export default function Home() {
   /* Home is my workspace: rank, plan, stuck and counts all read my own work
      only (principle 1). Money, decisions and people stay shared below. */
   const ranked = useMemo(() => rankTasks(ds, today, capacity, me.id), [ds, today, capacity, me.id]);
-  const picked = useMemo(() => planDay(ranked, capacity), [ranked, capacity]);
+  // Work waiting on an unfinished predecessor cannot be today's work.
+  const waiting = useMemo(
+    () => blockedByOpenDep(ds.tasks, ds.task_links),
+    [ds.tasks, ds.task_links],
+  );
+  const picked = useMemo(() => planDay(ranked, capacity, waiting), [ranked, capacity, waiting]);
   const top: RankedTask | undefined = ranked[0];
   const stuck = useMemo(
     () => stuckTasks(ds).filter((s) => isMyTask(s.task, me.id)),

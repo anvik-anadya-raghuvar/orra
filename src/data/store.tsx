@@ -8,7 +8,11 @@ export const newId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
 export const nowIso = () => new Date().toISOString();
-export const today = () => new Date().toISOString().slice(0, 10);
+/** Local calendar date — see todayIso in lib/dates for why this is not UTC. */
+export const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 type Row = { id: string };
 

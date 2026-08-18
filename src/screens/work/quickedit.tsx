@@ -7,6 +7,7 @@ import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Modal, TagChip, useToast } from '../../ui/bits';
 import { micro } from '../../ui/motion';
 import { notifyAssignment } from '../../lib/handoff';
+import { wouldCycle } from '../../lib/schedule';
 import {
   Field,
   LINK_TYPES,
@@ -160,6 +161,16 @@ export default function QuickEdit({
     if (linkExists(ds.task_links, live.id, linkTarget, linkType)) {
       toast('That relationship is already recorded');
       return;
+    }
+    // A loop makes the chain unschedulable, so it is refused here rather than
+    // discovered later by the reflow.
+    if (linkType === 'blocks' || linkType === 'blocked_by') {
+      const [from, to] =
+        linkType === 'blocks' ? [live.id, linkTarget] : [linkTarget, live.id];
+      if (wouldCycle(ds.task_links, from, to)) {
+        toast(`That would create a loop — ${to} already leads back to ${from}.`);
+        return;
+      }
     }
     store.insert(
       'task_links',

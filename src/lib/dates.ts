@@ -12,8 +12,21 @@ export function clockIn(tz: string, d = new Date()): string {
   }).format(d);
 }
 
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+/**
+ * Today, in the reader's own timezone.
+ *
+ * This used to be `toISOString().slice(0, 10)`, which is the UTC date. For
+ * anyone east of Greenwich that is the *previous* day for the first hours after
+ * midnight — 01:00 in Rome or 04:00 in Delhi both read as yesterday. Everything
+ * keyed by date (the day plan, today's intentions, the schedule ribbon, the
+ * capacity) would then be written to and read from the wrong day, which looks
+ * exactly like the app losing your work.
+ */
+export function todayIso(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function daysUntil(dateIso: string, fromIso = todayIso()): number {

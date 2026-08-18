@@ -156,12 +156,25 @@ export const CAPACITY_MINUTES: Record<Capacity, number> = {
   heavy: 480,
 };
 
-/** Greedy plan: fill the day's capacity from the ranked list. */
-export function planDay(ranked: RankedTask[], capacity: Capacity): RankedTask[] {
+/**
+ * Greedy plan: fill the day's capacity from the ranked list.
+ *
+ * `blocked` holds tasks waiting on unfinished predecessors. They are skipped
+ * rather than down-ranked: however urgent it is, work that literally cannot
+ * start today does not belong in today's plan.
+ */
+export function planDay(
+  ranked: RankedTask[],
+  capacity: Capacity,
+  blocked?: ReadonlySet<string> | Map<string, string>,
+): RankedTask[] {
+  const isBlocked = (id: string) =>
+    blocked instanceof Map ? blocked.has(id) : (blocked?.has(id) ?? false);
   const budget = CAPACITY_MINUTES[capacity];
   let used = 0;
   const picked: RankedTask[] = [];
   for (const r of ranked) {
+    if (isBlocked(r.task.id)) continue;
     if (used + r.task.estimate_minutes > budget) continue;
     picked.push(r);
     used += r.task.estimate_minutes;
