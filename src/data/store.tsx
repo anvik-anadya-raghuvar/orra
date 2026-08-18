@@ -340,6 +340,34 @@ export class AppStore {
     return removed;
   }
 
+  /**
+   * `removeMany`, but confirmed by the backend before anything local changes.
+   *
+   * `removeMany` is optimistic: it updates `ds` immediately and fires the
+   * delete in the background, which is right for a single row a person just
+   * clicked away — a rare failure surfaces via the sync-error banner and the
+   * row is easy to notice and re-delete. A bulk purge across many collections
+   * is different: some of those rows can be blocked by a foreign key (e.g. a
+   * task still pointing at the objective being purged) that the optimistic
+   * path would silently paper over — the UI would say "removed" while
+   * Postgres kept the row, and it would reappear, unexplained, on the next
+   * reload. Awaiting the real delete first means a rejected collection is
+   * never marked removed and never gets a Trash entry for a row that never
+   * actually left the database.
+   */
+  async removeManyConfirmed<K extends CollectionKey>(
+    key: K,
+    ids: string[],
+    meta: MutationMeta,
+  ): Promise<{ removed: number; error: string | null }> {
+    if (!ids.length) return { removed: 0, error: null };
+    if (this.adapter.deleteRows) {
+      const error = await this.adapter.deleteRows(key, ids);
+      if (error) return { removed: 0, error };
+    }
+    return { removed: this.removeMany(key, ids, meta), error: null };
+  }
+
   /** Append one free-standing line to the trail — for things no single row owns. */
   note(entityType: string, summary: string, meta: MutationMeta) {
     this.audit({

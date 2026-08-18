@@ -22,6 +22,20 @@ export interface DataAdapter {
    * a successful one until the row silently reverts on the next reload.
    */
   onSyncError?(cb: (msg: string) => void): void;
+  /**
+   * Delete rows and WAIT for Postgres to confirm it, returning the error
+   * message on failure or null on success. Supabase only — the mock adapter
+   * has no network round trip to fail, so callers must treat a missing
+   * `deleteRows` as "there is nothing to confirm, trust the optimistic path".
+   *
+   * `saveCollection`'s delete branch is deliberately NOT this: it is
+   * fire-and-forget by design, for the common case of removing one row from
+   * a screen where a rare failure surfaces via the sync-error banner. A bulk
+   * purge across many collections needs the opposite guarantee — it must
+   * never report success (or move a row into Trash) for a delete Postgres
+   * actually rejected, e.g. a foreign key still pointing at it.
+   */
+  deleteRows?(key: CollectionKey, ids: string[]): Promise<string | null>;
 }
 
 export async function pickAdapter(): Promise<DataAdapter> {

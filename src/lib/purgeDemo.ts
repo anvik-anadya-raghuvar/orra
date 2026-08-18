@@ -17,8 +17,16 @@ import type { AppStore } from '../data/store';
 import type { CollectionKey, Dataset } from '../types';
 
 /**
- * Leaf-first, so a child row is gone before its parent. Postgres would cascade
- * most of these anyway, but ordering means we never depend on that.
+ * Leaf-first, so a child row is gone before its parent it would otherwise
+ * block. Most of these relationships are `ON DELETE CASCADE` in the schema,
+ * where order genuinely doesn't matter — but `tasks.objective_id` has no
+ * cascade (migration 0001), so a task still pointing at a demo objective
+ * makes Postgres reject the objective's delete outright. `tasks` therefore
+ * has to go before `objectives` and `key_results`, not after: the previous
+ * order had it last, which meant every purge attempt deleted the objective
+ * while a demo task still referenced it, failed with a foreign-key
+ * violation, and — because the delete wasn't confirmed before the UI
+ * updated — looked like it had worked until the next reload proved it hadn't.
  *
  * Deliberately absent:
  *  - `profiles`, `projects`, `sprints` — structure, not content (principle 8:
@@ -33,6 +41,9 @@ export const PURGE_ORDER: CollectionKey[] = [
   'comments',
   'subtasks',
   'task_links',
+  'day_events',
+  'day_plans',
+  'tasks',
   'time_logs',
   'key_results',
   'objectives',
@@ -55,10 +66,7 @@ export const PURGE_ORDER: CollectionKey[] = [
   'import_batches',
   'automation_rules',
   'daily_closeouts',
-  'day_events',
-  'day_plans',
   'pulse_items',
-  'tasks',
 ];
 
 export interface PurgePlan {
@@ -94,21 +102,46 @@ export async function planPurge(store: AppStore): Promise<PurgePlan> {
   return { hits, total };
 }
 
-/** Remove every seeded row still present. Returns how many actually went. */
-export async function purgeDemo(store: AppStore): Promise<number> {
+export interface PurgeFailure {
+  key: CollectionKey;
+  ids: string[];
+  /** The real Postgres error, so "it came back" has an answer instead of a shrug. */
+  error: string;
+}
+
+export interface PurgeResult {
+  removed: number;
+  failures: PurgeFailure[];
+}
+
+/**
+ * Remove every seeded row still present — one collection at a time, each
+ * delete awaited and confirmed before the next starts.
+ *
+ * Sequential and awaited on purpose: collections in `PURGE_ORDER` are ordered
+ * so a child clears before a parent that would otherwise block it, and that
+ * ordering only holds if each delete actually finishes before the next one
+ * fires. The previous version fired all of them at once and trusted every
+ * one had worked — this one only ever calls a row "removed" once Postgres
+ * has said so, and reports exactly which collections it couldn't and why,
+ * rather than a silent partial success that quietly undoes itself on reload.
+ */
+export async function purgeDemo(store: AppStore): Promise<PurgeResult> {
   const plan = await planPurge(store);
   let removed = 0;
+  const failures: PurgeFailure[] = [];
   for (const { key, ids } of plan.hits) {
-    removed += store.removeMany(key, ids, store.asMe({ silent: true }));
+    const result = await store.removeManyConfirmed(key, ids, store.asMe({ silent: true }));
+    removed += result.removed;
+    if (result.error) failures.push({ key, ids, error: result.error });
   }
   if (removed) {
-    store.note(
-      'demo_data',
-      `Demo content removed — ${removed} seeded rows across ${plan.hits.length} collections`,
-      store.asMe(),
-    );
+    const summary = failures.length
+      ? `Demo content removed — ${removed} rows across ${plan.hits.length - failures.length} collections (${failures.length} collection${failures.length === 1 ? '' : 's'} failed, see below)`
+      : `Demo content removed — ${removed} seeded rows across ${plan.hits.length} collections`;
+    store.note('demo_data', summary, store.asMe());
   }
-  return removed;
+  return { removed, failures };
 }
 
 /** "mail_items" → "mail items", for the confirmation list. */

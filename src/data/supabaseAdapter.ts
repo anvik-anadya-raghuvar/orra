@@ -130,9 +130,16 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
               if (error) {
                 console.error(`[supabaseAdapter] failed to delete from ${table}:`, error.message);
                 onError?.(`Couldn't delete from ${table.replace(/_/g, ' ')} — ${error.message}`);
+                // Do NOT forget these ids on failure. The old code deleted
+                // them from `known` unconditionally, so a rejected DELETE
+                // (e.g. a foreign key still pointing at the row) looked
+                // identical to a successful one — the row reappeared on the
+                // next reload with the adapter having no memory it was ever
+                // "still there" to retry.
+                return;
               }
+              gone.forEach((id) => known.delete(id));
             });
-          gone.forEach((id) => known.delete(id));
         }
       }
     },
@@ -153,6 +160,17 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
     },
     onSyncError(cb) {
       onError = cb;
+    },
+    async deleteRows(key, ids) {
+      if (!ids.length) return null;
+      const { error } = await sb.from(TABLE[key]).delete().in('id', ids);
+      if (error) return error.message;
+      // Keep local bookkeeping in step with the confirmed delete, so a later
+      // optimistic saveCollection() on the same collection doesn't try to
+      // re-delete ids Postgres has already forgotten.
+      const known = knownIds.get(key);
+      if (known) ids.forEach((id) => known.delete(id));
+      return null;
     },
     onRemoteChange(cb) {
       // Realtime on the chat-critical tables; other screens refetch on focus.

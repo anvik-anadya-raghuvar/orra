@@ -23,6 +23,20 @@ function makeStore(ds: Dataset = seedDataset()) {
   return new AppStore(ds, fakeAdapter(), 'u-anadya');
 }
 
+/** A fake adapter that also confirms deletes, so removeManyConfirmed has something to await. */
+function confirmingAdapter(failFor: CollectionKey | null = null): DataAdapter {
+  return {
+    ...fakeAdapter(),
+    async deleteRows(key, ids) {
+      if (key === failFor) {
+        return `update or delete on table "${key}" violates foreign key constraint`;
+      }
+      void ids;
+      return null;
+    },
+  };
+}
+
 describe('remove() → Trash', () => {
   it('snapshots the exact row before removing it', () => {
     const store = makeStore();
@@ -155,5 +169,51 @@ describe('emptyTrash()', () => {
     const auditBefore = store.ds.audit_trail.length;
     expect(store.emptyTrash(store.asMe())).toBe(0);
     expect(store.ds.audit_trail.length).toBe(auditBefore);
+  });
+});
+
+describe('removeManyConfirmed()', () => {
+  it('waits for the adapter to confirm before touching local state or Trash', async () => {
+    const ds = seedDataset();
+    const store = new AppStore(ds, confirmingAdapter(), 'u-anadya');
+    const ids = store.ds.objectives.map((o) => o.id);
+
+    const result = await store.removeManyConfirmed('objectives', ids, store.asMe());
+
+    expect(result).toEqual({ removed: ids.length, error: null });
+    expect(store.ds.objectives).toHaveLength(0);
+    expect(store.ds.trash_items.filter((t) => t.collection === 'objectives')).toHaveLength(ids.length);
+  });
+
+  it('a rejected delete removes nothing and creates no Trash entry — this is the exact bug that made purged rows reappear on reload', async () => {
+    const ds = seedDataset();
+    const store = new AppStore(ds, confirmingAdapter('objectives'), 'u-anadya');
+    const before = [...store.ds.objectives];
+    const ids = before.map((o) => o.id);
+
+    const result = await store.removeManyConfirmed('objectives', ids, store.asMe());
+
+    expect(result.removed).toBe(0);
+    expect(result.error).toContain('foreign key constraint');
+    expect(store.ds.objectives).toEqual(before);
+    expect(store.ds.trash_items.filter((t) => t.collection === 'objectives')).toHaveLength(0);
+  });
+
+  it('falls back to the optimistic path when the adapter has no deleteRows (mock mode)', async () => {
+    const store = makeStore();
+    const ids = store.ds.notes.slice(0, 2).map((n) => n.id);
+
+    const result = await store.removeManyConfirmed('notes', ids, store.asMe());
+
+    expect(result).toEqual({ removed: 2, error: null });
+    expect(store.ds.notes.some((n) => ids.includes(n.id))).toBe(false);
+  });
+
+  it('resolves to a no-op for an empty id list without calling the adapter', async () => {
+    const store = new AppStore(seedDataset(), confirmingAdapter(), 'u-anadya');
+    expect(await store.removeManyConfirmed('objectives', [], store.asMe())).toEqual({
+      removed: 0,
+      error: null,
+    });
   });
 });

@@ -5,7 +5,7 @@ import { useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
-import { planPurge, prettyKey, purgeDemo, type PurgePlan } from '../../lib/purgeDemo';
+import { planPurge, prettyKey, purgeDemo, type PurgeFailure, type PurgePlan } from '../../lib/purgeDemo';
 import type { TrashItem } from '../../types';
 
 /**
@@ -25,6 +25,8 @@ export default function DataTab() {
   const [emptying, setEmptying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmForever, setConfirmForever] = useState<string | null>(null);
+  /** Left over from the last attempt, so a real Postgres error is visible, not swallowed. */
+  const [failures, setFailures] = useState<PurgeFailure[]>([]);
 
   const refresh = useCallback(() => {
     let alive = true;
@@ -40,8 +42,17 @@ export default function DataTab() {
   const run = async () => {
     setBusy(true);
     try {
-      const removed = await purgeDemo(store);
-      toast(removed ? `Removed ${removed} demo rows — recoverable from Trash below` : 'Nothing left to remove');
+      const { removed, failures: failed } = await purgeDemo(store);
+      setFailures(failed);
+      if (failed.length) {
+        toast(
+          removed
+            ? `Removed ${removed} rows — ${failed.length} collection${failed.length === 1 ? '' : 's'} couldn't be deleted, see below`
+            : `Nothing removed — every collection failed, see below`,
+        );
+      } else {
+        toast(removed ? `Removed ${removed} demo rows — recoverable from Trash below` : 'Nothing left to remove');
+      }
       setConfirming(false);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Purge failed');
@@ -109,18 +120,26 @@ export default function DataTab() {
 
       {plan && total > 0 && (
         <motion.div className="ad-conns" {...staggerParent()} style={{ marginBottom: 16 }}>
-          {plan.hits.map((h) => (
-            <motion.div key={h.key} className="ad-conn" variants={staggerItem}>
-              <div className="ad-conn-head">
-                <h4>{prettyKey(h.key)}</h4>
-                <span className="pill q">{h.ids.length}</span>
-              </div>
-              <p className="mono" style={{ fontSize: 11.5 }}>
-                {h.ids.slice(0, 6).join(', ')}
-                {h.ids.length > 6 ? ` +${h.ids.length - 6} more` : ''}
-              </p>
-            </motion.div>
-          ))}
+          {plan.hits.map((h) => {
+            const failure = failures.find((f) => f.key === h.key);
+            return (
+              <motion.div key={h.key} className="ad-conn" variants={staggerItem}>
+                <div className="ad-conn-head">
+                  <h4>{prettyKey(h.key)}</h4>
+                  <span className={`pill ${failure ? 'over' : 'q'}`}>{h.ids.length}</span>
+                </div>
+                <p className="mono" style={{ fontSize: 11.5 }}>
+                  {h.ids.slice(0, 6).join(', ')}
+                  {h.ids.length > 6 ? ` +${h.ids.length - 6} more` : ''}
+                </p>
+                {failure && (
+                  <p style={{ fontSize: 11.5, color: 'var(--rose)', margin: '6px 0 0' }}>
+                    Couldn't delete — {failure.error}
+                  </p>
+                )}
+              </motion.div>
+            );
+          })}
         </motion.div>
       )}
 
