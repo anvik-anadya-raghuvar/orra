@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import type { LedgerEntry } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
-import { staggerItem, staggerList } from '../../ui/motion';
+import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { inr } from '../../lib/dates';
 import {
   ColumnMapping,
@@ -281,9 +281,7 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
             imported.
           </p>
           <motion.div
-            variants={staggerList}
-            initial="initial"
-            animate="animate"
+            {...staggerParent()}
             style={{ maxHeight: 260, overflowY: 'auto' }}
           >
             {parsedRows.map((r, i) => (

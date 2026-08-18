@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useStore } from '../../data/store';
-import { staggerItem, staggerList } from '../../ui/motion';
+import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 
 type ConnState = 'ok' | 'warn' | 'off';
 
@@ -65,7 +65,7 @@ export default function ConnectionsTab() {
 
   return (
     <div>
-      <motion.div className="ad-conns" variants={staggerList} initial="initial" animate="animate">
+      <motion.div className="ad-conns" {...staggerParent()}>
         {conns.map((c) => (
           <motion.div key={c.key} className="ad-conn" variants={staggerItem}>
             <div className="ad-conn-head">

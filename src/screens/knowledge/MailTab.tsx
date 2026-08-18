@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { staggerList, staggerItem } from '../../ui/motion';
+import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
 import { MiniBars } from '../../ui/viz';
 import type { MailItem } from '../../types';
@@ -53,7 +53,7 @@ export default function MailTab() {
       {groups.map(([account, rows]) => (
         <div className="mail-group" key={account}>
           <h4>{account}</h4>
-          <motion.div variants={staggerList} initial="initial" animate="animate">
+          <motion.div {...staggerParent()}>
             {rows.map((m) => (
               <MailRow key={m.id} mail={m} />
             ))}

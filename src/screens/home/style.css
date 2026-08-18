@@ -1,358 +1,561 @@
-/* Home screen — local vocabulary ported from prototype v10 (.welc/.wxb/.one/.ring/
-   .tiles/.pgrid/.pcard2/.rit). Everything is scoped under .home-screen so no other
-   screen inherits it and no other screen's CSS reaches in. Mobile-first. */
+/* Home screen — a dense bento grid.
+
+   Layout contract: every tile declares a column span (1 / 2 / 4) and either one
+   or two row units. Row units are a FIXED height on tablet and desktop, so tiles
+   tessellate instead of ragging out, and `grid-auto-flow: row dense` backfills
+   any hole a hidden widget leaves behind. The last tile is sized in index.tsx so
+   the total cell count is always a multiple of four — the grid therefore always
+   closes as a complete rectangle with no dead whitespace.
+
+   Everything is scoped under .home-screen. Mobile-first: one column, auto height.
+*/
 
 .home-screen {
   display: block;
 }
 
-/* ── welcome card ──────────────────────────────────────────────────────── */
-.home-screen .welc {
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  box-shadow: var(--sh2);
-  padding: 18px 15px;
-  margin-bottom: 16px;
-  position: relative;
-  overflow: hidden;
-}
-.home-screen .welc::after {
-  content: '';
-  position: absolute;
-  right: -60px;
-  top: -70px;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, var(--indigo-s), transparent);
-  opacity: 0.8;
-  pointer-events: none;
-}
-.home-screen .welc > * {
-  position: relative;
-  z-index: 1;
-}
-.home-screen .welc h1 {
-  font-size: 24px;
-  margin-top: 10px;
-}
-.home-screen .welc .sub {
-  color: var(--slate);
-  margin: 6px 0 0;
-  font-size: 14.5px;
-  max-width: 56ch;
-}
-.home-screen .welc-head {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
+/* ── the grid ──────────────────────────────────────────────────────────── */
+.home-screen .bento {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: row dense;
+  gap: 12px;
+  align-items: stretch;
 }
 
-/* ── ambient facts row ─────────────────────────────────────────────────── */
-.home-screen .hz {
+/* ── tile shell ────────────────────────────────────────────────────────── */
+.home-screen .bt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  box-shadow: var(--sh1);
+  padding: 14px 15px;
+  transition: box-shadow 0.26s var(--ease), border-color 0.26s var(--ease);
+}
+.home-screen .bt:hover,
+.home-screen .bt:focus-within {
+  box-shadow: var(--sh2);
+}
+.home-screen .bt-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: none;
+}
+.home-screen .bt-num {
+  font-size: 11px;
+  color: var(--mute);
+  white-space: nowrap;
+}
+.home-screen .bt-num.alert {
+  color: var(--rose);
+}
+.home-screen .bt-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.home-screen .rowgap {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 15px;
+  align-items: center;
+  flex: none;
 }
-.home-screen .wxb {
+.home-screen .rowgap.tight {
+  gap: 6px;
+  margin-top: 4px;
+}
+.home-screen .bignum {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex: none;
+}
+.home-screen .bignum span {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12px;
+  color: var(--slate);
+  letter-spacing: 0;
+}
+/* absorbs the slack in a tile so a short chart sits centred, not stranded */
+.home-screen .bt-mid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ── greeting band ─────────────────────────────────────────────────────── */
+.home-screen .greetrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+.home-screen .greetrow h1 {
+  font-size: 25px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.home-screen .capture {
+  display: flex;
+  gap: 8px;
+  flex: 2 1 260px;
+  min-width: 0;
+}
+.home-screen .capture .srch {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Mobile: wraps freely. Tablet/desktop clamp it to one line (see media queries)
+   so the fixed-height greeting band never blows past its row unit. */
+.home-screen .ambrow {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: none;
+}
+.home-screen .amb {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--surf2);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 7px 13px;
-  font-size: 12.5px;
+  padding: 6px 12px;
+  font-size: 12px;
   color: var(--slate);
   text-decoration: none;
-  min-height: 36px;
+  white-space: nowrap;
 }
-.home-screen .wxb b {
+.home-screen .amb b {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 500;
   color: var(--ink);
 }
-.home-screen a.wxb:hover,
-.home-screen button.wxb:hover {
+.home-screen a.amb:hover {
   border-color: var(--indigo);
 }
-.home-screen .wxb.alert {
+.home-screen .amb.alert,
+.home-screen .amb.alert b {
   border-color: var(--rose);
   color: var(--rose);
 }
-.home-screen .wxb.alert b {
-  color: var(--rose);
-}
-.home-screen .sun {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+
+/* ── capacity selector ─────────────────────────────────────────────────── */
+.home-screen .capset {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  background: var(--surf3);
+  border-radius: 12px;
+  padding: 4px;
   flex: none;
-  background: linear-gradient(145deg, #ffc46b, var(--stamp));
-  animation: home-glowp 3s ease-in-out infinite;
 }
-.home-screen .moon {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+.home-screen .capset button {
+  border-radius: 9px;
+  padding: 9px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--slate);
+  min-height: 40px;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+.home-screen .capset button:hover {
+  color: var(--ink);
+}
+.home-screen .capset button.on {
+  background: var(--surf);
+  color: var(--indigo);
+  box-shadow: var(--sh1);
+}
+.home-screen .capblurb {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--slate);
+  flex: 1;
+  min-height: 0;
+}
+.home-screen .meter {
+  display: grid;
+  gap: 5px;
   flex: none;
-  background: linear-gradient(145deg, #cfe0ff, var(--sky));
 }
-@keyframes home-glowp {
-  0%,
-  100% {
-    box-shadow: 0 0 0 3px rgba(206, 106, 16, 0.14);
-  }
-  50% {
-    box-shadow: 0 0 0 7px rgba(206, 106, 16, 0.05);
-  }
+.home-screen .meter .mono {
+  font-size: 10.5px;
+  color: var(--mute);
 }
 
-/* ── mode block (the "one thing" card) ─────────────────────────────────── */
-.home-screen .one {
+/* ── planned day ───────────────────────────────────────────────────────── */
+.home-screen .planrow {
   display: flex;
-  gap: 14px;
   align-items: center;
-  margin-top: 17px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--indigo-s), var(--surf2));
-  border: 1px solid var(--line);
-  flex-wrap: wrap;
-}
-.home-screen .one .ttl {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 17px;
-  margin-top: 3px;
-  color: var(--ink);
+  gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line);
+  color: inherit;
   text-decoration: none;
-  display: inline-block;
+  min-height: 38px;
 }
-.home-screen .one .ttl:hover {
+.home-screen .planrow:last-child {
+  border-bottom: 0;
+}
+.home-screen .planrow:hover .planttl {
   color: var(--indigo);
 }
-.home-screen .one .meta {
+.home-screen .planttl {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-screen .planmin {
   font-size: 11px;
   color: var(--mute);
-  margin-top: 3px;
-}
-.home-screen .ring {
-  width: 52px;
-  height: 52px;
   flex: none;
-  transform: rotate(-90deg);
 }
-.home-screen .ring circle {
-  fill: none;
-  stroke-width: 4;
-  stroke-linecap: round;
+.home-screen .echip {
+  flex: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--slate);
+  background: var(--surf2);
 }
-.home-screen .ring .bgc {
-  stroke: var(--line);
+.home-screen .echip.e-light {
+  border-color: color-mix(in oklab, var(--teal) 45%, var(--line));
+  color: var(--teal);
+}
+.home-screen .echip.e-medium {
+  border-color: color-mix(in oklab, var(--sky) 45%, var(--line));
+  color: var(--sky);
+}
+.home-screen .echip.e-heavy {
+  border-color: color-mix(in oklab, var(--stamp) 45%, var(--line));
+  color: var(--stamp);
 }
 
-/* why-this-one panel */
-.home-screen .why {
-  width: 100%;
-  border-top: 1px dashed var(--line);
+/* ── hero ──────────────────────────────────────────────────────────────── */
+.home-screen .herotop {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  flex: none;
+}
+.home-screen .herocopy {
+  flex: 1;
+  min-width: 0;
+}
+.home-screen .heroTtl {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  line-height: 1.25;
+  color: var(--ink);
+  text-decoration: none;
+  display: block;
+}
+.home-screen .heroTtl:hover {
+  color: var(--indigo);
+}
+.home-screen .herometa {
+  font-size: 10.5px;
+  color: var(--mute);
   margin-top: 4px;
-  padding-top: 11px;
-  overflow: hidden;
 }
-.home-screen .why ul {
-  margin: 0 0 10px;
-  padding-left: 17px;
-  font-size: 13px;
+.home-screen .whylist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+  flex: none;
+}
+.home-screen .herofactors {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.home-screen .whyitem {
+  font-size: 11.5px;
   color: var(--slate);
+  background: var(--indigo-s);
+  border-radius: 8px;
+  padding: 5px 9px;
+  line-height: 1.35;
 }
-.home-screen .whyrow {
+.home-screen .heroempty,
+.home-screen .calm {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  color: var(--slate);
+  font-size: 12.5px;
+}
+.home-screen .heroempty b,
+.home-screen .calm b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ── intention + wins ──────────────────────────────────────────────────── */
+.home-screen .intentin {
+  width: 100%;
+  flex: none;
+}
+.home-screen .win {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  margin-bottom: 7px;
-}
-.home-screen .whyrow .lbl {
-  flex: 0 0 118px;
-  color: var(--slate);
-}
-.home-screen .whyrow .bar {
-  flex: 1;
-  min-width: 70px;
-}
-.home-screen .whyrow .num {
-  flex: none;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  color: var(--mute);
-}
-
-/* focus timer */
-.home-screen .clock {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 30px;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-.home-screen .timerbtns {
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
-
-/* ── evening ritual ────────────────────────────────────────────────────── */
-.home-screen .rit textarea {
+  gap: 9px;
   width: 100%;
-  border: 1px solid var(--line);
-  background: var(--surf2);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font: inherit;
-  font-size: 13.5px;
-  color: var(--ink);
-  resize: vertical;
-  min-height: 52px;
-  margin: 4px 0 11px;
-}
-.home-screen .rit label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--mute);
-}
-.home-screen .rit .done-line {
-  font-size: 13.5px;
+  text-align: left;
+  font-size: 12.5px;
   color: var(--slate);
-  margin: 2px 0 10px;
-  white-space: pre-wrap;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--line);
+  min-height: 32px;
 }
-.home-screen .dots {
-  display: inline-flex;
-  gap: 4px;
-  vertical-align: middle;
-  margin-left: 8px;
+.home-screen .win:last-child {
+  border-bottom: 0;
 }
-.home-screen .dots i {
-  width: 8px;
-  height: 8px;
+.home-screen .win .wdot {
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  background: var(--line);
-  display: inline-block;
+  border: 1.5px solid var(--line);
+  flex: none;
+  transition: background 0.2s, border-color 0.2s;
 }
-.home-screen .dots i.on {
+.home-screen .win.done {
+  color: var(--mute);
+  text-decoration: line-through;
+}
+.home-screen .win.done .wdot {
   background: var(--teal);
+  border-color: var(--teal);
 }
 
-/* ── quick capture ─────────────────────────────────────────────────────── */
-.home-screen .capture {
+/* ── stuck zone ────────────────────────────────────────────────────────── */
+.home-screen .stuckrow {
   display: flex;
   gap: 9px;
-  margin-top: 16px;
-  flex-wrap: wrap;
-}
-
-/* ── tiles ─────────────────────────────────────────────────────────────── */
-.home-screen .tiles {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-.home-screen .tile {
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: var(--rl);
-  padding: 16px 18px;
-  box-shadow: var(--sh1);
-  text-align: left;
-  display: block;
+  align-items: flex-start;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+  color: var(--rose);
   text-decoration: none;
-  color: inherit;
-  min-height: 76px;
-  transition: box-shadow 0.26s var(--ease);
+  min-height: 40px;
 }
-.home-screen .tile:hover,
-.home-screen .tile:focus-visible {
-  box-shadow: var(--sh2);
+.home-screen .stuckrow:last-child {
+  border-bottom: 0;
 }
-.home-screen .tile .n {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 26px;
-}
-.home-screen .tile .k {
-  font-size: 13px;
-  color: var(--slate);
+.home-screen .stuckrow svg {
+  flex: none;
   margin-top: 2px;
 }
+.home-screen .stuckrow span {
+  min-width: 0;
+}
+.home-screen .stuckrow b {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.home-screen .stuckrow em {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--slate);
+  margin-top: 1px;
+}
 
-/* ── personal layer ────────────────────────────────────────────────────── */
-.home-screen .pgrid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  margin-bottom: 16px;
+/* ── pair pulse ────────────────────────────────────────────────────────── */
+.home-screen .pulsehead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13.5px;
+  font-weight: 500;
+  flex: none;
 }
-.home-screen .pcard2 {
-  background: var(--surf);
+.home-screen .pulsedot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--teal);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--teal) 20%, transparent);
+}
+.home-screen .pulsestatus {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--slate);
+  flex: 1;
+  min-height: 0;
+}
+.home-screen .pulselast {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--surf2);
   border: 1px solid var(--line);
-  border-radius: var(--rl);
-  padding: 16px;
-  box-shadow: var(--sh1);
-  transition: box-shadow 0.26s var(--ease);
+  color: inherit;
+  text-decoration: none;
+  font-size: 12.5px;
+  flex: none;
+  min-height: 42px;
 }
-.home-screen .pcard2:hover,
-.home-screen .pcard2:focus-within {
-  box-shadow: var(--sh2);
+.home-screen .pulselast > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.home-screen .pcard2 h4 {
+.home-screen .pulselast .mono {
+  font-size: 10.5px;
+  color: var(--mute);
+}
+.home-screen .pulselast:hover {
+  border-color: var(--indigo);
+}
+
+/* ── stat tiles ────────────────────────────────────────────────────────── */
+.home-screen .statlink {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+.home-screen .statlink.alert .bignum {
+  color: var(--rose);
+}
+.home-screen .bt-filler {
+  justify-content: center;
+}
+
+/* ── photo tile: the image is the tile ─────────────────────────────────── */
+/* .photofill is absolutely positioned, so the tile's padding never shows when
+   there is an image; the empty state keeps the normal padded layout. */
+.home-screen .photofill {
+  position: absolute;
+  inset: 0;
+}
+.home-screen .photofill img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.home-screen .photocap {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 30px 15px 14px;
+  background: linear-gradient(180deg, transparent, rgba(8, 11, 18, 0.82));
+  color: #fff;
+  display: grid;
+  gap: 2px;
+}
+.home-screen .photocap .eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+.home-screen .photocap b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  font-size: 14.5px;
+}
+.home-screen .photoempty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 5px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--surf2);
+  color: var(--mute);
+  font-size: 11.5px;
+  padding: 12px;
+  min-height: 0;
+}
+.home-screen .photoempty b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
   font-size: 14px;
-  margin: 6px 0 9px;
+  color: var(--ink);
 }
+
+/* ── song ──────────────────────────────────────────────────────────────── */
 .home-screen .songart {
-  height: 70px;
+  flex: 1;
+  min-height: 0;
   border-radius: 12px;
   background: linear-gradient(140deg, var(--violet), var(--indigo));
   color: #fff;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
   padding: 11px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 14px;
-}
-.home-screen .photobox {
-  height: 88px;
-  border-radius: 12px;
-  border: 1px dashed var(--line);
-  background: var(--surf2);
-  display: grid;
-  place-items: center;
-  color: var(--mute);
-  font-size: 12px;
-  text-align: center;
-  padding: 8px;
   overflow: hidden;
 }
-.home-screen .photobox img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 12px;
+.home-screen .songart span {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  line-height: 1.2;
 }
+.home-screen .songart em {
+  font-style: normal;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* ── worth knowing / life radar / money ────────────────────────────────── */
 .home-screen .aiitem {
   display: block;
-  width: 100%;
-  text-align: left;
-  padding: 9px 0;
+  padding: 8px 0;
   border-bottom: 1px dashed var(--line);
-  font-size: 13px;
-  color: inherit;
-  text-decoration: none;
-  min-height: 44px;
+  font-size: 12.5px;
+}
+.home-screen .aiitem:last-child {
+  border-bottom: 0;
+}
+.home-screen .aiitem b {
+  font-weight: 500;
 }
 .home-screen .aiitem span {
   display: block;
@@ -368,7 +571,7 @@
   text-align: left;
   font-size: 13px;
   padding: 7px 0;
-  min-height: 44px;
+  min-height: 38px;
 }
 .home-screen .check .bx {
   width: 16px;
@@ -376,51 +579,78 @@
   border-radius: 5px;
   border: 1.5px solid var(--line);
   flex: none;
-  display: grid;
-  place-items: center;
-  font-size: 10px;
-  color: #fff;
-}
-.home-screen .check .bx.on {
-  background: var(--teal);
-  border-color: var(--teal);
-}
-.home-screen .check .off {
-  text-decoration: line-through;
-  color: var(--mute);
 }
 .home-screen .mini-row {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  font-size: 13px;
+  font-size: 12.5px;
   padding: 7px 0;
   border-bottom: 1px dashed var(--line);
 }
 .home-screen .mini-row:last-child {
   border-bottom: 0;
 }
-
-/* project strip */
-.home-screen .pjchip {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: stretch;
-  text-align: left;
-  min-width: 168px;
-  flex: 1 1 168px;
-  min-height: 58px;
-  padding: 9px 12px;
-}
-.home-screen .pjchip .hd {
+.home-screen .donutrow {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  flex-wrap: wrap;
 }
 
-/* switches (customise modal) */
+/* ── shutdown ritual ───────────────────────────────────────────────────── */
+.home-screen .rit textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surf2);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  resize: vertical;
+  min-height: 46px;
+  margin: 4px 0 9px;
+}
+.home-screen .rit label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.home-screen .rit .done-line {
+  font-size: 13px;
+  color: var(--slate);
+  margin: 2px 0 9px;
+  white-space: pre-wrap;
+}
+.home-screen .modecopy {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  font-size: 13.5px;
+  color: var(--slate);
+}
+.home-screen .dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.home-screen .dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.home-screen .dots i.on {
+  background: var(--teal);
+}
+
+/* ── customise switches (modal lives inside .home-screen in the DOM) ───── */
 .home-screen .swrow {
   display: flex;
   align-items: center;
@@ -459,44 +689,146 @@
   background: #fff;
   box-shadow: var(--sh1);
 }
+.home-screen .blkgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.home-screen .blkgrid .srch {
+  width: 100%;
+  margin-top: 6px;
+}
 
-/* ── tablet ────────────────────────────────────────────────────────────── */
+/* ── founder mode overlay ──────────────────────────────────────────────── */
+.home-screen .focusmask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 20px 16px;
+  overflow: auto;
+}
+.home-screen .focusshell {
+  width: 100%;
+  max-width: 620px;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  box-shadow: var(--sh2);
+  padding: 22px;
+  display: grid;
+  gap: 7px;
+}
+.home-screen .focusshell h2 {
+  font-size: 24px;
+  line-height: 1.2;
+}
+.home-screen .focusintent {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--slate);
+}
+.home-screen .focusmeta {
+  font-size: 11px;
+  color: var(--mute);
+}
+.home-screen .focusclock {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 54px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  margin-top: 6px;
+}
+.home-screen .focusnote {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--mute);
+}
+
+/* ── tablet: two columns, fixed row unit ───────────────────────────────── */
 @media (min-width: 641px) {
-  .home-screen .welc {
-    padding: 26px;
-  }
-  .home-screen .welc h1 {
-    font-size: 31px;
-  }
-  .home-screen .tiles,
-  .home-screen .pgrid {
+  .home-screen .bento {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 178px;
+    gap: 13px;
+  }
+  .home-screen .bt-c1 {
+    grid-column: span 1;
+  }
+  .home-screen .bt-c2,
+  .home-screen .bt-c4 {
+    grid-column: span 2;
+  }
+  .home-screen .bt-tall {
+    grid-row: span 2;
+  }
+  .home-screen .greetrow h1 {
+    font-size: 28px;
+  }
+  .home-screen .ambrow {
+    max-height: 46px;
+    overflow: hidden;
   }
 }
 
-/* ── desktop ───────────────────────────────────────────────────────────── */
+/* ── desktop: four columns ─────────────────────────────────────────────── */
 @media (min-width: 1025px) {
-  .home-screen .tiles,
-  .home-screen .pgrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .home-screen .bento {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 186px;
+    gap: 14px;
+  }
+  .home-screen .bt-c1 {
+    grid-column: span 1;
+  }
+  .home-screen .bt-c2 {
+    grid-column: span 2;
+  }
+  .home-screen .bt-c4 {
+    grid-column: span 4;
+  }
+  .home-screen .bt {
+    padding: 15px 17px;
+  }
+  .home-screen .greetrow h1 {
+    font-size: 30px;
+  }
+  .home-screen .ambrow {
+    max-height: 36px;
   }
 }
 
 /* ── touch targets: 44px minimum on phone and tablet ───────────────────── */
 @media (max-width: 1024px) {
   .home-screen .btn,
+  .home-screen .btn.sm,
   .home-screen .chip,
-  .home-screen .wxb,
+  .home-screen .srch,
   .home-screen .sub2 button,
-  .home-screen .srch {
+  .home-screen .capset button,
+  .home-screen .win,
+  .home-screen .check,
+  .home-screen .planrow,
+  .home-screen .stuckrow,
+  .home-screen .aiitem,
+  .home-screen .mini-row,
+  .home-screen .pulselast,
+  .home-screen .amb,
+  .home-screen .lk {
     min-height: 44px;
   }
   .home-screen .btn.sm {
-    min-height: 44px;
     padding: 10px 13px;
   }
   .home-screen .capture .btn,
   .home-screen .capture .srch {
-    flex: 1 1 140px;
+    flex: 1 1 130px;
+  }
+  .home-screen .lk {
+    display: inline-flex;
+    align-items: center;
   }
 }

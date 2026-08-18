@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId } from '../../data/store';
 import { Modal, ProgressBar, useToast } from '../../ui/bits';
-import { staggerList, staggerItem } from '../../ui/motion';
+import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil } from '../../lib/dates';
 import { BarRows } from '../../ui/viz';
 import type { DocumentRef } from '../../types';
@@ -87,7 +87,7 @@ export default function DocumentsTab() {
         <p className="tip">No documents tracked yet.</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <motion.table className="doc-table" variants={staggerList} initial="initial" animate="animate">
+          <motion.table className="doc-table" {...staggerParent()}>
             <thead>
               <tr>
                 <th>Document</th>

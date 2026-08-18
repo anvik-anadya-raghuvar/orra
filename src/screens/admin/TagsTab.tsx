@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { newId, useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { staggerItem, staggerList } from '../../ui/motion';
+import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import type { Tag } from '../../types';
 import { TAG_COLORS, tagUsageCounts } from './common';
 
@@ -84,7 +84,7 @@ export default function TagsTab() {
         </button>
       </div>
 
-      <motion.div variants={staggerList} initial="initial" animate="animate">
+      <motion.div {...staggerParent()}>
         {ds.tags.map((t) => (
           <motion.div key={t.id} className="ad-tag-row" variants={staggerItem}>
             <span className="ad-dot" style={{ background: `var(--${t.color})` }} />

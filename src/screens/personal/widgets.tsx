@@ -6,7 +6,7 @@ import type { AppStore } from '../../data/store';
 import type { FixedDate, LifeAdminItem, TimeLog } from '../../types';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { CountUp, useToast } from '../../ui/bits';
-import { staggerItem, staggerList } from '../../ui/motion';
+import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { daysUntil, fmtDay } from '../../lib/dates';
 import { BarRows, HeatStrip, Ring, Sparkline, SplitBar as VizSplit, VIZ } from '../../ui/viz';
 
@@ -534,7 +534,7 @@ export function TimeLedger() {
         </div>
       )}
 
-      <motion.div variants={staggerList} initial="initial" animate="animate" className="pledger">
+      <motion.div {...staggerParent()} className="pledger">
         {rows.map((t) => (
           <motion.div className="plog" key={t.id} variants={staggerItem}>
             <i className="pdot" style={{ background: t.kind === 'study' ? VIZ.cat[0] : VIZ.cat[1] }} aria-hidden />
@@ -640,7 +640,7 @@ export function LifeAdmin() {
           </span>
         </span>
       </div>
-      <motion.div variants={staggerList} initial="initial" animate="animate">
+      <motion.div {...staggerParent()}>
         {mine.map((l) => (
           <motion.div className="prow" key={l.id} variants={staggerItem}>
             <button
@@ -780,7 +780,7 @@ export function FixedDates() {
       )}
 
       <div className="psub eyebrow">Every date, editable</div>
-      <motion.div variants={staggerList} initial="initial" animate="animate">
+      <motion.div {...staggerParent()}>
         {sorted.map((f) => {
           const d = daysUntil(f.date);
           return (

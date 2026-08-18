@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { CountUp, useToast } from '../../ui/bits';
-import { staggerItem, staggerList } from '../../ui/motion';
+import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { fmtDay, inr } from '../../lib/dates';
 import type { LedgerEntry } from '../../types';
 import { BarRows, Donut, GroupedBars, MiniBars, Sparkline, SplitBar, VIZ } from '../../ui/viz';
@@ -307,7 +307,7 @@ export default function Money() {
         </div>
 
         <div style={{ overflowX: 'auto' }}>
-          <motion.table className="mn-table" variants={staggerList} initial="initial" animate="animate">
+          <motion.table className="mn-table" {...staggerParent()}>
             <thead>
               <tr>
                 <th>Date</th>

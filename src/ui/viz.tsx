@@ -1,5 +1,6 @@
 import React, { useId, useMemo, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useAnimateIn } from './motion';
 
 /**
  * Chart primitives.
@@ -26,7 +27,10 @@ export const VIZ = {
   mute: 'var(--mute)',
 } as const;
 
-const useMotionOk = () => !useReducedMotion();
+// Animation is decoration: a hidden tab starves rAF, so a chart that animates
+// from an empty state would render empty forever. useAnimateIn() returns false
+// there and every primitive falls back to its final geometry.
+const useMotionOk = useAnimateIn;
 
 /* ── Tooltip shell ────────────────────────────────────────────────────── */
 function Tip({ x, y, children }: { x: number; y: number; children: React.ReactNode }) {

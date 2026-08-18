@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { staggerList, staggerItem } from '../../ui/motion';
+import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { todayIso } from '../../lib/dates';
 import { warmth, type Warmth } from '../../lib/warmth';
 import type { Dataset, Person, RelationshipType } from '../../types';
@@ -187,7 +187,7 @@ export default function People() {
         {list.length === 0 ? (
           <p className="tip">Nobody here yet.</p>
         ) : (
-          <motion.div className="pgrid" variants={staggerList} initial="initial" animate="animate">
+          <motion.div className="pgrid" {...staggerParent()}>
             {list.map((p) => (
               <PersonCard
                 key={p.id}

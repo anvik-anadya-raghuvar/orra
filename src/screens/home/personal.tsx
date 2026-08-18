@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Music, Image as ImageIcon, Sparkles, Radar, Wallet, LayoutGrid } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
-import { CountUp, Modal, ProgressBar, TagChip, useToast } from '../../ui/bits';
-import { lift, spring, staggerItem, staggerList } from '../../ui/motion';
+import { CountUp, Modal, useToast } from '../../ui/bits';
+import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
-import { rankTasks } from '../../lib/ranking';
+import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import type { Personalization } from '../../types';
 
 /* ── the six independent per-user toggles ──────────────────────────────── */
@@ -17,11 +17,11 @@ export const PERSONAL_KEYS: {
   Icon: typeof Music;
 }[] = [
   { key: 'song', label: 'Song of the day', hint: 'Whatever the other one picked this morning', Icon: Music },
-  { key: 'photo', label: 'Photo of the day', hint: 'One frame from the day, with a caption', Icon: ImageIcon },
+  { key: 'photo', label: 'Photo of the day', hint: 'One frame from the day, filling its own tile', Icon: ImageIcon },
   { key: 'worth_knowing', label: 'Worth knowing', hint: 'Three things from the AI pulse — not a feed', Icon: Sparkles },
   { key: 'life_radar', label: 'Life radar', hint: 'Life admin still open, and the dates that are fixed', Icon: Radar },
-  { key: 'projects_strip', label: 'Projects strip', hint: 'Open counts per project, snapshot on tap', Icon: LayoutGrid },
-  { key: 'money_on_home', label: 'Money on Home', hint: 'A small in-and-out summary, no drill-down', Icon: Wallet },
+  { key: 'projects_strip', label: 'Projects', hint: 'Open counts per project, as small multiples', Icon: LayoutGrid },
+  { key: 'money_on_home', label: 'Money on Home', hint: 'In and out as one mark, no table', Icon: Wallet },
 ];
 
 /* Static, deliberately three — mirrors AI_PULSE in the prototype. */
@@ -30,6 +30,16 @@ const AI_PULSE = [
   { t: 'EU AI Act — first GPAI obligations take effect', s: 'Commission notice' },
   { t: 'New long-context eval suite published', s: 'Lab blog' },
 ];
+
+/** Compact money label so a number can live inside a donut without wrapping. */
+const shortInr = (n: number) => {
+  const a = Math.abs(n);
+  const sign = n < 0 ? '−' : '';
+  if (a >= 1e7) return `${sign}₹${(a / 1e7).toFixed(1)}Cr`;
+  if (a >= 1e5) return `${sign}₹${(a / 1e5).toFixed(1)}L`;
+  if (a >= 1e3) return `${sign}₹${Math.round(a / 1e3)}k`;
+  return `${sign}₹${a}`;
+};
 
 /* ── Customise popover — writes profiles.personalization for THIS user ─── */
 export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -50,7 +60,7 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
     <Modal open={open} onClose={onClose} title="Customise your Home">
       <p className="tip" style={{ margin: '-6px 0 8px' }}>
         Yours only. {store.other.name}'s Home is untouched by anything here — this is a preference,
-        never a permission.
+        never a permission. Hiding a tile re-flows the grid; it never leaves a hole.
       </p>
       {PERSONAL_KEYS.map(({ key, label, hint, Icon }) => {
         const on = me.personalization[key];
@@ -85,20 +95,127 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
   );
 }
 
-/* ── Personal layer cards ──────────────────────────────────────────────── */
-export function PersonalLayer() {
+/* ── Photo of the day — the image IS the tile ──────────────────────────── */
+export function PhotoTile() {
   const ds = useData((d) => d);
   const store = useStore();
-  const me = useData((_, s) => s.me);
   const toast = useToast();
-  const p = me.personalization;
-  const today = todayIso();
+  const [caption, setCaption] = useState('');
 
   const daily = useMemo(
     () => [...ds.shared_daily].sort((a, b) => b.date.localeCompare(a.date))[0],
     [ds.shared_daily],
   );
-  const [caption, setCaption] = useState('');
+
+  const save = () => {
+    if (!caption.trim() || !daily) return;
+    store.update(
+      'shared_daily',
+      daily.id,
+      { photo_caption: caption.trim() },
+      store.asMe({ summary: 'Photo caption updated' }),
+    );
+    setCaption('');
+    toast('Caption saved');
+  };
+
+  if (daily?.photo_url) {
+    return (
+      <div className="photofill">
+        <img src={daily.photo_url} alt={daily.photo_caption ?? 'Photo of the day'} loading="lazy" />
+        <div className="photocap">
+          <span className="eyebrow">Between us · today</span>
+          <b>{daily.photo_caption || 'No caption yet'}</b>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Between us</span>
+      </div>
+      <div className="photoempty">
+        <ImageIcon size={26} strokeWidth={1.4} aria-hidden />
+        <b>No frame yet today</b>
+        <span>A coffee, a screenshot, a ridiculous moment — anything.</span>
+      </div>
+      <div className="rowgap">
+        <input
+          className="srch"
+          value={caption}
+          placeholder="Caption today's frame…"
+          aria-label="Photo caption"
+          onChange={(e) => setCaption(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+        />
+        <Link className="btn sm" to="/us">
+          Upload
+        </Link>
+      </div>
+    </>
+  );
+}
+
+/* ── Song of the day ───────────────────────────────────────────────────── */
+export function SongTile() {
+  const ds = useData((d) => d);
+  const daily = useMemo(
+    () => [...ds.shared_daily].sort((a, b) => b.date.localeCompare(a.date))[0],
+    [ds.shared_daily],
+  );
+  const who = daily ? ds.profiles.find((x) => x.id === daily.picked_by)?.name ?? 'us' : null;
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">{who ? `Picked by ${who}` : 'Between us'}</span>
+      </div>
+      <div className="songart">
+        <span>{daily ? daily.song_title : 'Nothing picked yet'}</span>
+        <em>{daily ? daily.song_artist : 'Pick the first one'}</em>
+      </div>
+      <div className="rowgap">
+        {daily?.song_url && (
+          <a className="btn sm" href={daily.song_url} target="_blank" rel="noreferrer">
+            Play
+          </a>
+        )}
+        <Link className="btn sm" to="/us">
+          Suggest
+        </Link>
+      </div>
+    </>
+  );
+}
+
+/* ── Worth knowing ─────────────────────────────────────────────────────── */
+export function WorthTile() {
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">AI pulse · three, not a feed</span>
+      </div>
+      <div className="bt-scroll">
+        {AI_PULSE.map((x) => (
+          <div className="aiitem" key={x.t}>
+            <b>{x.t}</b>
+            <span>{x.s}</span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ── Life radar ────────────────────────────────────────────────────────── */
+export function LifeTile() {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const me = useData((_, s) => s.me);
+  const toast = useToast();
+  const today = todayIso();
 
   const lifeOpen = ds.life_admin.filter((l) => l.user_id === me.id && !l.completed);
   const upcoming = [...ds.fixed_dates]
@@ -107,114 +224,16 @@ export function PersonalLayer() {
     .sort((a, b) => a.d - b.d)
     .slice(0, 3);
 
-  const money = ds.ledger.reduce(
-    (a, l) => (l.direction === 'in' ? { ...a, in: a.in + l.amount } : { ...a, out: a.out + l.amount }),
-    { in: 0, out: 0 },
-  );
-  const unsettled = ds.ledger.filter((l) => l.status !== 'paid').length;
-
-  const cards: React.ReactNode[] = [];
-
-  if (p.song) {
-    cards.push(
-      <motion.div className="pcard2" key="song" variants={staggerItem} {...lift}>
-        <div className="eyebrow">
-          {daily ? `Picked by ${ds.profiles.find((x) => x.id === daily.picked_by)?.name ?? 'us'}` : 'Between us'}
-        </div>
-        <h4>Song of the day</h4>
-        <div className="songart">
-          {daily ? `${daily.song_title} · ${daily.song_artist}` : 'Nothing picked yet'}
-        </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
-          {daily?.song_url && (
-            <a className="btn sm" href={daily.song_url} target="_blank" rel="noreferrer">
-              Play
-            </a>
-          )}
-          <Link className="btn sm" to="/us">
-            Suggest one
-          </Link>
-        </div>
-      </motion.div>,
-    );
-  }
-
-  if (p.photo) {
-    cards.push(
-      <motion.div className="pcard2" key="photo" variants={staggerItem} {...lift}>
-        <div className="eyebrow">Between us</div>
-        <h4>Photo of the day</h4>
-        <div className="photobox">
-          {daily?.photo_url ? (
-            <img src={daily.photo_url} alt={daily.photo_caption ?? 'Photo of the day'} loading="lazy" />
-          ) : (
-            'A coffee, a screenshot, a ridiculous moment — anything.'
-          )}
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--slate)', marginTop: 6, minHeight: 18 }}>
-          {daily?.photo_caption}
-        </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-          <input
-            className="srch"
-            value={caption}
-            placeholder="Paste a caption…"
-            aria-label="Photo caption"
-            onChange={(e) => setCaption(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter' || !caption.trim() || !daily) return;
-              store.update(
-                'shared_daily',
-                daily.id,
-                { photo_caption: caption.trim() },
-                store.asMe({ summary: 'Photo caption updated' }),
-              );
-              setCaption('');
-              toast('Caption saved');
-            }}
-          />
-          <button
-            className="btn sm"
-            disabled={!caption.trim() || !daily}
-            onClick={() => {
-              if (!caption.trim() || !daily) return;
-              store.update(
-                'shared_daily',
-                daily.id,
-                { photo_caption: caption.trim() },
-                store.asMe({ summary: 'Photo caption updated' }),
-              );
-              setCaption('');
-              toast('Caption saved');
-            }}
-          >
-            Save
-          </button>
-        </div>
-      </motion.div>,
-    );
-  }
-
-  if (p.worth_knowing) {
-    cards.push(
-      <motion.div className="pcard2" key="ai" variants={staggerItem} {...lift}>
-        <div className="eyebrow">AI pulse · three, not a feed</div>
-        <h4>Worth knowing</h4>
-        {AI_PULSE.map((x) => (
-          <div className="aiitem" key={x.t}>
-            <b style={{ fontWeight: 500 }}>{x.t}</b>
-            <span>{x.s}</span>
-          </div>
-        ))}
-      </motion.div>,
-    );
-  }
-
-  if (p.life_radar) {
-    cards.push(
-      <motion.div className="pcard2" key="life" variants={staggerItem} {...lift}>
-        <div className="eyebrow">Life radar</div>
-        <h4>Small things future-you will thank you for</h4>
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Life radar</span>
+        <span className="spacer" />
+        <span className="mono bt-num">
+          <CountUp value={lifeOpen.length} /> open
+        </span>
+      </div>
+      <div className="bt-scroll">
         {lifeOpen.length === 0 && <p className="tip" style={{ marginTop: 0 }}>Life admin is clear.</p>}
         {lifeOpen.map((l) => (
           <button
@@ -229,7 +248,6 @@ export function PersonalLayer() {
             <span>{l.item}</span>
           </button>
         ))}
-        <div className="eyebrow" style={{ marginTop: 12 }}>Fixed dates</div>
         {upcoming.map((f) => (
           <div className="mini-row" key={f.id}>
             <span>{f.label}</span>
@@ -238,197 +256,72 @@ export function PersonalLayer() {
             </span>
           </div>
         ))}
-      </motion.div>,
-    );
-  }
-
-  if (p.money_on_home) {
-    cards.push(
-      <motion.div className="pcard2" key="money" variants={staggerItem} {...lift}>
-        <div className="eyebrow">Money · the short version</div>
-        <h4>In and out</h4>
-        <div className="mini-row">
-          <span>Received</span>
-          <span className="mono" style={{ color: 'var(--teal)' }}>
-            <CountUp value={money.in} format={(n) => inr(n)} />
-          </span>
-        </div>
-        <div className="mini-row">
-          <span>Spent</span>
-          <span className="mono">
-            <CountUp value={money.out} format={(n) => inr(n)} />
-          </span>
-        </div>
-        <div className="mini-row">
-          <span>Unsettled entries</span>
-          <span className="mono" style={{ color: unsettled ? 'var(--stamp)' : 'var(--mute)' }}>
-            <CountUp value={unsettled} />
-          </span>
-        </div>
-        <Link className="btn sm" to="/money" style={{ marginTop: 10, display: 'inline-block' }}>
-          Open Money
-        </Link>
-      </motion.div>,
-    );
-  }
-
-  if (!cards.length) return null;
-
-  return (
-    <motion.div className="pgrid" variants={staggerList} initial="initial" animate="animate">
-      {cards}
-    </motion.div>
+      </div>
+    </>
   );
 }
 
-/* ── Projects strip + on-demand snapshot ───────────────────────────────── */
-export function ProjectsStrip() {
-  const ds = useData((d) => d);
-  const [snap, setSnap] = useState<string | null>(null);
-  const today = todayIso();
-
-  const rows = ds.projects.map((pj) => {
-    const all = ds.tasks.filter((t) => t.project_id === pj.id);
-    const open = all.filter((t) => t.status !== 'done');
-    const urgent = open.filter((t) => t.priority === 'urgent').length;
-    const dec = ds.decisions.filter((d) => d.project_id === pj.id && d.status === 'open').length;
-    const pct = all.length ? Math.round(((all.length - open.length) / all.length) * 100) : 0;
-    return { pj, openCount: open.length, urgent, dec, pct };
-  });
-
-  const project = snap ? ds.projects.find((p) => p.id === snap) : undefined;
-  const snapOpen = snap ? ds.tasks.filter((t) => t.project_id === snap && t.status !== 'done') : [];
-  const snapRanked = snap
-    ? rankTasks(ds, today).filter((r) => r.task.project_id === snap).slice(0, 5)
-    : [];
-  const snapDecs = snap ? ds.decisions.filter((d) => d.project_id === snap && d.status === 'open') : [];
-  const snapLedger = snap
-    ? [...ds.ledger].filter((l) => l.project_id === snap).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3)
-    : [];
+/* ── Money — one mark, one headline number, no table ───────────────────── */
+export function MoneyTile() {
+  const ledger = useData((ds) => ds.ledger);
+  const money = ledger.reduce(
+    (a, l) => (l.direction === 'in' ? { ...a, in: a.in + l.amount } : { ...a, out: a.out + l.amount }),
+    { in: 0, out: 0 },
+  );
+  const net = money.in - money.out;
 
   return (
     <>
-      <div className="frame">
-        <div className="top">
-          <div className="disp" style={{ fontSize: 14 }}>Your projects</div>
-          <div className="spacer" />
-          <span className="eyebrow">a peek — tap for a snapshot</span>
-        </div>
-        <div className="wrap" style={{ padding: '14px 16px' }}>
-          <motion.div
-            className="filters"
-            style={{ margin: 0 }}
-            variants={staggerList}
-            initial="initial"
-            animate="animate"
-          >
-            {rows.map(({ pj, openCount, urgent, dec, pct }) => (
-              <motion.button
-                key={pj.id}
-                className="chip pjchip"
-                variants={staggerItem}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                style={{ borderLeft: `3px solid ${pj.color}` }}
-                onClick={() => setSnap(pj.id)}
-              >
-                <span className="hd">
-                  <b style={{ fontWeight: 600, color: 'var(--ink)' }}>{pj.name}</b>
-                  <span>
-                    <CountUp value={openCount} /> open
-                  </span>
-                  {urgent > 0 && <span style={{ color: 'var(--rose)' }}>{urgent} urgent</span>}
-                  {dec > 0 && <span>{dec} to rule</span>}
-                </span>
-                <ProgressBar pct={pct} grad={`linear-gradient(90deg, ${pj.color}, var(--indigo))`} />
-              </motion.button>
-            ))}
-          </motion.div>
+      <div className="bt-hd">
+        <span className="eyebrow">Money</span>
+        <span className="spacer" />
+        <Link className="lk" to="/money">
+          Open
+        </Link>
+      </div>
+      <div className="donutrow">
+        <Donut
+          size={82}
+          slices={[
+            { label: 'In', value: money.in, color: VIZ.in },
+            { label: 'Out', value: money.out, color: VIZ.out },
+          ]}
+          centerValue={shortInr(net)}
+          centerLabel="net"
+        />
+        <div className="viz-legend" style={{ marginTop: 0, flexDirection: 'column', gap: 6 }}>
+          <span>
+            <i style={{ background: VIZ.in }} />+ <CountUp value={money.in} format={(n) => inr(n)} />
+          </span>
+          <span>
+            <i style={{ background: VIZ.out }} />− <CountUp value={money.out} format={(n) => inr(n)} />
+          </span>
         </div>
       </div>
+    </>
+  );
+}
 
-      <Modal open={!!snap} onClose={() => setSnap(null)} title={project ? `${project.name} · snapshot` : ''}>
-        {project && (
-          <>
-            <p className="tip" style={{ margin: '-6px 0 14px' }}>
-              {snapOpen.length} open · {snapDecs.length} decision{snapDecs.length === 1 ? '' : 's'} waiting
-            </p>
-            <div className="eyebrow">Open here, in ranked order</div>
-            {snapRanked.length === 0 && <p className="tip">Nothing open, or nothing ranked (personal work never enters the ranking).</p>}
-            {snapRanked.map((r) => (
-              <Link
-                key={r.task.id}
-                to={`/task/${r.task.id}`}
-                onClick={() => setSnap(null)}
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  padding: '9px 0',
-                  borderBottom: '1px dashed var(--line)',
-                  color: 'inherit',
-                  textDecoration: 'none',
-                  minHeight: 44,
-                }}
-              >
-                <span style={{ flex: 1, minWidth: 160 }}>
-                  <b style={{ fontWeight: 500 }}>{r.task.title}</b>
-                  <span className="mono" style={{ display: 'block', fontSize: 10.5, color: 'var(--mute)' }}>
-                    {r.task.id} · score {r.score}
-                    {r.task.due_date ? ` · due ${fmtDay(r.task.due_date)}` : ''}
-                  </span>
-                </span>
-                {r.task.tags.map((t) => (
-                  <TagChip key={t} name={t} />
-                ))}
-              </Link>
-            ))}
-            {snapOpen.length > 0 && snapRanked.length === 0 && (
-              <p className="tip">
-                {snapOpen.map((t) => t.title).join(' · ')}
-              </p>
-            )}
+/* ── Projects — small multiples, never four colours in one chart ───────── */
+export function ProjectsTile() {
+  const ds = useData((d) => d);
+  const items = ds.projects.map((pj) => ({
+    label: pj.name,
+    value: ds.tasks.filter((t) => t.project_id === pj.id && t.status !== 'done').length,
+  }));
 
-            {snapDecs.length > 0 && (
-              <>
-                <div className="eyebrow" style={{ marginTop: 16 }}>Waiting on a ruling</div>
-                {snapDecs.map((d) => (
-                  <p key={d.id} style={{ fontSize: 13, margin: '7px 0' }}>
-                    {d.question}
-                  </p>
-                ))}
-              </>
-            )}
-
-            {snapLedger.length > 0 && (
-              <>
-                <div className="eyebrow" style={{ marginTop: 16 }}>Last money here</div>
-                {snapLedger.map((l) => (
-                  <div className="mini-row" key={l.id}>
-                    <span>
-                      {l.party} <span className={`pill ${l.status}`}>{l.status}</span>
-                    </span>
-                    <span className="mono" style={{ color: l.direction === 'in' ? 'var(--teal)' : 'inherit' }}>
-                      {l.direction === 'in' ? '+' : '−'}
-                      {inr(l.amount)}
-                    </span>
-                  </div>
-                ))}
-              </>
-            )}
-
-            <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 16, flexWrap: 'wrap' }}>
-              <Link className="btn sm" to="/work" onClick={() => setSnap(null)}>
-                Open on the board
-              </Link>
-              <button className="btn solid" onClick={() => setSnap(null)}>
-                Done
-              </button>
-            </div>
-          </>
-        )}
-      </Modal>
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Open per project</span>
+        <span className="spacer" />
+        <Link className="lk" to="/work">
+          Board
+        </Link>
+      </div>
+      <div className="bt-scroll">
+        {items.length ? <MiniBars items={items} /> : <p className="tip">No projects yet.</p>}
+      </div>
     </>
   );
 }

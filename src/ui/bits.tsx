@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from '../data/store';
-import { entrance } from './motion';
+import { entrance, useAnimateIn } from './motion';
 
 /* ── Tag chip ─────────────────────────────────────────────────────────── */
 export function TagChip({ name, onRemove }: { name: string; onRemove?: () => void }) {
@@ -142,30 +142,43 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 /* ── CountUp — numbers count up on first appearance ──────────────────── */
+/**
+ * The displayed number is always correct; the count-up is decoration.
+ *
+ * It deliberately does NOT start at 0 and rely on an animation to arrive at
+ * the real value: a hidden tab throttles requestAnimationFrame to nothing, so
+ * that design renders a permanent, confident-looking zero. Here the value is
+ * right on first paint and the animation only ever replays over it.
+ */
 export function CountUp({ value, format }: { value: number; format?: (n: number) => string }) {
-  const reduced = useReducedMotion();
-  const [shown, setShown] = useState(reduced ? value : 0);
-  const target = useRef(value);
+  const animate = useAnimateIn();
+  const [shown, setShown] = useState(value);
+  const raf = useRef<number>();
+
   useEffect(() => {
-    target.current = value;
-    if (reduced) {
+    if (!animate) {
       setShown(value);
       return;
     }
+    const from = 0;
     const start = performance.now();
-    const from = shown;
     const dur = 600;
-    let raf: number;
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / dur);
       const eased = 1 - Math.pow(1 - p, 3);
-      setShown(from + (target.current - from) * eased);
-      if (p < 1) raf = requestAnimationFrame(tick);
+      setShown(from + (value - from) * eased);
+      if (p < 1) raf.current = requestAnimationFrame(tick);
+      else setShown(value); // always land exactly on the real value
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, reduced]);
+    raf.current = requestAnimationFrame(tick);
+    // Safety net: if rAF is starved (tab hidden mid-flight), snap to the truth.
+    const guard = window.setTimeout(() => setShown(value), dur + 250);
+    return () => {
+      if (raf.current) cancelAnimationFrame(raf.current);
+      window.clearTimeout(guard);
+    };
+  }, [value, animate]);
+
   const n = Math.round(shown);
   return <>{format ? format(n) : n.toLocaleString('en-IN')}</>;
 }
@@ -177,10 +190,13 @@ export function Skeleton({ h = 16, w = '100%', style }: { h?: number; w?: number
 
 /* ── Progress bar ─────────────────────────────────────────────────────── */
 export function ProgressBar({ pct, grad = 'linear-gradient(90deg,var(--violet),var(--indigo))' }: { pct: number; grad?: string }) {
+  // initial={false} when animation can't run, so the bar renders filled
+  // rather than staying at width 0 in a background tab.
+  const animate = useAnimateIn();
   return (
     <div style={{ height: 5, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
       <motion.div
-        initial={{ width: 0 }}
+        initial={animate ? { width: 0 } : false}
         animate={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         style={{ height: '100%', background: grad, borderRadius: 4 }}

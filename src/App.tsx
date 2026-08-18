@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionGlobalConfig } from 'framer-motion';
 import {
   Home as HomeIcon,
   KanbanSquare,
@@ -327,7 +327,23 @@ function Gated() {
   );
 }
 
+/**
+ * Keep the skip-animations flag in step with visibility. The initial value is
+ * set in main.tsx before the first render (see the note there); this only
+ * handles the tab being hidden or restored later.
+ */
+function useSkipAnimationsWhenHidden() {
+  useEffect(() => {
+    const sync = () => {
+      MotionGlobalConfig.skipAnimations = document.visibilityState !== 'visible';
+    };
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
+}
+
 export default function App() {
+  useSkipAnimationsWhenHidden();
   return (
     <StoreProvider>
       <ToastProvider>

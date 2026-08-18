@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { Avatar, CountUp, useToast } from '../../ui/bits';
-import { lift, staggerItem, staggerList } from '../../ui/motion';
+import { lift, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { compressPhoto } from './photo';
 
 type Expiry = '' | '1h' | '3h' | 'eod';
@@ -303,7 +303,7 @@ function PromotedCard() {
 
 export function SideColumn({ onRitual }: { onRitual: (text: string) => void }) {
   return (
-    <motion.div variants={staggerList} initial="initial" animate="animate">
+    <motion.div {...staggerParent()}>
       <StatusCard />
       <SongCard />
       <PhotoCard />

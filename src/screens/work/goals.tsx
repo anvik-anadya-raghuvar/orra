@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { entrance, spring, staggerItem, staggerList } from '../../ui/motion';
+import { entrance, spring, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { todayIso } from '../../lib/dates';
 import { rankTasks } from '../../lib/ranking';
 import { BarRows, MiniBars, Ring, VIZ } from '../../ui/viz';
@@ -187,7 +187,7 @@ export default function GoalsTab() {
 
       {/* ranking cards — mobile */}
       <div className="wk-narrow">
-        <motion.div variants={staggerList} initial="initial" animate="animate">
+        <motion.div {...staggerParent()}>
           {ranked.slice(0, 10).map((r, i) => (
             <motion.div
               key={r.task.id}
@@ -236,7 +236,7 @@ export default function GoalsTab() {
       <div style={{ height: 18 }} />
 
       {/* objectives + key results */}
-      <motion.div variants={staggerList} initial="initial" animate="animate">
+      <motion.div {...staggerParent()}>
         {ds.objectives.map((o) => {
           const krs = ds.key_results
             .filter((k) => k.objective_id === o.id)

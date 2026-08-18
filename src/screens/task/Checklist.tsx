@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 import { newId, useData, useStore } from '../../data/store';
 import { ProgressBar } from '../../ui/bits';
-import { staggerItem, staggerList } from '../../ui/motion';
+import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import type { Task } from '../../types';
 
 /**
@@ -55,7 +55,7 @@ export default function Checklist({
         </div>
       )}
 
-      <motion.div variants={staggerList} initial="initial" animate="animate">
+      <motion.div {...staggerParent()}>
         <AnimatePresence initial={false}>
           {items.map((s) => (
             <motion.div

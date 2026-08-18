@@ -1,14 +1,31 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Settings2 } from 'lucide-react';
-import { newId, useData, useStore } from '../../data/store';
-import { CountUp, ProgressBar, useToast } from '../../ui/bits';
-import { entrance, lift, micro, rise, staggerItem, staggerList } from '../../ui/motion';
+import { AlertTriangle, Plus, Settings2, Sparkles } from 'lucide-react';
+import { newId, useData, useStore, type AppStore } from '../../data/store';
+import { CountUp, Modal, ProgressBar, useToast } from '../../ui/bits';
+import { entrance, micro, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { daysSinceTs, daysUntil, dayModeNow, fmtDay, inr, todayIso, type DayMode } from '../../lib/dates';
-import { rankTasks, type RankedTask } from '../../lib/ranking';
+import {
+  CAPACITY_MINUTES,
+  planDay,
+  rankTasks,
+  stuckTasks,
+  type RankedTask,
+} from '../../lib/ranking';
+import { CAPACITY_COPY, DEFAULT_WINS, eventsFor, planFor } from '../../lib/dayPlan';
 import { warmth } from '../../lib/warmth';
-import { CustomiseModal, PersonalLayer, ProjectsStrip } from './personal';
+import { BarRows, DayRibbon, MiniBars, Ring, Sparkline, SplitBar, VIZ } from '../../ui/viz';
+import {
+  CustomiseModal,
+  LifeTile,
+  MoneyTile,
+  PhotoTile,
+  ProjectsTile,
+  SongTile,
+  WorthTile,
+} from './personal';
+import type { Capacity, DayPlan, Task, WinCondition } from '../../types';
 import './style.css';
 
 const MODES: { key: DayMode; label: string }[] = [
@@ -16,38 +33,38 @@ const MODES: { key: DayMode; label: string }[] = [
   { key: 'midday', label: 'Midday' },
   { key: 'evening', label: 'Evening' },
 ];
-
 const GREETING: Record<DayMode, string> = {
   morning: 'Morning',
   midday: 'Afternoon',
   evening: 'Evening',
 };
+const CAPACITIES: Capacity[] = ['light', 'medium', 'heavy'];
+const STALE_DECISION_DAYS = 7;
+const FOCUS_MINUTES = 50;
 
-const SUBLINE: Record<DayMode, string> = {
-  morning: 'Three things need you. Nothing is on fire. Everything else waits behind one tap.',
-  midday: 'Head down. One thing at a time — the board will still be there.',
-  evening: 'Close the day properly and tomorrow starts lighter.',
-};
-
-/* Static, plausible, deliberately not an API call — one city per timezone. */
-const WEATHER = [
-  { city: 'Gurugram', tz: 'IST', temp: '33°', note: 'rain later', icon: 'sun' as const },
-  { city: 'Milan', tz: 'CET', temp: '27°', note: 'clear', icon: 'moon' as const },
-];
-
-const STALE_DECISION_DAYS = 7; // plan §1.2
-const FOCUS_MINUTES = 50; // plan §1.2
-
+const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m}m`);
 const fullDate = (d = new Date()) =>
   new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).format(d);
+const minsNow = (d = new Date()) => d.getHours() * 60 + d.getMinutes();
+
+/* ── One bento tile: declares how many columns and rows it occupies ────── */
+interface Tile {
+  key: string;
+  cols: 1 | 2 | 4;
+  tall?: boolean;
+  cls?: string;
+  node: React.ReactNode;
+}
 
 /* ── Home ──────────────────────────────────────────────────────────────── */
 export default function Home() {
   const ds = useData((d) => d);
+  const store = useStore();
   const me = useData((_, s) => s.me);
+  const toast = useToast();
   const today = todayIso();
 
-  // Auto mode, recomputed each minute; a manual pick overrides until cleared.
+  // Auto mode + the ribbon's "now" marker, both recomputed each minute.
   const [, setTick] = useState(0);
   useEffect(() => {
     const t = window.setInterval(() => setTick((x) => x + 1), 60_000);
@@ -57,335 +74,844 @@ export default function Home() {
   const mode: DayMode = manual ?? dayModeNow();
 
   const [customising, setCustomising] = useState(false);
+  const [addingBlock, setAddingBlock] = useState(false);
+  const [focusId, setFocusId] = useState<string | null>(null);
 
-  const ranked = rankTasks(ds, today);
+  /* ── the declared shape of the day ── */
+  const plan = planFor(ds, me.id, today);
+  const capacity: Capacity = plan?.capacity ?? 'medium';
+  const wins: WinCondition[] = plan?.wins?.length ? plan.wins : DEFAULT_WINS;
+
+  const upsertPlan = (patch: Partial<DayPlan>, summary: string) => {
+    if (plan) {
+      store.update('day_plans', plan.id, patch, store.asMe({ summary }));
+      return;
+    }
+    store.insert(
+      'day_plans',
+      {
+        id: newId('dp'),
+        user_id: me.id,
+        date: today,
+        capacity: 'medium',
+        intention: '',
+        wins: DEFAULT_WINS,
+        created_at: new Date().toISOString(),
+        ...patch,
+      } as DayPlan,
+      store.asMe({ summary }),
+    );
+  };
+
+  /* ── the automation: declare capacity, the portal assigns the work ── */
+  const ranked = useMemo(() => rankTasks(ds, today, capacity), [ds, today, capacity]);
+  const picked = useMemo(() => planDay(ranked, capacity), [ranked, capacity]);
   const top: RankedTask | undefined = ranked.find((r) => r.task.assignee_id === me.id) ?? ranked[0];
+  const stuck = useMemo(() => stuckTasks(ds), [ds]);
+  const events = useMemo(() => eventsFor(ds, me.id, today), [ds, me.id, today]);
 
   const openTasks = ds.tasks.filter((t) => t.status !== 'done');
-  const mineOpen = openTasks.filter((t) => t.assignee_id === me.id);
   const openDecisions = ds.decisions.filter((d) => d.status === 'open');
   const staleDecisions = openDecisions.filter((d) => daysSinceTs(d.opened_at) > STALE_DECISION_DAYS);
   const drifting = ds.people.filter((p) => warmth(p, today).drifting);
 
-  const flight = ds.fixed_dates.find((f) => f.label === 'Flight to Milan');
-  const nextBiz = [...ds.fixed_dates]
-    .filter((f) => f.category === 'business' && daysUntil(f.date, today) >= 0)
+  const p = me.personalization;
+  const focusTask = focusId ? ds.tasks.find((t) => t.id === focusId) ?? null : null;
+  const plannedMin = picked.reduce((a, r) => a + r.task.estimate_minutes, 0);
+  const nextFixed = [...ds.fixed_dates]
+    .filter((f) => daysUntil(f.date, today) >= 0)
     .sort((a, b) => a.date.localeCompare(b.date))[0];
   const runway = ds.ledger.reduce((a, l) => a + (l.direction === 'in' ? l.amount : -l.amount), 0);
 
-  return (
-    <div className="home-screen">
-      <motion.section className="welc" variants={rise} initial="initial" animate="animate">
-        <div className="welc-head">
-          <div className="eyebrow">{fullDate()}</div>
-          <div className="spacer" />
-          <div className="sub2" role="tablist" aria-label="Time of day">
-            {MODES.map((m) => (
-              <button
-                key={m.key}
-                role="tab"
-                aria-selected={mode === m.key}
-                onClick={() => setManual(m.key)}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-          {manual && (
-            <button className="chip" onClick={() => setManual(null)} title="Follow the clock again">
-              Auto
-            </button>
-          )}
-        </div>
-
-        <h1>
-          {GREETING[mode]}, {me.name}.
-        </h1>
-        <p className="sub">{SUBLINE[mode]}</p>
-
-        {/* ── ambient facts ── */}
-        <motion.div className="hz" variants={staggerList} initial="initial" animate="animate">
-          {WEATHER.map((w) => (
-            <motion.span className="wxb" key={w.city} variants={staggerItem}>
-              <span className={w.icon} aria-hidden />
-              {w.city} {w.temp} · {w.note}
-              <span className="mono" style={{ fontSize: 10, color: 'var(--mute)' }}>
-                {w.tz}
-              </span>
-            </motion.span>
-          ))}
-          {flight && (
-            <motion.span className="wxb" variants={staggerItem}>
-              <b>
-                <CountUp value={daysUntil(flight.date, today)} />
-              </b>{' '}
-              days to Italy
-            </motion.span>
-          )}
-          {nextBiz && (
-            <motion.span className="wxb" variants={staggerItem}>
-              <b>
-                <CountUp value={daysUntil(nextBiz.date, today)} />
-              </b>{' '}
-              days to {nextBiz.label}
-            </motion.span>
-          )}
-          <motion.span className="wxb" variants={staggerItem} title="Money in minus money out, all projects">
-            <b>
-              {runway < 0 ? '−' : ''}
-              <CountUp value={Math.abs(runway)} format={(n) => inr(n)} />
-            </b>{' '}
-            runway
-          </motion.span>
-          <motion.span variants={staggerItem} style={{ display: 'inline-flex' }}>
-            <Link className={`wxb${staleDecisions.length ? ' alert' : ''}`} to="/work">
-              <b>
-                <CountUp value={staleDecisions.length} />
-              </b>{' '}
-              decision{staleDecisions.length === 1 ? '' : 's'} open &gt; {STALE_DECISION_DAYS} days
-            </Link>
-          </motion.span>
-        </motion.div>
-
-        {/* ── the mode block ── */}
-        <AnimatePresence mode="wait">
-          <motion.div key={mode} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={entrance}>
-            {mode === 'morning' && <MorningCard top={top} />}
-            {mode === 'midday' && <MiddayCard top={top} mineOpen={mineOpen.length} />}
-            {mode === 'evening' && <EveningRitual />}
-          </motion.div>
-        </AnimatePresence>
-
-        <QuickCapture />
-      </motion.section>
-
-      {/* ── summary tiles ── */}
-      <motion.div className="tiles" variants={staggerList} initial="initial" animate="animate">
-        <motion.div variants={staggerItem} {...lift}>
-          <Link className="tile" to="/work">
-            <div className="n">
-              <CountUp value={openTasks.length} />
-            </div>
-            <div className="k">tasks open · {mineOpen.length} yours</div>
-          </Link>
-        </motion.div>
-        <motion.div variants={staggerItem} {...lift}>
-          <Link className="tile" to="/work">
-            <div className="n">
-              <CountUp value={openDecisions.length} />
-            </div>
-            <div className="k">
-              decisions open{staleDecisions.length ? ` · ${staleDecisions.length} stale` : ''}
-            </div>
-          </Link>
-        </motion.div>
-        <motion.div variants={staggerItem} {...lift}>
-          <Link className="tile" to="/people">
-            <div className="n">
-              <CountUp value={drifting.length} />
-            </div>
-            <div className="k">people drifting</div>
-          </Link>
-        </motion.div>
-      </motion.div>
-
-      {me.personalization.projects_strip && <ProjectsStrip />}
-      <PersonalLayer />
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn sm" onClick={() => setCustomising(true)}>
-          <Settings2 size={14} strokeWidth={1.8} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-          Customise this layer
-        </button>
-      </div>
-      <CustomiseModal open={customising} onClose={() => setCustomising(false)} />
-    </div>
-  );
-}
-
-/* ── Morning: the one ranked task, with its maths ──────────────────────── */
-function MorningCard({ top }: { top?: RankedTask }) {
-  const w = useData((ds) => ds.ranking_weights);
-  const reduced = useReducedMotion();
-  const [why, setWhy] = useState(false);
-
-  if (!top) {
-    return (
-      <div className="one">
-        <div style={{ flex: 1 }}>
-          <div className="eyebrow">Start here</div>
-          <div className="ttl">Nothing open on the business side. Rare — enjoy it.</div>
-        </div>
-      </div>
-    );
-  }
-
-  const pct = top.task.progress_pct;
-  const factors = [
-    { label: 'Objective fit', raw: top.objectiveFit, weight: w.objective_fit },
-    { label: 'Unblocks', raw: top.unblocks, weight: w.unblocks },
-    { label: 'Deadline', raw: top.deadline, weight: w.deadline },
+  /* ── tile inventory. Order is packing order; dense flow backfills. ── */
+  const tiles: Tile[] = [
+    {
+      key: 'greet',
+      cols: 4,
+      node: (
+        <GreetTile
+          mode={mode}
+          manual={manual}
+          setManual={setManual}
+          name={me.name}
+          plannedMin={plannedMin}
+          blocks={events.length}
+          runway={runway}
+          nextFixed={nextFixed ? { label: nextFixed.label, days: daysUntil(nextFixed.date, today) } : null}
+          stale={staleDecisions.length}
+        />
+      ),
+    },
+    {
+      key: 'hero',
+      cols: 2,
+      tall: true,
+      node: <HeroTile top={top} onFocus={(id) => setFocusId(id)} />,
+    },
+    {
+      key: 'capacity',
+      cols: 2,
+      node: (
+        <CapacityTile
+          capacity={capacity}
+          planned={plannedMin}
+          onPick={(c) => {
+            upsertPlan({ capacity: c }, `Day capacity set to ${CAPACITY_COPY[c].label.toLowerCase()}`);
+            toast(`${CAPACITY_COPY[c].label} day — the plan below just re-ranked.`);
+          }}
+        />
+      ),
+    },
+    { key: 'plan', cols: 2, node: <PlanTile picked={picked} capacity={capacity} /> },
+    {
+      key: 'wins',
+      cols: 2,
+      node: (
+        <WinsTile
+          intention={plan?.intention ?? ''}
+          wins={wins}
+          onIntention={(v) => upsertPlan({ intention: v }, 'Today’s intention set')}
+          onToggle={(i) => {
+            const next = wins.map((w, k) => (k === i ? { ...w, done: !w.done } : w));
+            upsertPlan({ wins: next }, `Win condition ${next[i].done ? 'met' : 'reopened'}`);
+          }}
+        />
+      ),
+    },
+    { key: 'stuck', cols: 2, node: <StuckTile rows={stuck} /> },
+    {
+      key: 'ribbon',
+      cols: 4,
+      node: <RibbonTile events={events} onAdd={() => setAddingBlock(true)} />,
+    },
+    { key: 'pulse', cols: 2, node: <PulseTile /> },
   ];
 
+  if (p.photo) tiles.push({ key: 'photo', cols: 2, tall: true, cls: 'bt-photo', node: <PhotoTile /> });
+
+  tiles.push({
+    key: 'ritual',
+    cols: 2,
+    tall: mode === 'evening',
+    node: <RitualTile mode={mode} top={top} onFocus={(id) => setFocusId(id)} />,
+  });
+
+  if (p.worth_knowing) tiles.push({ key: 'worth', cols: 2, node: <WorthTile /> });
+  if (p.life_radar) tiles.push({ key: 'life', cols: 2, node: <LifeTile /> });
+  tiles.push({ key: 'warmth', cols: 2, node: <WarmthTile /> });
+  tiles.push({ key: 'momentum', cols: 1, node: <MomentumTile /> });
+  tiles.push({ key: 'split', cols: 1, node: <SplitTile /> });
+  if (p.money_on_home) tiles.push({ key: 'money', cols: 1, node: <MoneyTile /> });
+  if (p.projects_strip) tiles.push({ key: 'projects', cols: 1, node: <ProjectsTile /> });
+  if (p.song) tiles.push({ key: 'song', cols: 1, node: <SongTile /> });
+
+  tiles.push({
+    key: 'st-tasks',
+    cols: 1,
+    node: (
+      <StatTile
+        to="/work"
+        value={openTasks.length}
+        label="tasks open"
+        items={[
+          { label: 'planned', value: picked.length },
+          { label: 'open', value: openTasks.length },
+        ]}
+      />
+    ),
+  });
+  tiles.push({
+    key: 'st-dec',
+    cols: 1,
+    node: (
+      <StatTile
+        to="/work"
+        value={openDecisions.length}
+        label="decisions waiting"
+        alert={staleDecisions.length > 0}
+        items={[
+          { label: `>${STALE_DECISION_DAYS}d`, value: staleDecisions.length },
+          { label: 'open', value: openDecisions.length },
+        ]}
+      />
+    ),
+  });
+  tiles.push({
+    key: 'st-people',
+    cols: 1,
+    node: (
+      <StatTile
+        to="/people"
+        value={drifting.length}
+        label="people drifting"
+        alert={drifting.length > 0}
+        items={[
+          { label: 'drifting', value: drifting.length },
+          { label: 'tracked', value: ds.people.length },
+        ]}
+      />
+    ),
+  });
+
+  // The tail tile is sized so the grid always closes as a full rectangle.
+  const cells = tiles.reduce((a, t) => a + t.cols * (t.tall ? 2 : 1), 0);
+  const rem = (4 - (cells % 4)) % 4;
+  tiles.push({
+    key: 'filler',
+    cols: rem === 0 ? 4 : rem === 3 ? 2 : (rem as 1 | 2),
+    cls: 'bt-filler',
+    node: <FillerTile hidden={6 - Object.values(p).filter(Boolean).length} onOpen={() => setCustomising(true)} />,
+  });
+
   return (
-    <div className="one">
-      <svg className="ring" viewBox="0 0 36 36" role="img" aria-label={`${pct}% complete`}>
-        <defs>
-          <linearGradient id="home-ring-grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--violet)" />
-            <stop offset="100%" stopColor="var(--indigo)" />
-          </linearGradient>
-        </defs>
-        <circle className="bgc" cx="18" cy="18" r="15.9" strokeDasharray="100" />
-        <motion.circle
-          cx="18"
-          cy="18"
-          r="15.9"
-          stroke="url(#home-ring-grad)"
-          strokeDasharray="100"
-          initial={{ strokeDashoffset: reduced ? 100 - pct : 100 }}
-          animate={{ strokeDashoffset: 100 - pct }}
-          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </svg>
-
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <div className="eyebrow">Start here — ranked by the formula</div>
-        <Link className="ttl" to={`/task/${top.task.id}`}>
-          {top.task.title}
-        </Link>
-        <div className="mono meta">
-          {top.task.id} · score {top.score} · {pct}% done
-          {top.task.due_date ? ` · due ${fmtDay(top.task.due_date)}` : ''}
-        </div>
-        <button
-          className="chip"
-          style={{ marginTop: 9 }}
-          aria-expanded={why}
-          onClick={() => setWhy((v) => !v)}
-        >
-          {why ? 'Hide the maths' : 'Why this one?'}
-        </button>
-      </div>
-
-      <Link className="btn solid" to={`/task/${top.task.id}`}>
-        Open
-      </Link>
-
-      <AnimatePresence initial={false}>
-        {why && (
-          <motion.div
-            className="why"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1, transition: entrance }}
-            exit={{ height: 0, opacity: 0, transition: micro }}
+    <div className="home-screen">
+      <motion.div className="bento" {...staggerParent()}>
+        {tiles.map((t) => (
+          <motion.section
+            key={t.key}
+            className={`bt bt-c${t.cols}${t.tall ? ' bt-tall' : ''}${t.cls ? ` ${t.cls}` : ''}`}
+            variants={staggerItem}
           >
-            <ul>
-              {top.why.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-            {factors.map((f) => (
-              <div className="whyrow" key={f.label}>
-                <span className="lbl">
-                  {f.label} <span className="mono" style={{ fontSize: 10 }}>×{f.weight}</span>
-                </span>
-                <span className="bar">
-                  <ProgressBar pct={f.raw} />
-                </span>
-                <span className="num">{f.raw}</span>
-              </div>
-            ))}
-            <div className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>
-              weighted total {top.score} · weights live in ranking_weights, editable in Work
-            </div>
-          </motion.div>
+            {t.node}
+          </motion.section>
+        ))}
+      </motion.div>
+
+      <CustomiseModal open={customising} onClose={() => setCustomising(false)} />
+      <AddBlockModal open={addingBlock} onClose={() => setAddingBlock(false)} store={store} today={today} />
+      <AnimatePresence>
+        {focusTask && (
+          <FocusOverlay
+            task={focusTask}
+            intention={plan?.intention ?? ''}
+            onExit={() => setFocusId(null)}
+          />
         )}
       </AnimatePresence>
     </div>
   );
 }
 
-/* ── Midday: one focus card, 50-minute block ───────────────────────────── */
-function MiddayCard({ top, mineOpen }: { top?: RankedTask; mineOpen: number }) {
-  const store = useStore();
-  const toast = useToast();
-  const FULL = FOCUS_MINUTES * 60;
-  const [left, setLeft] = useState(FULL);
-  const [running, setRunning] = useState(false);
-  const logged = useRef(false);
+/* ── Greeting + mode + quick capture, all in one compact band ──────────── */
+function GreetTile({
+  mode,
+  manual,
+  setManual,
+  name,
+  plannedMin,
+  blocks,
+  runway,
+  nextFixed,
+  stale,
+}: {
+  mode: DayMode;
+  manual: DayMode | null;
+  setManual: (m: DayMode | null) => void;
+  name: string;
+  plannedMin: number;
+  blocks: number;
+  runway: number;
+  nextFixed: { label: string; days: number } | null;
+  stale: number;
+}) {
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">{fullDate()}</span>
+        <span className="spacer" />
+        <div className="sub2" role="tablist" aria-label="Time of day">
+          {MODES.map((m) => (
+            <button key={m.key} role="tab" aria-selected={mode === m.key} onClick={() => setManual(m.key)}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+        {manual && (
+          <button className="chip" onClick={() => setManual(null)} title="Follow the clock again">
+            Auto
+          </button>
+        )}
+      </div>
+      <div className="greetrow">
+        <h1>
+          {GREETING[mode]}, {name}.
+        </h1>
+        <QuickCapture />
+      </div>
+      <div className="ambrow">
+        <span className="amb">
+          <b>{hm(plannedMin)}</b> assigned to you
+        </span>
+        <span className="amb">
+          <b>
+            <CountUp value={blocks} />
+          </b>{' '}
+          block{blocks === 1 ? '' : 's'} on the clock
+        </span>
+        <span className="amb" title="Money in minus money out, all projects">
+          <b>
+            {runway < 0 ? '−' : ''}
+            <CountUp value={Math.abs(runway)} format={(n) => inr(n)} />
+          </b>{' '}
+          runway
+        </span>
+        {nextFixed && (
+          <span className="amb">
+            <b>
+              <CountUp value={nextFixed.days} />
+            </b>{' '}
+            days to {nextFixed.label}
+          </span>
+        )}
+        <Link className={`amb${stale ? ' alert' : ''}`} to="/work">
+          <b>
+            <CountUp value={stale} />
+          </b>{' '}
+          decision{stale === 1 ? '' : 's'} past {STALE_DECISION_DAYS} days
+        </Link>
+      </div>
+    </>
+  );
+}
 
-  useEffect(() => {
-    if (!running) return;
-    const t = window.setInterval(() => setLeft((l) => Math.max(0, l - 1)), 1000);
-    return () => window.clearInterval(t);
-  }, [running]);
+/* ── Capacity: the headline control. Declare the shape of the day. ─────── */
+function CapacityTile({
+  capacity,
+  planned,
+  onPick,
+}: {
+  capacity: Capacity;
+  planned: number;
+  onPick: (c: Capacity) => void;
+}) {
+  const budget = CAPACITY_MINUTES[capacity];
+  const pct = Math.min(100, Math.round((planned / budget) * 100));
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">How heavy do you want today?</span>
+      </div>
+      <div className="capset" role="radiogroup" aria-label="Today's capacity">
+        {CAPACITIES.map((c) => (
+          <button
+            key={c}
+            role="radio"
+            aria-checked={capacity === c}
+            className={capacity === c ? 'on' : ''}
+            onClick={() => onPick(c)}
+          >
+            {CAPACITY_COPY[c].label}
+          </button>
+        ))}
+      </div>
+      <p className="capblurb">{CAPACITY_COPY[capacity].blurb}</p>
+      <div className="meter">
+        <ProgressBar pct={pct} />
+        <span className="mono">
+          <CountUp value={planned} format={(n) => hm(n)} /> of {hm(budget)} assigned
+        </span>
+      </div>
+    </>
+  );
+}
 
-  useEffect(() => {
-    if (left > 0 || logged.current) return;
-    logged.current = true;
-    setRunning(false);
-    store.insert(
-      'time_logs',
-      {
-        id: newId('tl'),
-        user_id: store.me.id,
-        date: todayIso(),
-        kind: 'founder',
-        minutes: FOCUS_MINUTES,
-        course_id: null,
-      },
-      store.asMe({ summary: `Focus block — ${FOCUS_MINUTES} min logged` }),
+/* ── Your day, planned — the work the portal picked for that capacity ──── */
+function PlanTile({ picked, capacity }: { picked: RankedTask[]; capacity: Capacity }) {
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Your day, planned</span>
+        <span className="spacer" />
+        <span className="mono bt-num">
+          <CountUp value={picked.length} /> task{picked.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className="bt-scroll">
+        {picked.length === 0 && (
+          <p className="tip" style={{ marginTop: 0 }}>
+            Nothing fits a {CAPACITY_COPY[capacity].label.toLowerCase()} day. Change the capacity above and this re-plans itself.
+          </p>
+        )}
+        {picked.map((r) => (
+          <Link className="planrow" key={r.task.id} to={`/task/${r.task.id}`}>
+            <span className={`echip e-${r.task.effort}`}>{r.task.effort}</span>
+            <span className="planttl">{r.task.title}</span>
+            <span className="mono planmin">{hm(r.task.estimate_minutes)}</span>
+          </Link>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ── Hero: the one thing, with its maths and a way into focus ──────────── */
+function HeroTile({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) => void }) {
+  const w = useData((ds) => ds.ranking_weights);
+  if (!top) {
+    return (
+      <>
+        <div className="bt-hd">
+          <span className="eyebrow">Start here</span>
+        </div>
+        <div className="heroempty">
+          <Sparkles size={24} strokeWidth={1.4} aria-hidden />
+          <b>Nothing open on the business side.</b>
+          <span>Rare. Enjoy it, or go read something.</span>
+        </div>
+      </>
     );
-    toast(`${FOCUS_MINUTES} minutes logged. Stand up, drink water.`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [left]);
+  }
+  const t = top.task;
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Start here · ranked, not guessed</span>
+        <span className="spacer" />
+        <span className="mono bt-num">score {top.score}</span>
+      </div>
+      <div className="herotop">
+        <Ring pct={t.progress_pct} size={62} label={`${t.progress_pct}% complete`} />
+        <div className="herocopy">
+          <Link className="heroTtl" to={`/task/${t.id}`}>
+            {t.title}
+          </Link>
+          <div className="herometa mono">
+            {t.id} · {t.progress_pct}% done{t.due_date ? ` · due ${fmtDay(t.due_date)}` : ''}
+          </div>
+          <div className="rowgap tight">
+            <span className={`echip e-${t.effort}`}>{t.effort}</span>
+            <span className="mono bt-num">{hm(t.estimate_minutes)}</span>
+          </div>
+        </div>
+      </div>
+      <div className="whylist">
+        {top.why.slice(0, 3).map((line) => (
+          <span className="whyitem" key={line}>
+            {line}
+          </span>
+        ))}
+      </div>
+      <div className="herofactors bt-scroll">
+        <BarRows
+          max={100}
+          rows={[
+            { label: `Objective fit ×${w.objective_fit}`, value: top.objectiveFit },
+            { label: `Unblocks ×${w.unblocks}`, value: top.unblocks },
+            { label: `Deadline ×${w.deadline}`, value: top.deadline },
+          ]}
+        />
+      </div>
+      <div className="rowgap">
+        <Link className="btn solid" to={`/task/${t.id}`}>
+          Open
+        </Link>
+        <button className="btn" onClick={() => onFocus(t.id)}>
+          Focus
+        </button>
+      </div>
+    </>
+  );
+}
 
-  const mm = String(Math.floor(left / 60)).padStart(2, '0');
-  const ss = String(left % 60).padStart(2, '0');
+/* ── Intention + "Today is a win if…" ──────────────────────────────────── */
+function WinsTile({
+  intention,
+  wins,
+  onIntention,
+  onToggle,
+}: {
+  intention: string;
+  wins: WinCondition[];
+  onIntention: (v: string) => void;
+  onToggle: (i: number) => void;
+}) {
+  const [draft, setDraft] = useState(intention);
+  useEffect(() => setDraft(intention), [intention]);
+  const done = wins.filter((w) => w.done).length;
 
   return (
-    <div className="one">
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <div className="eyebrow">In focus</div>
-        {top ? (
-          <Link className="ttl" to={`/task/${top.task.id}`}>
-            {top.task.title}
-          </Link>
-        ) : (
-          <div className="ttl">Pick anything — the board is clear.</div>
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Today's intention</span>
+      </div>
+      <input
+        className="srch intentin"
+        value={draft}
+        placeholder="One line. What is today actually for?"
+        aria-label="Today's intention"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => draft !== intention && onIntention(draft.trim())}
+        onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+      />
+      <div className="bt-hd" style={{ marginTop: 4 }}>
+        <span className="eyebrow">Today is a win if…</span>
+        <span className="spacer" />
+        <Ring pct={(done / Math.max(wins.length, 1)) * 100} size={26} color={VIZ.cat[2]} label={`${done} of ${wins.length} met`} />
+        <span className="mono bt-num">
+          {done}/{wins.length}
+        </span>
+      </div>
+      <div className="bt-scroll">
+        {wins.map((w, i) => (
+          <button
+            key={w.text}
+            className={`win${w.done ? ' done' : ''}`}
+            aria-pressed={w.done}
+            onClick={() => onToggle(i)}
+          >
+            <span className="wdot" aria-hidden />
+            <span>{w.text}</span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ── Stuck zone ────────────────────────────────────────────────────────── */
+function StuckTile({ rows }: { rows: { task: Task; reason: string }[] }) {
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Stuck? No shame — just surface it</span>
+        <span className="spacer" />
+        <span className={`mono bt-num${rows.length ? ' alert' : ''}`}>
+          <CountUp value={rows.length} />
+        </span>
+      </div>
+      <div className="bt-scroll">
+        {rows.length === 0 && (
+          <div className="calm">
+            <b>Nothing is stuck.</b>
+            <span>No blocked reasons, no evidence aging past 48 hours.</span>
+          </div>
         )}
-        <div className="mono meta">
-          {top ? `${top.task.id} · ` : ''}1 of {Math.max(mineOpen, 1)} today · notifications muted
-        </div>
+        {rows.map(({ task, reason }) => (
+          <Link className="stuckrow" key={task.id} to={`/task/${task.id}`}>
+            <AlertTriangle size={14} strokeWidth={1.8} aria-hidden />
+            <span>
+              <b>{task.title}</b>
+              <em>{reason}</em>
+            </span>
+          </Link>
+        ))}
       </div>
-      <div style={{ textAlign: 'right' }}>
-        <div className="clock" aria-live="polite">
-          {mm}:{ss}
-        </div>
-        <div className="timerbtns" style={{ justifyContent: 'flex-end' }}>
-          <button
-            className="btn sm"
-            onClick={() => {
-              logged.current = false;
-              setRunning((r) => !r);
-            }}
-          >
-            {running ? 'Pause' : left === FULL ? `Start ${FOCUS_MINUTES} min` : 'Resume'}
-          </button>
-          <button
-            className="btn sm"
-            onClick={() => {
-              setRunning(false);
-              logged.current = false;
-              setLeft(FULL);
-            }}
-          >
-            Reset
-          </button>
-        </div>
+    </>
+  );
+}
+
+/* ── Today's events ribbon ─────────────────────────────────────────────── */
+function RibbonTile({
+  events,
+  onAdd,
+}: {
+  events: ReturnType<typeof eventsFor>;
+  onAdd: () => void;
+}) {
+  const navigate = useNavigate();
+  const contexts = new Set(events.map((e) => e.kind)).size;
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Today, as it is actually shaped</span>
+        <span className="spacer" />
+        <span className="mono bt-num">
+          <CountUp value={contexts} /> context{contexts === 1 ? '' : 's'}
+        </span>
+        <button className="btn sm" onClick={onAdd}>
+          <Plus size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          Add block
+        </button>
       </div>
-    </div>
+      <div className="bt-mid">
+      {events.length ? (
+        <DayRibbon
+          events={events.map((e) => ({
+            id: e.id,
+            start_min: e.start_min,
+            end_min: e.end_min,
+            label: e.label,
+            kind: e.kind,
+          }))}
+          nowMin={minsNow()}
+          onPick={(id) => {
+            const ev = events.find((x) => x.id === id);
+            if (ev?.task_id) navigate(`/task/${ev.task_id}`);
+          }}
+        />
+      ) : (
+        <p className="tip" style={{ marginTop: 0 }}>
+          Nothing blocked out today. Add one and the day stops being a guess.
+        </p>
+      )}
+      </div>
+    </>
+  );
+}
+
+/* ── Pair pulse ────────────────────────────────────────────────────────── */
+function PulseTile() {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const other = useData((_, s) => s.other);
+  const toast = useToast();
+  const navigate = useNavigate();
+
+  const theirs = ds.tasks
+    .filter((t) => t.assignee_id === other.id && t.status !== 'done')
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+
+  const need = () => {
+    store.insert(
+      'messages',
+      {
+        id: newId('m'),
+        sender_id: store.me.id,
+        body: theirs
+          ? `Need you on ${theirs.id} — ${theirs.title}. No rush, whenever you switch contexts.`
+          : `Need you on something when you switch contexts.`,
+        task_ref_id: theirs?.id ?? null,
+        attachment_url: null,
+        song_ref: null,
+        promoted_to_type: null,
+        promoted_to_id: null,
+        created_at: new Date().toISOString(),
+      },
+      store.asMe({ summary: `Quiet ask sent to ${other.name}` }),
+    );
+    toast(`Sent. ${other.name} sees it in Us.`);
+    navigate('/us');
+  };
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Pair pulse · no status theatre</span>
+      </div>
+      <div className="pulsehead">
+        <span className="pulsedot" aria-hidden />
+        <b>{other.name} is in motion, not waiting for a standup.</b>
+      </div>
+      <p className="pulsestatus">{other.status_text ?? 'No declared focus right now.'}</p>
+      {theirs && (
+        <Link className="pulselast" to={`/task/${theirs.id}`}>
+          <span className="mono">{theirs.id}</span>
+          <span>{theirs.title}</span>
+          <span className="mono planmin">{theirs.progress_pct}%</span>
+        </Link>
+      )}
+      <div className="rowgap">
+        <button className="btn solid" onClick={need}>
+          Need you on…
+        </button>
+        <Link className="btn sm" to="/us">
+          Open Us
+        </Link>
+      </div>
+    </>
+  );
+}
+
+/* ── Weekly momentum ───────────────────────────────────────────────────── */
+function MomentumTile() {
+  const tasks = useData((ds) => ds.tasks);
+  const { values, labels, total } = useMemo(() => {
+    const days: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    const vals = days.map(
+      (d) => tasks.filter((t) => t.status === 'done' && t.updated_at.slice(0, 10) === d).length,
+    );
+    const labs = days.map((d) =>
+      new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(new Date(d + 'T00:00:00')),
+    );
+    return { values: vals, labels: labs, total: vals.reduce((a, b) => a + b, 0) };
+  }, [tasks]);
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Momentum · 7 days</span>
+      </div>
+      <div className="bignum">
+        <CountUp value={total} />
+        <span>closed</span>
+      </div>
+      <div className="bt-mid">
+        <Sparkline values={values} labels={labels} height={62} />
+      </div>
+    </>
+  );
+}
+
+/* ── Focus split, study vs founder ─────────────────────────────────────── */
+function SplitTile() {
+  const logs = useData((ds) => ds.time_logs);
+  const me = useData((_, s) => s.me);
+  const mine = logs.filter((l) => l.user_id === me.id);
+  const study = mine.filter((l) => l.kind === 'study').reduce((a, l) => a + l.minutes, 0);
+  const founder = mine.filter((l) => l.kind === 'founder').reduce((a, l) => a + l.minutes, 0);
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Where the hours went</span>
+      </div>
+      <div className="bignum">
+        <CountUp value={study + founder} format={(n) => hm(n)} />
+        <span>logged</span>
+      </div>
+      <div className="bt-mid">
+        <SplitBar
+          height={16}
+          parts={[
+            { label: 'Founder', value: founder, color: VIZ.cat[0] },
+            { label: 'Study', value: study, color: VIZ.cat[2] },
+          ]}
+        />
+      </div>
+    </>
+  );
+}
+
+/* ── Relationship warmth ───────────────────────────────────────────────── */
+function WarmthTile() {
+  const people = useData((ds) => ds.people);
+  const today = todayIso();
+  const rows = people
+    .map((p) => ({ label: p.name, value: Math.round(warmth(p, today).level * 100) }))
+    .sort((a, b) => a.value - b.value)
+    .slice(0, 5);
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Warmth · coldest first</span>
+        <span className="spacer" />
+        <Link className="lk" to="/people">
+          People
+        </Link>
+      </div>
+      <div className="bt-scroll">
+        {rows.length ? (
+          <BarRows rows={rows} max={100} format={(n) => `${n}%`} />
+        ) : (
+          <p className="tip" style={{ marginTop: 0 }}>No one on the list yet.</p>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ── Small stat tile ───────────────────────────────────────────────────── */
+function StatTile({
+  to,
+  value,
+  label,
+  items,
+  alert,
+}: {
+  to: string;
+  value: number;
+  label: string;
+  items: { label: string; value: number }[];
+  alert?: boolean;
+}) {
+  const max = Math.max(...items.map((i) => i.value), 1);
+  return (
+    <Link className={`statlink${alert ? ' alert' : ''}`} to={to}>
+      <div className="bignum">
+        <CountUp value={value} />
+        <span>{label}</span>
+      </div>
+      <MiniBars items={items.map((i) => ({ ...i, max }))} />
+    </Link>
+  );
+}
+
+/* ── Tail tile — sized so the grid always closes as a rectangle ────────── */
+function FillerTile({ hidden, onOpen }: { hidden: number; onOpen: () => void }) {
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Your Home, your shape</span>
+      </div>
+      <p className="tip" style={{ margin: 0 }}>
+        {hidden > 0
+          ? `${hidden} widget${hidden === 1 ? '' : 's'} hidden. The grid re-flowed to fill the space they left.`
+          : 'Every widget is on. Turn any of them off and the rest close the gap.'}
+      </p>
+      <div className="rowgap">
+        <button className="btn sm" onClick={onOpen}>
+          <Settings2 size={14} strokeWidth={1.8} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+          Customise this layer
+        </button>
+      </div>
+    </>
+  );
+}
+
+/* ── The three time-of-day modes, compressed into one tile ─────────────── */
+function RitualTile({
+  mode,
+  top,
+  onFocus,
+}: {
+  mode: DayMode;
+  top?: RankedTask;
+  onFocus: (id: string) => void;
+}) {
+  if (mode === 'midday') return <MiddayBlock top={top} onFocus={onFocus} />;
+  if (mode === 'evening') return <EveningRitual />;
+  return <MorningBlock top={top} onFocus={onFocus} />;
+}
+
+function MorningBlock({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) => void }) {
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Morning · before the inbox decides</span>
+      </div>
+      <p className="modecopy">
+        The plan is assigned. Protect the first block and the rest of the day usually behaves.
+      </p>
+      <div className="rowgap">
+        {top && (
+          <button className="btn solid" onClick={() => onFocus(top.task.id)}>
+            Start the first block
+          </button>
+        )}
+        <Link className="btn sm" to="/work">
+          See the board
+        </Link>
+      </div>
+    </>
+  );
+}
+
+function MiddayBlock({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) => void }) {
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Midday · one thing at a time</span>
+      </div>
+      <p className="modecopy">
+        {top ? top.task.title : 'Board is clear — pick anything.'}
+      </p>
+      <div className="rowgap">
+        {top && (
+          <button className="btn solid" onClick={() => onFocus(top.task.id)}>
+            {FOCUS_MINUTES}-minute block
+          </button>
+        )}
+        <Link className="btn sm" to="/work">
+          Board
+        </Link>
+      </div>
+    </>
   );
 }
 
@@ -403,7 +929,6 @@ function EveningRitual() {
   const [stuck, setStuck] = useState(existing?.stuck ?? '');
   const [tomorrow, setTomorrow] = useState(existing?.tomorrow ?? '');
 
-  // Consecutive days ending today (or yesterday, if today isn't closed yet).
   const mine = new Set(ds.daily_closeouts.filter((c) => c.user_id === me.id).map((c) => c.date));
   let streak = 0;
   {
@@ -417,12 +942,7 @@ function EveningRitual() {
 
   const save = () => {
     if (existing) {
-      store.update(
-        'daily_closeouts',
-        existing.id,
-        { shipped, stuck, tomorrow },
-        store.asMe({ summary: 'Day closed — revised' }),
-      );
+      store.update('daily_closeouts', existing.id, { shipped, stuck, tomorrow }, store.asMe({ summary: 'Day closed — revised' }));
     } else {
       store.insert(
         'daily_closeouts',
@@ -442,62 +962,39 @@ function EveningRitual() {
     toast('Day closed. Tomorrow starts lighter.');
   };
 
-  const openTasks = ds.tasks.filter((t) => t.status !== 'done').length;
-  const openDecs = ds.decisions.filter((d) => d.status === 'open').length;
-  const digestBody = [
-    `${me.name}'s shutdown — ${fmtDay(today)}`,
-    '',
-    `Shipped: ${shipped || '—'}`,
-    `Stuck: ${stuck || '—'}`,
-    `Tomorrow: ${tomorrow || '—'}`,
-    '',
-    `Board: ${openTasks} tasks open · ${openDecs} decisions waiting.`,
-  ].join('\n');
-  const mailto = `mailto:${ds.profiles.map((p) => p.email).join(',')}?subject=${encodeURIComponent(
-    `Anvik daily digest — ${fmtDay(today)}`,
-  )}&body=${encodeURIComponent(digestBody)}`;
-
-  const dots = (
-    <span className="dots" aria-hidden>
-      {Array.from({ length: 7 }, (_, i) => (
-        <i key={i} className={i < streak ? 'on' : ''} />
-      ))}
-    </span>
-  );
-
   return (
-    <div className="one rit" style={{ display: 'block' }}>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>
-        Shutdown ritual · 2 minutes
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Shutdown · 2 minutes</span>
+        <span className="spacer" />
+        <span className="dots" aria-label={`${streak} day streak`}>
+          {Array.from({ length: 7 }, (_, i) => (
+            <i key={i} className={i < streak ? 'on' : ''} />
+          ))}
+        </span>
       </div>
-
-      {editing ? (
-        <motion.div variants={staggerList} initial="initial" animate="animate">
-          <motion.div variants={staggerItem}>
-            <label htmlFor="rit-shipped">What shipped today</label>
+      <div className="bt-scroll rit">
+        {editing ? (
+          <>
+            <label htmlFor="rit-shipped">What shipped</label>
             <textarea id="rit-shipped" value={shipped} onChange={(e) => setShipped(e.target.value)} />
-          </motion.div>
-          <motion.div variants={staggerItem}>
             <label htmlFor="rit-stuck">What's stuck, honestly</label>
             <textarea id="rit-stuck" value={stuck} onChange={(e) => setStuck(e.target.value)} />
-          </motion.div>
-          <motion.div variants={staggerItem}>
             <label htmlFor="rit-tomorrow">Tomorrow's one thing</label>
             <textarea id="rit-tomorrow" value={tomorrow} onChange={(e) => setTomorrow(e.target.value)} />
-          </motion.div>
-        </motion.div>
-      ) : (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={entrance}>
-          <label>Shipped</label>
-          <p className="done-line">{shipped || '—'}</p>
-          <label>Stuck</label>
-          <p className="done-line">{stuck || '—'}</p>
-          <label>Tomorrow's one thing</label>
-          <p className="done-line">{tomorrow || '—'}</p>
-        </motion.div>
-      )}
-
-      <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
+          </>
+        ) : (
+          <>
+            <label>Shipped</label>
+            <p className="done-line">{shipped || '—'}</p>
+            <label>Stuck</label>
+            <p className="done-line">{stuck || '—'}</p>
+            <label>Tomorrow's one thing</label>
+            <p className="done-line">{tomorrow || '—'}</p>
+          </>
+        )}
+      </div>
+      <div className="rowgap">
         {editing ? (
           <button className="btn solid" onClick={save}>
             Close the day
@@ -512,15 +1009,8 @@ function EveningRitual() {
             </button>
           </>
         )}
-        <a className="btn sm" href={mailto}>
-          Email the digest to both
-        </a>
-        <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>
-          streak <b style={{ color: 'var(--ink)' }}>{streak}</b>
-          {dots}
-        </span>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -566,7 +1056,7 @@ function QuickCapture() {
         className="srch"
         value={text}
         aria-label="Quick capture"
-        placeholder="Empty your head — one line, becomes a note"
+        placeholder="Empty your head — one line becomes a note"
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
       />
@@ -574,5 +1064,234 @@ function QuickCapture() {
         Capture
       </button>
     </div>
+  );
+}
+
+/* ── Add a block to today's ribbon ─────────────────────────────────────── */
+const KINDS: { k: 'focus' | 'meeting' | 'study' | 'admin' | 'personal'; label: string }[] = [
+  { k: 'focus', label: 'Focus' },
+  { k: 'meeting', label: 'Meeting' },
+  { k: 'study', label: 'Study' },
+  { k: 'admin', label: 'Admin' },
+  { k: 'personal', label: 'Personal' },
+];
+
+function AddBlockModal({
+  open,
+  onClose,
+  store,
+  today,
+}: {
+  open: boolean;
+  onClose: () => void;
+  store: AppStore;
+  today: string;
+}) {
+  const toast = useToast();
+  const [label, setLabel] = useState('');
+  const [start, setStart] = useState('09:00');
+  const [end, setEnd] = useState('10:30');
+  const [kind, setKind] = useState<(typeof KINDS)[number]['k']>('focus');
+
+  const toMin = (v: string) => {
+    const [h, m] = v.split(':').map((n) => parseInt(n, 10));
+    return (h || 0) * 60 + (m || 0);
+  };
+
+  const save = () => {
+    const s = toMin(start);
+    const e = Math.max(s + 15, toMin(end));
+    if (!label.trim()) return;
+    store.insert(
+      'day_events',
+      {
+        id: newId('ev'),
+        user_id: store.me.id,
+        date: today,
+        start_min: s,
+        end_min: e,
+        label: label.trim(),
+        kind,
+        task_id: null,
+      },
+      store.asMe({ summary: `Blocked out "${label.trim()}"` }),
+    );
+    setLabel('');
+    onClose();
+    toast('Blocked out. The ribbon just changed shape.');
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Block out time">
+      <label className="eyebrow" htmlFor="blk-label">
+        What is it
+      </label>
+      <input
+        id="blk-label"
+        className="srch"
+        style={{ width: '100%', margin: '6px 0 12px' }}
+        value={label}
+        placeholder="Build · Registry"
+        onChange={(e) => setLabel(e.target.value)}
+      />
+      <div className="blkgrid">
+        <div>
+          <label className="eyebrow" htmlFor="blk-start">
+            Start
+          </label>
+          <input id="blk-start" className="srch" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+        </div>
+        <div>
+          <label className="eyebrow" htmlFor="blk-end">
+            End
+          </label>
+          <input id="blk-end" className="srch" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+        </div>
+      </div>
+      <div className="filters" style={{ marginTop: 12 }}>
+        {KINDS.map((x) => (
+          <button
+            key={x.k}
+            className="chip"
+            aria-pressed={kind === x.k}
+            onClick={() => setKind(x.k)}
+          >
+            {x.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 16 }}>
+        <button className="btn" onClick={onClose}>
+          Cancel
+        </button>
+        <button className="btn solid" onClick={save} disabled={!label.trim()}>
+          Add block
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ── Founder mode: only this task exists ───────────────────────────────── */
+function FocusOverlay({
+  task,
+  intention,
+  onExit,
+}: {
+  task: Task;
+  intention: string;
+  onExit: () => void;
+}) {
+  const store = useStore();
+  const toast = useToast();
+  const reduced = useReducedMotion();
+  const FULL = FOCUS_MINUTES * 60;
+  const [left, setLeft] = useState(FULL);
+  const [running, setRunning] = useState(true);
+  const logged = useRef(false);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => e.key === 'Escape' && onExit();
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [onExit]);
+
+  useEffect(() => {
+    if (!running) return;
+    const t = window.setInterval(() => setLeft((l) => Math.max(0, l - 1)), 1000);
+    return () => window.clearInterval(t);
+  }, [running]);
+
+  useEffect(() => {
+    if (left > 0 || logged.current) return;
+    logged.current = true;
+    setRunning(false);
+    store.insert(
+      'time_logs',
+      {
+        id: newId('tl'),
+        user_id: store.me.id,
+        date: todayIso(),
+        kind: 'founder',
+        minutes: FOCUS_MINUTES,
+        course_id: null,
+      },
+      store.asMe({ summary: `Focus block — ${FOCUS_MINUTES} min logged` }),
+    );
+    toast(`${FOCUS_MINUTES} minutes logged. Stand up, drink water.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [left]);
+
+  const mm = String(Math.floor(left / 60)).padStart(2, '0');
+  const ss = String(left % 60).padStart(2, '0');
+
+  const progress = () => {
+    store.update(
+      'tasks',
+      task.id,
+      { progress_pct: Math.min(100, task.progress_pct + 15) },
+      store.asMe({ summary: 'Meaningful progress in a focus block' }),
+    );
+    toast('Progress logged. Trail updated.');
+    onExit();
+  };
+  const surface = () => {
+    store.update(
+      'tasks',
+      task.id,
+      { is_stuck: true },
+      store.asMe({ summary: 'Surfaced as stuck from focus mode' }),
+    );
+    toast('Surfaced as stuck — not failed.');
+    onExit();
+  };
+
+  return (
+    <motion.div
+      className="focusmask"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Founder mode"
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: micro }}
+      transition={entrance}
+    >
+      <div className="focusshell">
+        <div className="bt-hd">
+          <span className="eyebrow">Founder mode</span>
+          <span className="spacer" />
+          <button className="btn" onClick={onExit}>
+            Exit
+          </button>
+        </div>
+        {intention && (
+          <>
+            <span className="eyebrow">Today's intention</span>
+            <p className="focusintent">{intention}</p>
+          </>
+        )}
+        <span className="eyebrow">Only this exists for the next block</span>
+        <h2>{task.title}</h2>
+        <div className="mono focusmeta">
+          {task.id} · {task.effort} · {hm(task.estimate_minutes)} estimate
+        </div>
+        <div className="focusclock" aria-live="polite">
+          {mm}:{ss}
+        </div>
+        <p className="focusnote">Mail, navigation, counts and other ventures are deliberately gone.</p>
+        <div className="rowgap">
+          <button className="btn solid" onClick={progress}>
+            Meaningful progress
+          </button>
+          <button className="btn" onClick={surface}>
+            I'm stuck
+          </button>
+          <button className="btn" onClick={() => setRunning((r) => !r)}>
+            {running ? 'Pause' : 'Resume'}
+          </button>
+        </div>
+      </div>
+    </motion.div>
   );
 }

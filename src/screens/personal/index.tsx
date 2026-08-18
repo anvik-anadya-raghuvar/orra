@@ -4,7 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import type { Course, CourseItem, ReadingItem } from '../../types';
 import { newId, useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { entrance, staggerItem, staggerList } from '../../ui/motion';
+import { entrance, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { Donut, MiniBars, Ring, VIZ } from '../../ui/viz';
 import {
   DeleteBtn,
@@ -165,7 +165,7 @@ function CourseCard({ course, siblings, index }: { course: Course; siblings: Cou
             animate={{ height: 'auto', opacity: 1, transition: entrance }}
             exit={{ height: 0, opacity: 0, transition: { duration: 0.16 } }}
           >
-            <motion.div variants={staggerList} initial="initial" animate="animate">
+            <motion.div {...staggerParent()}>
               {items.map((it, i) => (
                 <CourseItemRow key={it.id} item={it} siblings={items} index={i} />
               ))}
@@ -240,7 +240,7 @@ function Courses() {
         </div>
       )}
 
-      <motion.div variants={staggerList} initial="initial" animate="animate" className="pcourses">
+      <motion.div {...staggerParent()} className="pcourses">
         {courses.map((c, i) => (
           <CourseCard key={c.id} course={c} siblings={courses} index={i} />
         ))}
@@ -344,7 +344,7 @@ function ReadingQueue() {
         </div>
       </div>
 
-      <motion.div variants={staggerList} initial="initial" animate="animate">
+      <motion.div {...staggerParent()}>
         {rows.map((r, i) => (
           <motion.div className="prow" key={r.id} variants={staggerItem}>
             <span className="grow pstack">

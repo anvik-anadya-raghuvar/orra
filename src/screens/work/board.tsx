@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { nowIso, useData, useStore } from '../../data/store';
 import { Avatar, Modal, TagChip, useToast } from '../../ui/bits';
-import { entrance, lift, micro, spring, staggerItem, staggerList } from '../../ui/motion';
+import { entrance, lift, micro, spring, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
 import { stuckTasks } from '../../lib/ranking';
@@ -424,7 +424,7 @@ export default function BoardTab({
           )}
 
           {view === 'list' && (
-            <motion.div variants={staggerList} initial="initial" animate="animate">
+            <motion.div {...staggerParent()}>
               {list.slice(0, listLimit).map((t) => (
                 <motion.div
                   key={t.id}
@@ -615,7 +615,7 @@ function TimelineView({
         <span>{Math.round(m.days / 2)}</span>
         <span>{m.days}</span>
       </div>
-      <motion.div variants={staggerList} initial="initial" animate="animate">
+      <motion.div {...staggerParent()}>
         {bars.map((b) => (
           <motion.div key={b.t.id} className="wk-tlrow" variants={staggerItem}>
             <Link to={`/task/${b.t.id}`}>

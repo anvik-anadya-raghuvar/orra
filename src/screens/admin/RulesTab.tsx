@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { staggerItem, staggerList } from '../../ui/motion';
+import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
 import type { AutomationRule } from '../../types';
 
@@ -17,7 +17,7 @@ export default function RulesTab() {
 
   return (
     <div>
-      <motion.div variants={staggerList} initial="initial" animate="animate">
+      <motion.div {...staggerParent()}>
         {rules.map((r) => (
           <motion.div key={r.id} className="ad-rule" variants={staggerItem}>
             <div className="ad-rule-text">

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { Modal, TagChip, useToast } from '../../ui/bits';
-import { staggerList, staggerItem } from '../../ui/motion';
+import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay } from '../../lib/dates';
 import { HeatStrip, MiniBars } from '../../ui/viz';
 import type { ChecklistItem, Note, NoteType } from '../../types';
@@ -119,7 +119,7 @@ export default function NotesTab() {
       {list.length === 0 ? (
         <p className="tip">Nothing matches — try a different search or filter.</p>
       ) : (
-        <motion.div className="notes-grid" variants={staggerList} initial="initial" animate="animate">
+        <motion.div className="notes-grid" {...staggerParent()}>
           {list.map((n) => (
             <NoteCard key={n.id} note={n} onOpen={() => setOpenId(n.id)} />
           ))}
