@@ -34,6 +34,7 @@ const TABLE: Record<CollectionKey, string> = {
   automation_rules: 'automation_rules',
   daily_closeouts: 'daily_closeouts',
   day_plans: 'day_plans',
+  day_plan_items: 'day_plan_items',
   day_events: 'day_events',
   pulse_items: 'pulse_items',
   task_links: 'task_links',

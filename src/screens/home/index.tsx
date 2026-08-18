@@ -15,7 +15,15 @@ import {
   type RankedTask,
 } from '../../lib/ranking';
 import { isMyTask, myTasks } from '../../lib/workspace';
-import { CAPACITY_COPY, DEFAULT_WINS, eventsFor, planFor } from '../../lib/dayPlan';
+import {
+  CAPACITY_COPY,
+  eventsFor,
+  intentionsFor,
+  itemDone,
+  itemLabel,
+  nextPosition,
+  planFor,
+} from '../../lib/dayPlan';
 import { warmth } from '../../lib/warmth';
 import { BarRows, DayRibbon, MiniBars, Ring, Sparkline, SplitBar, VIZ } from '../../ui/viz';
 import {
@@ -30,7 +38,7 @@ import {
 } from './personal';
 import { arrange } from './layout';
 import { BentoTile, TILE_TITLE, TileSheetHost, useHomeArrange } from './tilechrome';
-import type { Capacity, DayPlan, Task, WinCondition } from '../../types';
+import type { Capacity, DayPlan, DayPlanItem, Task } from '../../types';
 import './style.css';
 
 const MODES: { key: DayMode; label: string }[] = [
@@ -85,8 +93,10 @@ export default function Home() {
   /* ── the declared shape of the day ── */
   const plan = planFor(ds, me.id, today);
   const capacity: Capacity = plan?.capacity ?? 'medium';
-  const wins: WinCondition[] = plan?.wins?.length ? plan.wins : DEFAULT_WINS;
 
+  /** `day_plans` now only carries the capacity — the intention line and win
+   *  conditions moved to `day_plan_items`, where they can point at real tasks.
+   *  The old columns stay in the database so past days keep their history. */
   const upsertPlan = (patch: Partial<DayPlan>, summary: string) => {
     if (plan) {
       store.update('day_plans', plan.id, patch, store.asMe({ summary }));
@@ -100,7 +110,7 @@ export default function Home() {
         date: today,
         capacity: 'medium',
         intention: '',
-        wins: DEFAULT_WINS,
+        wins: [],
         created_at: new Date().toISOString(),
         ...patch,
       } as DayPlan,
@@ -173,22 +183,8 @@ export default function Home() {
         />
       ),
     },
-    { key: 'plan', cols: 2, node: <PlanTile picked={picked} capacity={capacity} /> },
-    {
-      key: 'wins',
-      cols: 2,
-      node: (
-        <WinsTile
-          intention={plan?.intention ?? ''}
-          wins={wins}
-          onIntention={(v) => upsertPlan({ intention: v }, 'Today’s intention set')}
-          onToggle={(i) => {
-            const next = wins.map((w, k) => (k === i ? { ...w, done: !w.done } : w));
-            upsertPlan({ wins: next }, `Win condition ${next[i].done ? 'met' : 'reopened'}`);
-          }}
-        />
-      ),
-    },
+    { key: 'plan', cols: 2, node: <PlanTile picked={picked} capacity={capacity} date={today} /> },
+    { key: 'wins', cols: 2, node: <IntentionsTile date={today} /> },
     { key: 'stuck', cols: 2, node: <StuckTile rows={stuck} /> },
     {
       key: 'ribbon',
@@ -332,7 +328,10 @@ export default function Home() {
         {focusTask && (
           <FocusOverlay
             task={focusTask}
-            intention={plan?.intention ?? ''}
+            intention={intentionsFor(ds, me.id, today)
+              .filter((i) => !i.task_id)
+              .map((i) => i.text)
+              .join(' · ')}
             onExit={() => setFocusId(null)}
           />
         )}
@@ -470,32 +469,102 @@ function CapacityTile({
   );
 }
 
-/* ── Suggested plan — the work the portal picked for that capacity ─────── */
-function PlanTile({ picked, capacity }: { picked: RankedTask[]; capacity: Capacity }) {
+/* ── The plan — suggested until you save it, then it is today's ────────── */
+/** The picks used to be recomputed on every render and never stored, so "my
+ *  plan" silently reshuffled whenever a task changed. Saving writes the picks
+ *  as intentions, and from then on this tile shows what you committed to. */
+function PlanTile({
+  picked,
+  capacity,
+  date,
+}: {
+  picked: RankedTask[];
+  capacity: Capacity;
+  date: string;
+}) {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const meId = useData((_, s) => s.meId);
+  const toast = useToast();
+
+  const items = useMemo(() => intentionsFor(ds, meId, date), [ds.day_plan_items, meId, date]);
+  const saved = useMemo(() => items.filter((i) => i.source === 'planner'), [items]);
+  const isSaved = saved.length > 0;
+
+  const savePlan = () => {
+    const already = new Set(items.map((i) => i.task_id).filter(Boolean));
+    let pos = nextPosition(items);
+    for (const r of picked) {
+      if (already.has(r.task.id)) continue;
+      store.insert(
+        'day_plan_items',
+        {
+          id: newId('dpi'),
+          user_id: meId,
+          date,
+          task_id: r.task.id,
+          text: r.task.title,
+          done: false,
+          position: pos++,
+          source: 'planner',
+          created_at: new Date().toISOString(),
+        },
+        store.asMe({ silent: true }),
+      );
+    }
+    store.note('day_plan', `Plan saved for ${date} — ${picked.length} tasks`, store.asMe());
+    toast('Saved. This is your day — see the intentions below.');
+  };
+
+  const replan = () => {
+    saved.forEach((i) => store.remove('day_plan_items', i.id, store.asMe({ silent: true })));
+    store.note('day_plan', `Plan cleared for ${date}`, store.asMe());
+    toast('Cleared — pick a capacity and save again.');
+  };
+
+  const rows = isSaved
+    ? saved
+        .map((i) => ds.tasks.find((t) => t.id === i.task_id))
+        .filter((t): t is Task => Boolean(t))
+    : picked.map((r) => r.task);
+
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Suggested plan</span>
+        <span className="eyebrow">{isSaved ? "Today's plan" : 'Suggested plan'}</span>
         <span className="spacer" />
         <span className="mono bt-num">
-          <CountUp value={picked.length} /> task{picked.length === 1 ? '' : 's'}
+          <CountUp value={rows.length} /> task{rows.length === 1 ? '' : 's'}
         </span>
         <TileOpen to="/work" label="Work" />
       </div>
       <div className="bt-scroll">
-        {picked.length === 0 && (
+        {rows.length === 0 && (
           <p className="tip" style={{ marginTop: 0 }}>
             Nothing fits a {CAPACITY_COPY[capacity].label.toLowerCase()} day. Change the capacity above and this re-plans itself.
           </p>
         )}
-        {picked.map((r) => (
-          <Link className="planrow" key={r.task.id} to={`/task/${r.task.id}`}>
-            <span className={`echip e-${r.task.effort}`}>{r.task.effort}</span>
-            <span className="planttl">{r.task.title}</span>
-            <span className="mono planmin">{hm(r.task.estimate_minutes)}</span>
+        {rows.map((t) => (
+          <Link className="planrow" key={t.id} to={`/task/${t.id}`}>
+            <span className={`echip e-${t.effort}`}>{t.effort}</span>
+            <span className="planttl">{t.title}</span>
+            <span className="mono planmin">{hm(t.estimate_minutes)}</span>
           </Link>
         ))}
       </div>
+      {rows.length > 0 && (
+        <div className="rowgap">
+          {isSaved ? (
+            <button className="btn sm" type="button" onClick={replan}>
+              Re-plan
+            </button>
+          ) : (
+            <button className="btn solid" type="button" onClick={savePlan}>
+              Make this my day
+            </button>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -572,57 +641,132 @@ function HeroTile({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) =>
   );
 }
 
-/* ── Intention + "Today is a win if…" ──────────────────────────────────── */
-function WinsTile({
-  intention,
-  wins,
-  onIntention,
-  onToggle,
-}: {
-  intention: string;
-  wins: WinCondition[];
-  onIntention: (v: string) => void;
-  onToggle: (i: number) => void;
-}) {
-  const [draft, setDraft] = useState(intention);
-  useEffect(() => setDraft(intention), [intention]);
-  const done = wins.filter((w) => w.done).length;
+/* ── Today's intentions — a list that points at real work ──────────────── */
+/** Replaces the old single "intention" line and its disconnected win
+ *  conditions. A line here is either something you typed or a task, and
+ *  ticking a task line closes the task itself. */
+function IntentionsTile({ date }: { date: string }) {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const meId = useData((_, s) => s.meId);
+  const toast = useToast();
+  const [draft, setDraft] = useState('');
+
+  const items = useMemo(() => intentionsFor(ds, meId, date), [ds.day_plan_items, meId, date]);
+  const done = items.filter((i) => itemDone(i, ds.tasks)).length;
+
+  const add = () => {
+    const text = draft.trim();
+    if (!text) return;
+    store.insert(
+      'day_plan_items',
+      {
+        id: newId('dpi'),
+        user_id: meId,
+        date,
+        task_id: null,
+        text,
+        done: false,
+        position: nextPosition(items),
+        source: 'manual',
+        created_at: new Date().toISOString(),
+      },
+      store.asMe({ summary: `Intention added — ${text}` }),
+    );
+    setDraft('');
+  };
+
+  const toggle = (item: DayPlanItem) => {
+    const next = !itemDone(item, ds.tasks);
+    // A line standing for a task closes the task, so Home and the board can
+    // never disagree about whether the work is finished.
+    if (item.task_id) {
+      const task = ds.tasks.find((t) => t.id === item.task_id);
+      if (task) {
+        store.update(
+          'tasks',
+          task.id,
+          next
+            ? { status: 'done', progress_pct: 100 }
+            : { status: 'in_progress', progress_pct: Math.min(task.progress_pct, 90) },
+          store.asMe({ summary: `${task.id} ${next ? 'closed' : 'reopened'} from today's intentions` }),
+        );
+      }
+    }
+    store.update('day_plan_items', item.id, { done: next }, store.asMe({ silent: true }));
+  };
+
+  const remove = (item: DayPlanItem) => {
+    store.remove('day_plan_items', item.id, store.asMe({ summary: 'Intention removed' }));
+    toast('Removed from today');
+  };
 
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Today's intention</span>
+        <span className="eyebrow">Today's intentions</span>
+        <span className="spacer" />
+        {items.length > 0 && (
+          <>
+            <Ring
+              pct={(done / items.length) * 100}
+              size={26}
+              color={VIZ.cat[2]}
+              label={`${done} of ${items.length} done`}
+            />
+            <span className="mono bt-num">
+              {done}/{items.length}
+            </span>
+          </>
+        )}
       </div>
+
+      {items.length === 0 && (
+        <p className="tip" style={{ marginTop: 0 }}>
+          Nothing set for today. Add a line, or save the suggested plan above.
+        </p>
+      )}
+
+      <div className="bt-scroll">
+        {items.map((i) => {
+          const isDone = itemDone(i, ds.tasks);
+          return (
+            <div key={i.id} className="intent-row">
+              <button
+                className={`win${isDone ? ' done' : ''}`}
+                aria-pressed={isDone}
+                onClick={() => toggle(i)}
+              >
+                <span className="wdot" aria-hidden />
+                <span>{itemLabel(i, ds.tasks)}</span>
+              </button>
+              {i.task_id && (
+                <Link className="mono planmin" to={`/task/${i.task_id}`} title="Open the task">
+                  {i.task_id}
+                </Link>
+              )}
+              <button
+                className="intent-x"
+                type="button"
+                aria-label={`Remove ${itemLabel(i, ds.tasks)} from today`}
+                onClick={() => remove(i)}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
       <input
         className="srch intentin"
         value={draft}
-        placeholder="One line. What is today actually for?"
-        aria-label="Today's intention"
+        placeholder="Add an intention for today…"
+        aria-label="Add an intention"
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => draft !== intention && onIntention(draft.trim())}
+        onBlur={add}
         onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
       />
-      <div className="bt-hd" style={{ marginTop: 4 }}>
-        <span className="eyebrow">Today is a win if…</span>
-        <span className="spacer" />
-        <Ring pct={(done / Math.max(wins.length, 1)) * 100} size={26} color={VIZ.cat[2]} label={`${done} of ${wins.length} met`} />
-        <span className="mono bt-num">
-          {done}/{wins.length}
-        </span>
-      </div>
-      <div className="bt-scroll">
-        {wins.map((w, i) => (
-          <button
-            key={w.text}
-            className={`win${w.done ? ' done' : ''}`}
-            aria-pressed={w.done}
-            onClick={() => onToggle(i)}
-          >
-            <span className="wdot" aria-hidden />
-            <span>{w.text}</span>
-          </button>
-        ))}
-      </div>
     </>
   );
 }
@@ -1443,11 +1587,11 @@ function FocusOverlay({
         </div>
         {intention && (
           <>
-            <span className="eyebrow">Today's intention</span>
+            <span className="eyebrow">Today's intentions</span>
             <p className="focusintent">{intention}</p>
           </>
         )}
-        <span className="eyebrow">Only this exists for the next block</span>
+        <span className="eyebrow">Focusing on</span>
         <h2>{task.title}</h2>
         <div className="mono focusmeta">
           {task.id} · {task.effort} · {hm(task.estimate_minutes)} estimate

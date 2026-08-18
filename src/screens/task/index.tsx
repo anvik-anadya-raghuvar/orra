@@ -5,8 +5,9 @@ import { newId, nowIso, useData, useDataset, useStore } from '../../data/store';
 import { Avatar, TagChip, useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
 import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
-import { fmtTime, inr } from '../../lib/dates';
+import { fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment } from '../../lib/handoff';
+import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
 import { PRIORITIES, STATUSES, TYPES } from '../work/common';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
@@ -231,6 +232,22 @@ function TaskDetail({ task }: { task: Task }) {
   const scheduleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
     `Call re ${task.id}`,
   )}`;
+
+  /* Pulling a task onto today's list is the bridge between "this exists" and
+     "this is what I am doing today" — the two used to be unconnected. */
+  const todayIntentions = intentionsFor(ds, store.meId, todayIso());
+  const onToday = todayIntentions.some((i) => i.task_id === task.id);
+  const addToToday = () => {
+    const row = intentionRowForTask(todayIntentions, {
+      id: newId('dpi'),
+      userId: store.meId,
+      date: todayIso(),
+      task: task,
+    });
+    if (!row) return;
+    store.insert('day_plan_items', row, store.asMe({ summary: `${task.id} added to today's intentions` }));
+    toast('Added to today’s intentions');
+  };
 
   const linkedNotes = ds.notes.filter((n) => n.task_id === task.id).sort(byCreated);
   const comments = ds.comments.filter((c) => c.task_id === task.id).sort(byCreated);
@@ -561,6 +578,9 @@ function TaskDetail({ task }: { task: Task }) {
             </section>
 
             <div className="sideacts">
+              <button type="button" className="btn solid" onClick={addToToday} disabled={onToday}>
+                {onToday ? 'On today’s list' : 'Add to today’s intentions'}
+              </button>
               <a
                 className="btn"
                 href={scheduleUrl}

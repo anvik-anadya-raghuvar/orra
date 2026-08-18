@@ -425,6 +425,8 @@ function rawSeed(): Dataset {
       { id: 'pulse-2', title: 'EU AI Act — first GPAI obligations take effect', source: 'Commission notice', url: '', published_at: T('2026-08-17T09:00:00'), origin: 'auto', is_pinned: false, created_at: T('2026-08-17T09:00:00') },
       { id: 'pulse-3', title: 'New long-context eval suite published', source: 'Lab blog', url: '', published_at: T('2026-08-16T09:00:00'), origin: 'auto', is_pinned: false, created_at: T('2026-08-16T09:00:00') },
     ],
+    // Empty on purpose: the intentions list is whatever you put in it today.
+    day_plan_items: [],
     day_events: [
       { id: 'ev-1', user_id: AN, date: D('2026-08-18'), start_min: 9 * 60 + 30, end_min: 12 * 60, label: 'Build · Registry', kind: 'focus', task_id: 'T-42' },
       { id: 'ev-2', user_id: AN, date: D('2026-08-18'), start_min: 12 * 60 + 15, end_min: 13 * 60, label: 'Admin batch', kind: 'admin', task_id: null },

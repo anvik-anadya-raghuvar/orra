@@ -173,6 +173,24 @@ export interface WinCondition {
   done: boolean;
 }
 
+/**
+ * One line of today's intentions. Either a typed line (`task_id` null) or a
+ * pointer at real work — ticking one of those closes the task itself, because
+ * the task row is the single source of truth (principle 10).
+ */
+export interface DayPlanItem {
+  id: string;
+  user_id: UserId;
+  date: string; // YYYY-MM-DD
+  task_id: string | null;
+  text: string;
+  done: boolean;
+  position: number;
+  /** 'manual' typed · 'task' promoted from a task · 'planner' saved from the plan. */
+  source: 'manual' | 'task' | 'planner';
+  created_at: string;
+}
+
 /** A block on today's timeline — meetings, protected study, focus blocks. */
 export interface DayEvent {
   id: string;
@@ -591,6 +609,7 @@ export interface Dataset {
   automation_rules: AutomationRule[];
   daily_closeouts: DailyCloseout[];
   day_plans: DayPlan[];
+  day_plan_items: DayPlanItem[];
   day_events: DayEvent[];
   pulse_items: PulseItem[];
   task_links: TaskLink[];

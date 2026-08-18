@@ -326,10 +326,48 @@
   color: var(--ink);
 }
 
-/* ── intention + wins ──────────────────────────────────────────────────── */
+/* ── today's intentions ────────────────────────────────────────────────── */
 .home-screen .intentin {
   width: 100%;
   flex: none;
+  margin-top: 6px;
+}
+/* Each line is the tickable label plus, for a line standing for a task, a
+   link to it and a way to drop it from today. */
+.home-screen .intent-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.home-screen .intent-row .win {
+  border-bottom: 0;
+}
+.home-screen .intent-row {
+  border-bottom: 1px dashed var(--line);
+}
+.home-screen .intent-row:last-child {
+  border-bottom: 0;
+}
+.home-screen .intent-x {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  color: var(--mute);
+  font-size: 16px;
+  line-height: 1;
+  transition: color 0.2s, background 0.2s;
+}
+.home-screen .intent-x:hover,
+.home-screen .intent-x:focus-visible {
+  color: var(--rose);
+  background: var(--surf3);
+}
+@media (min-width: 1025px) {
+  .home-screen .intent-x {
+    width: 28px;
+    height: 28px;
+  }
 }
 .home-screen .win {
   display: flex;
