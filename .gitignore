@@ -7,3 +7,4 @@ dist/
 tsconfig.tsbuildinfo
 .env.audit
 dist-audit/
+.vercel/
