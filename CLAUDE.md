@@ -12,14 +12,16 @@ Vite + React 18 + TypeScript + Tailwind + Framer Motion. Supabase for Postgres, 
 
 ## Non-negotiable principles
 
-1. **The portal stays whole.** No global workspace mode that hides parts of the app. Project filtering is local to a screen and never changes which navigation exists or what Home shows.
-2. **No role gating.** Both users see everything, including Money. Per-user curation of one's own Home is a preference stored in `profiles.personalization`, never a permission. Do not write an "owners only" check anywhere.
-3. **The audit trail is append-only at the database level.** `UPDATE` and `DELETE` are revoked on `audit_trail` for every role. Never add an edit or delete path.
-4. **The export generator is a pure function.** No LLM anywhere in the export pipeline. Identical task state must produce byte-identical output, proven by test.
-5. **Personal life never feeds the business ranking algorithm.** Two separate systems.
-6. **Task type changes what the task page renders**, not just a badge.
-7. **Tags are free-form and user-invented.** Never hard-code a tag list.
-8. **Projects are seeded database rows**, never enum constants in code.
+1. **Two workspaces, three shared rooms.** Each person's Home, Work board, Knowledge, Personal (including its mood board), calendar, and day planning show their own data, filtered by ownership. Money/Tracker, People, and Admin are fully shared, as are Work's Goals and Decisions tabs. Separation is focus, not secrecy: the other person's work stays reachable where it matters — assignment, mentions, money links, and the Us thread. Never build a mode that hides a whole room from someone.
+2. **No role gating.** Both users have identical capabilities. Per-user separation is ownership filtering plus owner RLS (`user_id = auth.uid()`) on strictly personal tables, never a role, tier, or permission check. Per-user curation of one's own Home and Personal dashboards is a preference stored in `profiles.personalization`. Do not write an "owners only" check anywhere.
+3. **The app never silently moves a date.** Any computed reschedule — dependency reflow above all — is shown as a preview and applied only on an explicit confirm.
+4. **The audit trail is append-only at the database level.** `UPDATE` and `DELETE` are revoked on `audit_trail` for every role. Never add an edit or delete path.
+5. **The export generator is a pure function.** No LLM anywhere in the export pipeline. Identical task state must produce byte-identical output, proven by test.
+6. **Personal life never feeds the business ranking algorithm.** Two separate systems.
+7. **Task type changes what the task page renders**, not just a badge.
+8. **Tags are free-form and user-invented.** Never hard-code a tag list.
+9. **Projects are seeded database rows**, never enum constants in code.
+10. **One row, many views.** A task exists once in `tasks`; the board, the Personal-tasks widget, the day plan, intentions, and block lists are all filtered views of it. Never duplicate a task into a second table to give it a second home.
 
 ## Working rules
 

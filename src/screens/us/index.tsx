@@ -132,7 +132,7 @@ function ChatColumn({
         <Avatar userId={other.id} size={30} />
         <div>
           <div className="disp" style={{ fontSize: 15 }}>You + {other.name}</div>
-          <div className="presence">private room · work can be tagged, friendship doesn't need a ticket</div>
+          <div className="presence">Just the two of you</div>
         </div>
       </div>
 

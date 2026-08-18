@@ -35,7 +35,7 @@ export const PERSONAL_KEYS: {
 }[] = [
   { key: 'song', label: 'Song of the day', hint: 'Whatever the other one picked this morning', Icon: Music },
   { key: 'photo', label: 'Photo of the day', hint: 'One frame from the day, filling its own tile', Icon: ImageIcon },
-  { key: 'worth_knowing', label: 'Worth knowing', hint: 'Three things from the AI pulse — not a feed', Icon: Sparkles },
+  { key: 'worth_knowing', label: 'AI news', hint: 'Three AI headlines, refreshed twice a day', Icon: Sparkles },
   { key: 'life_radar', label: 'Life radar', hint: 'Life admin still open, and the dates that are fixed', Icon: Radar },
   { key: 'projects_strip', label: 'Projects', hint: 'Open counts per project, as small multiples', Icon: LayoutGrid },
   { key: 'money_on_home', label: 'Money on Home', hint: 'In and out as one mark, no table', Icon: Wallet },
@@ -406,7 +406,7 @@ export function SongTile() {
   );
 }
 
-/* ── Worth knowing — real LLM/AI headlines, filled by the pulse cron ───── */
+/* ── AI news — real LLM/AI headlines, filled by the pulse cron ─────────── */
 export function WorthTile() {
   const ds = useData((d) => d);
   const store = useStore();
@@ -448,13 +448,13 @@ export function WorthTile() {
     setTitle('');
     setUrl('');
     setAdding(false);
-    toast('Pinned to Worth knowing');
+    toast('Pinned to AI news');
   };
 
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">AI pulse · three, not a feed</span>
+        <span className="eyebrow">AI news · updated twice a day</span>
         <div className="spacer" />
         <TileOpen to="/knowledge" label="Knowledge" />
         <button type="button" className="btn sm" onClick={() => setAdding((v) => !v)}>
@@ -488,7 +488,7 @@ export function WorthTile() {
       <div className="bt-scroll">
         {items.length === 0 ? (
           <p className="tip" style={{ margin: 0 }}>
-            Nothing yet — the pulse fetches twice a day, or pin something yourself.
+            Nothing yet — headlines arrive twice a day, or pin something yourself.
           </p>
         ) : (
           items.map((x) =>

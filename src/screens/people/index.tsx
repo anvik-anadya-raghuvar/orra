@@ -221,8 +221,9 @@ export default function People() {
         )}
 
         <p className="tip">
-          The ring is warmth — it drains with silence and refills when you log a touch. The strip below each card
-          is the last ~12 weeks of contact — mail, notes, tasks, ledger rows and logged touches all count.
+          Warmth is how long since you last talked, versus how often you meant to. The ring drains with silence
+          and refills when you log a touch. The strip below each card is the last ~12 weeks of contact — mail,
+          notes, tasks, ledger rows and logged touches all count.
         </p>
       </div>
 

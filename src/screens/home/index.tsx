@@ -395,14 +395,14 @@ function GreetTile({
           <b>
             <CountUp value={blocks} />
           </b>{' '}
-          block{blocks === 1 ? '' : 's'} on the clock
+          event{blocks === 1 ? '' : 's'} today
         </span>
         <span className="amb" title="Money in minus money out, all projects">
           <b>
             {runway < 0 ? '−' : ''}
             <CountUp value={Math.abs(runway)} format={(n) => inr(n)} />
           </b>{' '}
-          runway
+          cash balance
         </span>
         {nextFixed && (
           <span className="amb">
@@ -438,7 +438,7 @@ function CapacityTile({
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">How heavy do you want today?</span>
+        <span className="eyebrow">Today's capacity — how much can you take on?</span>
       </div>
       <div className="capset" role="radiogroup" aria-label="Today's capacity">
         {CAPACITIES.map((c) => (
@@ -464,12 +464,12 @@ function CapacityTile({
   );
 }
 
-/* ── Your day, planned — the work the portal picked for that capacity ──── */
+/* ── Suggested plan — the work the portal picked for that capacity ─────── */
 function PlanTile({ picked, capacity }: { picked: RankedTask[]; capacity: Capacity }) {
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Your day, planned</span>
+        <span className="eyebrow">Suggested plan</span>
         <span className="spacer" />
         <span className="mono bt-num">
           <CountUp value={picked.length} /> task{picked.length === 1 ? '' : 's'}
@@ -517,7 +517,7 @@ function HeroTile({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) =>
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Start here · ranked, not guessed</span>
+        <span className="eyebrow">Top priority</span>
         <span className="spacer" />
         <span className="mono bt-num">score {top.score}</span>
         <TileOpen to="/work" label="Work" />
@@ -639,7 +639,7 @@ function StuckTile({ rows }: { rows: { task: Task; reason: string }[] }) {
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Stuck? No shame — just surface it</span>
+        <span className="eyebrow">Blocked tasks</span>
         <span className="spacer" />
         <span className={`mono bt-num${rows.length ? ' alert' : ''}`}>
           <CountUp value={rows.length} />
@@ -685,7 +685,7 @@ function RibbonTile({
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Today, as it is actually shaped</span>
+        <span className="eyebrow">Today's schedule</span>
         <span className="spacer" />
         <span className="mono bt-num">
           <CountUp value={contexts} /> context{contexts === 1 ? '' : 's'}
@@ -714,7 +714,7 @@ function RibbonTile({
         />
       ) : (
         <p className="tip" style={{ marginTop: 0 }}>
-          Nothing blocked out today. Add one and the day stops being a guess.
+          No events yet today. Add a block to plan your day.
         </p>
       )}
       </div>
@@ -722,7 +722,7 @@ function RibbonTile({
   );
 }
 
-/* ── Pair pulse ────────────────────────────────────────────────────────── */
+/* ── What the other one is up to ───────────────────────────────────────── */
 function PulseTile() {
   const ds = useData((d) => d);
   const store = useStore();
@@ -759,21 +759,23 @@ function PulseTile() {
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Pair pulse · no status theatre</span>
+        <span className="eyebrow">What {other.name} is up to</span>
         <span className="spacer" />
         <TileOpen to="/us" label="Us" />
       </div>
       <div className="pulsehead">
         <span className="pulsedot" aria-hidden />
-        <b>{other.name} is in motion, not waiting for a standup.</b>
+        <b>Status: {other.status_text ?? 'nothing set right now'}</b>
       </div>
-      <p className="pulsestatus">{other.status_text ?? 'No declared focus right now.'}</p>
       {theirs && (
-        <Link className="pulselast" to={`/task/${theirs.id}`}>
-          <span className="mono">{theirs.id}</span>
-          <span>{theirs.title}</span>
-          <span className="mono planmin">{theirs.progress_pct}%</span>
-        </Link>
+        <>
+          <p className="pulsestatus">Latest task:</p>
+          <Link className="pulselast" to={`/task/${theirs.id}`}>
+            <span className="mono">{theirs.id}</span>
+            <span>{theirs.title}</span>
+            <span className="mono planmin">{theirs.progress_pct}%</span>
+          </Link>
+        </>
       )}
       <div className="rowgap">
         <button className="btn solid" onClick={need}>
@@ -975,7 +977,7 @@ function WarmthTile() {
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Warmth · coldest first</span>
+        <span className="eyebrow">People going quiet — reach out</span>
         <span className="spacer" />
         <TileOpen to="/people" label="People" />
       </div>
@@ -1335,7 +1337,7 @@ function AddBlockModal({
   );
 }
 
-/* ── Founder mode: only this task exists ───────────────────────────────── */
+/* ── Founder block: only this task exists ──────────────────────────────── */
 function FocusOverlay({
   task,
   intention,
@@ -1414,7 +1416,7 @@ function FocusOverlay({
       className="focusmask"
       role="dialog"
       aria-modal="true"
-      aria-label="Founder mode"
+      aria-label="Founder block"
       initial={reduced ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: micro }}
@@ -1422,7 +1424,7 @@ function FocusOverlay({
     >
       <div className="focusshell">
         <div className="bt-hd">
-          <span className="eyebrow">Founder mode</span>
+          <span className="eyebrow">Founder block</span>
           <span className="spacer" />
           <button className="btn" onClick={onExit}>
             Exit

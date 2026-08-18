@@ -55,7 +55,7 @@ function StatusCard() {
             <b style={{ fontSize: 13.5, color: 'var(--mute)', fontWeight: 500 }}>No status</b>
           )}
           <div style={{ fontSize: 11.5, color: 'var(--mute)' }}>
-            A declared status, not surveillance. Expires on its own.
+            Clears automatically when it expires.
           </div>
         </div>
       </div>
