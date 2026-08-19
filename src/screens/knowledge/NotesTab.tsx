@@ -363,12 +363,18 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
 
   // Ctrl/Cmd+V while the sheet is open, wherever the caret is — except inside
   // the title or body, where a paste means text.
-  useImagePaste(sheetRef, (files) => {
-    setImgBusy(true);
-    void processImages(files, addImage)
-      .catch((err: Error) => toast(err.message || 'That image could not be attached'))
-      .finally(() => setImgBusy(false));
-  });
+  useImagePaste(
+    sheetRef,
+    (files) => {
+      setImgBusy(true);
+      void processImages(files, addImage)
+        .then(() => toast('Screenshot attached — it saves with the note'))
+        .catch((err: Error) => toast(err.message || 'That image could not be attached'))
+        .finally(() => setImgBusy(false));
+    },
+    true,
+    toast,
+  );
 
   const addTag = () => {
     const v = tagDraft.trim();

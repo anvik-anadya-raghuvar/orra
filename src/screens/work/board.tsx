@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import type { DayEvent, Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
-import { useData, useStore } from '../../data/store';
+import { newId, useData, useStore } from '../../data/store';
 import { Avatar, SideSheet, TagChip, useToast } from '../../ui/bits';
 import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
@@ -12,6 +12,7 @@ import { stuckTasks } from '../../lib/ranking';
 import { inboxTasks, isMyTask, myTasks } from '../../lib/workspace';
 import { notifyAssignment } from '../../lib/handoff';
 import { MiniBars } from '../../ui/viz';
+import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
 import QuickEdit from './quickedit';
 import ReflowBanner from './reflow';
 import { blockedByOpenDep } from '../../lib/schedule';
@@ -997,6 +998,27 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [priority, setPriority] = useState<TaskPriority>('normal');
   const [assignee, setAssignee] = useState(store.meId);
   const [due, setDue] = useState(todayIso());
+  /* Screenshots captured while writing the task, attached the moment it
+     exists. A task is most often created BECAUSE of something on screen, and
+     having to create it, open it, then go back for the screenshot lost the
+     one piece of evidence that made it worth writing down. Held in state
+     until submit because the attachments need a task id to point at. */
+  const [shots, setShots] = useState<DroppedImage[]>([]);
+  const [shotBusy, setShotBusy] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useImagePaste(
+    sheetRef,
+    (files) => {
+      setShotBusy(true);
+      void processImages(files, (img) => setShots((prev) => [...prev, img]))
+        .then(() => toast('Screenshot attached — it lands on the task with pins ready'))
+        .catch((err: Error) => toast(err.message || 'That image could not be attached'))
+        .finally(() => setShotBusy(false));
+    },
+    open,
+    toast,
+  );
   const [effort, setEffort] = useState<Effort>('medium');
   const [estimate, setEstimate] = useState(45);
 
@@ -1021,10 +1043,30 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       }),
       store.asMe({ summary: `Task ${id} created — ${clean}` }),
     );
+    // The evidence follows the task it belongs to, now that the id exists.
+    shots.forEach((img) =>
+      store.insert(
+        'screenshot_attachments',
+        {
+          id: newId('shot'),
+          task_id: id,
+          storage_path: `screenshots/${id}/${img.filename}`,
+          filename: img.filename,
+          mime: 'image/jpeg',
+          width: img.width,
+          height: img.height,
+          uploaded_by: store.meId,
+          created_at: new Date().toISOString(),
+          data_url: img.data_url,
+        },
+        store.asMe({ summary: `Screenshot ${img.filename} attached to ${id}` }),
+      ),
+    );
     notifyAssignment(store, { id, title: clean, due_date: due || null }, assignee);
-    toast(`${id} created`);
+    toast(shots.length ? `${id} created with ${shots.length} screenshot${shots.length === 1 ? '' : 's'}` : `${id} created`);
     setTitle('');
     setDescription('');
+    setShots([]);
     onClose();
   };
 
@@ -1045,6 +1087,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
         </>
       }
     >
+      <div ref={sheetRef}>
       <Field label="Title">
         <input
           className="wk-in"
@@ -1116,6 +1159,36 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
             onChange={(e) => setEstimate(Math.max(5, Number(e.target.value) || 45))}
           />
         </Field>
+      </div>
+
+      <div style={{ height: 14 }} />
+      <div className="eyebrow" style={{ marginBottom: 6 }}>
+        Screenshots {shots.length ? `· ${shots.length}` : ''}
+      </div>
+      {shots.length > 0 && (
+        <div className="wk-newshots">
+          {shots.map((img, i) => (
+            <span className="wk-newshot" key={`${img.filename}-${i}`}>
+              <img src={img.data_url} alt={img.filename} />
+              <button
+                type="button"
+                aria-label={`Remove ${img.filename}`}
+                onClick={() => setShots((prev) => prev.filter((_, k) => k !== i))}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <ImageDrop
+        onImage={(img) => setShots((prev) => [...prev, img])}
+        onError={(m) => toast(m)}
+        busy={shotBusy}
+        setBusy={setShotBusy}
+        label={shots.length ? 'Attach another screenshot' : 'Attach a screenshot'}
+        hint="Paste with Ctrl+V, drop a file, or click to browse — pin notes onto it after the task is created"
+      />
       </div>
     </SideSheet>
   );

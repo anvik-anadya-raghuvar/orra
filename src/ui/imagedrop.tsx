@@ -32,6 +32,20 @@ export interface DroppedImage extends CompressedImage {
   filename: string;
 }
 
+/** Turn a `data:image/...;base64,...` URL into a File, or null if it is not one. */
+function fileFromDataUrl(src: string): File | null {
+  const m = /^data:(image\/[a-z+]+);base64,(.+)$/i.exec(src);
+  if (!m) return null;
+  try {
+    const bin = atob(m[2]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new File([bytes], `pasted.${m[1].split('/')[1]}`, { type: m[1] });
+  } catch {
+    return null;
+  }
+}
+
 /** Pull image files out of a clipboard or drag payload, in order. */
 export function imageFilesFrom(data: DataTransfer | null): File[] {
   if (!data) return [];
@@ -48,7 +62,34 @@ export function imageFilesFrom(data: DataTransfer | null): File[] {
       if (f.type.startsWith('image/')) out.push(f);
     }
   }
+  // Last resort: an image copied out of a web page, a document, or a capture
+  // tool often arrives as an HTML fragment rather than a file — `<img src="
+  // data:image/png;base64,…">` and nothing in `files` or `items`. Reading it
+  // here is the difference between that paste working and doing nothing at
+  // all, which is exactly how it used to fail: silently.
+  if (!out.length) {
+    const html = data.getData?.('text/html') ?? '';
+    if (html.includes('<img')) {
+      for (const m of html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)) {
+        const f = fileFromDataUrl(m[1]);
+        if (f) out.push(f);
+      }
+    }
+  }
   return out;
+}
+
+/**
+ * True when a paste carried something picture-shaped that we could not turn
+ * into a file — a remote `<img>` the page will not let us read, or a format
+ * the browser did not decode. Callers use it to say so out loud instead of
+ * leaving the user pressing Ctrl+V at a screen that never reacts.
+ */
+export function looksLikeUnusableImage(data: DataTransfer | null): boolean {
+  if (!data) return false;
+  const html = data.getData?.('text/html') ?? '';
+  const uri = data.getData?.('text/uri-list') ?? '';
+  return html.includes('<img') || /\.(png|jpe?g|gif|webp)(\?|$)/i.test(uri);
 }
 
 /**
@@ -83,16 +124,28 @@ export function useImagePaste(
   ref: React.RefObject<HTMLElement>,
   onFiles: (files: File[]) => void,
   enabled = true,
+  /** Told when a paste looked like an image but yielded nothing usable. */
+  onUnusable?: (message: string) => void,
 ) {
   const cb = useRef(onFiles);
   cb.current = onFiles;
+  const bad = useRef(onUnusable);
+  bad.current = onUnusable;
 
   useEffect(() => {
     if (!enabled) return;
     const onPaste = (e: ClipboardEvent) => {
       if (!ref.current) return;
       const files = imageFilesFrom(e.clipboardData);
-      if (!files.length) return; // a text paste — leave it to whatever has focus
+      if (!files.length) {
+        // Picture-shaped but unreadable: say so rather than ignoring it.
+        if (looksLikeUnusableImage(e.clipboardData)) {
+          bad.current?.(
+            'That image came from a web page rather than the clipboard as a file. Save it, or use a screenshot tool, then paste again.',
+          );
+        }
+        return; // otherwise a text paste — leave it to whatever has focus
+      }
       e.preventDefault();
       cb.current(files);
     };

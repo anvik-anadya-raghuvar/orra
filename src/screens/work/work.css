@@ -898,3 +898,43 @@ tr.wk-driftrow td {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── screenshots attached while writing a new task ─────────────────────── */
+.work-screen .wk-newshots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.work-screen .wk-newshot {
+  position: relative;
+  display: block;
+  width: 84px;
+  height: 60px;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.work-screen .wk-newshot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.work-screen .wk-newshot button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(10, 10, 16, 0.72);
+  cursor: pointer;
+}
+.work-screen .wk-newshot button:hover {
+  background: var(--rose);
+}
