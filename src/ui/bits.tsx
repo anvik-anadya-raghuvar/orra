@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { useData } from '../data/store';
 import { entrance, useAnimateIn } from './motion';
 
@@ -43,68 +45,227 @@ export function Avatar({ userId, size = 26 }: { userId: string | null; size?: nu
   );
 }
 
-/* ── Modal (desktop dialog / mobile full-screen sheet) ───────────────── */
-export function Modal({
-  open,
-  onClose,
-  children,
-  title,
-}: {
+/* ── Overlay panels ───────────────────────────────────────────────────────
+   Two shapes, one set of behaviours.
+
+   `Modal` is the centered dialog — right for a yes/no, a short form, or a list
+   of toggles, where a wide panel would be pomp.
+
+   `SideSheet` is the right-anchored drawer — right for anything you compose
+   rather than confirm: a new task, a note with a body and a checklist, a
+   ledger entry. It is full height, so a long form scrolls rather than being
+   truncated, and its actions stay pinned at the bottom where they can always
+   be reached. Below 640px both collapse to the same full-screen sheet, per the
+   responsive rule that modals become sheets on mobile.
+
+   Shared behaviour: escape closes, the page behind is scroll-locked, focus
+   moves into the panel on open and returns to the opener on close, and every
+   movement is skipped under `prefers-reduced-motion`.                       */
+
+/** True on phones. Watched rather than read once, so a rotate or a resized
+ *  window re-picks the right geometry instead of animating the wrong axis. */
+function useIsPhone() {
+  const [phone, setPhone] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return phone;
+}
+
+/**
+ * Locks the page behind an overlay.
+ *
+ * On `<html>`, not `<body>`: this app scrolls the document element, so hiding
+ * body overflow left the scrollbar in place — which meant the compensating
+ * padding was pure over-compensation and the viewport stayed 10px narrower
+ * than a fixed overlay expected, so a right-anchored sheet sat 10px shy of
+ * the edge. Locking the real scroll container removes the bar, and the padding
+ * then genuinely replaces its width so the page behind does not jump.
+ *
+ * Counted, because a side sheet may open a confirm dialog on top of it and the
+ * inner one closing must not unlock the outer one.
+ */
+let lockCount = 0;
+function useScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const root = document.documentElement;
+    if (lockCount === 0) {
+      const bar = window.innerWidth - root.clientWidth;
+      root.style.overflow = 'hidden';
+      if (bar > 0) root.style.paddingRight = `${bar}px`;
+    }
+    lockCount += 1;
+    return () => {
+      lockCount -= 1;
+      if (lockCount === 0) {
+        root.style.overflow = '';
+        root.style.paddingRight = '';
+      }
+    };
+  }, [active]);
+}
+
+/** Escape to close, focus into the panel, focus back to the opener after. */
+function usePanelBehaviour(open: boolean, onClose: () => void) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    openerRef.current = document.activeElement;
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    // A frame of delay, so the entrance transform does not fight the
+    // scroll-into-view that focusing a field can trigger.
+    const t = window.setTimeout(() => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      if (panel.contains(document.activeElement)) return;
+      const first = panel.querySelector<HTMLElement>(
+        'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])',
+      );
+      (first ?? panel).focus({ preventScroll: true });
+    }, 40);
+    return () => {
+      window.clearTimeout(t);
+      const opener = openerRef.current as HTMLElement | null;
+      if (opener?.isConnected) opener.focus?.({ preventScroll: true });
+    };
+  }, [open]);
+
+  return panelRef;
+}
+
+export interface PanelProps {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   title?: string;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [open, onClose]);
-  return (
+  /** A line under the title saying what this panel is for. Sheets only. */
+  subtitle?: React.ReactNode;
+  /** Pinned to the bottom of a side sheet, so Save is always reachable. */
+  footer?: React.ReactNode;
+  /** Wider drawer, for a panel that holds two columns of fields. */
+  wide?: boolean;
+}
+
+export function Modal({ open, onClose, children, title }: PanelProps) {
+  const reduced = useReducedMotion();
+  const panelRef = usePanelBehaviour(open, onClose);
+  useScrollLock(open);
+
+  // Portalled to <body>, not rendered in place. A `position: fixed` element
+  // resolves against the nearest ancestor with a transform, and Framer Motion
+  // puts a transform on anything mid-animation — so an overlay rendered inside
+  // an animating page was sized to that page's box rather than the viewport,
+  // and an overlay inside a tile would have been clipped by it outright.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
+          className="panel-mask"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: reduced ? 0 : 0.2 }}
           onClick={onClose}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(10,13,20,.5)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 60,
-            display: 'grid',
-            placeItems: 'start center',
-            padding: '54px 0 0',
-            overflow: 'auto',
-          }}
           role="dialog"
           aria-modal="true"
           aria-label={title}
         >
           <motion.div
-            initial={{ opacity: 0, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1, transition: entrance }}
-            exit={{ opacity: 0, y: 10, transition: { duration: 0.15 } }}
+            ref={panelRef}
+            tabIndex={-1}
+            initial={reduced ? false : { opacity: 0, y: 18, scale: 0.98 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              transition: reduced ? { duration: 0 } : entrance,
+            }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, y: 10, transition: { duration: 0.15 } }}
             onClick={(e) => e.stopPropagation()}
             className="modal-sheet"
-            style={{
-              background: 'var(--surf)',
-              border: '1px solid var(--line)',
-              boxShadow: 'var(--sh2)',
-              width: '100%',
-              padding: 22,
-            }}
           >
-            {title && <h3 style={{ fontSize: 18, marginBottom: 13 }}>{title}</h3>}
+            {title && <h3 className="panel-title">{title}</h3>}
             {children}
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
+  );
+}
+
+/**
+ * The drawer. Same props as Modal plus a pinned footer, so a caller can move
+ * between the two shapes without rewriting its body.
+ */
+export function SideSheet({ open, onClose, children, title, subtitle, footer, wide }: PanelProps) {
+  const reduced = useReducedMotion();
+  const phone = useIsPhone();
+  const panelRef = usePanelBehaviour(open, onClose);
+  useScrollLock(open);
+
+  // On a phone the drawer is a bottom sheet, so it rises; on a pointer screen
+  // it is anchored right, so it slides in from the edge it is attached to.
+  const from = phone ? { y: 28, x: 0 } : { x: 44, y: 0 };
+
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="panel-mask side"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduced ? 0 : 0.2 }}
+          onClick={onClose}
+        >
+          <motion.aside
+            ref={panelRef as React.RefObject<HTMLDivElement>}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className={`side-sheet${wide ? ' wide' : ''}`}
+            initial={reduced ? false : { opacity: 0, ...from }}
+            animate={{ opacity: 1, x: 0, y: 0, transition: reduced ? { duration: 0 } : entrance }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, ...from, transition: { duration: 0.18 } }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="ss-hd">
+              <div className="ss-ttl">
+                {title && <h3>{title}</h3>}
+                {subtitle && <p className="tip">{subtitle}</p>}
+              </div>
+              <button type="button" className="ss-x" aria-label="Close" onClick={onClose}>
+                <X size={17} strokeWidth={2} aria-hidden />
+              </button>
+            </header>
+            <div className="ss-body">{children}</div>
+            {footer && <footer className="ss-ft">{footer}</footer>}
+          </motion.aside>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
   );
 }
 

@@ -271,6 +271,30 @@ export interface Decision {
   ruling_note: string;
 }
 
+/**
+ * An image kept inline on the row that owns it — today a note.
+ *
+ * Not a `screenshot_attachments` row: those exist to be annotated, are keyed
+ * to a task, and are what the export engine walks. This is the plainer thing —
+ * a picture you keep because the note is about it — so it lives in the note's
+ * own JSONB and dies with it. `data_url` is a browser-compressed JPEG, capped
+ * at 1600px and ~300 KB by src/lib/imageCompress.ts before it is ever stored.
+ */
+export interface AttachedImage {
+  id: string;
+  filename: string;
+  mime: string;
+  width: number;
+  height: number;
+  bytes: number;
+  data_url: string;
+  created_at: string;
+}
+
+/** How many images one note may carry — mirrored by the CHECK constraint in
+ *  migration 0021, which is what enforces it when the client is not writing. */
+export const MAX_NOTE_IMAGES = 12;
+
 export interface Note {
   id: string;
   title: string;
@@ -282,6 +306,8 @@ export interface Note {
   is_pinned: boolean;
   transcript: TranscriptLine[] | null;
   checklist: ChecklistItem[] | null;
+  /** Absent on rows written before migration 0021 — always read through `?? []`. */
+  images?: AttachedImage[] | null;
   source_ref: string | null;
   created_by: UserId;
   /** Whose workspace this sits in. Null = shared, shows for both. */

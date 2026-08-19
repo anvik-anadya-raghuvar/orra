@@ -8,7 +8,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { newId, useData, useStore } from '../../data/store';
-import { Avatar, CountUp, Modal, useToast } from '../../ui/bits';
+import { Avatar, CountUp, SideSheet, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
 import { monthlyRunRate, nextRenewal, upcomingSubscriptions } from '../../lib/tracker';
@@ -171,7 +171,27 @@ export default function Subscriptions() {
         )}
       </motion.div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Add a subscription">
+      <SideSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Add a subscription"
+        subtitle="What renews, when, and for how much — so nothing surprises the tracker."
+        footer={
+          <>
+            <button className="btn" type="button" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+            <button
+              className="btn solid"
+              type="button"
+              onClick={add}
+              disabled={!form.name.trim()}
+            >
+              Add
+            </button>
+          </>
+        }
+      >
         <input className="mn-in" value={form.name} autoFocus placeholder="Name" aria-label="Name" onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
         <div style={{ height: 8 }} />
         <input className="mn-in" value={form.amount} inputMode="decimal" placeholder="Amount" aria-label="Amount" onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
@@ -186,15 +206,7 @@ export default function Subscriptions() {
           Renews or ends on
         </label>
         <input id="sub-ends" className="mn-in" type="date" value={form.ends} onChange={(e) => setForm((f) => ({ ...f, ends: e.target.value }))} />
-        <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 14 }}>
-          <button className="btn" type="button" onClick={() => setOpen(false)}>
-            Cancel
-          </button>
-          <button className="btn solid" type="button" onClick={add} disabled={!form.name.trim()}>
-            Add
-          </button>
-        </div>
-      </Modal>
+      </SideSheet>
     </div>
   );
 }

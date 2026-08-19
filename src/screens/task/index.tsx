@@ -429,7 +429,12 @@ function TaskDetail({ task }: { task: Task }) {
               </div>
             </div>
 
-            {task.type === 'code_change' && <Screenshots task={task} />}
+            {/* Evidence is not type-specific: a research task's screenshot of a
+                competitor, or an ops task's screenshot of a broken dashboard, is
+                the same kind of proof and the export engine reads it either way.
+                What IS type-specific stays type-specific — the checklist, the
+                export box, the subtasks — so the type still decides the page. */}
+            <Screenshots task={task} />
 
             {task.type === 'ops' && (
               <section aria-label="Checklist">
@@ -442,14 +447,20 @@ function TaskDetail({ task }: { task: Task }) {
           </div>
 
           <div className="tside">
-            {task.type === 'code_change' && (
+            {/* The generator has never cared about the type — it writes
+                `Task type: ...` into TASK.md and walks whatever evidence and
+                criteria exist. Gating the button on code_change only meant a
+                research task could hold pinned screenshots that nothing could
+                ever export, which is the one thing this app is built to do. */}
+            {(
               <div className="exportbox">
                 <div className="eyebrow" style={{ color: 'var(--indigo)' }}>
-                  Code-change task
+                  {task.type === 'code_change' ? 'Code-change task' : 'Export'}
                 </div>
                 <p>
-                  Pins and criteria are ready. Export builds TASK.md plus screenshots,
-                  deterministically — no model in the loop.
+                  {task.type === 'code_change'
+                    ? 'Pins and criteria are ready. Export builds TASK.md plus screenshots, deterministically — no model in the loop.'
+                    : 'Export builds TASK.md plus any screenshots and pins, deterministically — no model in the loop.'}
                 </p>
                 <div className="acts">
                   <button type="button" className="btn solid sm" onClick={copyMd}>

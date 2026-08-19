@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { LedgerEntry } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { Modal, useToast } from '../../ui/bits';
+import { SideSheet, useToast } from '../../ui/bits';
 import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { inr } from '../../lib/dates';
 import {
@@ -163,7 +163,11 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
     setMapping((m) => ({ ...m, [field]: value }));
 
   return (
-    <Modal open={open} onClose={close} title="Import ledger">
+    /* Wide, because step 3 is a preview table of rows about to be written and
+       a 620px dialog turns that into a column of ellipses. Each step keeps its
+       own Back/Next pair inline — they move you through the flow rather than
+       committing the panel, so they are not the sheet's footer. */
+    <SideSheet open={open} onClose={close} title="Import ledger" wide>
       <div className="mn-steps">
         <span className={step === 'file' ? 'on' : ''}>1 · File</span>
         <span className={step === 'map' ? 'on' : ''}>2 · Mapping</span>
@@ -306,6 +310,6 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
           </div>
         </div>
       )}
-    </Modal>
+    </SideSheet>
   );
 }

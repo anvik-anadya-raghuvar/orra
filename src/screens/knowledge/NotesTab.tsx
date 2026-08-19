@@ -1,12 +1,20 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
-import { Modal, TagChip, useToast } from '../../ui/bits';
+import { SideSheet, TagChip, useToast } from '../../ui/bits';
+import {
+  ImageDrop,
+  ImageStrip,
+  processImages,
+  useImagePaste,
+  type DroppedImage,
+} from '../../ui/imagedrop';
 import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay } from '../../lib/dates';
 import { ownRows } from '../../lib/workspace';
 import { HeatStrip, MiniBars } from '../../ui/viz';
-import type { ChecklistItem, Note, NoteType } from '../../types';
+import { MAX_NOTE_IMAGES } from '../../types';
+import type { AttachedImage, ChecklistItem, Note, NoteType } from '../../types';
 
 const NOTE_TYPE_ORDER: NoteType[] = ['plain', 'checklist', 'meeting', 'voice', 'email'];
 const NOTE_TYPE_LABEL: Record<NoteType, string> = {
@@ -208,6 +216,24 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
           ))}
         </div>
       )}
+      {(note.images?.length ?? 0) > 0 && (
+        <div className="note-shots">
+          {(note.images ?? []).slice(0, 4).map((im) => (
+            <img
+              key={im.id}
+              src={im.data_url}
+              alt={im.filename}
+              loading="lazy"
+              decoding="async"
+              width={im.width}
+              height={im.height}
+            />
+          ))}
+          {(note.images?.length ?? 0) > 4 && (
+            <span className="note-shots-more">+{(note.images?.length ?? 0) - 4}</span>
+          )}
+        </div>
+      )}
       {canPushSubtasks && (
         <button
           type="button"
@@ -248,6 +274,43 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   const [pinned, setPinned] = useState(existing?.is_pinned ?? false);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(existing?.checklist ?? []);
   const [itemDraft, setItemDraft] = useState('');
+  const [images, setImages] = useState<AttachedImage[]>(existing?.images ?? []);
+  const [imgBusy, setImgBusy] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  /** Paste, drop and picker all arrive here. The cap matches the CHECK
+   *  constraint in migration 0021, so the client refuses before the database
+   *  has to. */
+  const addImage = (img: DroppedImage) => {
+    setImages((prev) => {
+      if (prev.length >= MAX_NOTE_IMAGES) {
+        toast(`A note holds at most ${MAX_NOTE_IMAGES} images`);
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          id: newId('img'),
+          filename: img.filename,
+          mime: 'image/jpeg',
+          width: img.width,
+          height: img.height,
+          bytes: img.bytes,
+          data_url: img.data_url,
+          created_at: nowIso(),
+        },
+      ];
+    });
+  };
+
+  // Ctrl/Cmd+V while the sheet is open, wherever the caret is — except inside
+  // the title or body, where a paste means text.
+  useImagePaste(sheetRef, (files) => {
+    setImgBusy(true);
+    void processImages(files, addImage)
+      .catch((err: Error) => toast(err.message || 'That image could not be attached'))
+      .finally(() => setImgBusy(false));
+  });
 
   const addTag = () => {
     const v = tagDraft.trim();
@@ -280,6 +343,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
           tags,
           is_pinned: pinned,
           checklist: checklist.length ? checklist : null,
+          images,
         },
         store.asMe(),
       );
@@ -298,6 +362,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
           is_pinned: pinned,
           transcript: null,
           checklist: checklist.length ? checklist : null,
+          images,
           source_ref: null,
           created_by: store.meId,
           owner_id: store.meId,
@@ -319,7 +384,33 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   };
 
   return (
-    <Modal open onClose={onClose} title={existing ? 'Edit note' : 'New note'}>
+    <SideSheet
+      open
+      onClose={onClose}
+      title={existing ? 'Edit note' : 'New note'}
+      subtitle="Paste a screenshot straight in with Ctrl+V — it is compressed in the browser."
+      footer={
+        <>
+          {existing && (
+            <button
+              type="button"
+              className="btn sm"
+              onClick={remove}
+              style={{ color: 'var(--rose)', marginRight: 'auto' }}
+            >
+              Delete
+            </button>
+          )}
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn solid" onClick={save}>
+            Save
+          </button>
+        </>
+      }
+    >
+      <div ref={sheetRef}>
       <input
         type="text"
         value={title}
@@ -374,6 +465,23 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       </div>
 
       <div className="eyebrow" style={{ marginBottom: 6 }}>
+        Images {images.length ? `· ${images.length}/${MAX_NOTE_IMAGES}` : ''}
+      </div>
+      <ImageDrop
+        onImage={addImage}
+        onError={(m) => toast(m)}
+        busy={imgBusy}
+        setBusy={setImgBusy}
+        label="Add an image"
+        hint="Paste with Ctrl+V, drop a file, or click to browse"
+      />
+      <ImageStrip
+        images={images}
+        onRemove={(id) => setImages((prev) => prev.filter((im) => im.id !== id))}
+      />
+      <div style={{ height: 14 }} />
+
+      <div className="eyebrow" style={{ marginBottom: 6 }}>
         Tags
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -417,20 +525,8 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
         {pinned ? 'Pinned' : 'Pin this note'}
       </button>
 
-      <div className="mrowbtns" style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-        {existing && (
-          <button className="btn sm" onClick={remove} style={{ color: 'var(--rose)', marginRight: 'auto' }}>
-            Delete
-          </button>
-        )}
-        <button className="btn" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn solid" onClick={save}>
-          Save
-        </button>
       </div>
-    </Modal>
+    </SideSheet>
   );
 }
 

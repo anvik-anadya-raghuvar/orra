@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { LedgerEntry } from '../../types';
 import { newId, today, useData, useStore } from '../../data/store';
-import { Modal, useToast } from '../../ui/bits';
+import { SideSheet, useToast } from '../../ui/bits';
 import { inr } from '../../lib/dates';
 import { myTasks } from '../../lib/workspace';
 
@@ -107,7 +107,22 @@ export default function EntryModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={entry ? 'Correct this entry' : 'New ledger entry'}>
+    <SideSheet
+      open={open}
+      onClose={onClose}
+      title={entry ? 'Correct this entry' : 'New ledger entry'}
+      subtitle="Shared — both of you see the tracker."
+      footer={
+        <>
+          <button className="btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn solid" type="button" onClick={submit}>
+            {entry ? 'Save changes' : 'Add entry'}
+          </button>
+        </>
+      }
+    >
       <div className="mn-ctl">
         <label className="mn-fld">
           <span className="mn-lbl">Date</span>
@@ -230,14 +245,6 @@ export default function EntryModal({
       <p className="tip" style={{ marginTop: 4 }}>
         A share is a note about how an expense was split. Nothing here works out who owes whom.
       </p>
-      <div className="mn-acts">
-        <button className="btn" type="button" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn solid" type="button" onClick={submit}>
-          {entry ? 'Save changes' : 'Add entry'}
-        </button>
-      </div>
-    </Modal>
+    </SideSheet>
   );
 }

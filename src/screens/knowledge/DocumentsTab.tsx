@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId } from '../../data/store';
-import { Modal, ProgressBar, useToast } from '../../ui/bits';
+import { ProgressBar, SideSheet, useToast } from '../../ui/bits';
 import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil } from '../../lib/dates';
 import { BarRows } from '../../ui/viz';
@@ -200,7 +200,22 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal open onClose={onClose} title="New document">
+    <SideSheet
+      open
+      onClose={onClose}
+      title="New document"
+      subtitle="A reference to a file that lives elsewhere — nothing is copied here."
+      footer={
+        <>
+          <button className="btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn solid" type="button" onClick={create}>
+            Add
+          </button>
+        </>
+      }
+    >
       <DrivePicker
         onPick={(f) => {
           if (!title.trim()) setTitle(f.name);
@@ -227,15 +242,7 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
         style={inputStyle}
       />
       <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Drive URL" style={inputStyle} />
-      <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-        <button className="btn" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn solid" onClick={create}>
-          Add
-        </button>
-      </div>
-    </Modal>
+    </SideSheet>
   );
 }
 
@@ -402,7 +409,21 @@ function EditDocumentModal({ doc, onClose }: { doc: DocumentRef; onClose: () => 
   };
 
   return (
-    <Modal open onClose={onClose} title="Edit document">
+    <SideSheet
+      open
+      onClose={onClose}
+      title="Edit document"
+      footer={
+        <>
+          <button className="btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn solid" type="button" onClick={save}>
+            Save changes
+          </button>
+        </>
+      }
+    >
       <label className="kn-fld">
         <span className="kn-lbl">Title</span>
         <input className="kn-in" value={title} autoFocus onChange={(e) => setTitle(e.target.value)} />
@@ -434,14 +455,6 @@ function EditDocumentModal({ doc, onClose }: { doc: DocumentRef; onClose: () => 
         <span className="kn-lbl">Drive link</span>
         <input className="kn-in" value={url} onChange={(e) => setUrl(e.target.value)} />
       </label>
-      <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 14 }}>
-        <button className="btn" type="button" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn solid" type="button" onClick={save}>
-          Save changes
-        </button>
-      </div>
-    </Modal>
+    </SideSheet>
   );
 }

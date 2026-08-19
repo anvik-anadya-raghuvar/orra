@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Decision } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { Avatar, Modal, useToast } from '../../ui/bits';
+import { Avatar, Modal, SideSheet, useToast } from '../../ui/bits';
 import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { daysSinceTs, fmtDateTime } from '../../lib/dates';
 import { BarRows, VIZ } from '../../ui/viz';
@@ -238,7 +238,22 @@ function NewDecisionModal({ open, onClose }: { open: boolean; onClose: () => voi
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="New decision">
+    <SideSheet
+      open={open}
+      onClose={onClose}
+      title="New decision"
+      subtitle="Shared with both of you — options now, the ruling whenever it lands."
+      footer={
+        <>
+          <button className="btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn solid" type="button" onClick={submit}>
+            Open decision
+          </button>
+        </>
+      }
+    >
       <Field label="Question">
         <input
           className="wk-in"
@@ -278,14 +293,6 @@ function NewDecisionModal({ open, onClose }: { open: boolean; onClose: () => voi
           </select>
         </Field>
       </div>
-      <div className="wk-acts">
-        <button className="btn" type="button" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn solid" type="button" onClick={submit}>
-          Open decision
-        </button>
-      </div>
-    </Modal>
+    </SideSheet>
   );
 }

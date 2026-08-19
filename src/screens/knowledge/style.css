@@ -350,3 +350,29 @@
 .drive-results button:focus-visible {
   background: var(--surf2);
 }
+
+/* ── images kept on a note ───────────────────────────────────────────────
+   A contact strip, not a gallery: enough to recognise which note this is,
+   with the count when there are more than fit. The full-size view is the
+   editor. Fixed aspect so a tall screenshot cannot stretch the card. */
+.note-shots {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 9px 0 2px;
+}
+.note-shots img {
+  width: 66px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surf2);
+  display: block;
+}
+.note-shots-more {
+  font-size: 11px;
+  color: var(--mute);
+  padding: 0 4px;
+}

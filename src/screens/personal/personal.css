@@ -14,25 +14,55 @@
   min-width: 0;
 }
 
-/* ── card shell ─────────────────────────────────────────────────────────── */
+/* ── widget shell ────────────────────────────────────────────────────────
+   `.pbig` used to BE the card: its own surface, border, radius, shadow and
+   padding. Since these widgets became bento tiles, `.bt` is the card — so
+   `.pbig` drawing a second one put a border inside a border, and Courses put
+   a third inside that. It is now purely the widget's internal layout.
+
+   It is also the widget's scroll container, which is the other half of the
+   fix. A bento row is a fixed height and `.bt` is `overflow: hidden`, so a
+   list longer than its tile used to be severed — the add-form, the last two
+   course items and half the Blocks button simply were not reachable. Now the
+   heading sticks to the top, the add-form sticks to the bottom, and whatever
+   is between them scrolls. Nothing is ever cut off from its own controls. */
 .personal-screen .pbig {
-  background: var(--surf);
-  border: 1px solid var(--line);
-  border-radius: var(--rl);
-  padding: 16px;
-  box-shadow: var(--sh1);
-  margin-bottom: 14px;
+  /* fill the tile it was handed, and never overflow it */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* the tile is the card; this is just a box */
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
 }
 .personal-screen .pbig h3 {
   font-size: 14px;
   margin: 0;
 }
+/* Sticky rather than fixed: on a tile short enough to need no scrolling these
+   behave exactly like ordinary rows and cost nothing. `--tp` is the tile's own
+   padding, bled outwards so the sticky bar covers the full tile width and rows
+   pass cleanly under it rather than beside it. */
+.personal-screen .pbig {
+  --tp: 15px;
+}
 .personal-screen .phead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surf);
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin: 0 calc(var(--tp) * -1) 10px;
+  padding: 0 var(--tp) 9px;
+  border-bottom: 1px solid var(--line);
 }
 .personal-screen .phead .eyebrow {
   margin-left: auto;
@@ -123,6 +153,19 @@
 .personal-screen .pform .pin.sm {
   flex: 1 1 120px;
   min-width: 0;
+}
+/* The widget's own add-form pins to the foot of its tile, so "add a course" is
+   reachable whether the list above it is empty or forty rows long. Only a
+   direct child — `.paddrow` inside an expanded course is a row in the list and
+   scrolls with it. */
+.personal-screen .pbig > .pform {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: var(--surf);
+  margin: 10px calc(var(--tp) * -1) 0;
+  padding: 9px var(--tp) 0;
+  border-top: 1px solid var(--line);
 }
 
 /* ── inline click-to-edit ───────────────────────────────────────────────── */
@@ -273,21 +316,26 @@
 }
 
 /* ── courses ───────────────────────────────────────────────────────────── */
+/* A course was a bordered, filled card — a third shell inside `.pbig` inside
+   `.bt`. It is a group of rows, so it reads as one now: a rule between courses
+   and a tinted body only while it is open, which is the only time the grouping
+   has to be visible. */
 .personal-screen .pcourses {
   display: grid;
-  gap: 10px;
+  gap: 0;
 }
 .personal-screen .pcourse {
-  border: 1px solid var(--line);
   border-radius: var(--r);
   overflow: hidden;
-  background: var(--surf2);
+}
+.personal-screen .pcourse + .pcourse {
+  border-top: 1px solid var(--line);
 }
 .personal-screen .pchead {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 10px 11px;
+  padding: 9px 0;
   flex-wrap: wrap;
 }
 .personal-screen .pcring {
@@ -325,7 +373,9 @@
   margin-left: 0;
 }
 .personal-screen .pcitems {
-  padding: 0 11px 10px;
+  padding: 0 0 10px 12px;
+  margin-left: 10px;
+  border-left: 2px solid var(--line);
   overflow: hidden;
 }
 
@@ -538,17 +588,32 @@
 }
 
 /* ── tabs: dashboard vs the free page ──────────────────────────────────── */
+/* Four tabs now, so they wrap rather than push the Customise chip off the
+   header on a phone. `margin-left: 0` on mobile because the title above them
+   has already wrapped to its own line by then. */
 .personal-screen .ptabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   background: var(--surf3);
   padding: 3px;
   border-radius: 10px;
-  margin-left: 14px;
+  margin-left: 0;
+}
+@media (min-width: 641px) {
+  .personal-screen .ptabs {
+    margin-left: 14px;
+  }
+}
+.personal-screen .ptabblurb {
+  font-size: 12px;
+  color: var(--mute);
+  margin: 0 0 12px;
 }
 .personal-screen .ptabs button {
   min-height: 44px;
-  padding: 6px 14px;
+  padding: 6px 13px;
+  flex: 0 1 auto;
   border-radius: 8px;
   font-size: 12.5px;
   color: var(--slate);
@@ -699,5 +764,22 @@
 @media (min-width: 1025px) {
   .personal-screen .prow a.ptitle {
     min-height: 28px;
+  }
+}
+
+/* The sticky bars bleed to the tile's edge, so they need the tile's own
+   horizontal padding — which grows at the desktop breakpoint (home/style.css
+   sets `.bt { padding: 15px 17px }` there). One variable, two values. */
+@media (min-width: 1025px) {
+  .personal-screen .pbig {
+    --tp: 17px;
+  }
+}
+
+/* Reduced motion: the sticky bars are position, not animation, so they stay —
+   but nothing here relies on a transition to become legible. */
+@media (prefers-reduced-motion: reduce) {
+  .personal-screen .pbig {
+    scroll-behavior: auto;
   }
 }

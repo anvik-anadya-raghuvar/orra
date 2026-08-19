@@ -46,6 +46,18 @@
         "5183"
       ],
       "port": 5183
+    },
+    {
+      "name": "anvik-ops-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "audit",
+        "--port",
+        "5188"
+      ],
+      "port": 5188
     }
   ]
 }

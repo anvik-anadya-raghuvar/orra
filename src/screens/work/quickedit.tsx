@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { Task, TaskLinkType, TaskPriority, TaskStatus } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { Modal, TagChip, useToast } from '../../ui/bits';
+import { SideSheet, TagChip, useToast } from '../../ui/bits';
 import { micro } from '../../ui/motion';
 import { notifyAssignment } from '../../lib/handoff';
 import { wouldCycle } from '../../lib/schedule';
@@ -202,7 +202,29 @@ export default function QuickEdit({
   };
 
   return (
-    <Modal open onClose={onClose} title={`Quick edit · ${live.id}`}>
+    <SideSheet
+      open
+      onClose={onClose}
+      title={`Quick edit · ${live.id}`}
+      subtitle="The fast path — subtasks, comments, screenshots and the export live on the full task page."
+      footer={
+        <>
+          <Link className="btn" to={`/task/${live.id}`} onClick={onClose}>
+            Open full task →
+          </Link>
+          <button className="btn danger" type="button" onClick={deleteTask}>
+            Delete
+          </button>
+          <div className="spacer" />
+          <button className="btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn solid" type="button" onClick={save}>
+            Save
+          </button>
+        </>
+      }
+    >
       <Field label="Title">
         <input
           className="wk-in"
@@ -375,25 +397,9 @@ export default function QuickEdit({
         </button>
       </div>
 
-      <div className="wk-acts" style={{ marginTop: 16 }}>
-        <Link className="btn" to={`/task/${live.id}`} onClick={onClose}>
-          Open full task →
-        </Link>
-        <button className="btn danger" type="button" onClick={deleteTask}>
-          Delete
-        </button>
-        <div className="spacer" />
-        <button className="btn" type="button" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn solid" type="button" onClick={save}>
-          Save
-        </button>
-      </div>
-      <p className="tip">
-        Currently {statusLabel(live.status)}. This is the fast path — subtasks, comments,
-        screenshots and the export live on the full task page.
+      <p className="tip" style={{ marginTop: 14 }}>
+        Currently {statusLabel(live.status)}.
       </p>
-    </Modal>
+    </SideSheet>
   );
 }

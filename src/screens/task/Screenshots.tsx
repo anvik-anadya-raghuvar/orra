@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Check, RotateCcw, Trash2 } from 'lucide-react';
 import { newId, useDataset, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
 import { entrance, spring } from '../../ui/motion';
 import { pinNumber } from '../../lib/exportTask';
-import { compressImage, jpegName, prettyBytes } from './imageCompress';
+import { prettyBytes } from '../../lib/imageCompress';
+import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
 import { PIN_LABELS } from '../../types';
 import type { ScreenshotAttachment, Task } from '../../types';
 
@@ -63,7 +64,7 @@ export default function Screenshots({ task }: { task: Task }) {
   const store = useStore();
   const ds = useDataset();
   const toast = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -112,40 +113,37 @@ export default function Screenshots({ task }: { task: Task }) {
     setSelected(row.id);
   };
 
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setBusy(true);
-    try {
-      const img = await compressImage(file);
-      const filename = jpegName(file.name);
-      store.insert(
-        'screenshot_attachments',
-        {
-          id: newId('shot'),
-          task_id: task.id,
-          storage_path: `screenshots/${task.id}/${filename}`,
-          filename,
-          mime: 'image/jpeg',
-          width: img.width,
-          height: img.height,
-          uploaded_by: store.me.id,
-          created_at: new Date().toISOString(),
-          data_url: img.data_url,
-        },
-        store.asMe({ summary: `Screenshot ${filename} attached` }),
-      );
-      toast(`${filename} attached · ${prettyBytes(img.bytes)} at q${img.quality}`);
-    } catch (err) {
-      toast((err as Error).message || 'That image could not be attached');
-    } finally {
-      setBusy(false);
-    }
+  /** One place every route ends: picker, drag-drop, and paste all land here. */
+  const attach = (img: DroppedImage) => {
+    store.insert(
+      'screenshot_attachments',
+      {
+        id: newId('shot'),
+        task_id: task.id,
+        storage_path: `screenshots/${task.id}/${img.filename}`,
+        filename: img.filename,
+        mime: 'image/jpeg',
+        width: img.width,
+        height: img.height,
+        uploaded_by: store.me.id,
+        created_at: new Date().toISOString(),
+        data_url: img.data_url,
+      },
+      store.asMe({ summary: `Screenshot ${img.filename} attached` }),
+    );
+    toast(`${img.filename} attached · ${prettyBytes(img.bytes)} at q${img.quality}`);
   };
 
+  // Ctrl/Cmd+V anywhere on the task page: take a screenshot, switch back, paste.
+  useImagePaste(sectionRef, (files) => {
+    setBusy(true);
+    void processImages(files, attach)
+      .catch((err: Error) => toast(err.message || 'That image could not be attached'))
+      .finally(() => setBusy(false));
+  });
+
   return (
-    <section aria-label="Screenshot evidence">
+    <section aria-label="Screenshot evidence" ref={sectionRef}>
       <div
         className="eyebrow"
         style={{ marginBottom: 8, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}
@@ -154,11 +152,10 @@ export default function Screenshots({ task }: { task: Task }) {
       </div>
 
       {shots.length === 0 && (
-        <div className="empty">
-          <p className="none" style={{ marginBottom: 10 }}>
-            No screenshot attached yet. Pins are what make the export worth reading.
-          </p>
-        </div>
+        <p className="none" style={{ marginBottom: 10 }}>
+          Nothing attached yet. Pins are what make the export worth reading — and a pin needs
+          something to sit on.
+        </p>
       )}
 
       {shots.map((shot) => {
@@ -415,21 +412,14 @@ export default function Screenshots({ task }: { task: Task }) {
         );
       })}
 
-      <label className="uploader">
-        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} disabled={busy} />
-        <span className="btn sm" role="button" tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              fileRef.current?.click();
-            }
-          }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}
-        >
-          <Upload size={14} strokeWidth={1.8} />
-          {busy ? 'Compressing…' : 'Attach a screenshot'}
-        </span>
-      </label>
+      <ImageDrop
+        onImage={attach}
+        onError={(m) => toast(m)}
+        busy={busy}
+        setBusy={setBusy}
+        label={shots.length ? 'Attach another screenshot' : 'Attach a screenshot'}
+        hint="Paste with Ctrl+V, drop a file, or click to browse"
+      />
       <p className="none" style={{ marginTop: 6 }}>
         Compressed in the browser — capped at 1600px wide and 300 KB.
       </p>

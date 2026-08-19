@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Pencil, ArrowUpRight } from 'lucide-react';
 import { useData, useStore, newId, nowIso } from '../../data/store';
-import { Modal, useToast } from '../../ui/bits';
+import { SideSheet, useToast } from '../../ui/bits';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { warmth } from '../../lib/warmth';
 import type { RelationshipType } from '../../types';
@@ -116,7 +116,32 @@ export default function ProfileModal({
   };
 
   return (
-    <Modal open onClose={onClose} title={existing ? existing.name : 'New person'}>
+    <SideSheet
+      open
+      onClose={onClose}
+      title={existing ? existing.name : 'New person'}
+      subtitle={existing ? undefined : 'Shared — both of you see this person.'}
+      footer={
+        <>
+          {existing && (
+            <button
+              type="button"
+              className="btn sm"
+              onClick={remove}
+              style={{ color: 'var(--rose)', marginRight: 'auto' }}
+            >
+              Delete
+            </button>
+          )}
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn solid" onClick={save}>
+            Save
+          </button>
+        </>
+      }
+    >
       {existing && w && (
         <div className="pm-warmrow">
           <span className={`pill ${WARMTH_PILL[w.color]}`}>
@@ -287,19 +312,6 @@ export default function ProfileModal({
         </>
       )}
 
-      <div className="mrowbtns" style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 14 }}>
-        {existing && (
-          <button className="btn sm" onClick={remove} style={{ color: 'var(--rose)', marginRight: 'auto' }}>
-            Delete
-          </button>
-        )}
-        <button className="btn" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn solid" onClick={save}>
-          Save
-        </button>
-      </div>
 
       {existing && editingInteraction && (
         <EditInteractionModal
@@ -308,6 +320,6 @@ export default function ProfileModal({
           onClose={() => setEditingInteraction(null)}
         />
       )}
-    </Modal>
+    </SideSheet>
   );
 }

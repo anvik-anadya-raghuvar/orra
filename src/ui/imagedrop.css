@@ -1,0 +1,162 @@
+/* Image drop zone and the strip of what is already attached.
+   Mobile-first; the well is a single column that just gets roomier.
+   Every control here clears 44px, because they all perform an action. */
+
+.imgdrop {
+  position: relative;
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  background: var(--surf2);
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
+}
+.imgdrop.over {
+  border-color: var(--violet);
+  background: var(--violet-s, var(--surf3));
+}
+.imgdrop.busy {
+  opacity: 0.7;
+}
+/* Visually hidden, still operable: the label's button clicks it. */
+.imgdrop input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.imgdrop-hit {
+  width: 100%;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  padding: 16px 14px;
+  background: none;
+  border: 0;
+  color: var(--slate);
+  cursor: pointer;
+  border-radius: var(--r);
+  text-align: left;
+}
+.imgdrop-hit:disabled {
+  cursor: progress;
+}
+.imgdrop-hit:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: -2px;
+}
+.imgdrop-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.imgdrop-txt b {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.imgdrop-txt small {
+  font-size: 11px;
+  color: var(--mute);
+}
+
+.imgdrop.compact .imgdrop-hit {
+  min-height: 44px;
+  padding: 10px 12px;
+  justify-content: flex-start;
+}
+.imgdrop.compact .imgdrop-txt b {
+  font-size: 12.5px;
+}
+
+/* ── what is already attached ─────────────────────────────────────────── */
+.imgstrip {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@media (min-width: 641px) {
+  .imgstrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.imgstrip li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf2);
+  min-width: 0;
+}
+.imgstrip-shot {
+  flex: none;
+  width: 56px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surf3);
+  padding: 0;
+  cursor: zoom-in;
+  display: grid;
+  place-items: center;
+}
+.imgstrip-shot:disabled {
+  cursor: default;
+}
+.imgstrip-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.imgstrip-shot.none {
+  font-size: 9px;
+  color: var(--mute);
+  text-align: center;
+  line-height: 1.2;
+  padding: 2px;
+}
+.imgstrip-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.imgstrip-meta b {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.imgstrip-meta small {
+  font-size: 10.5px;
+  color: var(--mute);
+}
+.imgstrip-x {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: none;
+  color: var(--mute);
+  font-size: 20px;
+  line-height: 1;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.imgstrip-x:hover,
+.imgstrip-x:focus-visible {
+  color: var(--rose);
+  background: var(--surf3);
+}

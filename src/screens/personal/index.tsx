@@ -4,7 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import type { Course, CourseItem, ReadingItem } from '../../types';
 import { newId, useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
-import { entrance, spring, staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { entrance, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { Donut, MiniBars, Ring, VIZ } from '../../ui/viz';
 import { ownRows } from '../../lib/workspace';
 import {
@@ -469,26 +469,56 @@ function ReadingQueue() {
  *
  * `col` is a hint, not a rule: the layout reflows when widgets are hidden.
  */
+/**
+ * Where a widget sits.
+ *
+ * Ten widgets on one screen was a wall — you could not see any of them because
+ * you were looking at all of them. They group naturally into three moods, so
+ * the room now has three, and each holds three or four tiles that have space
+ * to be legible.
+ *
+ * A tab is not a permission and not a filter on someone else's data: it is
+ * where your own widgets live. A tab whose widgets you have all switched off
+ * disappears rather than showing you an empty room.
+ */
+export type WidgetTab = 'today' | 'study' | 'moving';
+
+export const TAB_META: { key: WidgetTab; label: string; blurb: string }[] = [
+  { key: 'today', label: 'Today', blurb: 'What you are actually doing with the day.' },
+  { key: 'study', label: 'Study', blurb: 'The degree, the reading, and where the hours went.' },
+  { key: 'moving', label: 'Moving', blurb: 'The dates and paperwork the move runs on.' },
+];
+
+/**
+ * The widgets this room can hold.
+ *
+ * Personal used to be built around one of the two lives — courses, a study
+ * rhythm, a study timer — which left the other person looking at furniture.
+ * Every widget is now optional and every person keeps their own set, so the
+ * same room can be a degree tracker or a goals-and-agenda board.
+ *
+ * `cols`/`rows` are hints, not rules: the packer closes any gap and a drag or
+ * resize overrides them per person.
+ */
 const WIDGETS: {
   key: string;
   label: string;
   hint: string;
-  /** Preferred span at the four-column grid; the packer closes any gap and a
-   *  drag or resize overrides it per person. */
+  tab: WidgetTab;
   cols: 1 | 2 | 4;
   rows?: 1 | 2;
   node: React.ReactNode;
 }[] = [
-  { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', cols: 2, rows: 2, node: <PersonalTasks /> },
-  { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', cols: 2, rows: 2, node: <PersonalGoals /> },
-  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', cols: 2, node: <StudyRhythm /> },
-  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', cols: 2, node: <StudyTimer /> },
-  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', cols: 2, rows: 2, node: <Courses /> },
-  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', cols: 2, node: <ReadingQueue /> },
-  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', cols: 2, node: <LifeAdmin /> },
-  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', cols: 2, rows: 2, node: <TimeLedger /> },
-  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', cols: 2, node: <FixedDates /> },
-  { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', cols: 2, node: <RelocationDocs /> },
+  { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', tab: 'today', cols: 2, rows: 2, node: <PersonalTasks /> },
+  { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', tab: 'today', cols: 2, rows: 2, node: <PersonalGoals /> },
+  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', tab: 'today', cols: 2, node: <StudyTimer /> },
+  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', tab: 'today', cols: 2, node: <LifeAdmin /> },
+  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', tab: 'study', cols: 2, rows: 2, node: <Courses /> },
+  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', tab: 'study', cols: 2, rows: 2, node: <ReadingQueue /> },
+  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', tab: 'study', cols: 2, node: <StudyRhythm /> },
+  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', tab: 'study', cols: 2, rows: 2, node: <TimeLedger /> },
+  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', tab: 'moving', cols: 2, rows: 2, node: <FixedDates /> },
+  { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', tab: 'moving', cols: 2, rows: 2, node: <RelocationDocs /> },
 ];
 
 /** Everything on, until someone turns something off. */
@@ -517,31 +547,43 @@ function CustomisePersonal({ open, onClose }: { open: boolean; onClose: () => vo
     <Modal open={open} onClose={onClose} title="Customise Personal">
       <p className="tip" style={{ margin: '-6px 0 8px' }}>
         Yours only. This room has to fit two different lives — keep what matches yours and hide the
-        rest. {store.other.name}&apos;s Personal is untouched by anything here.
+        rest. {store.other.name}&apos;s Personal is untouched by anything here. A tab whose widgets
+        are all off stops appearing.
       </p>
-      {WIDGETS.map(({ key, label, hint }) => {
-        const on = isOn(widgets, key);
-        return (
-          <div className="swrow" key={key}>
-            <span className="txt">
-              {label}
-              <small>{hint}</small>
-            </span>
-            <button
-              className="sw"
-              role="switch"
-              aria-checked={on}
-              aria-label={label}
-              onClick={() => {
-                set(key, !on);
-                toast(`${label} ${!on ? 'shown' : 'hidden'}`);
-              }}
-            >
-              <motion.span className="knob" layout transition={spring} />
-            </button>
+      {TAB_META.map((t) => (
+        <React.Fragment key={t.key}>
+          <div className="eyebrow" style={{ margin: '14px 0 4px' }}>
+            {t.label}
           </div>
-        );
-      })}
+          {WIDGETS.filter((w) => w.tab === t.key).map(({ key, label, hint }) => {
+            const on = isOn(widgets, key);
+            return (
+              <div className="swrow" key={key}>
+                <span className="txt">
+                  {label}
+                  <small>{hint}</small>
+                </span>
+                <button
+                  className="sw"
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={label}
+                  onClick={() => {
+                    set(key, !on);
+                    toast(`${label} ${!on ? 'shown' : 'hidden'}`);
+                  }}
+                >
+                  <motion.span className="knob" layout transition={spring} />
+                </button>
+              </div>
+            );
+          })}
+        </React.Fragment>
+      ))}
+      <div className="eyebrow" style={{ margin: '18px 0 4px' }}>
+        Arrangement
+      </div>
+      <ResetArrangement field="personal_layout" />
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
         <button className="btn solid" onClick={onClose}>
           Done
@@ -610,14 +652,33 @@ function PersonalBento({ shown }: { shown: typeof WIDGETS }) {
   );
 }
 
-type PersonalTab = 'dashboard' | 'board';
+type PersonalTab = WidgetTab | 'board';
 
 export default function Personal() {
   const me = useData((_, s) => s.me);
-  const [tab, setTab] = useState<PersonalTab>('dashboard');
+  const [tab, setTab] = useState<PersonalTab>('today');
   const [customising, setCustomising] = useState(false);
   const widgets = me.personalization.personal_widgets;
-  const shown = WIDGETS.filter((w) => isOn(widgets, w.key));
+
+  const shown = useMemo(() => WIDGETS.filter((w) => isOn(widgets, w.key)), [widgets]);
+
+  // A tab with nothing switched on is not a room worth offering — it would be
+  // an empty screen with a "you hid everything" note, which is a worse answer
+  // than simply not being there. Mood board is always available: it is the one
+  // surface with no widget behind it to switch off.
+  const tabs = useMemo(
+    () => TAB_META.filter((t) => shown.some((w) => w.tab === t.key)),
+    [shown],
+  );
+
+  // If the active tab just emptied out — every widget in it hidden — fall back
+  // to the first tab that still has something in it rather than rendering a
+  // void. Derived during render so there is no flash of the empty state.
+  const active: PersonalTab =
+    tab === 'board' || tabs.some((t) => t.key === tab) ? tab : (tabs[0]?.key ?? 'board');
+
+  const inTab = useMemo(() => shown.filter((w) => w.tab === active), [shown, active]);
+  const meta = TAB_META.find((t) => t.key === active);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -626,29 +687,50 @@ export default function Personal() {
           <div className="top">
             <div className="disp">Personal</div>
             <div className="ptabs" role="tablist" aria-label="Personal sections">
-              <button role="tab" aria-selected={tab === 'dashboard'} onClick={() => setTab('dashboard')}>
-                Dashboard
-              </button>
-              <button role="tab" aria-selected={tab === 'board'} onClick={() => setTab('board')}>
+              {tabs.map((t) => (
+                <button
+                  key={t.key}
+                  role="tab"
+                  type="button"
+                  aria-selected={active === t.key}
+                  onClick={() => setTab(t.key)}
+                >
+                  {t.label}
+                </button>
+              ))}
+              <button
+                role="tab"
+                type="button"
+                aria-selected={active === 'board'}
+                onClick={() => setTab('board')}
+              >
                 Mood board
               </button>
             </div>
             <div className="spacer" />
-            {tab === 'dashboard' && (
-              <button className="chip" type="button" onClick={() => setCustomising(true)}>
-                Customise
-              </button>
-            )}
+            <button className="chip" type="button" onClick={() => setCustomising(true)}>
+              Customise
+            </button>
           </div>
           <div className="wrap">
-            {tab === 'board' ? (
+            {active === 'board' ? (
               <MoodBoard />
-            ) : shown.length === 0 ? (
-              <p className="tip">
-                Every widget is hidden. Use Customise to bring back the ones that match your life.
-              </p>
             ) : (
-              <PersonalBento shown={shown} />
+              <>
+                {meta && <p className="ptabblurb">{meta.blurb}</p>}
+                {inTab.length === 0 ? (
+                  <p className="tip">
+                    Every widget is hidden. Use Customise to bring back the ones that match your
+                    life.
+                  </p>
+                ) : (
+                  /* Keyed by tab so each one mounts its own grid: the arrangement
+                     hook tracks the keys currently on screen, and carrying one
+                     tab's key list into another would let a drag reorder tiles
+                     you cannot see. */
+                  <PersonalBento key={active} shown={inTab} />
+                )}
+              </>
             )}
           </div>
         </div>

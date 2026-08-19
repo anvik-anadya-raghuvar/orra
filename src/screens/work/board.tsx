@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import type { DayEvent, Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { useData, useStore } from '../../data/store';
-import { Avatar, Modal, TagChip, useToast } from '../../ui/bits';
+import { Avatar, SideSheet, TagChip, useToast } from '../../ui/bits';
 import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
@@ -1029,7 +1029,22 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="New task">
+    <SideSheet
+      open={open}
+      onClose={onClose}
+      title="New task"
+      subtitle="Type decides what the task page shows, so it is worth getting right now."
+      footer={
+        <>
+          <button className="btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn solid" type="button" onClick={submit}>
+            Create task
+          </button>
+        </>
+      }
+    >
       <Field label="Title">
         <input
           className="wk-in"
@@ -1102,14 +1117,6 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           />
         </Field>
       </div>
-      <div className="wk-acts">
-        <button className="btn" type="button" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn solid" type="button" onClick={submit}>
-          Create task
-        </button>
-      </div>
-    </Modal>
+    </SideSheet>
   );
 }

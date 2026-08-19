@@ -13,7 +13,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Image as ImageIcon, Link2, Quote, StickyNote, Music } from 'lucide-react';
 import { newId, useData, useStore } from '../../data/store';
-import { Modal, useToast } from '../../ui/bits';
+import { SideSheet, useToast } from '../../ui/bits';
+import { imageFilesFrom, useImagePaste } from '../../ui/imagedrop';
 import { entrance, staggerItem, staggerParent } from '../../ui/motion';
 import { momentSrc, uploadMoment } from '../../lib/moments';
 import type { MoodItem } from '../../types';
@@ -93,6 +94,8 @@ export default function MoodBoard() {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [over, setOver] = useState(false);
 
   const items = useMemo(
     () =>
@@ -127,9 +130,10 @@ export default function MoodBoard() {
     toast('Pinned');
   };
 
-  const pickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+  /** One path for the picker, a drop and a paste. The mood board keeps full
+   *  photos in Storage rather than inline data URLs, so this uses the moments
+   *  pipeline (compressPhoto + uploadMoment) rather than the screenshot one. */
+  const pinFile = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);
     try {
@@ -143,6 +147,16 @@ export default function MoodBoard() {
       setBusy(false);
     }
   };
+
+  const pickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    void pinFile(file);
+  };
+
+  // Ctrl/Cmd+V while the sheet is open pins the clipboard image directly —
+  // no need to pick "Image" first, or to have saved it to disk at all.
+  useImagePaste(sheetRef, (files) => void pinFile(files[0]), open);
 
   const canSave =
     kind === 'link' ? Boolean(url.trim()) : Boolean(body.trim() || title.trim());
@@ -175,7 +189,30 @@ export default function MoodBoard() {
         </motion.div>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Pin something">
+      <SideSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Pin something"
+        subtitle="Yours alone. Paste an image with Ctrl+V, or pick a kind below."
+        footer={
+          kind === 'image' ? undefined : (
+            <>
+              <button className="btn" type="button" onClick={() => setOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn solid"
+                type="button"
+                onClick={() => insert({})}
+                disabled={!canSave}
+              >
+                Pin it
+              </button>
+            </>
+          )
+        }
+      >
+        <div ref={sheetRef}>
         <div className="mb-kinds">
           {KINDS.map(({ key, label, Icon }) => (
             <button
@@ -228,17 +265,47 @@ export default function MoodBoard() {
                 />
               </>
             )}
-            <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 14 }}>
-              <button className="btn" type="button" onClick={() => setOpen(false)}>
-                Cancel
-              </button>
-              <button className="btn solid" type="button" onClick={() => insert({})} disabled={!canSave}>
-                Pin it
-              </button>
-            </div>
           </>
         )}
-      </Modal>
+        {kind === 'image' && (
+          /* Not the shared <ImageDrop>: that one produces an inline JPEG data
+             URL for a note or a screenshot. A pinned photo goes to Storage via
+             the moments pipeline and is read back through `storage_path`, so
+             the well is local and hands the raw File to `pinFile`. */
+          <div
+            className={`imgdrop${over ? ' over' : ''}${busy ? ' busy' : ''}`}
+            style={{ marginTop: 12 }}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes('Files')) return;
+              e.preventDefault();
+              setOver(true);
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+              setOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setOver(false);
+              void pinFile(imageFilesFrom(e.dataTransfer)[0]);
+            }}
+          >
+            <button
+              type="button"
+              className="imgdrop-hit"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+            >
+              <ImageIcon size={19} strokeWidth={1.8} aria-hidden />
+              <span className="imgdrop-txt">
+                <b>{busy ? 'Pinning…' : 'Choose, drop or paste an image'}</b>
+                <small>Kept full size on the board, not as a thumbnail</small>
+              </span>
+            </button>
+          </div>
+        )}
+        </div>
+      </SideSheet>
     </div>
   );
 }
