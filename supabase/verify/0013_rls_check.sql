@@ -88,8 +88,27 @@ BEGIN
   rows_out := rows_out || ARRAY[ARRAY['5b', 'A cannot read B mood board', '0', seen::text,
     CASE WHEN seen = 0 THEN 'PASS' ELSE 'FAIL' END]];
 
+  -- active_blocks is deliberately NOT owner-read (0028): a running block is
+  -- live presence in a two-person workspace, and Home's "what they are up to"
+  -- tile reads it on purpose. The contract there is read-team, write-owner —
+  -- so this asserts both halves. Asserting the old contract made this gate
+  -- report a failure that was really a stale expectation, while leaving the
+  -- half that actually matters — that A cannot stop B's clock — untested.
   SELECT count(*) INTO seen FROM public.active_blocks WHERE id = 'rls-probe-block';
-  rows_out := rows_out || ARRAY[ARRAY['5c', 'A cannot read B running block', '0', seen::text,
+  rows_out := rows_out || ARRAY[ARRAY['5c', 'A can read B running block (presence, by design)', '1', seen::text,
+    CASE WHEN seen = 1 THEN 'PASS' ELSE 'FAIL' END]];
+
+  -- Reading it is presence; changing it is not. An UPDATE that matches no
+  -- readable-and-writable row affects zero rows rather than raising, so this
+  -- counts what changed instead of catching an exception.
+  UPDATE public.active_blocks SET paused_at = now() WHERE id = 'rls-probe-block';
+  GET DIAGNOSTICS seen = ROW_COUNT;
+  rows_out := rows_out || ARRAY[ARRAY['5d', 'A cannot pause B running block', '0', seen::text,
+    CASE WHEN seen = 0 THEN 'PASS' ELSE 'FAIL' END]];
+
+  DELETE FROM public.active_blocks WHERE id = 'rls-probe-block';
+  GET DIAGNOSTICS seen = ROW_COUNT;
+  rows_out := rows_out || ARRAY[ARRAY['5e', 'A cannot end B running block', '0', seen::text,
     CASE WHEN seen = 0 THEN 'PASS' ELSE 'FAIL' END]];
 
   -- WITH CHECK: writing a row owned by the other member must be refused.
