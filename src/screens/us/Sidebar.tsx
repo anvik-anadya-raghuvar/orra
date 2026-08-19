@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { Avatar, useToast } from '../../ui/bits';

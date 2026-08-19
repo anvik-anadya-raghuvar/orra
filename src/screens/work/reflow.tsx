@@ -6,7 +6,7 @@
  * partially accept — nothing is written until "Apply" is pressed, and each row
  * can be unticked.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';

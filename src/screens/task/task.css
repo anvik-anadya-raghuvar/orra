@@ -497,21 +497,6 @@
 .tpage .iconbtn.danger:focus-visible {
   color: var(--rose);
 }
-
-/* ── upload ───────────────────────────────────────────────────────────── */
-.tpage .uploader {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-.tpage .uploader input[type='file'] {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
 .tpage .empty {
   border: 1px dashed var(--line);
   border-radius: var(--r);

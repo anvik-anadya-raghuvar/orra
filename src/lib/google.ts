@@ -507,29 +507,6 @@ export async function fetchCalendarRange(
   return out;
 }
 
-export async function createCalendarEvent(
-  accountId: string,
-  input: { summary: string; startIso: string; endIso: string; description?: string },
-): Promise<string> {
-  const token = await getAccountToken(accountId, ['calendar']);
-  if (!token) throw new Error('Reconnect the selected Google account first');
-  const response = await fetch(
-    'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1',
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        summary: input.summary,
-        description: input.description ?? '',
-        start: { dateTime: input.startIso },
-        end: { dateTime: input.endIso },
-      }),
-    },
-  );
-  if (!response.ok) throw new GoogleApiError(response.status, `Calendar refused: ${(await response.text()).slice(0, 180)}`);
-  const result = (await response.json()) as { htmlLink?: string };
-  return result.htmlLink ?? 'https://calendar.google.com';
-}
 
 /* ── Drive ──────────────────────────────────────────────────────────── */
 

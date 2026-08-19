@@ -6,7 +6,7 @@
  * why it matters and what can move next; project/course links only supply
  * progress when that relationship is genuinely useful.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Plus } from 'lucide-react';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useData, useStore, newId } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
 import { todayIso } from '../../lib/dates';

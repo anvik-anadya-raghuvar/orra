@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
@@ -6,7 +6,7 @@ import type { AppStore } from '../../data/store';
 import type { FixedDate, LifeAdminItem, TimeLog } from '../../types';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { CountUp, TagChip, useToast } from '../../ui/bits';
-import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil, fmtDay } from '../../lib/dates';
 import { BarRows, HeatStrip, Ring, Sparkline, SplitBar as VizSplit, VIZ } from '../../ui/viz';
 import { activeBlockFor, startBlock } from '../../lib/blocks';

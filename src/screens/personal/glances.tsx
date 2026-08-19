@@ -16,7 +16,6 @@ import React, { useEffect, useState } from 'react';
 import { useData, useStore } from '../../data/store';
 import { daysUntil, fmtDay, todayIso } from '../../lib/dates';
 import { myTasks, ownRows } from '../../lib/workspace';
-import { goalProgress, goalsFor, progressLabel } from '../../lib/goals';
 import { SCOPE_COPY, activeBlockFor, clockLabel, elapsedSec } from '../../lib/blocks';
 import { isTerminalOrder } from '../../lib/personalOrders';
 
@@ -93,21 +92,6 @@ export function TasksGlance() {
         <Row key={t.id} main={t.title} meta={t.due_date ? fmtDay(t.due_date) : undefined} />
       ))}
       {rows.length === 0 && <None>Nothing personal open.</None>}
-    </Shell>
-  );
-}
-
-export function GoalsGlance() {
-  const ds = useData((d) => d);
-  const meId = useData((_, s) => s.meId);
-  const goals = goalsFor(ds, meId).filter((g) => g.status === 'open');
-  return (
-    <Shell title="Goals" stat={goals.length} statLabel="open">
-      {goals.slice(0, 2).map((g) => {
-        const p = goalProgress(ds, g);
-        return <Row key={g.id} main={g.title} meta={progressLabel(p)} pct={p.pct} />;
-      })}
-      {goals.length === 0 && <None>No goals yet — open to add the first one.</None>}
     </Shell>
   );
 }

@@ -63,9 +63,3 @@ export async function momentSrc(attachment: string): Promise<string | null> {
   return data.signedUrl;
 }
 
-/** Remove the stored object behind a moment. Data URLs have nothing to remove. */
-export async function deleteMoment(attachment: string): Promise<void> {
-  if (!attachment || isDataUrl(attachment) || !supabaseConfigured()) return;
-  const sb = await getSupabase();
-  await sb.storage.from(BUCKET).remove([attachment]);
-}

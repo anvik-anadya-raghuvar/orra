@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { InfoTip, useToast } from '../../ui/bits';
-import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { todayIso } from '../../lib/dates';
 import { warmth, type Warmth } from '../../lib/warmth';
 import type { Dataset, Person, RelationshipType } from '../../types';

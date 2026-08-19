@@ -505,44 +505,6 @@ function rawSeed(): Dataset {
   };
 }
 
-/** Dev/perf helper — inflate the task list to n tasks for the p95 gate. */
-export function generateBulkTasks(base: Dataset, n: number): Dataset {
-  const tasks = [...base.tasks];
-  const projects = ['anvik', 'reg', 'con', 'personal'];
-  const types = ['code_change', 'ops', 'finance', 'research'] as const;
-  const statuses = ['backlog', 'todo', 'in_progress', 'in_review', 'done'] as const;
-  const pris = ['urgent', 'high', 'normal', 'low'] as const;
-  for (let i = tasks.length; i < n; i++) {
-    const num = 100 + i;
-    tasks.push({
-      id: `T-${num}`,
-      title: `Seed task ${num}`,
-      description: '',
-      acceptance_criteria: '',
-      project_id: projects[i % 4],
-      type: types[i % 4],
-      status: statuses[i % 5],
-      priority: pris[i % 4],
-      assignee_id: i % 2 === 0 ? AN : RG,
-      created_by: AN,
-      start_date: '2026-08-01',
-      due_date: `2026-08-${String((i % 28) + 1).padStart(2, '0')}`,
-      objective_id: i % 3 === 0 ? 'okr-reg' : null,
-      tags: [],
-      progress_pct: (i * 7) % 101,
-      sprint_id: i % 3 === 0 ? null : 'sprint-1',
-      board_order: i,
-      effort: (['light', 'medium', 'heavy'] as const)[i % 3],
-      estimate_minutes: 25 + (i % 4) * 20,
-      impact: (i % 5) + 1,
-      is_stuck: false,
-      blocked_reason: null,
-      created_at: `2026-07-${String((i % 28) + 1).padStart(2, '0')}T09:00:00+05:30`,
-      updated_at: `2026-08-01T09:00:00+05:30`,
-    });
-  }
-  return { ...base, tasks };
-}
 
 /** A small, self-contained picture that renders without Storage or a network. */
 const TEST_MOMENT_PHOTO = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`

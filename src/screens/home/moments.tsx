@@ -7,7 +7,6 @@
  * message, so the same conversation is in Us without having to go there.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Camera, Music, Play } from 'lucide-react';
 import { useData, useStore } from '../../data/store';

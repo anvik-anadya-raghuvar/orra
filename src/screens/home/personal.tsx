@@ -1,8 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Music, Image as ImageIcon, Sparkles, Radar, Wallet, LayoutGrid, CloudSun, Clock3, CalendarDays } from 'lucide-react';
-import { newId, nowIso, today, useData, useStore } from '../../data/store';
+import { newId, nowIso, useData, useStore } from '../../data/store';
 import { CountUp, InfoTip, Modal, useToast } from '../../ui/bits';
 import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
@@ -10,12 +10,10 @@ import { myTasks } from '../../lib/workspace';
 import { monthlyRunRate, soonestSubscription } from '../../lib/tracker';
 import { quoteForDate } from '../../lib/quotes';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
-import { isYouTubeUrl, playUrl, youTubeThumb } from '../../lib/song';
-import { resolveSong } from '../../lib/youtube';
 import { isTerminalOrder } from '../../lib/personalOrders';
 import { ChevronRight } from 'lucide-react';
 import { ResetArrangement } from './tilechrome';
-import type { Project, SharedDaily } from '../../types';
+import type { Project } from '../../types';
 
 /* ── One consistent "open full page" affordance, shared with index.tsx.
    Always in the tile header, always a real link — keyboard reachable,

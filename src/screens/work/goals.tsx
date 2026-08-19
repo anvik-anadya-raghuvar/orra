@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { entrance, spring, staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { entrance, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { todayIso } from '../../lib/dates';
 import { rankTasks } from '../../lib/ranking';
 import { BarRows, MiniBars, Ring, VIZ } from '../../ui/viz';

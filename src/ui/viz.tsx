@@ -407,7 +407,7 @@ export function SplitBar({
   return (
     <div>
       <div className="viz-split" style={{ height }}>
-        {parts.map((p, i) => (
+        {parts.map((p) => (
           <motion.span
             key={p.label}
             style={{ background: p.color }}

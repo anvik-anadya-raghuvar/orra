@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId } from '../../data/store';
 import { ProgressBar, SideSheet, useToast } from '../../ui/bits';
-import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil } from '../../lib/dates';
 import { BarRows } from '../../ui/viz';
 import type { DocumentRef } from '../../types';

@@ -415,16 +415,6 @@ textarea.wk-in {
   color: var(--slate);
   flex-wrap: wrap;
 }
-.wk-pri {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10.5px;
-}
-.wk-pri.u {
-  color: var(--rose);
-}
-.wk-pri.h {
-  color: var(--stamp);
-}
 .wk-pc {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;

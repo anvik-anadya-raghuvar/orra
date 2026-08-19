@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
 
 export default function ImportHistory() {

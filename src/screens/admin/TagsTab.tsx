@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { newId, useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import type { Tag } from '../../types';
 import { TAG_COLORS, tagUsageCounts } from './common';
 

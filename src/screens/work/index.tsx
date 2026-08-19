@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { entrance, micro } from '../../ui/motion';
 import { InfoTip } from '../../ui/bits';

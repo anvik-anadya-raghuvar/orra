@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Decision } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Avatar, Modal, SideSheet, useToast } from '../../ui/bits';
-import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysSinceTs, fmtDateTime } from '../../lib/dates';
 import { BarRows, VIZ } from '../../ui/viz';
 import { Field, projColor, projName } from './common';

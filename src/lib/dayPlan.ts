@@ -1,18 +1,8 @@
-import type { Capacity, Dataset, DayPlan, DayPlanItem, Task, UserId, WinCondition } from '../types';
+import type { Capacity, Dataset, DayPlan, DayPlanItem, Task, UserId } from '../types';
 
 /** Today's plan for a user, or a sensible default if they haven't set one. */
 export function planFor(ds: Dataset, userId: UserId, dateIso: string): DayPlan | null {
   return ds.day_plans.find((p) => p.user_id === userId && p.date === dateIso) ?? null;
-}
-
-export const DEFAULT_WINS: WinCondition[] = [
-  { text: 'Close one production-critical loop', done: false },
-  { text: 'Give the other one a clean unblock', done: false },
-  { text: 'Leave tomorrow with less ambiguity', done: false },
-];
-
-export function capacityOf(ds: Dataset, userId: UserId, dateIso: string): Capacity {
-  return planFor(ds, userId, dateIso)?.capacity ?? 'medium';
 }
 
 export const CAPACITY_COPY: Record<Capacity, { label: string; blurb: string }> = {

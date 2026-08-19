@@ -60,9 +60,6 @@ export const activeGoogleAccounts = (store: AppStore): IntegrationGrant[] =>
   googleAccounts(store).filter((grant) => grant.is_active !== false);
 
 /** Compatibility for existing status surfaces: the first active account. */
-export const googleGrant = (store: AppStore): IntegrationGrant | null =>
-  activeGoogleAccounts(store)[0] ?? null;
-
 export const hasScope = (
   store: AppStore,
   key: keyof typeof SCOPES,

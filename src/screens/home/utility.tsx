@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CloudSun, Clock3, MapPin, Search } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
 import { InfoTip, useToast } from '../../ui/bits';

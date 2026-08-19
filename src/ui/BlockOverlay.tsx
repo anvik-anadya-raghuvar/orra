@@ -6,7 +6,7 @@
  * It reappears after a reload because the block lives in the database — the
  * component holds no timer state worth losing, only a tick to re-render.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { newId, useData, useStore } from '../data/store';
 import { useToast } from './bits';

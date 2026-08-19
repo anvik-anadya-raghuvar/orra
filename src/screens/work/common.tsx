@@ -28,8 +28,6 @@ export const PRIORITIES: { key: TaskPriority; label: string }[] = [
 
 export const statusLabel = (s: TaskStatus) => STATUSES.find((x) => x.key === s)?.label ?? s;
 export const typeLabel = (t: TaskType) => TYPES.find((x) => x.key === t)?.label ?? t;
-export const priClass = (p: TaskPriority) =>
-  `wk-pri${p === 'urgent' ? ' u' : p === 'high' ? ' h' : ''}`;
 
 /** P0–P3 badge. Display only — the stored value stays urgent/high/normal/low. */
 export const priBadge = (p: TaskPriority) => PRIORITY_LABEL[p];

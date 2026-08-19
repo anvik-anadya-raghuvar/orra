@@ -261,14 +261,6 @@
 .tilesheet .tilesheet-body .phead {
   top: 0;
 }
-.tilesheet-ft {
-  flex: none;
-  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: var(--surf-solid);
-  display: grid;
-  gap: 7px;
-}
 .tilesheet-sizes {
   display: flex;
   flex-wrap: wrap;

@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { useToast } from '../../ui/bits';
-import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
 import { MiniBars } from '../../ui/viz';
 import type { MailItem } from '../../types';

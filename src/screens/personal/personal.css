@@ -175,12 +175,6 @@
   font-size: 10.5px;
   font-style: normal;
 }
-.personal-screen .life-workgrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-}
 .personal-screen .life-card {
   min-width: 0;
   padding: 15px;
@@ -359,23 +353,9 @@
 }
 
 @media (min-width: 1025px) {
-  .personal-screen .life-workgrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .personal-screen .life-card.wide {
     grid-column: 1 / -1;
   }
-}
-
-.personal-screen .pgrid2 {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  align-items: start;
-}
-/* grid children may not push the track past the viewport (min-content floor) */
-.personal-screen .pgrid2 > * {
-  min-width: 0;
 }
 
 /* ── widget shell ────────────────────────────────────────────────────────
@@ -646,24 +626,6 @@
   font-variant-numeric: tabular-nums;
   margin: 2px 0 4px;
 }
-.personal-screen .pgl-hint {
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--mute);
-  transition: color 0.16s;
-}
-.personal-screen .pglance-hit:hover .pgl-hint,
-.personal-screen .pglance-hit:focus-visible .pgl-hint {
-  color: var(--indigo);
-}
 
 /* ── inline click-to-edit ───────────────────────────────────────────────── */
 .personal-screen .inl {
@@ -889,18 +851,6 @@
   gap: 6px;
   margin-top: 0;
 }
-
-/* ── focus blocks ─────────────────────────────────────────────────────── */
-.personal-screen .ptimer {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.personal-screen .ptimer .pin {
-  flex: 1 1 150px;
-  width: auto;
-}
 .personal-screen .pblock-choices {
   display: grid;
   grid-template-columns: 1fr;
@@ -941,13 +891,6 @@
   .personal-screen .pblock-choices {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-.personal-screen .pclock {
-  font-size: 30px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  flex: none;
 }
 
 /* ── flexible labels inside Life ─────────────────────────────────────── */
@@ -1132,13 +1075,6 @@
   }
 }
 
-/* ── desktop: two columns, tighter controls ────────────────────────────── */
-@media (min-width: 1025px) {
-  .personal-screen .pgrid2 {
-    grid-template-columns: 1.02fr 0.98fr;
-  }
-}
-
 /* ── touch targets: 44px minimum on phone and tablet ───────────────────── */
 @media (max-width: 1024px) {
   .personal-screen .btn,
@@ -1183,11 +1119,6 @@
   .personal-screen .ptabs {
     margin-left: 14px;
   }
-}
-.personal-screen .ptabblurb {
-  font-size: 12px;
-  color: var(--mute);
-  margin: 0 0 12px;
 }
 .personal-screen .ptabs button {
   min-height: 44px;

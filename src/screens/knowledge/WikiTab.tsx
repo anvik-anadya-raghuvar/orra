@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import './wiki.css';
 import { newId, nowIso, useData, useStore } from '../../data/store';

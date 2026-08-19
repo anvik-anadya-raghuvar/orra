@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 import { newId, useData, useStore } from '../../data/store';
 import { ProgressBar } from '../../ui/bits';
-import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import type { Task } from '../../types';
 
 /**

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import type { LedgerEntry } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { InfoTip, SideSheet, useToast } from '../../ui/bits';
-import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { inr } from '../../lib/dates';
 import {
   ColumnMapping,

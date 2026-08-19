@@ -2,25 +2,6 @@
    Reuses shared vocabulary from src/styles/theme.css: .frame/.top/.wrap/.sub2/
    .chip/.filters/.srch/.tagc/.pill/.src/.lk/.btn/.modal-sheet. */
 
-/* The room's one explanatory line — its own band under the tab row, sharing
-   that row's surface so the two read as one header rather than as a paragraph
-   that wandered into the content. */
-.kn-blurb {
-  margin: 0;
-  padding: 10px 18px 12px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surf2);
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--mute);
-}
-/* The band spans the header; the sentence inside it stops at a readable
-   measure. Capping the paragraph itself would have cut the band short too. */
-.kn-blurb > span {
-  display: block;
-  max-width: 66ch;
-}
-
 /* ── overview strips — reused across Notes / Mail / Documents ─────────── */
 .kn-overview {
   display: grid;
