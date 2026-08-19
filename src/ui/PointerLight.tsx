@@ -12,8 +12,17 @@
  *     so a 1000Hz mouse still costs one write per frame;
  *   · it writes two CSS custom properties and nothing else — no React state,
  *     so moving the mouse never re-renders a single component;
- *   · it does not mount at all without a fine pointer (no hover to track on a
- *     phone) or under prefers-reduced-motion.
+ *   · it does not run at all under prefers-reduced-motion.
+ *
+ * What decides whether the light is shown is the pointer that is actually
+ * being used, not a media query. `(hover: hover) and (pointer: fine)` used to
+ * gate this, and it is wrong twice over: an embedded or touch-capable desktop
+ * browser reports `pointer: coarse` even with a mouse attached — which switched
+ * the entire effect off on machines that have a cursor — and a hybrid laptop
+ * can be either thing minute to minute. So the media query is only the opening
+ * guess, and the first real pointer event corrects it: a mouse or a pen stamps
+ * `data-pointer="fine"` on <html>, a finger stamps `coarse`, and the stylesheet
+ * fades the light out in the coarse case. Last input wins.
  */
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -36,11 +45,15 @@ export default function PointerLight() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!fine || still) return;
+    if (still) return;
 
     const root = document.documentElement;
+
+    // The opening guess, replaced by the first real pointer event. `any-pointer`
+    // rather than `pointer`, because a laptop with a touchscreen still has a
+    // cursor and should still get the light.
+    root.dataset.pointer = window.matchMedia('(any-pointer: fine)').matches ? 'fine' : 'coarse';
 
     const paint = () => {
       frame.current = 0;
@@ -51,6 +64,14 @@ export default function PointerLight() {
     };
 
     const onMove = (e: PointerEvent) => {
+      // A finger is not a light source: it covers the thing it is pointing at,
+      // and the highlight would sit under it. Touch turns the light off and
+      // leaves it off until a cursor shows up again.
+      if (e.pointerType === 'touch') {
+        root.dataset.pointer = 'coarse';
+        return;
+      }
+      root.dataset.pointer = 'fine';
       next.current = { x: e.clientX, y: e.clientY };
       if (!frame.current) frame.current = requestAnimationFrame(paint);
     };
@@ -62,13 +83,20 @@ export default function PointerLight() {
       if (!frame.current) frame.current = requestAnimationFrame(paint);
     };
 
+    // A tap that never moves still tells us the input is a finger.
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') root.dataset.pointer = 'coarse';
+    };
+
     window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerdown', onDown, { passive: true });
     window.addEventListener('blur', onLeave);
     document.addEventListener('pointerleave', onLeave);
 
     return () => {
       if (frame.current) cancelAnimationFrame(frame.current);
       window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerdown', onDown);
       window.removeEventListener('blur', onLeave);
       document.removeEventListener('pointerleave', onLeave);
     };

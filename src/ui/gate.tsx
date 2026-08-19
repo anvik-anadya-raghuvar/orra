@@ -30,15 +30,18 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
 
   /* The ember that follows the pointer. PointerLight only exists inside the
      signed-in shell, so the gate carries its own — same discipline: one write
-     per frame, no React state, and it does not run without a fine pointer or
-     under reduced motion. */
+     per frame, no React state, and nothing at all under reduced motion.
+
+     Deliberately not gated on `(pointer: fine)`: an embedded or touch-capable
+     desktop browser reports `coarse` with a mouse plugged in, which killed the
+     ember on machines that plainly have a cursor. A finger is filtered out by
+     pointerType instead, which is the thing we actually wanted to know. */
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!fine || still) return;
+    if (still) return;
     let frame = 0;
     let next: { x: number; y: number } | null = null;
     const paint = () => {
@@ -48,6 +51,7 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
       el.style.setProperty('--gy', `${next.y}px`);
     };
     const onMove = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       next = { x: e.clientX, y: e.clientY };
       if (!frame) frame = requestAnimationFrame(paint);
     };

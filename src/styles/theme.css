@@ -90,9 +90,15 @@ html[data-theme='dark'] {
   --bloom-1: rgba(255, 60, 200, 0.36);
   --bloom-2: rgba(60, 240, 200, 0.2);
   --bloom-3: rgba(122, 86, 255, 0.3);
-  /* How brightly the pointer light burns. Rooms full of data turn this down. */
-  --sheen: 0.13;
-  --card-sheen: rgba(255, 255, 255, 0.045);
+  /* How brightly the pointer light burns. Rooms full of data turn this down.
+
+     Sized for the stack it has to survive, not for a bare background: the room
+     panel, a card inside it and often a strip inside that are each translucent,
+     so roughly a tenth of the ground light reaches the eye. Read these as
+     "what is left after three layers", which is why they look high written
+     down and are barely there on screen. */
+  --sheen: 0.2;
+  --card-sheen: rgba(255, 255, 255, 0.085);
 }
 
 * {

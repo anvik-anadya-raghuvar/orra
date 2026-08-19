@@ -36,25 +36,70 @@
   display: grid;
   gap: 14px;
 }
+/* ── the briefing ──────────────────────────────────────────────────────────
+   This is a brief, not a widget, and it has to say so before it is read. The
+   tiles below it are glances — translucent, interchangeable, arrangeable. The
+   brief is the opposite of all three: one plate, denser than the room it sits
+   on, printed rather than assembled.
+
+   What carries that:
+     · a dense ground (--surf-dense) instead of the room's own translucency, so
+       it sits ON the room rather than in it, and a real shadow underneath;
+     · a gradient spine — measured mint at the top running into needs-you
+       magenta — drawn as a background layer rather than a border, so the panel
+       keeps its corner radius;
+     · a masthead: the eyebrow with a rule running off it to the edge, which is
+       the one shape that reads as a dispatch and never as a card header;
+     · the facts underneath set as a standfirst strip, divided rather than
+       boxed.
+   Deep Field's rule still holds — accent is spent only on the spine and the
+   masthead, and everything else stays neutral. */
 .personal-screen .life-focus {
   position: relative;
   overflow: hidden;
   display: grid;
   gap: 10px;
-  padding: 20px;
-  border: 0;
-  border-left: 5px solid var(--teal);
-  border-radius: 8px var(--rl) var(--rl) 8px;
+  padding: 20px 20px 20px 25px;
+  border: 1px solid color-mix(in srgb, var(--teal) 20%, var(--line));
+  border-radius: 6px var(--rl) var(--rl) 6px;
   background:
-    linear-gradient(120deg, color-mix(in srgb, var(--teal) 11%, var(--surf2)), color-mix(in srgb, var(--sky) 5%, var(--surf2)));
-  box-shadow: none;
+    linear-gradient(180deg, var(--teal), var(--violet) 58%, var(--indigo)) left top / 5px 100% no-repeat,
+    linear-gradient(
+      118deg,
+      color-mix(in srgb, var(--teal) 9%, var(--surf-dense)) 0%,
+      color-mix(in srgb, var(--violet) 6%, var(--surf-dense)) 52%,
+      var(--surf-dense) 100%
+    );
+  box-shadow: var(--sh2);
+  /* The hero surface of the room, so the pointer light lands hardest here —
+     and it has to, because the dense ground stops the ground light passing
+     through the way a translucent tile lets it. */
+  --card-sheen: rgba(255, 255, 255, 0.06);
+}
+/* The masthead rule. `.eyebrow` is shared vocabulary, so this is scoped tight
+   enough that no other eyebrow in the app grows a line. */
+.personal-screen .life-focus > .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: color-mix(in srgb, var(--teal) 72%, var(--ink));
+}
+.personal-screen .life-focus > .eyebrow::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--teal) 50%, transparent),
+    transparent 85%
+  );
 }
 .personal-screen .life-focus h1 {
   max-width: 760px;
   margin: 0;
-  font-size: clamp(23px, 5vw, 36px);
-  line-height: 1.08;
-  letter-spacing: -0.035em;
+  font-size: clamp(24px, 5vw, 38px);
+  line-height: 1.06;
+  letter-spacing: -0.036em;
 }
 .personal-screen .life-focus > p {
   max-width: 660px;
@@ -78,12 +123,13 @@
   display: grid;
   gap: 2px;
   min-height: 64px;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 0;
   text-align: left;
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--teal) 28%, var(--line));
   border-radius: 0;
   background: transparent;
+  transition: border-color 0.2s var(--ease);
 }
 .personal-screen .life-signal-grid button:hover,
 .personal-screen .life-signal-grid button:focus-visible {
@@ -299,6 +345,13 @@
 @media (min-width: 641px) {
   .personal-screen .life-signal-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 0;
+  }
+  /* Standfirst, not three cards: the columns are divided by a rule rather than
+     separated by a gap, so the row reads as one statement. */
+  .personal-screen .life-signal-grid > * + * {
+    padding-left: 18px;
+    border-left: 1px solid var(--line);
   }
   .personal-screen .life-top .ptabs {
     flex: 0 1 auto;
