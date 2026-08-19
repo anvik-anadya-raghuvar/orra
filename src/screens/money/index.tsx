@@ -2,9 +2,19 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
-import { CountUp, useToast } from '../../ui/bits';
+import { Avatar, CountUp, useToast } from '../../ui/bits';
 import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
-import { fmtDay, inr } from '../../lib/dates';
+import { fmtDay, inr, todayIso } from '../../lib/dates';
+import {
+  RANGE_LABEL,
+  inRange,
+  monthlySpend,
+  rangeBounds,
+  spendShape,
+  summarise,
+  topExpenses,
+  type RangeKey,
+} from '../../lib/tracker';
 import type { LedgerEntry } from '../../types';
 import { BarRows, Donut, GroupedBars, MiniBars, Sparkline, SplitBar, VIZ } from '../../ui/viz';
 import {
@@ -23,6 +33,7 @@ import {
 import EntryModal from './EntryModal';
 import ImportModal from './ImportModal';
 import ImportHistory from './ImportHistory';
+import Subscriptions from './subscriptions';
 import './money.css';
 
 const toggle = (set: Set<string>, v: string): Set<string> => {
@@ -41,19 +52,32 @@ export default function Money() {
   const [importOpen, setImportOpen] = useState(false);
   const [projects, setProjects] = useState<Set<string>>(new Set());
   const [statuses, setStatuses] = useState<Set<LedgerEntry['status']>>(new Set());
+  const [tab, setTab] = useState<'money' | 'subs'>('money');
+  const [range, setRange] = useState<RangeKey>('all');
+  const [custom, setCustom] = useState({ from: '', to: '' });
+  const [editing, setEditing] = useState<LedgerEntry | null>(null);
 
-  const totals = useMemo(() => {
-    let inTotal = 0;
-    let outTotal = 0;
-    for (const r of ds.ledger) {
-      if (r.direction === 'in') inTotal += r.amount;
-      else outTotal += r.amount;
+  /* One range, applied before anything is counted — the summary, every chart
+     and the export then describe the same set of rows by construction. */
+  const bounds = useMemo(() => {
+    if (range === 'custom') {
+      return { from: custom.from || '0000-01-01', to: custom.to || '9999-12-31' };
     }
-    return { in: inTotal, out: outTotal, net: inTotal - outTotal };
-  }, [ds.ledger]);
+    return rangeBounds(range, todayIso());
+  }, [range, custom.from, custom.to]);
 
-  const weeks = useMemo(() => weeklyInOut(ds.ledger, 6), [ds.ledger]);
-  const categories = useMemo(() => categoryBreakdown(ds.ledger), [ds.ledger]);
+  const inWindow = useMemo(
+    () => ds.ledger.filter((r) => inRange(r, bounds.from, bounds.to)),
+    [ds.ledger, bounds.from, bounds.to],
+  );
+
+  const totals = useMemo(() => summarise(inWindow), [inWindow]);
+  const monthly = useMemo(() => monthlySpend(inWindow), [inWindow]);
+  const biggest = useMemo(() => topExpenses(inWindow), [inWindow]);
+  const shape = useMemo(() => spendShape(inWindow), [inWindow]);
+
+  const weeks = useMemo(() => weeklyInOut(inWindow, 6), [inWindow]);
+  const categories = useMemo(() => categoryBreakdown(inWindow), [inWindow]);
 
   /* ── donut: top 2 categories + Other, headline net in the centre ─────── */
   const spendSlices = useMemo(() => {
@@ -64,30 +88,30 @@ export default function Money() {
   const netLabel = (totals.net < 0 ? '−' : '') + inr(totals.net);
 
   /* ── cumulative net sparkline ──────────────────────────────────────── */
-  const netSeries = useMemo(() => cumulativeNet(ds.ledger), [ds.ledger]);
+  const netSeries = useMemo(() => cumulativeNet(inWindow), [inWindow]);
 
   /* ── spend per project — four-way split, small multiples not colours ─ */
   const spendByProject = useMemo(
     () =>
-      projectSpend(ds.ledger).map((p) => ({
+      projectSpend(inWindow).map((p) => ({
         label: projName(ds, p.project_id),
         value: p.total,
         color: projColor(ds, p.project_id),
       })),
-    [ds.ledger, ds.projects],
+    [inWindow, ds.projects],
   );
 
   /* ── needs attention: due + overdue, weighted and one tap from a filter ─ */
-  const attn = useMemo(() => attentionSummary(ds.ledger), [ds.ledger]);
+  const attn = useMemo(() => attentionSummary(inWindow), [inWindow]);
 
   const filtered = useMemo(
     () =>
-      ds.ledger.filter(
+      inWindow.filter(
         (r) =>
           (!projects.size || projects.has(r.project_id)) &&
           (!statuses.size || statuses.has(r.status)),
       ),
-    [ds.ledger, projects, statuses],
+    [inWindow, projects, statuses],
   );
   const sorted = useMemo(() => [...filtered].sort((a, b) => (a.date < b.date ? 1 : -1)), [filtered]);
 
@@ -111,30 +135,90 @@ export default function Money() {
   return (
     <div className="money-screen frame">
       <div className="top">
-        <div className="disp">Money</div>
+        <div className="disp">Tracker</div>
+        <div className="mn-tabs" role="tablist" aria-label="Tracker sections">
+          <button role="tab" aria-selected={tab === 'money'} onClick={() => setTab('money')}>
+            Money
+          </button>
+          <button role="tab" aria-selected={tab === 'subs'} onClick={() => setTab('subs')}>
+            Subscriptions
+          </button>
+        </div>
         <div className="spacer" />
-        <button className="btn sm" type="button" onClick={() => setImportOpen(true)}>
-          ↑ Import CSV / XLSX
-        </button>
-        <button className="btn sm solid" type="button" onClick={() => setAddOpen(true)}>
-          + Entry
-        </button>
+        {tab === 'money' && (
+          <>
+            <button className="btn sm" type="button" onClick={() => setImportOpen(true)}>
+              ↑ Import CSV / XLSX
+            </button>
+            <button className="btn sm solid" type="button" onClick={() => setAddOpen(true)}>
+              + Entry
+            </button>
+          </>
+        )}
       </div>
 
+      {tab === 'subs' ? (
+        <div className="wrap">
+          <Subscriptions />
+        </div>
+      ) : (
       <div className="wrap">
+        {/* ── the range everything below describes ──────────────────── */}
+        <div className="mn-bar">
+          {(['month', 'quarter', 'year', 'all'] as RangeKey[]).map((k) => (
+            <button
+              key={k}
+              className="chip"
+              type="button"
+              aria-pressed={range === k}
+              onClick={() => setRange(k)}
+            >
+              {RANGE_LABEL[k]}
+            </button>
+          ))}
+          <button
+            className="chip"
+            type="button"
+            aria-pressed={range === 'custom'}
+            onClick={() => setRange('custom')}
+          >
+            Custom
+          </button>
+          {range === 'custom' && (
+            <>
+              <input
+                className="mn-in sm"
+                type="date"
+                aria-label="From date"
+                value={custom.from}
+                onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))}
+              />
+              <input
+                className="mn-in sm"
+                type="date"
+                aria-label="To date"
+                value={custom.to}
+                onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))}
+              />
+            </>
+          )}
+          <span className="spacer" />
+          <span className="mono sub">{totals.count} entries</span>
+        </div>
+
         {/* ── summary tiles ─────────────────────────────────────────── */}
         <div className="mn-tiles">
           <div className="mn-tile">
             <div className="n mono">
               <CountUp value={totals.in} format={inr} />
             </div>
-            <div className="k">total in</div>
+            <div className="k">cash in</div>
           </div>
           <div className="mn-tile">
             <div className="n mono">
               <CountUp value={totals.out} format={inr} />
             </div>
-            <div className="k">total out</div>
+            <div className="k">cash out</div>
           </div>
           <div className="mn-tile">
             <div className="n mono" style={{ color: totals.net >= 0 ? 'var(--teal)' : 'var(--rose)' }}>
@@ -257,6 +341,54 @@ export default function Money() {
           )}
         </div>
 
+        {/* ── what we spend each month ──────────────────────────────── */}
+        <div className="mn-panel">
+          <div className="mn-panel-head">
+            <span className="eyebrow">Spend per month</span>
+          </div>
+          {monthly.length === 0 ? (
+            <p className="tip" style={{ margin: 0 }}>
+              Nothing spent in this range.
+            </p>
+          ) : (
+            <MiniBars items={monthly} format={inr} />
+          )}
+        </div>
+
+        {/* ── the biggest single things, which is usually the answer ─── */}
+        <div className="mn-panel">
+          <div className="mn-panel-head">
+            <span className="eyebrow">Most expensive</span>
+          </div>
+          {biggest.length === 0 ? (
+            <p className="tip" style={{ margin: 0 }}>
+              Nothing spent in this range.
+            </p>
+          ) : (
+            <BarRows
+              rows={biggest.map((e) => ({ label: `${e.party} · ${fmtDay(e.date)}`, value: e.amount }))}
+              format={inr}
+            />
+          )}
+        </div>
+
+        {/* ── one-off versus what renews by itself ──────────────────── */}
+        <div className="mn-panel">
+          <div className="mn-panel-head">
+            <span className="eyebrow">One-off vs recurring</span>
+          </div>
+          <SplitBar
+            parts={[
+              { label: 'One-off', value: shape.oneTime, color: VIZ.cat[0] },
+              { label: 'Recurring', value: shape.recurring, color: VIZ.cat[1] },
+            ]}
+            height={12}
+          />
+          <p className="tip" style={{ marginTop: 8 }}>
+            Uncategorised spend counts as one-off, so these two always add up to what actually left.
+          </p>
+        </div>
+
         {/* ── spend per project — small multiples, not four competing colours ── */}
         <div className="mn-panel">
           <div className="mn-panel-head">
@@ -315,8 +447,10 @@ export default function Money() {
                 <th>Category</th>
                 <th>Project</th>
                 <th>Status</th>
+                <th>Paid by</th>
                 <th>Task</th>
                 <th className="amt">Amount</th>
+                <th aria-label="Row actions" />
               </tr>
             </thead>
             <tbody>
@@ -342,6 +476,15 @@ export default function Money() {
                       {r.status}
                     </button>
                   </td>
+                  <td data-label="Paid by">
+                    {r.paid_by ? (
+                      <Avatar userId={r.paid_by} size={22} />
+                    ) : (
+                      <span className="tip" style={{ margin: 0 }}>
+                        —
+                      </span>
+                    )}
+                  </td>
                   <td data-label="Task">
                     {r.linked_task_id ? (
                       <Link className="lk" to={`/task/${r.linked_task_id}`}>
@@ -360,6 +503,24 @@ export default function Money() {
                   >
                     {r.direction === 'in' ? '+' : '−'}
                     {inr(r.amount)}
+                    {r.split_pct != null && <span className="mn-split">{r.split_pct}%</span>}
+                  </td>
+                  <td data-label="" className="mn-rowacts">
+                    <button type="button" className="btn sm" onClick={() => setEditing(r)}>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn sm danger"
+                      onClick={() => {
+                        if (!window.confirm(`Delete this ${inr(r.amount)} entry for ${r.party}? It moves to Trash.`))
+                          return;
+                        store.remove('ledger', r.id, store.asMe({ summary: `Ledger entry removed — ${r.party}` }));
+                        toast('Removed — restorable from Admin → Data');
+                      }}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </motion.tr>
               ))}
@@ -377,12 +538,14 @@ export default function Money() {
         </div>
 
         <p className="tip">
-          Operational view, not your books. Both of you can see this — what appears on your Home is your
-          own choice, set in Personalize.
+          Cash in and cash out, not your books. Shared: both of you see the same numbers. Who paid is
+          recorded, but nothing here works out what one of you owes the other — that is deliberate.
         </p>
       </div>
+      )}
 
       <EntryModal open={addOpen} onClose={() => setAddOpen(false)} />
+      <EntryModal open={!!editing} entry={editing} onClose={() => setEditing(null)} />
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );

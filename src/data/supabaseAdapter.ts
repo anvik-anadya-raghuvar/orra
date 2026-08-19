@@ -39,6 +39,7 @@ const TABLE: Record<CollectionKey, string> = {
   active_blocks: 'active_blocks',
   personal_goals: 'personal_goals',
   mood_items: 'mood_items',
+  subscriptions: 'subscriptions',
   pulse_items: 'pulse_items',
   task_links: 'task_links',
   sprints: 'sprints',

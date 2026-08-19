@@ -363,6 +363,11 @@ function rawSeed(): Dataset {
       { id: 'lg-6', date: D('2026-08-10'), party: 'Contract designer', category: 'People', project_id: 'anvik', direction: 'out', amount: 55000, status: 'due', receipt_url: null, linked_task_id: null, import_batch_id: null },
     ],
     import_batches: [],
+    subscriptions: [
+      { id: 'sub-1', name: 'Vercel Pro', amount: 1700, currency: 'INR', billing_cycle: 'monthly', ends_on: D('2026-08-24'), url: 'https://vercel.com', project_id: 'anvik', paid_by: AN, is_active: true, notes: '', created_at: T('2026-01-10T09:00:00') },
+      { id: 'sub-2', name: 'Google Workspace', amount: 1416, currency: 'INR', billing_cycle: 'monthly', ends_on: D('2026-09-01'), url: null, project_id: 'anvik', paid_by: RG, is_active: true, notes: 'Two seats', created_at: T('2026-01-10T09:00:00') },
+      { id: 'sub-3', name: 'Figma', amount: 12000, currency: 'INR', billing_cycle: 'yearly', ends_on: D('2027-02-01'), url: null, project_id: 'anvik', paid_by: AN, is_active: true, notes: '', created_at: T('2026-02-01T09:00:00') },
+    ],
     audit_trail: [
       { id: 'a-1', occurred_at: T('2026-08-17T09:14:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'annotation_pin', entity_id: 'pin-2', field_name: null, old_value: null, new_value: 'Pin added on samadhaan_grid.png', source: 'portal' },
       { id: 'a-2', occurred_at: T('2026-08-17T09:12:00'), actor_id: null, actor_label: 'automated', entity_type: 'mail_item', entity_id: 'm-1', field_name: 'flag_reason', old_value: null, new_value: 'deadline 1 Sept detected', source: 'gmail' },

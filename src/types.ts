@@ -488,6 +488,25 @@ export interface FixedDate {
   owner_id?: UserId | null;
 }
 
+/**
+ * A subscription. Tracked for one reason: a renewal that surprises you has
+ * already cost you money.
+ */
+export interface Subscription {
+  id: string;
+  name: string;
+  amount: number;
+  currency: string;
+  billing_cycle: 'monthly' | 'yearly' | 'one_off';
+  ends_on: string | null;
+  url: string | null;
+  project_id: string | null;
+  paid_by: UserId | null;
+  is_active: boolean;
+  notes: string;
+  created_at: string;
+}
+
 export interface LedgerEntry {
   id: string;
   date: string;
@@ -495,6 +514,12 @@ export interface LedgerEntry {
   category: string;
   project_id: string;
   direction: 'in' | 'out';
+  /** Who actually paid — the first thing either founder asks about a row. */
+  paid_by?: UserId | null;
+  /** The payer's share when an expense was split. Bookkeeping colour only:
+   *  nothing computes what one of you owes the other, by decision. */
+  split_pct?: number | null;
+  expense_kind?: 'one_time' | 'recurring' | null;
   amount: number;
   status: 'paid' | 'due' | 'overdue';
   receipt_url: string | null;
@@ -685,6 +710,7 @@ export interface Dataset {
   active_blocks: ActiveBlock[];
   personal_goals: PersonalGoal[];
   mood_items: MoodItem[];
+  subscriptions: Subscription[];
   pulse_items: PulseItem[];
   task_links: TaskLink[];
   sprints: Sprint[];

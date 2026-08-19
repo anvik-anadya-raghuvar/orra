@@ -7,6 +7,7 @@ import { CountUp, Modal, useToast } from '../../ui/bits';
 import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
 import { myTasks } from '../../lib/workspace';
+import { monthlyRunRate, soonestSubscription } from '../../lib/tracker';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import { isYouTubeUrl, playUrl, youTubeThumb } from '../../lib/song';
 import { resolveSong } from '../../lib/youtube';
@@ -301,6 +302,50 @@ export function MoneyTile() {
           </span>
         </div>
       </div>
+    </>
+  );
+}
+
+/* ── Subscription renewing soonest ─────────────────────────────────────── */
+/** One number: what charges you next, and when. A renewal that surprises you
+ *  has already cost you money. */
+export function SubscriptionTile() {
+  const ds = useData((d) => d);
+  const next = useMemo(() => soonestSubscription(ds), [ds.subscriptions]);
+  const rate = useMemo(() => monthlyRunRate(ds), [ds.subscriptions]);
+  const days = next?.ends_on ? daysUntil(next.ends_on, todayIso()) : null;
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Renewing next</span>
+        <div className="spacer" />
+        <TileOpen to="/money" label="Tracker" />
+      </div>
+      {next ? (
+        <>
+          <div className="bignum">
+            {days === null ? '—' : days < 0 ? `${-days}d` : days}
+            <span>{days === null ? 'no end date' : days < 0 ? 'overdue' : days === 1 ? 'day' : 'days'}</span>
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 12,
+              color: days !== null && days <= 7 ? 'var(--stamp)' : 'var(--slate)',
+            }}
+          >
+            {next.name} · {inr(next.amount)}
+          </div>
+          <p className="tip" style={{ marginTop: 6 }}>
+            {shortInr(Math.round(rate))} a month across everything active.
+          </p>
+        </>
+      ) : (
+        <p className="tip" style={{ marginTop: 0 }}>
+          Nothing subscribed. Add one in Tracker and the next renewal shows up here.
+        </p>
+      )}
     </>
   );
 }

@@ -33,6 +33,7 @@ import {
   LifeTile,
   MoneyTile,
   ProjectsTile,
+  SubscriptionTile,
   TileOpen,
   WorthTile,
 } from './personal';
@@ -223,6 +224,7 @@ export default function Home() {
   tiles.push({ key: 'momentum', cols: 1, node: <MomentumTile /> });
   tiles.push({ key: 'split', cols: 1, node: <SplitTile /> });
   if (p.money_on_home) tiles.push({ key: 'money', cols: 1, node: <MoneyTile /> });
+  tiles.push({ key: 'subs', cols: 1, node: <SubscriptionTile /> });
   if (p.projects_strip) tiles.push({ key: 'projects', cols: 1, node: <ProjectsTile /> });
 
   tiles.push({

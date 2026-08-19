@@ -95,6 +95,7 @@ export const TILE_TITLE: Record<string, string> = {
   momentum: 'Momentum',
   split: 'Where the hours went',
   money: 'Money',
+  subs: 'Renewing next',
   projects: 'Open per project',
   song: 'Moments',
   'st-tasks': 'Tasks open',

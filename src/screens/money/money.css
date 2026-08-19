@@ -273,3 +273,123 @@
     min-height: 44px;
   }
 }
+
+/* ── Tracker tabs, range bar, row actions, subscriptions ───────────────── */
+.money-screen .mn-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surf3);
+  padding: 3px;
+  border-radius: 10px;
+  margin-left: 14px;
+}
+.money-screen .mn-tabs button {
+  min-height: 44px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--slate);
+  transition: background 0.2s, color 0.2s;
+}
+.money-screen .mn-tabs button[aria-selected='true'] {
+  background: var(--surf);
+  color: var(--ink);
+  box-shadow: var(--sh1);
+  font-weight: 500;
+}
+.money-screen .mn-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.money-screen .mn-in.sm {
+  width: auto;
+  min-height: 44px;
+  padding: 6px 9px;
+}
+.money-screen .mn-rowacts {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.money-screen .mn-rowacts .btn.sm {
+  min-height: 44px;
+}
+/* A split is a note, not a debt — muted so it never reads as an amount. */
+.money-screen .mn-split {
+  font-size: 10px;
+  color: var(--mute);
+  margin-left: 5px;
+}
+.money-screen .mn-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.money-screen .mn-stat {
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px;
+  display: grid;
+  gap: 3px;
+}
+.money-screen .mn-stat b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+}
+.money-screen .mn-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.money-screen .mn-sub:last-child {
+  border-bottom: 0;
+}
+.money-screen .mn-sub-main {
+  display: grid;
+  gap: 1px;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.money-screen .mn-sub-amt {
+  font-size: 13px;
+}
+.money-screen .mn-sub-acts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.money-screen .mn-sub-acts .btn.sm {
+  min-height: 44px;
+}
+.money-screen .mn-pill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surf3);
+  color: var(--slate);
+}
+.money-screen .mn-pill.due {
+  background: var(--stamp-s, var(--surf3));
+  color: var(--stamp);
+}
+.money-screen .mn-pill.overdue {
+  background: var(--rose-s);
+  color: var(--rose);
+}
+@media (min-width: 1025px) {
+  .money-screen .mn-tabs button,
+  .money-screen .mn-rowacts .btn.sm,
+  .money-screen .mn-sub-acts .btn.sm,
+  .money-screen .mn-in.sm {
+    min-height: 32px;
+  }
+}
