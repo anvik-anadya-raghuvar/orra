@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Anvik Ops</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#4A47D8" />
+    <meta name="theme-color" content="#05030C" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,7 +16,9 @@
       (function () {
         try {
           var t = localStorage.getItem('anvik:theme');
-          if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          // Deep Field is the portal's identity, so an unset preference lands on
+          // dark rather than following the OS into the weaker theme.
+          if (!t) t = 'dark';
           document.documentElement.setAttribute('data-theme', JSON.parse(t) || t);
         } catch (e) {}
       })();

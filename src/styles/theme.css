@@ -11,50 +11,68 @@
   --surf3: #eff3f9;
   --ink: #101623;
   --slate: #5a6478;
-  --mute: #8d96a9;
+  --mute: #6b7385;
   --line: #dee4ee;
-  --indigo: #4a47d8;
-  --indigo-s: #ececfe;
+  --indigo: #c2168f;
+  --indigo-s: #fdeaf6;
   --violet: #7e50dc;
   --stamp: #ce6a10;
   --stamp-s: #fdf2e5;
-  --teal: #0e8267;
-  --teal-s: #e3f6f0;
+  --teal: #067861;
+  --teal-s: #e0f6f1;
   --rose: #c33055;
   --rose-s: #fdedf1;
   --sky: #1d6fc4;
   --sky-s: #e6f1fc;
   --sh1: 0 1px 2px rgba(16, 22, 35, 0.05), 0 3px 12px rgba(16, 22, 35, 0.06);
   --sh2: 0 8px 20px rgba(16, 22, 35, 0.09), 0 22px 46px rgba(16, 22, 35, 0.11);
-  --glow: rgba(74, 71, 216, 0.2);
+  --glow: rgba(194, 22, 143, 0.18);
+  --bloom-1: rgba(194, 22, 143, 0.1);
+  --bloom-2: rgba(6, 120, 97, 0.08);
+  --bloom-3: rgba(126, 80, 220, 0.1);
+  --sheen: 0.05;
   --r: 12px;
   --rl: 18px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* ── Deep Field ────────────────────────────────────────────────────────────
+   The dark theme is the portal's real identity. Near-black ground so the
+   blooms have something to push against — the previous navy sat at mid
+   brightness everywhere, which is what made it read as washed out. Accent is
+   spent in two places only: magenta for what needs you, mint for what is
+   measured. Everything else is neutral on purpose. */
 html[data-theme='dark'] {
-  --bg: #0b0e16;
-  --bg2: #111726;
-  --surf: #151b28;
-  --surf2: #1a2130;
-  --surf3: #212a3c;
-  --ink: #e9edf6;
-  --slate: #a4aec2;
-  --mute: #78829a;
-  --line: #263047;
-  --indigo: #8f8efb;
-  --indigo-s: #232357;
-  --violet: #ad82f5;
-  --stamp: #f0a45a;
-  --stamp-s: #38260f;
-  --teal: #4fd3ac;
-  --teal-s: #0c3a2e;
-  --rose: #f58ba6;
-  --rose-s: #3b1524;
-  --sky: #6fb6f5;
-  --sky-s: #0f2e4c;
-  --sh1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 5px 16px rgba(0, 0, 0, 0.4);
-  --sh2: 0 10px 26px rgba(0, 0, 0, 0.55), 0 26px 58px rgba(0, 0, 0, 0.48);
-  --glow: rgba(143, 142, 251, 0.28);
+  --bg: #05030c;
+  --bg2: #0a0714;
+  --surf: #100c1c;
+  --surf2: #161024;
+  --surf3: #1e1730;
+  --ink: #f3eeff;
+  --slate: #b0a4c8;
+  --mute: #8b80a4;
+  --line: #241c38;
+  /* The two that carry meaning. */
+  --indigo: #ff5fd2;
+  --indigo-s: #2c0d29;
+  --violet: #b98cff;
+  --teal: #4ee6c8;
+  --teal-s: #06322c;
+  /* Status colours, re-tuned to sit on near-black without vibrating. */
+  --stamp: #ffb454;
+  --stamp-s: #2e1c07;
+  --rose: #ff6b8e;
+  --rose-s: #33101d;
+  --sky: #6fd0f5;
+  --sky-s: #06283a;
+  --sh1: 0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.5);
+  --sh2: 0 12px 30px rgba(0, 0, 0, 0.62), 0 30px 66px rgba(0, 0, 0, 0.55);
+  --glow: rgba(255, 95, 210, 0.3);
+  /* Bloom stack, read by body below. Small and hot rather than wide and pale. */
+  --bloom-1: rgba(255, 60, 200, 0.36);
+  --bloom-2: rgba(60, 240, 200, 0.2);
+  --bloom-3: rgba(122, 86, 255, 0.3);
+  /* How brightly the pointer light burns. Rooms full of data turn this down. */
+  --sheen: 0.09;
 }
 
 * {
@@ -66,8 +84,9 @@ body {
 }
 body {
   background:
-    radial-gradient(1000px 560px at 8% -12%, var(--indigo-s), transparent 58%),
-    radial-gradient(820px 480px at 96% 0%, var(--stamp-s), transparent 60%),
+    radial-gradient(420px 340px at 10% -4%, var(--bloom-1), transparent 66%),
+    radial-gradient(380px 320px at 92% 4%, var(--bloom-2), transparent 64%),
+    radial-gradient(460px 400px at 52% 104%, var(--bloom-3), transparent 66%),
     linear-gradient(180deg, var(--bg), var(--bg2));
   background-attachment: fixed;
   color: var(--ink);

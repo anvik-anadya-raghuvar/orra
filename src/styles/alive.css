@@ -168,6 +168,54 @@
   border-radius: 8px;
 }
 
+/* ── the light has a position ──────────────────────────────────────────────
+   Deep Field gives the page somewhere dark to push against; this gives the
+   light somewhere to come *from*. A sheen tracks the pointer across the whole
+   app, so surfaces brighten as you approach them rather than sitting at a
+   fixed brightness forever. Fixed and behind everything, painted from vars
+   that main.tsx updates on a frame loop.
+
+   --sheen is per-theme (theme.css) and turned down further in rooms full of
+   data, where a moving highlight behind a table is noise rather than life. */
+.pointer-light {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    460px 460px at var(--mx, 50%) var(--my, 30%),
+    rgba(255, 255, 255, var(--sheen, 0.08)),
+    transparent 68%
+  );
+  opacity: var(--sheen-on, 1);
+  transition: opacity 0.4s var(--lift);
+}
+/* Everything the app draws sits above the light. */
+.shell {
+  position: relative;
+  z-index: 1;
+}
+/* Dense rooms: the same light, much quieter behind a table of numbers. */
+.money-screen,
+.admin-screen,
+.people-screen {
+  --sheen: 0.03;
+}
+
+/* Panels catch the light as the pointer passes, and lean very slightly toward
+   it. 2 degrees — enough to read as physical, small enough that text stays
+   crisp and nothing wobbles while you are trying to click it. */
+@media (hover: hover) and (pointer: fine) {
+  .bt:hover,
+  .pbig:hover,
+  .mn-panel:hover,
+  .uscard:hover,
+  .mb-card:hover,
+  .wk-card:hover {
+    transform: perspective(1000px) translateY(-4px) rotateX(1.6deg) rotateY(-1.6deg);
+  }
+}
+
 /* ── ambient background drift ──────────────────────────────────────────────
    The page's own gradient moves, very slowly, so a screen left open does not
    look like a screenshot. One minute per cycle and a few pixels of travel —
@@ -218,6 +266,10 @@ body {
    Not a softening: the pulse, the sweep, the shimmer and the drift stop
    entirely, and hover becomes a shadow change with no movement. */
 @media (prefers-reduced-motion: reduce) {
+  /* The tracking light is movement, so it goes entirely rather than dimming. */
+  .pointer-light {
+    display: none;
+  }
   .live-dot,
   .home-screen .pulsedot,
   .blk-clock,
