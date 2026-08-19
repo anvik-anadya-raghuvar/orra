@@ -197,32 +197,61 @@ export interface CalendarEvent {
   link: string;
 }
 
-/** Today's events, for the Home day ribbon. */
-export async function fetchCalendar(dayIso: string): Promise<CalendarEvent[]> {
+interface RawEvent {
+  id: string;
+  summary?: string;
+  htmlLink?: string;
+  start?: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
+}
+
+const toEvent = (e: RawEvent): CalendarEvent => ({
+  id: e.id,
+  summary: e.summary ?? '(busy)',
+  start: e.start?.dateTime ?? `${e.start?.date}T00:00:00`,
+  end: e.end?.dateTime ?? `${e.end?.date}T23:59:59`,
+  allDay: !e.start?.dateTime,
+  link: e.htmlLink ?? 'https://calendar.google.com',
+});
+
+/**
+ * Events between two dates, inclusive.
+ *
+ * `singleEvents=true` expands a recurring series into real instances, each
+ * with its own id, which is what makes "this week's standups" five rows rather
+ * than one rule the portal would have to interpret. Pages are followed to the
+ * end: a month of a busy calendar exceeds one response, and a silently
+ * truncated month is a calendar that lies.
+ */
+export async function fetchCalendarRange(
+  fromIso: string,
+  toIso: string,
+): Promise<CalendarEvent[]> {
   const token = await getToken(['calendar']);
   if (!token) return [];
-  const min = new Date(`${dayIso}T00:00:00`).toISOString();
-  const max = new Date(`${dayIso}T23:59:59`).toISOString();
-  const res = await api<{
-    items?: {
-      id: string;
-      summary?: string;
-      htmlLink?: string;
-      start?: { dateTime?: string; date?: string };
-      end?: { dateTime?: string; date?: string };
-    }[];
-  }>(
-    `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(min)}&timeMax=${encodeURIComponent(max)}`,
-    token,
-  );
-  return (res.items ?? []).map((e) => ({
-    id: e.id,
-    summary: e.summary ?? '(busy)',
-    start: e.start?.dateTime ?? `${e.start?.date}T00:00:00`,
-    end: e.end?.dateTime ?? `${e.end?.date}T23:59:59`,
-    allDay: !e.start?.dateTime,
-    link: e.htmlLink ?? 'https://calendar.google.com',
-  }));
+  const min = new Date(`${fromIso}T00:00:00`).toISOString();
+  const max = new Date(`${toIso}T23:59:59`).toISOString();
+
+  const out: CalendarEvent[] = [];
+  let pageToken: string | undefined;
+  // A hard stop: a pathological calendar must not spin forever on the free tier.
+  for (let page = 0; page < 10; page++) {
+    const url =
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events` +
+      `?singleEvents=true&orderBy=startTime&maxResults=250` +
+      `&timeMin=${encodeURIComponent(min)}&timeMax=${encodeURIComponent(max)}` +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+    const res = await api<{ items?: RawEvent[]; nextPageToken?: string }>(url, token);
+    out.push(...(res.items ?? []).map(toEvent));
+    pageToken = res.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out;
+}
+
+/** One day's events. */
+export async function fetchCalendar(dayIso: string): Promise<CalendarEvent[]> {
+  return fetchCalendarRange(dayIso, dayIso);
 }
 
 /** Create a real calendar event (used by "Schedule a call"). */

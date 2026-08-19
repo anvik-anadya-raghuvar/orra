@@ -18,6 +18,7 @@ import { Gate } from './ui/gate';
 import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
 import BlockOverlay from './ui/BlockOverlay';
+import { useAutoSync } from './lib/useAutoSync';
 import { pageRise } from './ui/motion';
 import { clockIn, TZ_IN, TZ_IT } from './lib/dates';
 
@@ -343,6 +344,12 @@ function AnimatedRoutes() {
   );
 }
 
+/** Keeps the calendar current while the portal is open. Renders nothing. */
+function AutoSync() {
+  useAutoSync(useStore());
+  return null;
+}
+
 function Gated() {
   const [signedIn, setSignedIn] = useState(() => {
     try {
@@ -366,6 +373,7 @@ function Gated() {
               rather than inside a screen — navigating cannot escape it, and a
               reload restores it because the block lives in the database. */}
           <BlockOverlay />
+          <AutoSync />
         </div>
       </NotificationProvider>
     </BrowserRouter>

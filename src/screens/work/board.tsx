@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
-import type { Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
+import type { DayEvent, Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { useData, useStore } from '../../data/store';
 import { Avatar, Modal, TagChip, useToast } from '../../ui/bits';
 import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../../ui/motion';
@@ -15,6 +15,7 @@ import { MiniBars } from '../../ui/viz';
 import QuickEdit from './quickedit';
 import ReflowBanner from './reflow';
 import { blockedByOpenDep } from '../../lib/schedule';
+import { minToLabel } from '../../lib/dayPlan';
 import {
   Field,
   PRIORITIES,
@@ -796,6 +797,7 @@ export default function BoardTab({
             <CalendarView
               list={list}
               ds={ds}
+              meId={store.meId}
               offset={monthOffset}
               onStep={(d) => setMonthOffset((o) => (d === 0 ? 0 : o + d))}
             />
@@ -826,11 +828,13 @@ export default function BoardTab({
 function CalendarView({
   list,
   ds,
+  meId,
   offset,
   onStep,
 }: {
   list: Task[];
   ds: Dataset;
+  meId: string;
   offset: number;
   onStep: (d: -1 | 0 | 1) => void;
 }) {
@@ -844,6 +848,18 @@ function CalendarView({
     }
     return map;
   }, [list]);
+
+  /* Calendar events belong on a calendar. This view showed tasks only, so the
+     month said you were free on days you were in meetings all afternoon. */
+  const eventsByDay = useMemo(() => {
+    const map: Record<string, DayEvent[]> = {};
+    for (const e of ds.day_events) {
+      if (e.user_id !== null && e.user_id !== meId) continue;
+      (map[e.date] ??= []).push(e);
+    }
+    for (const day of Object.values(map)) day.sort((a, b) => a.start_min - b.start_min);
+    return map;
+  }, [ds.day_events, meId]);
 
   return (
     <div>
@@ -869,6 +885,15 @@ function CalendarView({
               animate={{ opacity: 1, scale: 1, transition: { ...entrance, delay: Math.min(0.3, i * 0.006) } }}
             >
               <div className="wk-d">{day}</div>
+              {(eventsByDay[iso] ?? []).map((e) => (
+                <span
+                  key={e.id}
+                  className="wk-cevent"
+                  title={`${minToLabel(e.start_min)} · ${e.label}`}
+                >
+                  {minToLabel(e.start_min)} {e.label}
+                </span>
+              ))}
               {on.map((t) => (
                 <Link
                   key={t.id}
@@ -884,7 +909,10 @@ function CalendarView({
           );
         })}
       </div>
-      <p className="tip">Tasks sit on their due date. Tap a pill to open the task.</p>
+      <p className="tip">
+        Tasks sit on their due date; calendar blocks and synced Google events sit above them with a
+        time. Tap a pill to open the task.
+      </p>
     </div>
   );
 }

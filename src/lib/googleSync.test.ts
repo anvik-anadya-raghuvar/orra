@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { toDayEvent, toMailRow } from './googleSync';
+import {
+  SYNC_BACK_DAYS,
+  SYNC_FWD_DAYS,
+  eventDay,
+  shiftDay,
+  toDayEvent,
+  toMailRow,
+} from './googleSync';
 import type { CalendarEvent, GmailMessage } from './google';
 import type { MailItem } from '../types';
 
@@ -72,5 +79,39 @@ describe('Calendar → day_events', () => {
     const row = toDayEvent(e, 'u-anadya', '2026-08-18');
     expect(row.start_min).toBe(0);
     expect(row.end_min).toBe(1439);
+  });
+});
+
+describe('the rolling window', () => {
+  it('walks days in both directions', () => {
+    expect(shiftDay('2026-08-19', -7)).toBe('2026-08-12');
+    expect(shiftDay('2026-08-19', 30)).toBe('2026-09-18');
+  });
+
+  it('crosses a month and a year boundary', () => {
+    expect(shiftDay('2026-08-01', -1)).toBe('2026-07-31');
+    expect(shiftDay('2026-12-31', 1)).toBe('2027-01-01');
+  });
+
+  it('files an event on its own start date, not the day the sync ran', () => {
+    // the single-day sync used to stamp every row with "today", so a meeting
+    // next Tuesday landed on this Tuesday's ribbon
+    const e: CalendarEvent = {
+      id: 'evt3',
+      summary: 'Vendor call',
+      start: '2026-08-25T11:00:00',
+      end: '2026-08-25T12:00:00',
+      allDay: false,
+      link: 'https://calendar.google.com/evt3',
+    };
+    expect(eventDay(e)).toBe('2026-08-25');
+    expect(toDayEvent(e, 'u-anadya', eventDay(e)).date).toBe('2026-08-25');
+  });
+
+  it('covers 38 days by default, so a month view is never half empty', () => {
+    const from = shiftDay('2026-08-19', -SYNC_BACK_DAYS);
+    const to = shiftDay('2026-08-19', SYNC_FWD_DAYS);
+    const days = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+    expect(days).toBe(SYNC_BACK_DAYS + SYNC_FWD_DAYS);
   });
 });

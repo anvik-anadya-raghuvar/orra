@@ -882,3 +882,19 @@ tr.wk-driftrow td {
   color: var(--mute);
   font-size: 13px;
 }
+
+/* Calendar events sit above the task pills, muted and time-stamped so a
+   meeting never reads as a task you could open. */
+.wk-cevent {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  color: var(--slate);
+  background: var(--surf3);
+  border-radius: 5px;
+  padding: 2px 5px;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

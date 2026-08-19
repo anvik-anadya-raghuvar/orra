@@ -23,7 +23,7 @@ import type { DayEvent, MailItem, UserId } from '../types';
 import type { CalendarEvent, GmailMessage } from './google';
 import {
   SCOPES,
-  fetchCalendar,
+  fetchCalendarRange,
   fetchGmail,
   forgetToken,
   getToken,
@@ -178,17 +178,38 @@ export function toDayEvent(e: CalendarEvent, userId: UserId, dayIso: string): Da
   };
 }
 
-async function syncCalendar(
+/** How far the rolling window reaches. Back far enough to keep last week's
+ *  calendar honest, forward far enough that a month view is populated. */
+export const SYNC_BACK_DAYS = 7;
+export const SYNC_FWD_DAYS = 30;
+
+export const shiftDay = (iso: string, days: number): string =>
+  new Date(new Date(`${iso}T00:00:00Z`).getTime() + days * 86_400_000).toISOString().slice(0, 10);
+
+/** The local date an event belongs to. Multi-day events land on their start. */
+export const eventDay = (e: CalendarEvent): string => e.start.slice(0, 10);
+
+/**
+ * Sync a window of days in one pass.
+ *
+ * This used to fetch a single day, so the Work calendar and timeline had
+ * nothing from Google in them at all and next week was always empty. Deletion
+ * is still confined to rows this sync created *and* to dates inside the
+ * window — outside it we have not asked Google what exists, and deleting on
+ * the strength of an answer nobody gave would silently eat last month.
+ */
+export async function syncCalendarWindow(
   store: AppStore,
-  dayIso: string,
+  fromIso: string,
+  toIso: string,
 ): Promise<{ eventsNew: number; eventsDropped: number }> {
-  const events = await fetchCalendar(dayIso);
+  const events = await fetchCalendarRange(fromIso, toIso);
   const live = new Set(events.map((e) => `gcal-${e.id}`));
   let eventsNew = 0;
 
   for (const e of events) {
     const id = `gcal-${e.id}`;
-    const row = toDayEvent(e, store.meId, dayIso);
+    const row = toDayEvent(e, store.meId, eventDay(e));
     const prior = store.ds.day_events.find((x) => x.id === id);
     if (prior) {
       store.update('day_events', id, row, store.asMe({ silent: true }));
@@ -198,10 +219,15 @@ async function syncCalendar(
     }
   }
 
-  // A meeting cancelled in Google has to disappear here too, or the ribbon
-  // quietly lies about your day. Only ever removes rows this sync created.
+  // A meeting cancelled in Google has to disappear here too, or the calendar
+  // quietly lies about the week.
   const stale = store.ds.day_events.filter(
-    (x) => x.date === dayIso && x.id.startsWith('gcal-') && !live.has(x.id),
+    (x) =>
+      x.id.startsWith('gcal-') &&
+      x.date >= fromIso &&
+      x.date <= toIso &&
+      x.user_id === store.meId &&
+      !live.has(x.id),
   );
   for (const s of stale) store.remove('day_events', s.id, store.asMe({ silent: true }));
 
@@ -222,8 +248,9 @@ export async function syncAll(store: AppStore): Promise<SyncResult> {
   const token = await getToken([...ALL_SCOPES]);
   if (!token) throw new Error('Google access was not granted');
 
-  const dayIso = today();
-  const [mail, cal] = await Promise.all([syncMail(store), syncCalendar(store, dayIso)]);
+  const from = shiftDay(today(), -SYNC_BACK_DAYS);
+  const to = shiftDay(today(), SYNC_FWD_DAYS);
+  const [mail, cal] = await Promise.all([syncMail(store), syncCalendarWindow(store, from, to)]);
   const scopes = ALL_SCOPES.map((k) => SCOPES[k]);
   recordGrant(store, scopes, true);
 
