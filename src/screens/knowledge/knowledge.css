@@ -1,0 +1,15 @@
+
+/* Documents: actions read as actions, not as metadata in a Reference column. */
+.doc-acts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.doc-acts .btn.sm {
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .doc-acts .btn.sm {
+    min-height: 32px;
+  }
+}

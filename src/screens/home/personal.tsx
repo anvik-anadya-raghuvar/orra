@@ -8,6 +8,7 @@ import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
 import { myTasks } from '../../lib/workspace';
 import { monthlyRunRate, soonestSubscription } from '../../lib/tracker';
+import { quoteForDate } from '../../lib/quotes';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import { isYouTubeUrl, playUrl, youTubeThumb } from '../../lib/song';
 import { resolveSong } from '../../lib/youtube';
@@ -122,13 +123,23 @@ export function WorthTile() {
   // Pinned first, then newest. Three, deliberately — this is a briefing, not a feed.
   const items = useMemo(
     () =>
-      [...ds.pulse_items]
+      ds.pulse_items
+        .filter((x) => (x.kind ?? 'news') === 'news')
         .sort(
           (a, b) =>
             Number(b.is_pinned) - Number(a.is_pinned) ||
             b.published_at.localeCompare(a.published_at),
         )
         .slice(0, 3),
+    [ds.pulse_items],
+  );
+
+  /** Whatever dropped most recently across the shows — one line, not a feed. */
+  const podcast = useMemo(
+    () =>
+      ds.pulse_items
+        .filter((x) => x.kind === 'podcast')
+        .sort((a, b) => b.published_at.localeCompare(a.published_at))[0] ?? null,
     [ds.pulse_items],
   );
 
@@ -210,6 +221,13 @@ export function WorthTile() {
           )
         )}
       </div>
+      {podcast && (
+        <a className="pod-row" href={podcast.url || '#'} target="_blank" rel="noreferrer">
+          <span className="eyebrow">Podcast this week</span>
+          <b>{podcast.title}</b>
+          <span className="sub">{podcast.source}</span>
+        </a>
+      )}
     </>
   );
 }
@@ -301,6 +319,25 @@ export function MoneyTile() {
             <i style={{ background: VIZ.out }} />− <CountUp value={money.out} format={(n) => inr(n)} />
           </span>
         </div>
+      </div>
+    </>
+  );
+}
+
+/* ── Quote of the day ──────────────────────────────────────────────────── */
+/** Curated, attributed, and the same for both of you on a given day — which
+ *  is what makes it something you can bring up rather than wallpaper. */
+export function QuoteTile() {
+  const q = useMemo(() => quoteForDate(todayIso()), []);
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Quote of the day</span>
+      </div>
+      <blockquote className="qt-text">{q.text}</blockquote>
+      <div className="qt-who mono">
+        — {q.who}
+        {q.context && <span className="qt-ctx"> · {q.context}</span>}
       </div>
     </>
   );

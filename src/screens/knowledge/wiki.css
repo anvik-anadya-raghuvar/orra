@@ -597,3 +597,25 @@
 .wk-composer .btn {
   min-height: 44px;
 }
+
+/* ── quote of the day, at the head of the wiki ─────────────────────────── */
+.wk-quote {
+  display: grid;
+  gap: 4px;
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--violet);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.wk-quote blockquote {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.wk-quote-who {
+  font-size: 11px;
+  color: var(--slate);
+}

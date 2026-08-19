@@ -567,6 +567,8 @@ export interface PulseItem {
   url: string;
   published_at: string;
   origin: 'auto' | 'manual';
+  /** Optional so rows written before 0020 read as news. */
+  kind?: 'news' | 'podcast';
   is_pinned: boolean;
   created_at: string;
 }

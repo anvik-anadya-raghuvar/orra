@@ -4,6 +4,8 @@ import './wiki.css';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { entrance } from '../../ui/motion';
 import { ownRows } from '../../lib/workspace';
+import { quoteForDate } from '../../lib/quotes';
+import { todayIso } from '../../lib/dates';
 import type { Page } from '../../types';
 import { blockText, makeBlock } from './WikiBlocks';
 import WikiPage from './WikiPage';
@@ -178,8 +180,21 @@ export default function WikiTab() {
     </div>
   );
 
+  const quote = useMemo(() => quoteForDate(todayIso()), []);
+
   return (
     <div className="wk-wrap">
+      {/* Same line both of you see today — a small shared thing at the top of
+          the room where the writing happens. */}
+      <div className="wk-quote">
+        <span className="eyebrow">Quote of the day</span>
+        <blockquote>{quote.text}</blockquote>
+        <span className="mono wk-quote-who">
+          — {quote.who}
+          {quote.context && ` · ${quote.context}`}
+        </span>
+      </div>
+
       <div className="filters">
         <input
           className="srch"

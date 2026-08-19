@@ -40,7 +40,17 @@ const FEEDS = [
   },
 ];
 
-const KEEP = 12; // rows retained; the tile shows three
+// Podcasts, on the same free cron. Weekly-ish shows, so one item each is
+// plenty — the portal surfaces whichever is newest as "this week's".
+const PODCAST_FEEDS = [
+  { url: 'https://lexfridman.com/feed/podcast/', source: 'Lex Fridman', kind: 'podcast' },
+  { url: 'https://feeds.transistor.fm/acquired', source: 'Acquired', kind: 'podcast' },
+  { url: 'https://thetwentyminutevc.libsyn.com/rss', source: '20VC', kind: 'podcast' },
+  { url: 'https://api.substack.com/feed/podcast/69345.rss', source: 'Dwarkesh', kind: 'podcast' },
+];
+
+const KEEP = 12; // news rows retained; the tile shows three
+const KEEP_PODCASTS = 8;
 
 const strip = (s) =>
   s
@@ -51,6 +61,9 @@ const strip = (s) =>
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -65,12 +78,12 @@ const pick = (block, ...tags) => {
   return '';
 };
 
-async function readFeed({ url, source, viaGoogleNews }) {
+async function readFeed({ url, source, viaGoogleNews, kind = 'news' }) {
   try {
     const res = await fetch(url, {
       headers: { 'user-agent': 'anvik-ops-pulse/1.0' },
       redirect: 'follow',
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(25000),
     });
     if (!res.ok) {
       console.warn(`${source}: HTTP ${res.status}`);
@@ -102,6 +115,7 @@ async function readFeed({ url, source, viaGoogleNews }) {
           url: link,
           published_at: (isNaN(when) ? new Date() : when).toISOString(),
           origin: 'auto',
+          kind,
         },
       ];
     });
@@ -123,17 +137,29 @@ const rest = (path, method, body, extraHeaders = {}) =>
     body: body ? JSON.stringify(body) : undefined,
   });
 
-const all = (await Promise.all(FEEDS.map(readFeed))).flat();
-if (!all.length) {
+const [news, podcasts] = await Promise.all([
+  Promise.all(FEEDS.map(readFeed)).then((r) => r.flat()),
+  Promise.all(PODCAST_FEEDS.map(readFeed)).then((r) => r.flat()),
+]);
+
+if (!news.length && !podcasts.length) {
   // Never wipe good rows just because every feed happened to fail.
   console.log('No items fetched — leaving existing rows untouched.');
   process.exit(0);
 }
 
-all.sort((a, b) => b.published_at.localeCompare(a.published_at));
-const items = all.slice(0, KEEP);
+const newest = (a, b) => b.published_at.localeCompare(a.published_at);
+news.sort(newest);
+podcasts.sort(newest);
+// Capped per kind, so a chatty news week cannot crowd out every podcast.
+const items = [...news.slice(0, KEEP), ...podcasts.slice(0, KEEP_PODCASTS)];
 
-if (process.env.DRY_RUN) { for (const i of items) console.log(`[${i.source}] ${i.title}`); process.exit(0); }
+if (process.env.DRY_RUN) {
+  for (const i of items) console.log(`[${i.kind}] [${i.source}] ${i.title}`);
+  console.log(`
+${news.length} news, ${podcasts.length} podcast items fetched.`);
+  process.exit(0);
+}
 const res = await rest('pulse_items', 'POST', items, {
   prefer: 'resolution=merge-duplicates',
 });

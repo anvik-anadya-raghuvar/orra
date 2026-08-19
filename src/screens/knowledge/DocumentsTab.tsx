@@ -48,6 +48,8 @@ export default function DocumentsTab() {
   const store = useStore();
   const toast = useToast();
   const [adding, setAdding] = useState(false);
+  /** A typo'd expiry used to mean delete and re-add. */
+  const [editing, setEditing] = useState<DocumentRef | null>(null);
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
   const projectColor = (id: string) => projects.find((p) => p.id === id)?.color ?? 'var(--slate)';
 
@@ -106,7 +108,6 @@ export default function DocumentsTab() {
                 <th>Project</th>
                 <th>Expiry or deadline</th>
                 <th>Proximity</th>
-                <th>Reference</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -134,18 +135,19 @@ export default function DocumentsTab() {
                         <ProgressBar pct={proximityPct(d)} grad={URGENCY_COLOR[u]} />
                       </div>
                     </td>
-                    <td data-label="Reference">
-                      <a className="lk" href={d.cloud_ref_url} target="_blank" rel="noreferrer">
-                        Open in Drive
-                      </a>
-                    </td>
-                    <td data-label="Actions">
-                      <button
-                        type="button"
-                        className="btn sm danger"
-                        style={{ minHeight: 44 }}
-                        onClick={() => remove(d)}
+                    <td data-label="Actions" className="doc-acts">
+                      <a
+                        className="btn sm"
+                        href={d.cloud_ref_url}
+                        target="_blank"
+                        rel="noreferrer"
                       >
+                        Open
+                      </a>
+                      <button type="button" className="btn sm" onClick={() => setEditing(d)}>
+                        Edit
+                      </button>
+                      <button type="button" className="btn sm danger" onClick={() => remove(d)}>
                         Delete
                       </button>
                     </td>
@@ -157,10 +159,12 @@ export default function DocumentsTab() {
         </div>
       )}
       <p className="tip">
-        Files stay in Drive; only the reference and the date live here. Anything within 30 days raises status
-        automatically.
+        Documents are links to files in your Google Drive, plus the date that matters. Add one by
+        searching Drive or pasting a link — the file itself stays in Drive, so nothing here can go
+        stale against it. Anything inside 30 days raises its own status.
       </p>
       {adding && <AddDocumentModal onClose={() => setAdding(false)} />}
+      {editing && <EditDocumentModal doc={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
@@ -358,3 +362,86 @@ const inputStyle: React.CSSProperties = {
   color: 'var(--ink)',
   marginBottom: 11,
 };
+
+/**
+ * Correcting a document.
+ *
+ * A mistyped expiry date previously meant deleting the row and re-adding it,
+ * which lost the audit trail's sense of a single document being amended.
+ */
+function EditDocumentModal({ doc, onClose }: { doc: DocumentRef; onClose: () => void }) {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const toast = useToast();
+  const [title, setTitle] = useState(doc.title);
+  const [projectId, setProjectId] = useState(doc.project_id);
+  const [expiry, setExpiry] = useState(doc.expiry_date ?? '');
+  const [note, setNote] = useState(doc.deadline_note ?? '');
+  const [url, setUrl] = useState(doc.cloud_ref_url);
+
+  const save = () => {
+    const clean = title.trim();
+    if (!clean) {
+      toast('A document needs a title');
+      return;
+    }
+    store.update(
+      'documents',
+      doc.id,
+      {
+        title: clean,
+        project_id: projectId,
+        expiry_date: expiry || null,
+        deadline_note: note.trim(),
+        cloud_ref_url: url.trim() || doc.cloud_ref_url,
+      },
+      store.asMe({ summary: `Document updated — ${clean}` }),
+    );
+    toast('Document updated');
+    onClose();
+  };
+
+  return (
+    <Modal open onClose={onClose} title="Edit document">
+      <label className="kn-fld">
+        <span className="kn-lbl">Title</span>
+        <input className="kn-in" value={title} autoFocus onChange={(e) => setTitle(e.target.value)} />
+      </label>
+      <label className="kn-fld">
+        <span className="kn-lbl">Project</span>
+        <select className="kn-in" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+          {ds.projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="kn-fld">
+        <span className="kn-lbl">Expiry date</span>
+        <input className="kn-in" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+      </label>
+      <label className="kn-fld">
+        <span className="kn-lbl">Deadline note</span>
+        <input
+          className="kn-in"
+          value={note}
+          placeholder="e.g. within 8 days of arrival"
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </label>
+      <label className="kn-fld">
+        <span className="kn-lbl">Drive link</span>
+        <input className="kn-in" value={url} onChange={(e) => setUrl(e.target.value)} />
+      </label>
+      <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 14 }}>
+        <button className="btn" type="button" onClick={onClose}>
+          Cancel
+        </button>
+        <button className="btn solid" type="button" onClick={save}>
+          Save changes
+        </button>
+      </div>
+    </Modal>
+  );
+}
