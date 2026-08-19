@@ -32,11 +32,13 @@ export interface AnnotatedResult {
 
 /**
  * @param source  image data URL (or any URL the canvas may read same-origin)
- * @param pins    already ordered — index + 1 becomes the printed number
+ * @param pins    each carries `n`, its task-global number — the numbering runs
+ *                across every screenshot of the task, so it is handed in
+ *                rather than derived from this one image's array index
  */
 export function annotateScreenshot(
   source: string,
-  pins: Pick<AnnotationPin, 'x_pct' | 'y_pct' | 'label' | 'is_resolved'>[],
+  pins: (Pick<AnnotationPin, 'x_pct' | 'y_pct' | 'label' | 'is_resolved'> & { n: number })[],
 ): Promise<AnnotatedResult> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -59,7 +61,7 @@ export function annotateScreenshot(
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        pins.forEach((p, i) => {
+        pins.forEach((p) => {
           const x = (p.x_pct / 100) * w;
           const y = (p.y_pct / 100) * h;
           const color = COLORS[p.label] ?? DEFAULT_COLOR;
@@ -89,7 +91,7 @@ export function annotateScreenshot(
           }
 
           ctx.fillStyle = '#ffffff';
-          ctx.fillText(String(i + 1), x, y + r * 0.04);
+          ctx.fillText(String(p.n), x, y + r * 0.04);
         });
 
         resolve({ dataUrl: canvas.toDataURL('image/png'), width: w, height: h });

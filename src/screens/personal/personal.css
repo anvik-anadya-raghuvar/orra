@@ -171,6 +171,59 @@
   border-top: 1px solid var(--line);
 }
 
+/* ── tile preview + the way in ───────────────────────────────────────────
+   A widget on the grid is a preview: it clips rather than growing its own
+   scrollbar (a scrollbar inside a tile inside a scrolling page was three
+   nested scrolls — unusable). The rows that fit stay fully live; the Open bar
+   under them leads to the side page where the whole list and its add-form
+   live at full height. */
+.personal-screen .ptile-clip {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.personal-screen .ptile-clip .pbig {
+  overflow: hidden;
+}
+/* A soft fade where the list is cut, so "there is more" reads at a glance. */
+.personal-screen .ptile-clip::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--surf-solid));
+}
+.personal-screen .ptile-open {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  border-top: 1px solid var(--line);
+  color: var(--indigo);
+  font-size: 12.5px;
+  font-weight: 500;
+  background: none;
+  transition: color 0.16s, background 0.16s;
+}
+.personal-screen .ptile-open:hover,
+.personal-screen .ptile-open:focus-visible {
+  background: var(--surf3);
+  color: var(--ink);
+}
+/* Inside the side page only the page scrolls; restated here with the room's
+   own scope so import order can never flip the tile rule back on. */
+.personal-screen .tilesheet-tile .pbig {
+  overflow: visible;
+}
+
 /* ── inline click-to-edit ───────────────────────────────────────────────── */
 .personal-screen .inl {
   display: block;
@@ -571,7 +624,8 @@
   .personal-screen .picon,
   .personal-screen .bxbtn,
   .personal-screen .inl,
-  .personal-screen .pdocrow {
+  .personal-screen .pdocrow,
+  .personal-screen .ptile-open {
     min-height: 44px;
   }
   .personal-screen .picon,

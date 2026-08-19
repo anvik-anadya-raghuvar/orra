@@ -154,7 +154,11 @@
   }
 }
 
-/* ── the pop-up ────────────────────────────────────────────────────────── */
+/* ── the side page ─────────────────────────────────────────────────────────
+   A tile opens into a full-height page docked to the right edge — the room
+   stays visible behind it, and the widget gets real vertical space instead of
+   a card floating in a scrim. This is where the whole list lives; the tile
+   itself never grows a scrollbar. */
 .tilesheet-mask {
   position: fixed;
   inset: 0;
@@ -162,19 +166,18 @@
   background: rgba(10, 13, 20, 0.5);
   backdrop-filter: blur(4px);
   display: grid;
-  place-items: center;
-  padding: 20px;
-  overflow: auto;
+  justify-items: end;
+  align-items: stretch;
+  overflow: hidden;
   overscroll-behavior: contain;
 }
 .tilesheet {
-  width: min(940px, 100%);
-  max-height: calc(100vh - 40px);
+  width: min(620px, 100%);
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--surf2);
-  border: 1px solid var(--line);
-  border-radius: var(--rl);
+  border-left: 1px solid var(--line);
   box-shadow: var(--sh2);
   overflow: hidden;
 }
@@ -202,9 +205,15 @@
 }
 /* The tile renders its real self here — same component, same store — just with
    room to breathe. min-height gives charts and lists something to fill so a
-   short tile does not collapse to a strip in a 940px dialog. */
+   short tile does not collapse to a strip in a full-height page. */
 .tilesheet-tile {
   min-height: min(52vh, 420px);
+}
+/* Inside the side page only the page scrolls: the widget lets go of its own
+   scrolling so there is never a scrollbar inside a scrollbar, and its sticky
+   header/add-form stick to the page instead. */
+.tilesheet-tile .pbig {
+  overflow: visible;
 }
 .tilesheet-ft {
   flex: none;
@@ -225,8 +234,7 @@
   color: var(--mute);
 }
 
-/* Mobile: a dialog that covers the screen beats a card floating in a scrim,
-   per the responsive rules. */
+/* Mobile: the side page covers the screen, per the responsive rules. */
 @media (max-width: 640px) {
   .tilesheet-mask {
     padding: 0;
@@ -234,8 +242,6 @@
   }
   .tilesheet {
     width: 100%;
-    max-height: none;
-    min-height: 100dvh;
     border: 0;
     border-radius: 0;
   }

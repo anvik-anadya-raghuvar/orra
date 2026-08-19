@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Maximize2 } from 'lucide-react';
 import type { Course, CourseItem, ReadingItem } from '../../types';
 import { newId, useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
@@ -637,7 +637,19 @@ function PersonalBento({ shown }: { shown: typeof WIDGETS }) {
               } as React.CSSProperties
             }
           >
-            {t.node}
+            {/* The tile is a preview, not a well: it clips instead of growing a
+                scrollbar, and the Open bar below it is the honest way in. The
+                visible rows stay live — tick a task here without opening
+                anything — but managing the list happens on the side page. */}
+            <div className="ptile-clip">{t.node}</div>
+            <button
+              type="button"
+              className="ptile-open"
+              onClick={() => api.setOpenKey(t.key)}
+            >
+              <Maximize2 size={13} strokeWidth={2} aria-hidden />
+              Open {t.label}
+            </button>
           </BentoTile>
         ))}
       </motion.div>

@@ -33,6 +33,7 @@ export function generateTaskExport(ds: Dataset, taskId: string): string {
   const shots = ds.screenshot_attachments
     .filter((s) => s.task_id === task.id)
     .sort(byCreatedAt);
+  const pinNumbers = taskPinNumbers(ds, task.id);
   shots.forEach((shot, si) => {
     const n = si + 1;
     lines.push('');
@@ -53,14 +54,15 @@ export function generateTaskExport(ds: Dataset, taskId: string): string {
     const pins = ds.annotation_pins
       .filter((p) => p.screenshot_id === shot.id)
       .sort(byCreatedAt);
-    pins.forEach((pin, pi) => {
+    pins.forEach((pin) => {
       // The label goes in front of the note so an agent reading this can tell
       // a copy tweak from a logic bug without inferring it from prose. Omitted
       // entirely when unset, so output stays stable for uncategorised pins.
       const label = pin.label ? `[${pin.label}] ` : '';
       const state = pin.is_resolved ? ' (resolved)' : '';
+      // Task-global number: screenshot 2's first pin continues the sequence.
       lines.push(
-        `${pi + 1}. (x ${one(pin.x_pct)}%, y ${one(pin.y_pct)}%) ${profiles.get(pin.author_id) ?? '—'} — ${label}${pin.note}${state}`,
+        `${pinNumbers.get(pin.id)}. (x ${one(pin.x_pct)}%, y ${one(pin.y_pct)}%) ${profiles.get(pin.author_id) ?? '—'} — ${label}${pin.note}${state}`,
       );
     });
   });
@@ -153,12 +155,16 @@ export async function exportTaskZip(ds: Dataset, taskId: string): Promise<Blob> 
 
   const assets = zip.folder('assets');
   const shots = ds.screenshot_attachments.filter((s) => s.task_id === taskId).sort(byCreatedAt);
+  const pinNumbers = taskPinNumbers(ds, taskId);
 
   for (const shot of shots) {
     if (!shot.data_url) continue; // nothing stored to annotate
+    // Burn the TASK-global number into each marker, so marker "5" on the
+    // second screenshot is the same pin 5 the markdown talks about.
     const pins = ds.annotation_pins
       .filter((p) => p.screenshot_id === shot.id)
-      .sort(byCreatedAt);
+      .sort(byCreatedAt)
+      .map((p) => ({ ...p, n: pinNumbers.get(p.id) ?? 0 }));
     try {
       const annotated = await annotateScreenshot(shot.data_url, pins);
       assets?.file(shot.filename, annotated.dataUrl.split(',')[1], { base64: true });
@@ -183,7 +189,7 @@ function bundleReadme(ds: Dataset, taskId: string): string {
     'Contents:',
     '- `TASK.md` — the brief: objective, located change requests, decisions, acceptance criteria.',
     withImages
-      ? '- `assets/*.png` — screenshots with **numbered markers drawn on them**. Marker ① is pin 1 in TASK.md, ② is pin 2, and so on.'
+      ? '- `assets/*.png` — screenshots with **numbered markers drawn on them**. Marker ① is pin 1 in TASK.md, ② is pin 2, and so on. One sequence runs across the whole task: a second screenshot continues the numbering rather than restarting at 1.'
       : '- `assets/` — empty: no screenshot image data was stored for this task.',
     withImages ? '- `assets/original-*.png` — the same screenshots without markers.' : '',
     '',
@@ -200,14 +206,36 @@ function bundleReadme(ds: Dataset, taskId: string): string {
     .join('\n');
 }
 
-/** Derived pin numbering — row_number() over created_at, never stored. */
+/**
+ * Derived pin numbering — one sequence per TASK, never stored.
+ *
+ * The sequence runs across every screenshot in the task in upload order, so
+ * the first pin on a second screenshot continues the count (5, 6, …) rather
+ * than restarting at 1. A task therefore has exactly one "pin 3", and saying
+ * "tag 3 is this change" is unambiguous no matter which image it sits on.
+ * row_number() over (screenshot age, pin age) — deleting a pin closes the gap.
+ */
+export function taskPinNumbers(ds: Dataset, taskId: string): Map<string, number> {
+  const shots = ds.screenshot_attachments
+    .filter((s) => s.task_id === taskId)
+    .sort(byCreatedAt);
+  const numbers = new Map<string, number>();
+  let n = 0;
+  for (const shot of shots) {
+    const pins = ds.annotation_pins
+      .filter((p) => p.screenshot_id === shot.id)
+      .sort(byCreatedAt);
+    for (const pin of pins) numbers.set(pin.id, ++n);
+  }
+  return numbers;
+}
+
 export function pinNumber(ds: Dataset, pinId: string): number {
   const pin = ds.annotation_pins.find((p) => p.id === pinId);
   if (!pin) return 0;
-  const siblings = ds.annotation_pins
-    .filter((p) => p.screenshot_id === pin.screenshot_id)
-    .sort(byCreatedAt);
-  return siblings.findIndex((p) => p.id === pinId) + 1;
+  const shot = ds.screenshot_attachments.find((s) => s.id === pin.screenshot_id);
+  if (!shot) return 0;
+  return taskPinNumbers(ds, shot.task_id).get(pinId) ?? 0;
 }
 
 export type { Task };

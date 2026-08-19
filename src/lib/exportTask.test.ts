@@ -66,6 +66,36 @@ describe('pin numbering', () => {
     expect(md).toContain('2. (x 10.0%');
     expect(md).not.toContain('3. (x');
   });
+
+  it('runs one sequence across the whole task — a second screenshot continues, never restarts', () => {
+    const ds = seedDataset();
+    const first = ds.screenshot_attachments.find((s) => s.id === 'shot-1')!;
+    ds.screenshot_attachments.push({
+      ...first,
+      id: 'shot-2',
+      filename: 'second_capture.png',
+      storage_path: 'screenshots/T-42/second_capture.png',
+      created_at: '2026-08-18T10:00:00+05:30', // uploaded after shot-1
+    });
+    ds.annotation_pins.push({
+      id: 'pin-later',
+      screenshot_id: 'shot-2',
+      x_pct: 55.0,
+      y_pct: 60.0,
+      note: 'first pin on the second screenshot',
+      label: '',
+      author_id: 'u-anadya',
+      is_resolved: false,
+      created_at: '2026-08-18T10:05:00+05:30',
+    });
+    // shot-1 already carries pins 1 and 2 — the new screenshot's pin is 3.
+    expect(pinNumber(ds, 'pin-later')).toBe(3);
+    const md = generateTaskExport(ds, 'T-42');
+    expect(md).toContain('3. (x 55.0%, y 60.0%)');
+    // and the section for the second screenshot does NOT begin again at 1
+    const secondSection = md.slice(md.indexOf('## Screenshot 2'));
+    expect(secondSection).not.toContain('1. (x');
+  });
 });
 
 describe('ranking', () => {

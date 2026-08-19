@@ -577,9 +577,12 @@ export function TileSheet({
     >
       <motion.div
         className="tilesheet"
-        initial={{ opacity: 0, y: 20, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1, transition: entrance }}
-        exit={{ opacity: 0, y: 12, scale: 0.98, transition: micro }}
+        /* A side page, so it slides in from the edge it lives on rather than
+           popping up in the middle of the room. Mobile covers the screen, where
+           the rise reads better than a sideways slide. */
+        initial={{ opacity: 0, x: 36 }}
+        animate={{ opacity: 1, x: 0, transition: entrance }}
+        exit={{ opacity: 0, x: 24, transition: micro }}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="tilesheet-hd">

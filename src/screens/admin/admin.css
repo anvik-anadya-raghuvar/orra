@@ -8,6 +8,16 @@
 /* ── trail table → cards under 640px ─────────────────────────────────── */
 .admin-screen .ad-table {
   width: 100%;
+  /* Fixed layout so a long mono diff wraps inside its column instead of
+     pushing the whole table past the viewport edge. */
+  table-layout: fixed;
+}
+.admin-screen .ad-table th:nth-child(1) { width: 12%; }
+.admin-screen .ad-table th:nth-child(2) { width: 9%; }
+.admin-screen .ad-table th:nth-child(3) { width: 14%; }
+.admin-screen .ad-table th:nth-child(5) { width: 13%; }
+.admin-screen .ad-table td {
+  overflow-wrap: anywhere;
 }
 @media (max-width: 640px) {
   .admin-screen .ad-table thead {
