@@ -200,7 +200,11 @@
 .tilesheet-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  /* Never sideways: widget sticky bars bleed past their box by design
+     (negative margins), which on the grid is swallowed by the tile's own
+     overflow but here grew the side page a horizontal scrollbar. */
+  overflow-x: hidden;
   padding: 14px;
 }
 /* The tile renders its real self here — same component, same store — just with

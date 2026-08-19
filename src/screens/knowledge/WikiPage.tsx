@@ -5,6 +5,7 @@ import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Avatar, TagChip, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
+import { processImages, useImagePaste } from '../../ui/imagedrop';
 import type { Page, PageBlock } from '../../types';
 import { BlockRow, makeBlock } from './WikiBlocks';
 
@@ -129,6 +130,30 @@ export default function WikiPage({
     setBlocks(next);
   };
 
+  /* Ctrl/Cmd+V with a screenshot on the clipboard drops it straight into the
+     page as an image block — after the block you are on, or at the end. The
+     same compressor as everywhere else runs first, so a pasted 4K capture
+     lands as a ≤300 KB JPEG, not a multi-megabyte row. Text pastes are left
+     alone for whatever input has focus. */
+  const pageRef = useRef<HTMLDivElement>(null);
+  useImagePaste(pageRef, (files) => {
+    void processImages(files, (img) => {
+      setDraft((d) => {
+        const at = activeId ? d.blocks.findIndex((b) => b.id === activeId) : -1;
+        const block: PageBlock = {
+          ...makeBlock('image'),
+          src: img.data_url,
+          alt: img.filename,
+        };
+        const next = [...d.blocks];
+        next.splice(at >= 0 ? at + 1 : next.length, 0, block);
+        queue({ blocks: next });
+        return { ...d, blocks: next };
+      });
+      toast('Screenshot dropped into the page');
+    }).catch((err: Error) => toast(err.message || 'That image could not be pasted'));
+  });
+
   /* ── page-level operations ────────────────────────────────────────────── */
   const siblings = pages
     .filter((p) => p.parent_page_id === page.parent_page_id && !p.is_archived)
@@ -204,7 +229,7 @@ export default function WikiPage({
   const lastEditor = store.ds.profiles.find((p) => p.id === page.last_edited_by);
 
   return (
-    <div className="wk-page">
+    <div className="wk-page" ref={pageRef}>
       <div className="wk-pagehead">
         <input
           className="wk-icon-input"

@@ -32,7 +32,8 @@ import {
   RotateCcw,
   X,
 } from 'lucide-react';
-import { useData, useStore } from '../../data/store';
+import { useData, useDataset, useStore } from '../../data/store';
+import { activeBlockFor } from '../../lib/blocks';
 import { entrance, micro, spring, staggerItem } from '../../ui/motion';
 import './arrange.css';
 import type { HomeLayout } from '../../types';
@@ -661,6 +662,17 @@ export function TileSheetHost({
   tiles: { key: string; title: string; span: Span; node: React.ReactNode }[];
 }) {
   const open = api.openKey ? tiles.find((t) => t.key === api.openKey) : undefined;
+
+  // Starting a block freezes the whole portal, so any open side page closes
+  // itself: without this, ending the block dropped you back into a stale
+  // sheet you had mentally finished with.
+  const ds = useDataset();
+  const meId = useData((_, s) => s.meId);
+  const frozen = Boolean(activeBlockFor(ds, meId));
+  useEffect(() => {
+    if (frozen && api.openKey) api.setOpenKey(null);
+  }, [frozen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <AnimatePresence>
       {open && (

@@ -9,7 +9,7 @@ import './work.css';
 type Tab = 'board' | 'goals' | 'decisions';
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'board', label: 'Board' },
+  { key: 'board', label: 'To dos' },
   { key: 'goals', label: 'Goals' },
   { key: 'decisions', label: 'Decisions' },
 ];

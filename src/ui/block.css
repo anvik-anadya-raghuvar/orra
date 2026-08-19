@@ -4,7 +4,11 @@
 .blk-mask {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* Above every other surface, tile side pages (70) and notification panels
+     (90) included: a block freezes the WHOLE portal, and starting one from
+     inside a side page used to draw the freeze underneath that page — the
+     timer looked like it simply had not started. */
+  z-index: 100;
   background: var(--bg);
   display: grid;
   place-items: center;

@@ -48,7 +48,7 @@ export function PersonalTasks() {
       { status: 'done', progress_pct: 100 },
       store.asMe({ summary: `${t.id} closed from Personal` }),
     );
-    toast(`${t.id} done — it moved on the board too.`);
+    toast(`${t.id} done — it moved in your to-dos too.`);
   };
 
   return (
@@ -56,11 +56,11 @@ export function PersonalTasks() {
       <div className="phead">
         <h3>Personal tasks</h3>
         <Link className="btn sm" to="/work">
-          Open board
+          Open to dos
         </Link>
       </div>
       <p className="tip" style={{ marginTop: 0 }}>
-        The same tasks as your board, just the personal ones. Tick one here and it closes there.
+        The same tasks as your to-dos, just the personal ones. Tick one here and it closes there.
       </p>
       <motion.div {...staggerParent()}>
         {rows.map((t) => (

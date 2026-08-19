@@ -379,6 +379,14 @@ export function StudyTimer() {
   const courses = useMemo(() => ownRows(ds.courses, meId), [ds.courses, meId]);
   const [courseId, setCourseId] = useState(courses[0]?.id ?? '');
   const live = activeBlockFor(ds, meId);
+  const recent = useMemo(
+    () =>
+      ds.time_logs
+        .filter((t) => t.user_id === meId)
+        .sort((a, b) => (a.date === b.date ? b.id.localeCompare(a.id) : b.date.localeCompare(a.date)))
+        .slice(0, 5),
+    [ds.time_logs, meId],
+  );
 
   const begin = (scope: 'study' | 'personal') => {
     const opts = scope === 'study' ? { courseId: courseId || null } : {};
@@ -416,7 +424,24 @@ export function StudyTimer() {
           Start a personal block
         </button>
       </div>
-      <p className="tip">Forgot to stop it? Fix the minutes in the ledger — nothing here is write-once.</p>
+
+      {/* The hours this thing produces, right where they are produced — the
+          first question after "start a block" is "where did my time go", and
+          the answer should not require knowing another widget exists. */}
+      <div className="psub eyebrow">Latest blocks</div>
+      {recent.map((t) => (
+        <div className="prow" key={t.id}>
+          <span className="grow">
+            {t.kind} · {t.minutes} min
+          </span>
+          <span className="mono sub">{fmtDay(t.date)}</span>
+        </div>
+      ))}
+      {recent.length === 0 && <p className="tip">Nothing logged yet — your first block will land here.</p>}
+      <p className="tip">
+        Forgot to stop one? Every minute is editable in the Time ledger widget — nothing here is
+        write-once.
+      </p>
     </div>
   );
 }

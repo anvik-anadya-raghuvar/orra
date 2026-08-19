@@ -12,6 +12,8 @@ import {
 import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay } from '../../lib/dates';
 import { ownRows } from '../../lib/workspace';
+import { makeBlock } from './WikiBlocks';
+import type { PageBlock } from '../../types';
 import { HeatStrip, MiniBars } from '../../ui/viz';
 import { MAX_NOTE_IMAGES } from '../../types';
 import type { AttachedImage, ChecklistItem, Note, NoteType } from '../../types';
@@ -171,6 +173,54 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
     toast(`${unchecked.length} action item${unchecked.length === 1 ? '' : 's'} pushed as subtasks`);
   };
 
+  /* A note is quick capture; a Wiki page is where something gets structure —
+     lines you can reorder, to-dos, embeds, images between paragraphs. This is
+     the bridge: everything the note holds becomes real blocks on a new page.
+     The note itself stays where it was — this grows a copy, it does not eat
+     the original. */
+  const makePage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const blocks: PageBlock[] = [];
+    for (const line of (note.body || '').split('\n')) {
+      if (line.trim()) blocks.push({ ...makeBlock('paragraph'), text: line.trim() });
+    }
+    for (const t of note.transcript ?? []) {
+      blocks.push({ ...makeBlock('paragraph'), text: `${t.at} — ${t.text}` });
+    }
+    if (note.checklist?.length) {
+      blocks.push({
+        ...makeBlock('todo'),
+        items: note.checklist.map((c) => ({ text: c.text, done: c.done })),
+      });
+    }
+    for (const im of note.images ?? []) {
+      blocks.push({ ...makeBlock('image'), src: im.data_url, alt: im.filename });
+    }
+    if (!blocks.length) blocks.push(makeBlock('paragraph'));
+    const siblings = store.ds.pages.filter((p) => !p.parent_page_id);
+    store.insert(
+      'pages',
+      {
+        id: newId('pg'),
+        title: note.title || 'Untitled note',
+        icon: '📝',
+        parent_page_id: null,
+        blocks,
+        tags: [...note.tags],
+        linked_task_ids: note.task_id ? [note.task_id] : [],
+        is_archived: false,
+        position: siblings.length + 1,
+        created_by: store.meId,
+        owner_id: store.meId,
+        created_at: nowIso(),
+        last_edited_by: store.meId,
+        last_edited_at: nowIso(),
+      },
+      store.asMe({ summary: `Note "${note.title || 'Untitled'}" became a Wiki page` }),
+    );
+    toast('Now a Wiki page — open the Wiki tab to build on it');
+  };
+
   // A div, not a button: the card contains its own action button and nesting
   // buttons is invalid HTML. The title is the real focusable control; the card
   // surface is a mouse convenience that delegates to it.
@@ -252,6 +302,14 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
           <TagChip key={t} name={t} />
         ))}
         {note.source_ref && <span className="src">{note.source_ref.split(':')[0]}</span>}
+        <button
+          type="button"
+          className="btn sm note-to-page"
+          title="Copy this note into the Wiki as an editable page — lines, to-dos and images become real blocks"
+          onClick={makePage}
+        >
+          Make it a page
+        </button>
       </div>
     </motion.div>
   );
