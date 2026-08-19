@@ -6,6 +6,7 @@ import { Modal, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
 import { planPurge, prettyKey, purgeDemo, type PurgeFailure, type PurgePlan } from '../../lib/purgeDemo';
+import { showsDemo } from '../../lib/demoScope';
 import type { TrashItem } from '../../types';
 
 /**
@@ -21,6 +22,8 @@ export default function DataTab() {
   const ds = useData((d) => d);
   const toast = useToast();
   const [plan, setPlan] = useState<PurgePlan | null>(null);
+  /** Only the test workspace holds the worked example, so only it can clear it. */
+  const isDemoAccount = showsDemo(store.meId);
   const [confirming, setConfirming] = useState(false);
   const [emptying, setEmptying] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -92,33 +95,42 @@ export default function DataTab() {
       <div className="ad-goog">
         <div className="ad-conn-head">
           <h4>Demo content</h4>
-          <span className={`pill ${total ? 'soon' : 'ok'}`}>
-            {plan ? (total ? `${total} rows` : 'clean') : 'counting…'}
+          <span className={`pill ${isDemoAccount && total ? 'soon' : 'ok'}`}>
+            {isDemoAccount ? (plan ? (total ? `${total} rows` : 'clean') : 'counting…') : 'not here'}
           </span>
         </div>
-        <p>
-          {total
-            ? 'The worked example this portal was built against — people you have not met, mail you never received, tasks nobody opened. All of it is attributed to your two real profiles, which is why it looks like data.'
-            : 'No seeded rows left. Everything here is yours.'}
-        </p>
-        <p className="tip" style={{ margin: '8px 0 0' }}>
-          Only rows whose id came from the seed are matched. Anything you created — or Gmail
-          synced — cannot be caught by this. Projects, tags, your Google connection and the audit
-          trail are never touched.
-        </p>
-        <div className="ad-conn-acts">
-          <button
-            type="button"
-            className="btn sm solid"
-            onClick={() => setConfirming(true)}
-            disabled={!total || busy}
-          >
-            <Trash2 size={12} strokeWidth={2} /> Remove demo content
-          </button>
-        </div>
+        {isDemoAccount ? (
+          <>
+            <p>
+              {total
+                ? 'The worked example the portal was built against. This is the test workspace, so it lives here on purpose — it is what a full portal looks like before it has your real work in it.'
+                : 'No seeded rows left in the test workspace.'}
+            </p>
+            <p className="tip" style={{ margin: '8px 0 0' }}>
+              Only rows whose id came from the seed are matched. Anything created here since — or
+              Gmail synced — cannot be caught by this. Projects, tags, the Google connection and the
+              audit trail are never touched.
+            </p>
+            <div className="ad-conn-acts">
+              <button
+                type="button"
+                className="btn sm solid"
+                onClick={() => setConfirming(true)}
+                disabled={!total || busy}
+              >
+                <Trash2 size={12} strokeWidth={2} /> Remove demo content
+              </button>
+            </div>
+          </>
+        ) : (
+          <p>
+            The worked example lives in the test workspace and is never mixed into yours — nothing
+            to clear here. Sign in as the test account to look around a full portal.
+          </p>
+        )}
       </div>
 
-      {plan && total > 0 && (
+      {isDemoAccount && plan && total > 0 && (
         <motion.div className="ad-conns" {...staggerParent()} style={{ marginBottom: 16 }}>
           {plan.hits.map((h) => {
             const failure = failures.find((f) => f.key === h.key);

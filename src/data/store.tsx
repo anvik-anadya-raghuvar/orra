@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useSyncExternalS
 import type { AuditSource, CollectionKey, Dataset, RankingWeights, UserId } from '../types';
 import type { DataAdapter } from './adapter';
 import { pickAdapter } from './adapter';
+import { DEMO_USER_ID, showsDemo, withoutDemo, type DemoIds } from '../lib/demoScope';
 
 let idCounter = 0;
 export const newId = (prefix: string) =>
@@ -16,9 +17,7 @@ export const today = () => {
 
 type Row = { id: string };
 
-/** The demo/test account seeded by migration 0011. A real profile row, but not
- *  one of the two people the portal is for. */
-export const DEMO_USER_ID = '00000000-0000-4000-8000-000000000001';
+export { DEMO_USER_ID };
 
 /**
  * Collections a delete must never route through Trash.
@@ -63,8 +62,13 @@ export class AppStore {
   /** Last background save/delete failure, if any — surfaced by a banner rather than swallowed. */
   syncError: string | null = null;
 
-  constructor(ds: Dataset, adapter: DataAdapter, meId: UserId) {
-    this.ds = ds;
+  /** Set for real members: the seeded worked example belongs to the test
+   *  workspace, so it is filtered out of everything this store hands to the UI. */
+  private demoIds: DemoIds | null = null;
+
+  constructor(ds: Dataset, adapter: DataAdapter, meId: UserId, demoIds: DemoIds | null = null) {
+    this.demoIds = demoIds;
+    this.ds = demoIds ? withoutDemo(ds, demoIds) : ds;
     this.adapter = adapter;
     this.meId = meId;
   }
@@ -447,7 +451,11 @@ export class AppStore {
   }
 
   applyRemote(partial: Partial<Dataset>) {
-    this.ds = { ...this.ds, ...partial };
+    // Realtime carries every row, including the test workspace's — scope it the
+    // same way the initial load is scoped, or the demo would reappear on the
+    // first change either person makes.
+    const scoped = this.demoIds ? withoutDemo(partial, this.demoIds) : partial;
+    this.ds = { ...this.ds, ...scoped };
     this.emit();
   }
 }
@@ -499,7 +507,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (saved && ds.profiles.some((p) => p.id === saved)) me = saved;
           } catch {}
         }
-        const s = new AppStore(ds, adapter, me);
+        // Mock mode *is* the seed, so scoping there would empty the app. On a
+        // real database the worked example stays in the test workspace.
+        let demoIds: DemoIds | null = null;
+        if (adapter.kind === 'supabase' && !showsDemo(me)) {
+          const [{ demoIdIndex }, seedMod] = await Promise.all([
+            import('../lib/demoScope'),
+            import('./seed'),
+          ]);
+          demoIds = demoIdIndex(seedMod.seedDataset());
+        }
+        const s = new AppStore(ds, adapter, me, demoIds);
         adapter.onRemoteChange?.((partial) => s.applyRemote(partial));
         adapter.onSyncError?.((msg) => s.reportSyncError(msg));
         setStore(s);
