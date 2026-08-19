@@ -47,7 +47,12 @@ Vite + React 18 + TypeScript + Tailwind + Framer Motion. Supabase for Postgres, 
 
 - **Mobile-first.** Write the mobile layout first, then widen. Never desktop-down.
 - **Breakpoints:** mobile ≤640px · tablet 641–1024px · desktop >1024px. Every screen must be genuinely designed at all three, not just reflowed.
-- **Touch targets minimum 44×44px** everywhere on mobile and tablet.
+- **Touch targets minimum 44×44px** everywhere on mobile and tablet. One
+  documented exception: marks inside a chart (`.viz-bar`, `.viz-heatcell`) —
+  a bar whose height *is* the value cannot also be 44px without ceasing to be
+  a chart. They stay keyboard-reachable and carry an `aria-label` with the
+  reading, and the same number is always available as text nearby. No control
+  that performs an action is ever exempt.
 - **No hover-only interactions ever.** Anything reachable by hover must also be reachable by tap or focus.
 - **Navigation:** bottom tab bar on mobile, side rail or top tabs on tablet and desktop.
 - **Tables become cards on mobile.** Never horizontally scroll a data table on a phone.

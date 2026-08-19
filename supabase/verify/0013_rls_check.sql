@@ -19,7 +19,7 @@
 -- Results accumulate in a local array rather than a temp table: once the block
 -- switches to the `authenticated` role it has no write access to a table it
 -- created as postgres, and the first run failed exactly there.
-CREATE TEMP TABLE rls_result (ord INT, what TEXT, want TEXT, got TEXT, result TEXT);
+CREATE TEMP TABLE rls_result (ord TEXT, what TEXT, want TEXT, got TEXT, result TEXT);
 
 DO $$
 DECLARE
@@ -44,11 +44,15 @@ BEGIN
     VALUES ('rls-probe-close', b_id, DATE '2031-01-01', 'probe', '', '');
   INSERT INTO public.day_plan_items (id, user_id, date, text, source)
     VALUES ('rls-probe-item', b_id, DATE '2031-01-01', 'probe', 'manual');
+  -- Tables added after this gate was first written.
+  INSERT INTO public.personal_goals (id, user_id, title) VALUES ('rls-probe-goal', b_id, 'probe');
+  INSERT INTO public.mood_items (id, user_id, kind, body) VALUES ('rls-probe-mood', b_id, 'note', 'probe');
+  INSERT INTO public.active_blocks (id, user_id, scope) VALUES ('rls-probe-block', b_id, 'founder');
 
   -- Sanity: the probes really are there when nobody is impersonated.
   SELECT count(*) INTO seen FROM public.day_plans WHERE id = 'rls-probe-plan';
   INSERT INTO rls_result VALUES
-    (0, 'probe row exists before impersonation', '1', seen::text,
+    ('0', 'probe row exists before impersonation', '1', seen::text,
      CASE WHEN seen = 1 THEN 'PASS' ELSE 'FAIL' END);
 
   -- ── Become member A ───────────────────────────────────────────────────
@@ -74,6 +78,18 @@ BEGIN
 
   SELECT count(*) INTO seen FROM public.day_plan_items WHERE id = 'rls-probe-item';
   rows_out := rows_out || ARRAY[ARRAY['5', 'A cannot read B intention', '0', seen::text,
+    CASE WHEN seen = 0 THEN 'PASS' ELSE 'FAIL' END]];
+
+  SELECT count(*) INTO seen FROM public.personal_goals WHERE id = 'rls-probe-goal';
+  rows_out := rows_out || ARRAY[ARRAY['5a', 'A cannot read B goal', '0', seen::text,
+    CASE WHEN seen = 0 THEN 'PASS' ELSE 'FAIL' END]];
+
+  SELECT count(*) INTO seen FROM public.mood_items WHERE id = 'rls-probe-mood';
+  rows_out := rows_out || ARRAY[ARRAY['5b', 'A cannot read B mood board', '0', seen::text,
+    CASE WHEN seen = 0 THEN 'PASS' ELSE 'FAIL' END]];
+
+  SELECT count(*) INTO seen FROM public.active_blocks WHERE id = 'rls-probe-block';
+  rows_out := rows_out || ARRAY[ARRAY['5c', 'A cannot read B running block', '0', seen::text,
     CASE WHEN seen = 0 THEN 'PASS' ELSE 'FAIL' END]];
 
   -- WITH CHECK: writing a row owned by the other member must be refused.
@@ -116,13 +132,17 @@ BEGIN
   DELETE FROM public.life_admin     WHERE id = 'rls-probe-admin';
   DELETE FROM public.daily_closeouts WHERE id = 'rls-probe-close';
   DELETE FROM public.day_plan_items WHERE id = 'rls-probe-item';
+  DELETE FROM public.personal_goals  WHERE id = 'rls-probe-goal';
+  DELETE FROM public.mood_items      WHERE id = 'rls-probe-mood';
+  DELETE FROM public.active_blocks   WHERE id = 'rls-probe-block';
 
   SELECT count(*) INTO seen FROM public.day_plans WHERE id LIKE 'rls-probe-%';
   rows_out := rows_out || ARRAY[ARRAY['10', 'probes cleaned up', '0', seen::text,
     CASE WHEN seen = 0 THEN 'PASS' ELSE 'FAIL' END]];
   -- Back as postgres, so writing the results table is allowed again.
   FOREACH r SLICE 1 IN ARRAY rows_out LOOP
-    INSERT INTO rls_result VALUES (r[1]::int, r[2], r[3], r[4], r[5]);
+    -- ord carries letters now (5a, 5b), so the results table keeps it as text.
+    INSERT INTO rls_result VALUES (r[1], r[2], r[3], r[4], r[5]);
   END LOOP;
 END $$;
 

@@ -689,3 +689,15 @@
     min-height: 34px;
   }
 }
+
+/* The personal-task title is a link to the task, so it gets a real target. */
+.personal-screen .prow a.ptitle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .personal-screen .prow a.ptitle {
+    min-height: 28px;
+  }
+}

@@ -40,7 +40,7 @@ const NAV = [
   { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { to: '/people', label: 'People', icon: Users },
   { to: '/personal', label: 'Personal', icon: User },
-  { to: '/money', label: 'Money', icon: Wallet },
+  { to: '/money', label: 'Tracker', icon: Wallet },
   { to: '/admin', label: 'Admin', icon: Shield },
 ];
 

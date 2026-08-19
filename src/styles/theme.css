@@ -521,10 +521,18 @@ tbody tr:hover {
   box-shadow: var(--sh1);
   transition: 0.22s var(--ease);
   text-decoration: none;
-  min-height: 32px;
+  /* These pills are the navigation on tablet, where the 44px rule applies —
+     they were sized for a mouse and shown to a thumb. Desktop tightens them
+     again below. */
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+@media (min-width: 1025px) {
+  .nav-pills a {
+    min-height: 32px;
+  }
 }
 .nav-pills a:hover {
   transform: translateY(-1px);

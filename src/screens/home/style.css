@@ -348,6 +348,15 @@
 .home-screen .intent-row:last-child {
   border-bottom: 0;
 }
+/* The task-id link is a real navigation target, so it needs a real one:
+   it was a 17px-tall label on a phone. */
+.home-screen .intent-row .planmin {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  flex: none;
+}
 .home-screen .intent-x {
   flex: none;
   width: 44px;
@@ -364,7 +373,16 @@
   background: var(--surf3);
 }
 @media (min-width: 1025px) {
-  .home-screen .intent-x {
+  /* The task-id link is a real navigation target, so it needs a real one:
+   it was a 17px-tall label on a phone. */
+.home-screen .intent-row .planmin {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  flex: none;
+}
+.home-screen .intent-x {
     width: 28px;
     height: 28px;
   }
@@ -1188,4 +1206,18 @@
 .home-screen .pod-row .sub {
   font-size: 11px;
   color: var(--mute);
+}
+
+/* The hero's title is a second way into the task alongside the Open button;
+   give it a real target rather than a text-height one. */
+.home-screen .heroTtl {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+@media (min-width: 1025px) {
+  .home-screen .heroTtl {
+    min-height: 0;
+    display: block;
+  }
 }
