@@ -176,28 +176,35 @@
    scrollbar (a scrollbar inside a tile inside a scrolling page was three
    nested scrolls — unusable). The rows that fit stay fully live; the Open bar
    under them leads to the side page where the whole list and its add-form
-   live at full height. */
+   live at full height.
+
+   `.pbig`'s own rule gives it `flex: 1 1 auto` so it fills a tile when it IS
+   the tile's only child (the normal case, and the side page). Inside the
+   clip it must NOT do that — a widget with one row would get stretched to
+   the tile's full height and leave a dead gap under its last row. Size to
+   content here instead; the clip's own height (from the grid) is what
+   actually bounds it. */
 .personal-screen .ptile-clip {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   position: relative;
-  display: flex;
-  flex-direction: column;
 }
 .personal-screen .ptile-clip .pbig {
-  overflow: hidden;
+  flex: none;
+  overflow: visible;
 }
-/* A soft fade where the list is cut, so "there is more" reads at a glance. */
-.personal-screen .ptile-clip::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 26px;
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent, var(--surf-solid));
+/* A fade only where content is truly cut — added by JS as `.clipping` once
+   the widget's natural height is measured against the box. Painting it
+   unconditionally (the earlier version) drew a seam across empty space when
+   nothing was actually hidden, and faded to an opaque colour that never
+   matched the translucent card around it. A mask instead of a background
+   layer: it thins the real content's own pixels rather than laying a second,
+   independently-coloured rectangle on top that can go out of sync with
+   whatever the card is showing at that spot. */
+.personal-screen .ptile-clip.clipping {
+  mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
 }
 .personal-screen .ptile-open {
   flex: none;

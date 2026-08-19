@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { ChevronDown, Maximize2 } from 'lucide-react';
 import type { Course, CourseItem, ReadingItem } from '../../types';
@@ -596,6 +596,40 @@ function CustomisePersonal({ open, onClose }: { open: boolean; onClose: () => vo
 }
 
 /**
+ * The tile preview. Clips to the box the grid gave it — no scrollbar of its
+ * own — and only ever fades the bottom edge when the widget's real content is
+ * actually taller than that box. A widget with one row sits at its natural
+ * height with plain breathing room below, exactly like an under-full tile
+ * anywhere else in the app; a fade with nothing behind it would be a lie.
+ * Re-measures on any size change: the box (tile resized) and the content
+ * (a task ticked off, an item added) can each change independently.
+ */
+function ClipPreview({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [clipping, setClipping] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setClipping(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // Runs once: ResizeObserver already re-fires on its own whenever the
+    // observed element's box changes size, which covers both the tile being
+    // resized and its content growing or shrinking.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div ref={ref} className={`ptile-clip${clipping ? ' clipping' : ''}`}>
+      {children}
+    </div>
+  );
+}
+
+/**
  * The dashboard grid — the same bento Home uses, against Personal's own stored
  * arrangement. Drag by the grip, resize from the corner or the expand sheet,
  * and it is per person like everything else in this room.
@@ -641,7 +675,7 @@ function PersonalBento({ shown }: { shown: typeof WIDGETS }) {
                 scrollbar, and the Open bar below it is the honest way in. The
                 visible rows stay live — tick a task here without opening
                 anything — but managing the list happens on the side page. */}
-            <div className="ptile-clip">{t.node}</div>
+            <ClipPreview>{t.node}</ClipPreview>
             <button
               type="button"
               className="ptile-open"
