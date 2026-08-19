@@ -81,12 +81,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Newest unread that hasn't been dismissed drives the popup.
   const popup = unread.filter((m) => !dismissed.has(m.id)).slice(-1)[0] ?? null;
 
+  /** A photo or song carries no text of its own, so say what arrived. */
+  const notificationBody = (m: Message): string => {
+    if (m.kind === 'photo') return m.body ? `Sent a photo — ${m.body}` : 'Sent you a photo';
+    if (m.kind === 'song') return `Suggested a song — ${m.song_ref?.title ?? ''}`.trim();
+    return m.body.slice(0, 120);
+  };
+
   // Fire a desktop notification once per genuinely new message.
   useEffect(() => {
     for (const m of unread) {
       if (seen.current.has(m.id)) continue;
       seen.current.add(m.id);
-      notify(`${other.name} · Anvik Ops`, m.body.slice(0, 120));
+      notify(`${other.name} · Anvik Ops`, notificationBody(m));
     }
   }, [unread, other.name, notify]);
 
@@ -160,7 +167,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 <X size={15} strokeWidth={2} />
               </button>
             </div>
-            <p className="notif-body">{popup.body}</p>
+            <p className="notif-body">{notificationBody(popup)}</p>
             {popup.task_ref_id && (
               <Link className="lk" to={`/task/${popup.task_ref_id}`}>
                 {popup.task_ref_id}

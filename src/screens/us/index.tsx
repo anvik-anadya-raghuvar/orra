@@ -3,9 +3,13 @@ import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Dataset, Message } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { Avatar } from '../../ui/bits';
+import { Camera, Music } from 'lucide-react';
+import { Avatar, Modal, useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
 import { fmtDay, fmtTime, todayIso } from '../../lib/dates';
+import { momentSrc } from '../../lib/moments';
+import { sendPhoto, sendSong } from '../../lib/sends';
+import { isYouTubeUrl, playUrl } from '../../lib/song';
 import { PromoteModal, type PromoteKind, type PromoteTarget } from './PromoteModal';
 import { SideColumn } from './Sidebar';
 import './us.css';
@@ -26,6 +30,114 @@ function groupByDay(sorted: Message[]): Row[] {
     out.push({ kind: 'msg', m });
   }
   return out;
+}
+
+/** Capture or pick a photo and send it. `capture` makes a phone offer the
+ *  camera first, which is what "capture a moment" actually means on mobile. */
+function SendPhotoButton() {
+  const store = useStore();
+  const other = useData((_, s) => s.other);
+  const toast = useToast();
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    try {
+      const { compressPhoto } = await import('../../lib/photo');
+      await sendPhoto(store, await compressPhoto(file), '');
+      toast(`Sent to ${other.name}.`);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'That image could not be sent');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={pick}
+        aria-label="Take or choose a photo"
+      />
+      <button className="btn sm" type="button" disabled={busy} onClick={() => ref.current?.click()}>
+        <Camera size={14} strokeWidth={1.8} aria-hidden /> {busy ? 'Sending…' : 'Photo'}
+      </button>
+    </>
+  );
+}
+
+function SendSongButton() {
+  const store = useStore();
+  const other = useData((_, s) => s.other);
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [artist, setArtist] = useState('');
+  const [url, setUrl] = useState('');
+
+  const suggest = async () => {
+    const t = title.trim();
+    if (!t) return;
+    let link = url.trim();
+    if (!link || !isYouTubeUrl(link)) {
+      const { resolveSong } = await import('../../lib/youtube');
+      link = (await resolveSong(t, artist.trim()))?.url ?? link;
+    }
+    sendSong(store, { title: t, artist: artist.trim(), url: link }, '');
+    setTitle('');
+    setArtist('');
+    setUrl('');
+    setOpen(false);
+    toast(`Suggested to ${other.name}.`);
+  };
+
+  return (
+    <>
+      <button className="btn sm" type="button" onClick={() => setOpen(true)}>
+        <Music size={14} strokeWidth={1.8} aria-hidden /> Song
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} title={`Suggest a song to ${other.name}`}>
+        <input className="statuslike" value={title} autoFocus placeholder="Song title" aria-label="Song title" onChange={(e) => setTitle(e.target.value)} />
+        <div style={{ height: 8 }} />
+        <input className="statuslike" value={artist} placeholder="Artist" aria-label="Artist" onChange={(e) => setArtist(e.target.value)} />
+        <div style={{ height: 8 }} />
+        <input className="statuslike" value={url} placeholder="YouTube link (optional)" aria-label="YouTube link" onChange={(e) => setUrl(e.target.value)} />
+        <p className="tip">Leave the link blank and the portal finds it, so Play works for both of you.</p>
+        <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end' }}>
+          <button className="btn" type="button" onClick={() => setOpen(false)}>
+            Cancel
+          </button>
+          <button className="btn solid" type="button" onClick={suggest} disabled={!title.trim()}>
+            Send it
+          </button>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
+/** A sent photo. The bucket is private, so the src is a signed URL fetched
+ *  on demand rather than something stored in the row. */
+function PhotoBubble({ m }: { m: Message }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (m.attachment_url) momentSrc(m.attachment_url).then((u) => alive && setSrc(u));
+    return () => {
+      alive = false;
+    };
+  }, [m.attachment_url]);
+  if (!src) return <div className="msgphoto msgphoto-missing">Photo unavailable</div>;
+  return <img className="msgphoto" src={src} alt={m.body || 'A shared moment'} loading="lazy" />;
 }
 
 function Bubble({
@@ -53,7 +165,26 @@ function Bubble({
         <div className="msgmeta">
           {sender?.name ?? 'Someone'} · {fmtTime(m.created_at)}
         </div>
-        <p>{m.body}</p>
+        {m.kind === 'photo' && <PhotoBubble m={m} />}
+        {m.kind === 'song' && m.song_ref && (
+          <div className="msgsong">
+            <b>{m.song_ref.title}</b>
+            <span>{m.song_ref.artist}</span>
+            <a
+              className="btn sm"
+              href={playUrl({
+                song_url: m.song_ref.url,
+                song_title: m.song_ref.title,
+                song_artist: m.song_ref.artist,
+              })}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Play on YouTube
+            </a>
+          </div>
+        )}
+        {m.body && <p>{m.body}</p>}
         {task && (
           <Link className="lk" style={{ marginTop: 7, display: 'inline-block' }} to={`/task/${task.id}`}>
             {task.id} · {task.title}
@@ -196,6 +327,8 @@ function ChatColumn({
           }}
         />
         <div className="ctools">
+          <SendPhotoButton />
+          <SendSongButton />
           <div className="spacer" />
           <button className="btn sm solid" type="button" onClick={send}>
             Send

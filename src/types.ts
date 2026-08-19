@@ -347,6 +347,8 @@ export interface Message {
   body: string;
   /** Optional so pre-0012 rows read as plain chat. */
   kind?: MessageKind;
+  /** The moment this answers, so a reply can be shown where the moment landed. */
+  reply_to_id?: string | null;
   task_ref_id: string | null;
   attachment_url: string | null;
   song_ref: { title: string; artist: string; url: string } | null;

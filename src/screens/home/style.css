@@ -401,6 +401,92 @@
   border-color: var(--teal);
 }
 
+/* ── moments: what the other one sent, and the reply ───────────────────── */
+.home-screen .mo-card {
+  display: grid;
+  gap: 4px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.home-screen .mo-card:last-child {
+  border-bottom: 0;
+}
+.home-screen .mo-photo {
+  width: 100%;
+  max-height: 190px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+.home-screen .mo-photo-missing {
+  display: grid;
+  place-items: center;
+  height: 90px;
+  background: var(--surf3);
+  color: var(--mute);
+  font-size: 12px;
+}
+.home-screen .mo-cap {
+  font-size: 13px;
+}
+.home-screen .mo-song {
+  font-size: 14px;
+}
+.home-screen .mo-artist {
+  font-size: 12px;
+  color: var(--slate);
+}
+.home-screen .mo-replies {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+.home-screen .mo-reply {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  font-size: 12.5px;
+  color: var(--slate);
+  background: var(--surf3);
+  border-radius: 8px;
+  padding: 5px 9px;
+}
+/* My own replies sit to the right, the way a thread reads. */
+.home-screen .mo-reply.mine {
+  background: var(--surf2);
+  margin-left: 18px;
+}
+.home-screen .mo-time {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--mute);
+}
+.home-screen .mo-send,
+.home-screen .mo-compose {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 6px;
+}
+.home-screen .mo-send .srch,
+.home-screen .mo-compose .srch {
+  flex: 1 1 130px;
+}
+.home-screen .mo-send .btn,
+.home-screen .mo-compose .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .home-screen .mo-send .btn,
+  .home-screen .mo-compose .btn {
+    min-height: 32px;
+  }
+}
+
 /* ── stuck zone ────────────────────────────────────────────────────────── */
 .home-screen .stuckrow {
   display: flex;

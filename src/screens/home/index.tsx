@@ -32,12 +32,11 @@ import {
   CustomiseModal,
   LifeTile,
   MoneyTile,
-  PhotoTile,
   ProjectsTile,
-  SongTile,
   TileOpen,
   WorthTile,
 } from './personal';
+import { MomentsTile } from './moments';
 import { arrange } from './layout';
 import { BentoTile, TILE_TITLE, TileSheetHost, useHomeArrange } from './tilechrome';
 import type { Capacity, DayPlan, DayPlanItem, Task } from '../../types';
@@ -207,7 +206,9 @@ export default function Home() {
     { key: 'thread', cols: 2, tall: true, node: <ThreadTile /> },
   ];
 
-  if (p.photo) tiles.push({ key: 'photo', cols: 2, tall: true, cls: 'bt-photo', node: <PhotoTile /> });
+  // One tile for both: a photo and a song are the same gesture, and they carry
+  // a sender now, so they belong together under "From {them}".
+  if (p.photo) tiles.push({ key: 'photo', cols: 2, tall: true, node: <MomentsTile /> });
 
   tiles.push({
     key: 'ritual',
@@ -223,7 +224,6 @@ export default function Home() {
   tiles.push({ key: 'split', cols: 1, node: <SplitTile /> });
   if (p.money_on_home) tiles.push({ key: 'money', cols: 1, node: <MoneyTile /> });
   if (p.projects_strip) tiles.push({ key: 'projects', cols: 1, node: <ProjectsTile /> });
-  if (p.song) tiles.push({ key: 'song', cols: 1, node: <SongTile /> });
 
   tiles.push({
     key: 'st-tasks',
@@ -778,7 +778,13 @@ function IntentionsTile({ date }: { date: string }) {
         aria-label="Add an intention"
         onChange={(e) => setDraft(e.target.value)}
         onBlur={add}
-        onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+        // Enter adds directly. Going via blur() meant the line only landed if
+        // a blur actually followed, which is not something a keypress promises.
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          add();
+        }}
       />
       {items.length > 0 && (
         <div className="rowgap">
