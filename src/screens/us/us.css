@@ -4,6 +4,7 @@
   display: grid;
   grid-template-columns: 1.5fr 1fr;
   gap: 16px;
+  align-items: start;
 }
 .us-screen .chatshell {
   background: var(--surf);
@@ -14,6 +15,9 @@
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  /* Fill the space rather than hugging one message. Capped so an enormous
+     monitor does not stretch a two-line chat down a whole screen. */
+  height: clamp(420px, calc(100vh - 232px), 760px);
 }
 .us-screen .chathead {
   display: flex;
@@ -33,7 +37,10 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: min(58vh, 520px);
+  /* The shell bounds the height now, so the stream simply takes what is left
+     and the composer stays pinned to the bottom of the card. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   scroll-behavior: smooth;
 }
@@ -255,13 +262,14 @@
   .us-screen .uslay {
     grid-template-columns: 1fr;
   }
+  /* Stacked, so the card shares the viewport with the sidebar below it. */
+  .us-screen .chatshell {
+    height: clamp(380px, calc(100vh - 268px), 640px);
+  }
 }
 @media (max-width: 640px) {
   .us-screen .bubble {
     max-width: 88%;
-  }
-  .us-screen .stream {
-    max-height: 52vh;
   }
 }
 @media (max-width: 1024px) {
