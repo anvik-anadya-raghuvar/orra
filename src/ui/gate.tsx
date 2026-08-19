@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../data/store';
 import { checkCredentials } from '../lib/auth';
 import { getSupabase, isRecoveryUrl } from '../lib/supabaseClient';
 import { entrance } from './motion';
+import './gate.css';
 
 /**
  * Sign-in gate — email + password for the member accounts.
  * Mock mode: checked against the local profile credentials.
  * Supabase mode: signInWithPassword, plus a real reset-password flow.
+ *
+ * Visually it is the N:OW cold open: black, one word in signal red, and the
+ * form. The app's whole theme waits on the other side of the door.
  */
 export function Gate({ onEnter }: { onEnter: () => void }) {
   const store = useStore();
@@ -23,6 +27,36 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const isSupabase = store.adapter.kind === 'supabase';
+
+  /* The ember that follows the pointer. PointerLight only exists inside the
+     signed-in shell, so the gate carries its own — same discipline: one write
+     per frame, no React state, and it does not run without a fine pointer or
+     under reduced motion. */
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!fine || still) return;
+    let frame = 0;
+    let next: { x: number; y: number } | null = null;
+    const paint = () => {
+      frame = 0;
+      if (!next) return;
+      el.style.setProperty('--gx', `${next.x}px`);
+      el.style.setProperty('--gy', `${next.y}px`);
+    };
+    const onMove = (e: PointerEvent) => {
+      next = { x: e.clientX, y: e.clientY };
+      if (!frame) frame = requestAnimationFrame(paint);
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', onMove);
+    };
+  }, []);
 
   // Landing back from a reset email → show the "set a new password" form.
   useEffect(() => {
@@ -143,222 +177,204 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
     }
   };
 
+  const rise = (delay: number) => ({
+    initial: { opacity: 0, y: 16 },
+    animate: { opacity: 1, y: 0, transition: { ...entrance, delay } },
+  });
+
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20 }}>
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.985 }}
-        animate={{ opacity: 1, y: 0, scale: 1, transition: entrance }}
-        style={{
-          background: 'var(--surf)',
-          border: '1px solid var(--line)',
-          borderRadius: 24,
-          boxShadow: 'var(--sh2)',
-          maxWidth: 920,
-          width: '100%',
-          overflow: 'hidden',
-        }}
-      >
-        <div className="gate-grid">
-          <div style={{ padding: '46px 42px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 17 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <div
-                style={{
-                  width: 33,
-                  height: 33,
-                  borderRadius: 11,
-                  display: 'grid',
-                  placeItems: 'center',
-                  color: '#fff',
-                  fontFamily: '"Space Grotesk"',
-                  fontWeight: 700,
-                  background: 'linear-gradient(145deg,var(--violet),var(--indigo))',
-                  boxShadow: '0 6px 16px var(--glow)',
-                  transform: 'rotate(-4deg)',
-                }}
-              >
-                A
-              </div>
-              <span className="disp" style={{ fontSize: 17 }}>Anvik Ops</span>
-            </div>
-            <h1 style={{ fontSize: 35, lineHeight: 1.08 }}>
-              Everything, in{' '}
-              <em
-                style={{
-                  fontStyle: 'normal',
-                  background: 'linear-gradient(100deg,var(--violet),var(--indigo))',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  color: 'transparent',
-                }}
-              >
-                one quiet place
-              </em>
-              .
-            </h1>
-            {mode === 'recover' ? (
-              <form onSubmit={applyNewPassword} style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
-                <p style={{ margin: 0, fontSize: 14, color: 'var(--slate)' }}>
-                  Set a new password for your account.
-                </p>
-                <label className="eyebrow" htmlFor="gate-new">New password</label>
-                <input
-                  id="gate-new"
-                  className="srch"
-                  type="password"
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  required
-                  style={{ flex: 'none' }}
-                />
-                <label className="eyebrow" htmlFor="gate-new2">Repeat</label>
-                <input
-                  id="gate-new2"
-                  className="srch"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  style={{ flex: 'none' }}
-                />
-                {error && (
-                  <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--rose)' }}>
-                    {error}
-                  </p>
-                )}
-                <button type="submit" className="btn solid" disabled={busy} style={{ padding: '13px 22px', fontSize: 14.5 }}>
-                  {busy ? 'Saving…' : 'Set password and sign in'}
-                </button>
-              </form>
-            ) : mode === 'forgot' ? (
-              <form onSubmit={sendReset} style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
-                <p style={{ margin: 0, fontSize: 14, color: 'var(--slate)' }}>
-                  We'll email a link that brings you straight back here to set a new password.
-                </p>
-                <label className="eyebrow" htmlFor="gate-fmail">Email</label>
-                <input
-                  id="gate-fmail"
-                  className="srch"
-                  type="email"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@anvik"
-                  required
-                  style={{ flex: 'none' }}
-                />
-                {error && (
-                  <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--rose)' }}>
-                    {error}
-                  </p>
-                )}
-                <button type="submit" className="btn solid" disabled={busy} style={{ padding: '13px 22px', fontSize: 14.5 }}>
-                  {busy ? 'Sending…' : 'Send reset link'}
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => {
-                    setMode('signin');
-                    setError(null);
-                  }}
-                  style={{ background: 'none', boxShadow: 'none', border: 0, color: 'var(--indigo)' }}
-                >
-                  Back to sign in
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={signIn} style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340 }}>
-                <label className="eyebrow" htmlFor="gate-email">Email</label>
-                <input
-                  id="gate-email"
-                  className="srch"
-                  type="email"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@anvik"
-                  required
-                  style={{ flex: 'none' }}
-                />
-                <label className="eyebrow" htmlFor="gate-pw">Password</label>
-                <input
-                  id="gate-pw"
-                  className="srch"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  style={{ flex: 'none' }}
-                />
-                {error && (
-                  <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--rose)' }}>
-                    {error}
-                  </p>
-                )}
-                {notice && (
-                  <p role="status" style={{ margin: 0, fontSize: 13, color: 'var(--teal)' }}>
-                    {notice}
-                  </p>
-                )}
-                <button type="submit" className="btn solid" disabled={busy} style={{ padding: '13px 22px', fontSize: 14.5 }}>
-                  {busy ? 'Signing in…' : 'Sign in'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('forgot');
-                    setError(null);
-                    setNotice(null);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 0,
-                    color: 'var(--indigo)',
-                    fontSize: 13,
-                    textAlign: 'left',
-                    padding: '4px 0',
-                    minHeight: 44,
-                  }}
-                >
-                  Forgot password?
-                </button>
-              </form>
-            )}
-            <p style={{ fontSize: 13, color: 'var(--mute)', borderLeft: '2px solid var(--stamp)', paddingLeft: 12, margin: 0 }}>
-              Member accounts only. Change your password any time from the account menu.
-            </p>
+    <div className="gate" ref={rootRef}>
+      <div className="gate-void" aria-hidden />
+      <div className="gate-stage">
+        <div className="gate-hero">
+          <motion.div className="gate-brand" {...rise(0)}>
+            <i aria-hidden>A</i> ANVIK&nbsp;OPS
+          </motion.div>
+          <div className="now-mark" aria-hidden>
+            <span className="now-size">N:OW</span>
+            <motion.span
+              className="now-slice now-s1"
+              initial={{ opacity: 0, x: -26 }}
+              animate={{ opacity: 1, x: 0, transition: { ...entrance, delay: 0.06 } }}
+            >
+              N:OW
+            </motion.span>
+            <motion.span
+              className="now-slice now-s2"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: '-0.045em', transition: { ...entrance, delay: 0.14 } }}
+            >
+              N:OW
+            </motion.span>
+            <motion.span
+              className="now-slice now-s3"
+              initial={{ opacity: 0, x: -18 }}
+              animate={{ opacity: 1, x: '0.055em', transition: { ...entrance, delay: 0.22 } }}
+            >
+              N:OW
+            </motion.span>
           </div>
-          <div
-            style={{
-              padding: '38px 32px',
-              background: 'linear-gradient(165deg,#1A1E33,#0D1120)',
-              color: '#EAEEF6',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              gap: 14,
-            }}
-          >
-            <div className="eyebrow" style={{ color: '#8A93AB' }}>Running on</div>
-            {[
-              ['₹0', 'per month, forever'],
-              ['2', 'people · Anadya and Raghuvar'],
-              ['IST ⇄ CET', 'built for the gap'],
-            ].map(([b, s]) => (
-              <div key={s} style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
-                <b style={{ fontFamily: '"Space Grotesk"', fontSize: 26, fontWeight: 500 }}>{b}</b>
-                <span style={{ color: '#99A2B7', fontSize: 13 }}>{s}</span>
-              </div>
-            ))}
-          </div>
+          <motion.h1 className="gate-h1" {...rise(0.26)}>
+            The day is already running.
+          </motion.h1>
+          <motion.p className="gate-sub" {...rise(0.3)}>
+            Two people, eight rooms, one quiet place. Sign in and pick it up where you left it.
+          </motion.p>
+          <motion.div className="gate-stats" {...rise(0.34)}>
+            <span>
+              <b>₹0</b>
+              <small>per month, forever</small>
+            </span>
+            <span>
+              <b>2</b>
+              <small>people · Anadya and Raghuvar</small>
+            </span>
+            <span>
+              <b>IST ⇄ CET</b>
+              <small>built for the gap</small>
+            </span>
+          </motion.div>
         </div>
-      </motion.div>
+
+        <motion.div
+          className="gate-panel"
+          initial={{ opacity: 0, y: 22, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1, transition: { ...entrance, delay: 0.18 } }}
+        >
+          {mode === 'recover' ? (
+            <form onSubmit={applyNewPassword}>
+              <p className="gate-lead">Set a new password for your account.</p>
+              <label className="glab" htmlFor="gate-new">
+                New password
+              </label>
+              <input
+                id="gate-new"
+                className="gin"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                required
+              />
+              <label className="glab" htmlFor="gate-new2">
+                Repeat
+              </label>
+              <input
+                id="gate-new2"
+                className="gin"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+              {error && (
+                <p role="alert" className="gerr">
+                  {error}
+                </p>
+              )}
+              <button type="submit" className="gbtn" disabled={busy}>
+                {busy ? 'Saving…' : 'Set password and sign in'}
+              </button>
+            </form>
+          ) : mode === 'forgot' ? (
+            <form onSubmit={sendReset}>
+              <p className="gate-lead">
+                We&apos;ll email a link that brings you straight back here to set a new password.
+              </p>
+              <label className="glab" htmlFor="gate-fmail">
+                Email
+              </label>
+              <input
+                id="gate-fmail"
+                className="gin"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@anvik"
+                required
+              />
+              {error && (
+                <p role="alert" className="gerr">
+                  {error}
+                </p>
+              )}
+              <button type="submit" className="gbtn" disabled={busy}>
+                {busy ? 'Sending…' : 'Send reset link'}
+              </button>
+              <button
+                type="button"
+                className="glink"
+                onClick={() => {
+                  setMode('signin');
+                  setError(null);
+                }}
+              >
+                Back to sign in
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={signIn}>
+              <label className="glab" htmlFor="gate-email">
+                Email
+              </label>
+              <input
+                id="gate-email"
+                className="gin"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@anvik"
+                required
+              />
+              <label className="glab" htmlFor="gate-pw">
+                Password
+              </label>
+              <input
+                id="gate-pw"
+                className="gin"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+              {error && (
+                <p role="alert" className="gerr">
+                  {error}
+                </p>
+              )}
+              {notice && (
+                <p role="status" className="gnote">
+                  {notice}
+                </p>
+              )}
+              <button type="submit" className="gbtn" disabled={busy}>
+                {busy ? 'Signing in…' : 'Sign in'}
+              </button>
+              <button
+                type="button"
+                className="glink"
+                onClick={() => {
+                  setMode('forgot');
+                  setError(null);
+                  setNotice(null);
+                }}
+              >
+                Forgot password?
+              </button>
+            </form>
+          )}
+          <p className="gate-foot">
+            Member accounts only. Change your password any time from the account menu.
+          </p>
+        </motion.div>
+      </div>
     </div>
   );
 }

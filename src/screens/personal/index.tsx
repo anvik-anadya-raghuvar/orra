@@ -498,7 +498,9 @@ export const TAB_META: { key: WidgetTab; label: string; blurb: string }[] = [
  * same room can be a degree tracker or a goals-and-agenda board.
  *
  * `cols`/`rows` are hints, not rules: the packer closes any gap and a drag or
- * resize overrides them per person.
+ * resize overrides them per person. Everything here defaults to a full-height
+ * tile — these are working panels with lists and add-forms, not glance tiles,
+ * and a panel squeezed into one bento row scrolls before it shows anything.
  */
 const WIDGETS: {
   key: string;
@@ -511,11 +513,11 @@ const WIDGETS: {
 }[] = [
   { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', tab: 'today', cols: 2, rows: 2, node: <PersonalTasks /> },
   { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', tab: 'today', cols: 2, rows: 2, node: <PersonalGoals /> },
-  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', tab: 'today', cols: 2, node: <StudyTimer /> },
-  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', tab: 'today', cols: 2, node: <LifeAdmin /> },
+  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', tab: 'today', cols: 2, rows: 2, node: <StudyTimer /> },
+  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', tab: 'today', cols: 2, rows: 2, node: <LifeAdmin /> },
   { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', tab: 'study', cols: 2, rows: 2, node: <Courses /> },
   { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', tab: 'study', cols: 2, rows: 2, node: <ReadingQueue /> },
-  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', tab: 'study', cols: 2, node: <StudyRhythm /> },
+  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', tab: 'study', cols: 2, rows: 2, node: <StudyRhythm /> },
   { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', tab: 'study', cols: 2, rows: 2, node: <TimeLedger /> },
   { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', tab: 'moving', cols: 2, rows: 2, node: <FixedDates /> },
   { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', tab: 'moving', cols: 2, rows: 2, node: <RelocationDocs /> },

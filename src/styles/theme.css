@@ -511,23 +511,6 @@ tbody tr:hover {
   }
 }
 
-/* sign-in gate */
-.gate-grid {
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-}
-@media (max-width: 980px) {
-  .gate-grid {
-    grid-template-columns: 1fr;
-  }
-  .gate-grid h1 {
-    font-size: 26px !important;
-  }
-  .gate-grid > div:first-child {
-    padding: 30px 20px !important;
-  }
-}
-
 /* ── overlay panels ──────────────────────────────────────────────────────
    Two shapes over one mask. `.modal-sheet` is the centered dialog — a yes/no
    or a short form. `.side-sheet` is the right-anchored drawer — anything you

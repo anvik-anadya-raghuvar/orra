@@ -55,7 +55,9 @@
   position: sticky;
   top: 0;
   z-index: 3;
-  background: var(--surf);
+  /* Solid, not the translucent card token: this bar exists to occlude the
+     rows that scroll under it, and an occluder cannot be glass. */
+  background: var(--surf-solid);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -162,7 +164,8 @@
   position: sticky;
   bottom: 0;
   z-index: 3;
-  background: var(--surf);
+  /* Same as .phead: sticky bars occlude, so they stay solid. */
+  background: var(--surf-solid);
   margin: 10px calc(var(--tp) * -1) 0;
   padding: 9px var(--tp) 0;
   border-top: 1px solid var(--line);

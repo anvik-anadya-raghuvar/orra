@@ -16,7 +16,7 @@
 .blk-shell {
   width: 100%;
   max-width: 620px;
-  background: var(--surf);
+  background: var(--surf-solid);
   border: 1px solid var(--line);
   border-radius: var(--rl);
   box-shadow: var(--sh2);
