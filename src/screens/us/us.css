@@ -1,3 +1,8 @@
+/* Portal scope — see the note in money.css. A `Modal`/`SideSheet` renders
+   through `createPortal(..., document.body)`, so a room-scoped rule never
+   matches inside one. Classes below that appear in a sheet name `.panel-mask`
+   as a second home; `:is()` keeps the specificity at one class, so nothing
+   else in the file had to be re-weighted. */
 /* Us screen — scoped under .us-screen so nothing leaks to other routes. */
 
 .us-screen .uslay {
@@ -237,7 +242,7 @@
   font-weight: 600;
   font-size: 12.5px;
 }
-.us-screen .statusinput {
+:is(.us-screen, .panel-mask) .statusinput {
   width: 100%;
   border: 1px solid var(--line);
   background: var(--surf2);

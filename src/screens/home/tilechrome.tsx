@@ -115,9 +115,9 @@ export const SIZE_PRESETS: { label: string; span: Span }[] = [
   { label: 'Small', span: { cols: 1, rows: 1 } },
   { label: 'Wide', span: { cols: 2, rows: 1 } },
   { label: 'Tall', span: { cols: 1, rows: 2 } },
-  { label: 'Large', span: { cols: 2, rows: 2 } },
-  { label: 'Banner', span: { cols: 4, rows: 1 } },
-  { label: 'Full', span: { cols: 4, rows: 2 } },
+  { label: 'Big', span: { cols: 2, rows: 2 } },
+  { label: 'Full width', span: { cols: 4, rows: 1 } },
+  { label: 'Half the room', span: { cols: 4, rows: 2 } },
 ];
 
 /** setPointerCapture throws (NotFoundError) for a pointer id the browser is not
@@ -155,6 +155,9 @@ export interface ArrangeApi {
    * rather than passed in. Safe to call during render: it only writes a ref.
    */
   syncKeys: (keys: string[]) => void;
+  /** The room this grid belongs to, so the side page can say "big on Personal"
+   *  rather than always claiming to be arranging Home. */
+  room: string;
 }
 
 /** Which stored arrangement a grid reads and writes. Home was the only grid
@@ -391,6 +394,7 @@ export function useHomeArrange(field: LayoutField = 'home_layout'): ArrangeApi {
     arranged: isArranged(stored),
     nudge,
     syncKeys,
+    room: field === 'personal_layout' ? 'Personal' : 'Home',
   };
 }
 
@@ -555,6 +559,7 @@ export function TileSheet({
   const close = useCallback(() => api.setOpenKey(null), [api]);
   const page = TILE_PAGE[tileKey];
   const stored = api.layout?.size?.[tileKey];
+  const other = useStore().other.name;
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && close();
@@ -600,26 +605,33 @@ export function TileSheet({
           </button>
         </header>
 
-        {/* The live tile, at a size where it can actually be read and used —
-            same component, same store, so nothing inside it is a screenshot. */}
+        {/* The live widget, at a size where it can actually be read and used —
+            same component, same store, so nothing inside it is a screenshot.
+            Deliberately NOT a `.bt`: on the grid the tile is a card, but here
+            the page is already the card and a second border inside it was just
+            a box drawn inside a box. */}
         <div className="tilesheet-body">
-          <div className="bt tilesheet-tile">{children}</div>
+          <div className="tilesheet-tile">{children}</div>
         </div>
 
         <footer className="tilesheet-ft">
-          <span className="eyebrow">Size on Home</span>
-          <div className="tilesheet-sizes" role="group" aria-label="Tile size">
+          <span className="eyebrow">How much room it gets on {api.room}</span>
+          <div className="tilesheet-sizes" role="group" aria-label={`How much room this gets on ${api.room}`}>
             {SIZE_PRESETS.map((p) => {
               const on = active.cols === p.span.cols && active.rows === p.span.rows;
               return (
                 <button
                   key={p.label}
                   type="button"
-                  className={`chip${on ? ' on' : ''}`}
+                  className={`chip shape${on ? ' on' : ''}`}
                   aria-pressed={on}
+                  aria-label={`${p.label} — ${p.span.cols} across, ${p.span.rows} down`}
                   onClick={() => api.setSpan(tileKey, p.span)}
                 >
                   {p.label}
+                  <small className="mono" aria-hidden>
+                    {p.span.cols}&times;{p.span.rows}
+                  </small>
                 </button>
               );
             })}
@@ -628,25 +640,26 @@ export function TileSheet({
                 type="button"
                 className="chip"
                 onClick={() => api.resetSpan(tileKey)}
-                title="Back to this tile's default size"
+                title="Go back to the size this one started at"
               >
-                <RotateCcw size={13} strokeWidth={2} aria-hidden /> Auto
+                <RotateCcw size={13} strokeWidth={2} aria-hidden /> Back to default
               </button>
             )}
           </div>
-          <span className="eyebrow">Position</span>
-          <div className="tilesheet-sizes" role="group" aria-label="Tile position">
+          <span className="eyebrow">Where it sits</span>
+          <div className="tilesheet-sizes" role="group" aria-label="Where this sits in the room">
             <button type="button" className="chip" onClick={() => api.nudge(tileKey, -1)}>
-              <ChevronLeft size={13} strokeWidth={2.2} aria-hidden /> Move earlier
+              <ChevronLeft size={13} strokeWidth={2.2} aria-hidden /> Further up
             </button>
             <button type="button" className="chip" onClick={() => api.nudge(tileKey, 1)}>
-              Move later <ChevronRight size={13} strokeWidth={2.2} aria-hidden />
+              Further down <ChevronRight size={13} strokeWidth={2.2} aria-hidden />
             </button>
           </div>
           <p className="tip">
-            Up to {MAX_COLS} columns and {MAX_ROWS} rows. Narrower screens clamp it down — the grid
-            still closes without a hole, whatever you pick. On a pointer, you can also drag a tile
-            by its grip and drag its bottom-right corner to resize.
+            {api.room} is {MAX_COLS} across and {MAX_ROWS} down at its widest. Whatever you pick,
+            the rest close up around it — you can&apos;t leave a hole, and a narrow screen shrinks
+            everything to fit. With a mouse you can also drag the grip to move this, or its
+            bottom-right corner to resize it. Only you see this; {other} arranges their own.
           </p>
         </footer>
       </motion.div>

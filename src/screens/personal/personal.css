@@ -1,3 +1,8 @@
+/* Portal scope — see the note in money.css. A `Modal`/`SideSheet` renders
+   through `createPortal(..., document.body)`, so a room-scoped rule never
+   matches inside one. Classes below that appear in a sheet name `.panel-mask`
+   as a second home; `:is()` keeps the specificity at one class, so nothing
+   else in the file had to be re-weighted. */
 /* Personal screen — local vocabulary, scoped under .personal-screen so
    nothing leaks to (or is inherited from) any other route.
    Mobile-first: every layout below starts as a single column and widens.
@@ -859,12 +864,12 @@
   display: flex;
   justify-content: flex-end;
 }
-.personal-screen .mb-kinds {
+:is(.personal-screen, .panel-mask) .mb-kinds {
   display: flex;
   gap: 7px;
   flex-wrap: wrap;
 }
-.personal-screen .mb-kinds .chip {
+:is(.personal-screen, .panel-mask) .mb-kinds .chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -881,7 +886,7 @@
     columns: 4;
   }
   .personal-screen .ptabs button,
-  .personal-screen .mb-kinds .chip,
+  :is(.personal-screen, .panel-mask) .mb-kinds .chip,
   .personal-screen .mb-link,
   .personal-screen .mb-song {
     min-height: 34px;

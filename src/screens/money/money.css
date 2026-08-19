@@ -1,3 +1,11 @@
+/* Scope note — `:is(.money-screen, .panel-mask)`, not `.money-screen`.
+   Every modal in this room (new/correct entry, CSV import, add subscription)
+   renders through `createPortal(..., document.body)`, so inside a sheet there
+   is no `.money-screen` ancestor and a room-scoped rule simply never matched:
+   labels fell back to `display: inline`, inputs lost their border, their
+   radius, and their 44px touch height. `:is()` adds the portal's own root as a
+   second home without changing specificity (it counts as one class either
+   way), so nothing else in this file had to be re-weighted. */
 /* Money screen — local component vocabulary, prefixed `mn-` so this file
    can never collide with another screen's local CSS. Mobile-first. */
 
@@ -6,38 +14,38 @@
 }
 
 /* ── summary tiles ─────────────────────────────────────────────────────── */
-.money-screen .mn-tiles {
+:is(.money-screen, .panel-mask) .mn-tiles {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 18px;
 }
-.money-screen .mn-tile {
+:is(.money-screen, .panel-mask) .mn-tile {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--rl);
   padding: 16px 18px;
   box-shadow: var(--sh1);
 }
-.money-screen .mn-tile .n {
+:is(.money-screen, .panel-mask) .mn-tile .n {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 25px;
 }
-.money-screen .mn-tile .k {
+:is(.money-screen, .panel-mask) .mn-tile .k {
   font-size: 12.5px;
   color: var(--slate);
   margin-top: 3px;
 }
 
 /* ── shared panel shell for chart + breakdown ────────────────────────── */
-.money-screen .mn-panel {
+:is(.money-screen, .panel-mask) .mn-panel {
   background: var(--surf2);
   border: 1px solid var(--line);
   border-radius: var(--r);
   padding: 14px;
   margin-bottom: 16px;
 }
-.money-screen .mn-panel-head {
+:is(.money-screen, .panel-mask) .mn-panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -47,13 +55,13 @@
 }
 
 /* ── needs-attention strip ────────────────────────────────────────────── */
-.money-screen .mn-attn-grid {
+:is(.money-screen, .panel-mask) .mn-attn-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }
-.money-screen .mn-attn-card {
+:is(.money-screen, .panel-mask) .mn-attn-card {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -62,55 +70,55 @@
   min-height: 44px;
   transition: border-color 0.18s, transform 0.18s;
 }
-.money-screen .mn-attn-card:hover {
+:is(.money-screen, .panel-mask) .mn-attn-card:hover {
   transform: translateY(-2px);
 }
-.money-screen .mn-attn-card[aria-pressed='true'] {
+:is(.money-screen, .panel-mask) .mn-attn-card[aria-pressed='true'] {
   border-color: var(--indigo);
   box-shadow: var(--sh1);
 }
-.money-screen .mn-attn-n {
+:is(.money-screen, .panel-mask) .mn-attn-n {
   display: block;
   font-size: 22px;
   font-weight: 500;
 }
-.money-screen .mn-attn-k {
+:is(.money-screen, .panel-mask) .mn-attn-k {
   font-size: 11.5px;
   color: var(--slate);
 }
 
 /* ── spend composition (donut) + cumulative net (sparkline) ──────────── */
-.money-screen .mn-composition {
+:is(.money-screen, .panel-mask) .mn-composition {
   display: grid;
   grid-template-columns: 1fr;
   gap: 18px;
 }
 @media (min-width: 641px) {
-  .money-screen .mn-composition {
+  :is(.money-screen, .panel-mask) .mn-composition {
     grid-template-columns: auto 1fr;
     align-items: center;
   }
 }
-.money-screen .mn-comp-col {
+:is(.money-screen, .panel-mask) .mn-comp-col {
   min-width: 0;
 }
 
 /* ── transaction table → cards under 640px ───────────────────────────── */
-.money-screen .mn-table {
+:is(.money-screen, .panel-mask) .mn-table {
   width: 100%;
 }
 @media (max-width: 640px) {
-  .money-screen .mn-table thead {
+  :is(.money-screen, .panel-mask) .mn-table thead {
     display: none;
   }
-  .money-screen .mn-table,
-  .money-screen .mn-table tbody,
-  .money-screen .mn-table tr,
-  .money-screen .mn-table td {
+  :is(.money-screen, .panel-mask) .mn-table,
+  :is(.money-screen, .panel-mask) .mn-table tbody,
+  :is(.money-screen, .panel-mask) .mn-table tr,
+  :is(.money-screen, .panel-mask) .mn-table td {
     display: block;
     width: 100%;
   }
-  .money-screen .mn-table tr {
+  :is(.money-screen, .panel-mask) .mn-table tr {
     border: 1px solid var(--line);
     border-radius: var(--r);
     margin-bottom: 10px;
@@ -118,12 +126,12 @@
     background: var(--surf);
     box-shadow: var(--sh1);
   }
-  .money-screen .mn-table td {
+  :is(.money-screen, .panel-mask) .mn-table td {
     border: 0;
     padding: 5px 0;
     text-align: left !important;
   }
-  .money-screen .mn-table td::before {
+  :is(.money-screen, .panel-mask) .mn-table td::before {
     content: attr(data-label);
     display: block;
     font-family: 'IBM Plex Mono';
@@ -136,7 +144,7 @@
 }
 
 /* ── import history ──────────────────────────────────────────────────── */
-.money-screen .mn-batch-row {
+:is(.money-screen, .panel-mask) .mn-batch-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -145,26 +153,26 @@
   border-bottom: 1px dashed var(--line);
   flex-wrap: wrap;
 }
-.money-screen .mn-batch-row:last-child {
+:is(.money-screen, .panel-mask) .mn-batch-row:last-child {
   border-bottom: 0;
 }
 
 /* ── form controls shared by Entry + Import modals ───────────────────── */
-.money-screen .mn-ctl {
+:is(.money-screen, .panel-mask) .mn-ctl {
   display: grid;
   grid-template-columns: 1fr;
   gap: 11px;
   margin-bottom: 14px;
 }
 @media (min-width: 641px) {
-  .money-screen .mn-ctl {
+  :is(.money-screen, .panel-mask) .mn-ctl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-.money-screen .mn-fld {
+:is(.money-screen, .panel-mask) .mn-fld {
   display: block;
 }
-.money-screen .mn-lbl {
+:is(.money-screen, .panel-mask) .mn-lbl {
   display: block;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 9.5px;
@@ -173,7 +181,7 @@
   color: var(--mute);
   margin-bottom: 5px;
 }
-.money-screen .mn-in {
+:is(.money-screen, .panel-mask) .mn-in {
   width: 100%;
   border: 1px solid var(--line);
   background: var(--surf);
@@ -184,7 +192,7 @@
   color: var(--ink);
   min-height: 44px;
 }
-.money-screen .mn-acts {
+:is(.money-screen, .panel-mask) .mn-acts {
   display: flex;
   gap: 9px;
   flex-wrap: wrap;
@@ -192,7 +200,7 @@
 }
 
 /* ── import modal — steps, dropzone, preview, duplicate rows ─────────── */
-.money-screen .mn-steps {
+:is(.money-screen, .panel-mask) .mn-steps {
   display: flex;
   gap: 14px;
   margin-bottom: 16px;
@@ -202,11 +210,11 @@
   text-transform: uppercase;
   color: var(--mute);
 }
-.money-screen .mn-steps .on {
+:is(.money-screen, .panel-mask) .mn-steps .on {
   color: var(--indigo);
   font-weight: 600;
 }
-.money-screen .mn-drop {
+:is(.money-screen, .panel-mask) .mn-drop {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,16 +229,16 @@
   min-height: 88px;
   margin-bottom: 12px;
 }
-.money-screen .mn-drop:hover {
+:is(.money-screen, .panel-mask) .mn-drop:hover {
   border-color: var(--indigo);
   color: var(--ink);
 }
-.money-screen .mn-preview {
+:is(.money-screen, .panel-mask) .mn-preview {
   width: 100%;
   font-size: 11.5px;
   border-collapse: collapse;
 }
-.money-screen .mn-preview th {
+:is(.money-screen, .panel-mask) .mn-preview th {
   text-align: left;
   font-family: 'IBM Plex Mono';
   font-size: 9px;
@@ -240,12 +248,12 @@
   padding: 5px 8px;
   border-bottom: 1px solid var(--line);
 }
-.money-screen .mn-preview td {
+:is(.money-screen, .panel-mask) .mn-preview td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
-.money-screen .mn-duperow {
+:is(.money-screen, .panel-mask) .mn-duperow {
   display: grid;
   grid-template-columns: 76px 1fr auto auto;
   align-items: center;
@@ -254,13 +262,13 @@
   border-bottom: 1px dashed var(--line);
   font-size: 12.5px;
 }
-.money-screen .mn-duperow:last-child {
+:is(.money-screen, .panel-mask) .mn-duperow:last-child {
   border-bottom: 0;
 }
 
 /* ── tablet+ ──────────────────────────────────────────────────────────── */
 @media (min-width: 641px) {
-  .money-screen .mn-tiles {
+  :is(.money-screen, .panel-mask) .mn-tiles {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
@@ -269,13 +277,13 @@
 @media (max-width: 1024px) {
   .money-screen .btn,
   .money-screen .chip,
-  .money-screen .mn-drop {
+  :is(.money-screen, .panel-mask) .mn-drop {
     min-height: 44px;
   }
 }
 
 /* ── Tracker tabs, range bar, row actions, subscriptions ───────────────── */
-.money-screen .mn-tabs {
+:is(.money-screen, .panel-mask) .mn-tabs {
   display: flex;
   gap: 4px;
   background: var(--surf3);
@@ -283,7 +291,7 @@
   border-radius: 10px;
   margin-left: 14px;
 }
-.money-screen .mn-tabs button {
+:is(.money-screen, .panel-mask) .mn-tabs button {
   min-height: 44px;
   padding: 6px 14px;
   border-radius: 8px;
@@ -291,45 +299,45 @@
   color: var(--slate);
   transition: background 0.2s, color 0.2s;
 }
-.money-screen .mn-tabs button[aria-selected='true'] {
+:is(.money-screen, .panel-mask) .mn-tabs button[aria-selected='true'] {
   background: var(--surf);
   color: var(--ink);
   box-shadow: var(--sh1);
   font-weight: 500;
 }
-.money-screen .mn-bar {
+:is(.money-screen, .panel-mask) .mn-bar {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: 14px;
 }
-.money-screen .mn-in.sm {
+:is(.money-screen, .panel-mask) .mn-in.sm {
   width: auto;
   min-height: 44px;
   padding: 6px 9px;
 }
-.money-screen .mn-rowacts {
+:is(.money-screen, .panel-mask) .mn-rowacts {
   display: flex;
   gap: 6px;
   justify-content: flex-end;
 }
-.money-screen .mn-rowacts .btn.sm {
+:is(.money-screen, .panel-mask) .mn-rowacts .btn.sm {
   min-height: 44px;
 }
 /* A split is a note, not a debt — muted so it never reads as an amount. */
-.money-screen .mn-split {
+:is(.money-screen, .panel-mask) .mn-split {
   font-size: 10px;
   color: var(--mute);
   margin-left: 5px;
 }
-.money-screen .mn-stats {
+:is(.money-screen, .panel-mask) .mn-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
-.money-screen .mn-stat {
+:is(.money-screen, .panel-mask) .mn-stat {
   background: var(--surf2);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -337,11 +345,11 @@
   display: grid;
   gap: 3px;
 }
-.money-screen .mn-stat b {
+:is(.money-screen, .panel-mask) .mn-stat b {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 24px;
 }
-.money-screen .mn-sub {
+:is(.money-screen, .panel-mask) .mn-sub {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -349,27 +357,27 @@
   padding: 10px 0;
   border-bottom: 1px dashed var(--line);
 }
-.money-screen .mn-sub:last-child {
+:is(.money-screen, .panel-mask) .mn-sub:last-child {
   border-bottom: 0;
 }
-.money-screen .mn-sub-main {
+:is(.money-screen, .panel-mask) .mn-sub-main {
   display: grid;
   gap: 1px;
   flex: 1 1 180px;
   min-width: 0;
 }
-.money-screen .mn-sub-amt {
+:is(.money-screen, .panel-mask) .mn-sub-amt {
   font-size: 13px;
 }
-.money-screen .mn-sub-acts {
+:is(.money-screen, .panel-mask) .mn-sub-acts {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
-.money-screen .mn-sub-acts .btn.sm {
+:is(.money-screen, .panel-mask) .mn-sub-acts .btn.sm {
   min-height: 44px;
 }
-.money-screen .mn-pill {
+:is(.money-screen, .panel-mask) .mn-pill {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   padding: 2px 8px;
@@ -377,19 +385,19 @@
   background: var(--surf3);
   color: var(--slate);
 }
-.money-screen .mn-pill.due {
+:is(.money-screen, .panel-mask) .mn-pill.due {
   background: var(--stamp-s, var(--surf3));
   color: var(--stamp);
 }
-.money-screen .mn-pill.overdue {
+:is(.money-screen, .panel-mask) .mn-pill.overdue {
   background: var(--rose-s);
   color: var(--rose);
 }
 @media (min-width: 1025px) {
-  .money-screen .mn-tabs button,
-  .money-screen .mn-rowacts .btn.sm,
-  .money-screen .mn-sub-acts .btn.sm,
-  .money-screen .mn-in.sm {
+  :is(.money-screen, .panel-mask) .mn-tabs button,
+  :is(.money-screen, .panel-mask) .mn-rowacts .btn.sm,
+  :is(.money-screen, .panel-mask) .mn-sub-acts .btn.sm,
+  :is(.money-screen, .panel-mask) .mn-in.sm {
     min-height: 32px;
   }
 }

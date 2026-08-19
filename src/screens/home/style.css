@@ -1,3 +1,8 @@
+/* Portal scope — see the note in money.css. A `Modal`/`SideSheet` renders
+   through `createPortal(..., document.body)`, so a room-scoped rule never
+   matches inside one. Classes below that appear in a sheet name `.panel-mask`
+   as a second home; `:is()` keeps the specificity at one class, so nothing
+   else in the file had to be re-weighted. */
 /* Home screen — a dense bento grid.
 
    Layout contract: every tile declares a PREFERRED column span in index.tsx.
@@ -52,12 +57,12 @@
   flex-wrap: wrap;
   flex: none;
 }
-.home-screen .bt-num {
+:is(.home-screen, .panel-mask) .bt-num {
   font-size: 11px;
   color: var(--mute);
   white-space: nowrap;
 }
-.home-screen .bt-num.alert {
+:is(.home-screen, .panel-mask) .bt-num.alert {
   color: var(--rose);
 }
 /* Tiles never scroll themselves — a wheel over a tile used to scroll the
@@ -65,23 +70,23 @@
    actually hidden — the `.clipping` class comes from ClipWatch, which
    measures), and the tile's expand button opens the side page where the full
    list scrolls comfortably. */
-.home-screen .bt-scroll {
+:is(.home-screen, .panel-mask) .bt-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
-.home-screen .bt-scroll.clipping {
+:is(.home-screen, .panel-mask) .bt-scroll.clipping {
   mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent);
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent);
 }
-.home-screen .rowgap {
+:is(.home-screen, .panel-mask) .rowgap {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
   flex: none;
 }
-.home-screen .rowgap.tight {
+:is(.home-screen, .panel-mask) .rowgap.tight {
   gap: 6px;
   margin-top: 4px;
 }
@@ -215,7 +220,7 @@
 }
 
 /* ── planned day ───────────────────────────────────────────────────────── */
-.home-screen .planrow {
+:is(.home-screen, .panel-mask) .planrow {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -225,13 +230,13 @@
   text-decoration: none;
   min-height: 38px;
 }
-.home-screen .planrow:last-child {
+:is(.home-screen, .panel-mask) .planrow:last-child {
   border-bottom: 0;
 }
-.home-screen .planrow:hover .planttl {
+:is(.home-screen, .panel-mask) .planrow:hover .planttl {
   color: var(--indigo);
 }
-.home-screen .planttl {
+:is(.home-screen, .panel-mask) .planttl {
   flex: 1;
   min-width: 0;
   font-size: 13px;
@@ -239,7 +244,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.home-screen .planmin {
+:is(.home-screen, .panel-mask) .planmin {
   font-size: 11px;
   color: var(--mute);
   flex: none;
@@ -836,7 +841,7 @@
 .home-screen .mini-row:last-child {
   border-bottom: 0;
 }
-.home-screen .donutrow {
+:is(.home-screen, .panel-mask) .donutrow {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -895,12 +900,12 @@
   background: var(--teal);
 }
 
-.home-screen .blkgrid {
+:is(.home-screen, .panel-mask) .blkgrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-.home-screen .blkgrid .srch {
+:is(.home-screen, .panel-mask) .blkgrid .srch {
   width: 100%;
   margin-top: 6px;
 }
@@ -1013,7 +1018,7 @@
   .home-screen .capset button,
   .home-screen .win,
   .home-screen .check,
-  .home-screen .planrow,
+  :is(.home-screen, .panel-mask) .planrow,
   .home-screen .stuckrow,
   .home-screen .aiitem,
   .home-screen .mini-row,

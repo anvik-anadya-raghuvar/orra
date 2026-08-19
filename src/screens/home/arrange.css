@@ -207,20 +207,61 @@
   overflow-x: hidden;
   padding: 14px;
 }
-/* The tile renders its real self here — same component, same store — just with
-   room to breathe. min-height gives charts and lists something to fill so a
-   short tile does not collapse to a strip in a full-height page. */
+/* The widget renders its real self here — same component, same store — just
+   with room to breathe. It is NOT a card: on the grid `.bt` draws the surface,
+   but the side page has already drawn one, and a bordered card inside a
+   bordered page is a box inside a box. So this is layout only.
+   min-height gives charts and lists something to fill so a short widget does
+   not collapse to a strip in a full-height page; it is a floor, never a cap. */
 .tilesheet-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
   min-height: min(52vh, 420px);
 }
-/* Inside the side page only the page scrolls: the widget lets go of its own
-   scrolling so there is never a scrollbar inside a scrollbar, and its sticky
-   header/add-form stick to the page instead. */
-.tilesheet-tile .pbig,
-.tilesheet-tile .bt-scroll {
+
+/* Inside the side page only the page scrolls. Widgets size themselves to a
+   bento tile — `.pbig` is a scroll box, `.bt-scroll` is a masked strip — and
+   both have to let go here, or the page grows a scrollbar inside a scrollbar
+   and the widget quietly scrolls its own content out of a 330px window.
+
+   Three classes deep on purpose: `.personal-screen .pbig` sets `overflow-y`
+   with the same weight as a two-class rule would, and which one won came down
+   to CSS import order. This wins outright. A visible `overflow-y` also drags
+   `overflow-x` back to visible, which is what removed the sideways scrollbar
+   the bled sticky header was causing. */
+.tilesheet .tilesheet-body .pbig,
+.tilesheet .tilesheet-body .bt-scroll {
   overflow: visible;
+  min-height: 0;
+  max-height: none;
+  flex: 0 0 auto;
   mask-image: none;
   -webkit-mask-image: none;
+  /* A widget bleeds its sticky bars outwards by the tile's own padding so they
+     cover the full width. On this page that padding is 14px, not the grid's
+     15/17 — set here rather than on the wrapper because the widget's own
+     breakpoint rule (`.personal-screen .pbig`) would otherwise outweigh it and
+     bleed 3px past the page on desktop. */
+  --tp: 14px;
+}
+
+/* The page header already says the widget's name — the widget saying it again
+   two lines lower is the same box-in-box, in words. Its meta and its buttons
+   stay, and the bar still sticks while the page scrolls. */
+.tilesheet .tilesheet-body .phead > h3,
+.tilesheet .tilesheet-body .bt-hd > h3 {
+  display: none;
+}
+.tilesheet .tilesheet-body .phead > .eyebrow {
+  margin-left: 0;
+}
+/* Sticky bars inside a widget stick to THIS page, not to the tile they were
+   written for — the scroll container here is .tilesheet-body. */
+.tilesheet .tilesheet-body .phead {
+  top: 0;
 }
 .tilesheet-ft {
   flex: none;
@@ -234,6 +275,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+/* "Wide" answers what it is called; "2x1" answers how it will actually fit.
+   Both, because neither alone is the whole answer. */
+.tilesheet-sizes .chip.shape {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.tilesheet-sizes .chip.shape small {
+  font-size: 10.5px;
+  opacity: 0.62;
 }
 .tilesheet-ft .tip {
   margin: 2px 0 0;
