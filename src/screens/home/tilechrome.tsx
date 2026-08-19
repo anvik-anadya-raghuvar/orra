@@ -468,10 +468,19 @@ export function BentoTile({
       className={`${className}${dragging ? ' bt-dragging' : ''}${
         api.dragKey && !dragging ? ' bt-dropzone' : ''
       }${resizing ? ' bt-resizing' : ''}`}
-      style={style}
       variants={staggerItem}
       layout={reduced ? false : 'position'}
       transition={reduced ? { duration: 0 } : spring}
+      /* The tilt has to live here rather than in CSS: this tile is
+         layout-animated, so Framer writes an inline transform every frame and
+         a stylesheet `:hover { transform }` is silently discarded. Skipped
+         while dragging or resizing, where the gesture owns the transform. */
+      whileHover={
+        reduced || dragging || resizing
+          ? undefined
+          : { y: -4, rotateX: 1.6, rotateY: -1.6, transition: micro }
+      }
+      style={{ ...style, transformPerspective: 1000 }}
     >
       {children}
 

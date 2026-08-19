@@ -32,7 +32,13 @@
 .wk-card,
 .wk-inbox,
 .wk-reflow,
-.blk-shell {
+.blk-shell,
+.note-card,
+.kn-ov-panel,
+.pcard,
+.ad-goog,
+.ad-conn,
+.wk-ovpanel {
   position: relative;
   transition:
     transform 0.28s var(--lift),
@@ -46,7 +52,10 @@
 .mn-stat:hover,
 .uscard:hover,
 .mb-card:hover,
-.wk-card:hover {
+.wk-card:hover,
+.note-card:hover,
+.kn-ov-panel:hover,
+.pcard:hover {
   transform: translateY(-3px);
   box-shadow: var(--sh2), var(--sh-glow);
   border-color: transparent;
@@ -183,7 +192,7 @@
   z-index: 0;
   pointer-events: none;
   background: radial-gradient(
-    460px 460px at var(--mx, 50%) var(--my, 30%),
+    620px 620px at var(--mx, 50%) var(--my, 30%),
     rgba(255, 255, 255, var(--sheen, 0.08)),
     transparent 68%
   );
@@ -195,23 +204,99 @@
   position: relative;
   z-index: 1;
 }
-/* Dense rooms: the same light, much quieter behind a table of numbers. */
-.money-screen,
-.admin-screen,
-.people-screen {
-  --sheen: 0.03;
+/* Dense rooms: the same light, much quieter behind a table of numbers. The
+   flag is stamped on <html> by PointerLight, because the light itself is a
+   fixed sibling of the app and cannot inherit from the room inside it. */
+:root[data-dense='1'] {
+  --sheen: 0.035;
+  --card-sheen: rgba(255, 255, 255, 0.045);
 }
 
-/* Panels catch the light as the pointer passes, and lean very slightly toward
-   it. 2 degrees — enough to read as physical, small enough that text stays
-   crisp and nothing wobbles while you are trying to click it. */
+/* ── the light lands ON the cards, not just between them ───────────────────
+   The first attempt put the sheen behind the app, which is invisible: every
+   card is opaque, so the only place it ever showed was the gutters. Each card
+   now carries its own highlight layer, and because that layer is anchored to
+   the viewport (`background-attachment: fixed`) rather than to the card, one
+   global pointer position lights all of them correctly — no per-card
+   measurement, no per-card listener, and it stays exact while the page
+   scrolls under it.
+
+   A pseudo-element rather than the card's own background, because several
+   screens set `background:` shorthand on these classes and would wipe an
+   image set here. */
+.bt::before,
+.pbig::before,
+.mn-panel::before,
+.mn-stat::before,
+.uscard::before,
+.mb-card::before,
+.wk-card::before,
+.wk-inbox::before,
+.blk-shell::before,
+.kn-ov-panel::before,
+.pcard::before,
+.ad-goog::before,
+.wk-ovpanel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background-image: radial-gradient(
+    560px 560px at var(--mx, 50vw) var(--my, 30vh),
+    var(--card-sheen),
+    transparent 72%
+  );
+  background-attachment: fixed;
+}
+/* The note card's ::before is already its type-colour stripe, so its highlight
+   goes on ::after instead of fighting for the same pseudo-element. */
+.note-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background-image: radial-gradient(
+    560px 560px at var(--mx, 50vw) var(--my, 30vh),
+    var(--card-sheen),
+    transparent 72%
+  );
+  background-attachment: fixed;
+}
+/* Card contents sit above their own highlight. */
+.bt > *,
+.pbig > *,
+.mn-panel > *,
+.uscard > *,
+.mb-card > *,
+.wk-card > *,
+.note-card > *,
+.kn-ov-panel > *,
+.pcard > *,
+.ad-goog > *,
+.wk-ovpanel > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Panels lean very slightly toward the light. Under two degrees — enough to
+   read as physical, small enough that text stays crisp and nothing wobbles
+   while you are trying to click it.
+
+   Home's and Personal's bento tiles are excluded here and tilt through Framer
+   Motion instead (see BentoTile): they are layout-animated, so Framer owns
+   their inline transform and a CSS one is silently discarded. */
 @media (hover: hover) and (pointer: fine) {
-  .bt:hover,
   .pbig:hover,
   .mn-panel:hover,
   .uscard:hover,
   .mb-card:hover,
-  .wk-card:hover {
+  .wk-card:hover,
+  .note-card:hover,
+  .pcard:hover {
     transform: perspective(1000px) translateY(-4px) rotateX(1.6deg) rotateY(-1.6deg);
   }
 }
@@ -267,7 +352,21 @@ body {
    entirely, and hover becomes a shadow change with no movement. */
 @media (prefers-reduced-motion: reduce) {
   /* The tracking light is movement, so it goes entirely rather than dimming. */
-  .pointer-light {
+  .pointer-light,
+  .bt::before,
+  .pbig::before,
+  .mn-panel::before,
+  .mn-stat::before,
+  .uscard::before,
+  .mb-card::before,
+  .wk-card::before,
+  .wk-inbox::before,
+  .blk-shell::before,
+  .note-card::after,
+  .kn-ov-panel::before,
+  .pcard::before,
+  .ad-goog::before,
+  .wk-ovpanel::before {
     display: none;
   }
   .live-dot,

@@ -31,6 +31,7 @@
   --bloom-2: rgba(6, 120, 97, 0.08);
   --bloom-3: rgba(126, 80, 220, 0.1);
   --sheen: 0.05;
+  --card-sheen: rgba(194, 22, 143, 0.07);
   --r: 12px;
   --rl: 18px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -49,7 +50,7 @@ html[data-theme='dark'] {
   --surf3: #1e1730;
   --ink: #f3eeff;
   --slate: #b0a4c8;
-  --mute: #8b80a4;
+  --mute: #968cb0;
   --line: #241c38;
   /* The two that carry meaning. */
   --indigo: #ff5fd2;
@@ -72,7 +73,8 @@ html[data-theme='dark'] {
   --bloom-2: rgba(60, 240, 200, 0.2);
   --bloom-3: rgba(122, 86, 255, 0.3);
   /* How brightly the pointer light burns. Rooms full of data turn this down. */
-  --sheen: 0.09;
+  --sheen: 0.11;
+  --card-sheen: rgba(255, 255, 255, 0.11);
 }
 
 * {

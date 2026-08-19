@@ -16,10 +16,23 @@
  *     phone) or under prefers-reduced-motion.
  */
 import { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+
+/** Rooms that are mostly tables and trails. A highlight drifting behind a
+ *  column of numbers is noise rather than life, so the light turns down. */
+const DENSE = ['/money', '/admin', '/people'];
 
 export default function PointerLight() {
   const frame = useRef(0);
   const next = useRef<{ x: number; y: number } | null>(null);
+  const { pathname } = useLocation();
+
+  // Stamped on <html>, not on the room: the light is a fixed sibling of the
+  // app, so it cannot inherit a variable set inside the screen it covers.
+  useEffect(() => {
+    const dense = DENSE.some((p) => pathname.startsWith(p));
+    document.documentElement.dataset.dense = dense ? '1' : '0';
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
