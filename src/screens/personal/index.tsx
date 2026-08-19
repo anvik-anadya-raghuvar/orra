@@ -3,8 +3,8 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import type { Course, CourseItem, ReadingItem } from '../../types';
 import { newId, useData, useStore } from '../../data/store';
-import { useToast } from '../../ui/bits';
-import { entrance, staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { Modal, useToast } from '../../ui/bits';
+import { entrance, spring, staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { Donut, MiniBars, Ring, VIZ } from '../../ui/viz';
 import { ownRows } from '../../lib/workspace';
 import {
@@ -19,6 +19,8 @@ import {
   TimeLedger,
   moveRows,
 } from './widgets';
+import { PersonalGoals, PersonalTasks } from './goals';
+import MoodBoard from './moodboard';
 import './personal.css';
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -453,34 +455,150 @@ function ReadingQueue() {
 
 /* ══════════════════════════════════════════════════════════════════════ */
 
+/**
+ * The widgets this room can hold.
+ *
+ * Personal used to be built around one of the two lives — courses, a study
+ * rhythm, a study timer — which left the other person looking at furniture.
+ * Every widget is now optional and every person keeps their own set, so the
+ * same room can be a degree tracker or a goals-and-agenda board.
+ *
+ * `col` is a hint, not a rule: the layout reflows when widgets are hidden.
+ */
+const WIDGETS: {
+  key: string;
+  label: string;
+  hint: string;
+  col: 'l' | 'r';
+  node: React.ReactNode;
+}[] = [
+  { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', col: 'l', node: <PersonalTasks /> },
+  { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', col: 'l', node: <PersonalGoals /> },
+  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', col: 'l', node: <Courses /> },
+  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', col: 'l', node: <ReadingQueue /> },
+  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', col: 'l', node: <LifeAdmin /> },
+  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', col: 'r', node: <StudyRhythm /> },
+  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', col: 'r', node: <StudyTimer /> },
+  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', col: 'r', node: <TimeLedger /> },
+  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', col: 'r', node: <FixedDates /> },
+  { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', col: 'r', node: <RelocationDocs /> },
+];
+
+/** Everything on, until someone turns something off. */
+const isOn = (widgets: Record<string, boolean> | undefined, key: string) => widgets?.[key] !== false;
+
+function CustomisePersonal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const store = useStore();
+  const me = useData((_, s) => s.me);
+  const toast = useToast();
+  const widgets = me.personalization.personal_widgets;
+
+  const set = (key: string, value: boolean) =>
+    store.update(
+      'profiles',
+      me.id,
+      {
+        personalization: {
+          ...me.personalization,
+          personal_widgets: { ...(widgets ?? {}), [key]: value },
+        },
+      },
+      store.asMe({ summary: `Personal widget — ${key} ${value ? 'on' : 'off'}` }),
+    );
+
+  return (
+    <Modal open={open} onClose={onClose} title="Customise Personal">
+      <p className="tip" style={{ margin: '-6px 0 8px' }}>
+        Yours only. This room has to fit two different lives — keep what matches yours and hide the
+        rest. {store.other.name}&apos;s Personal is untouched by anything here.
+      </p>
+      {WIDGETS.map(({ key, label, hint }) => {
+        const on = isOn(widgets, key);
+        return (
+          <div className="swrow" key={key}>
+            <span className="txt">
+              {label}
+              <small>{hint}</small>
+            </span>
+            <button
+              className="sw"
+              role="switch"
+              aria-checked={on}
+              aria-label={label}
+              onClick={() => {
+                set(key, !on);
+                toast(`${label} ${!on ? 'shown' : 'hidden'}`);
+              }}
+            >
+              <motion.span className="knob" layout transition={spring} />
+            </button>
+          </div>
+        );
+      })}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <button className="btn solid" onClick={onClose}>
+          Done
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+type PersonalTab = 'dashboard' | 'board';
+
 export default function Personal() {
+  const me = useData((_, s) => s.me);
+  const [tab, setTab] = useState<PersonalTab>('dashboard');
+  const [customising, setCustomising] = useState(false);
+  const widgets = me.personalization.personal_widgets;
+  const shown = WIDGETS.filter((w) => isOn(widgets, w.key));
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="personal-screen">
         <div className="frame">
           <div className="top">
             <div className="disp">Personal</div>
+            <div className="ptabs" role="tablist" aria-label="Personal sections">
+              <button role="tab" aria-selected={tab === 'dashboard'} onClick={() => setTab('dashboard')}>
+                Dashboard
+              </button>
+              <button role="tab" aria-selected={tab === 'board'} onClick={() => setTab('board')}>
+                Mood board
+              </button>
+            </div>
             <div className="spacer" />
-            <span className="eyebrow">the degree, the move, and the rest of your life</span>
+            {tab === 'dashboard' && (
+              <button className="chip" type="button" onClick={() => setCustomising(true)}>
+                Customise
+              </button>
+            )}
           </div>
           <div className="wrap">
-            <div className="pgrid2">
-              <div className="pcol-l">
-                <Courses />
-                <ReadingQueue />
-                <LifeAdmin />
+            {tab === 'board' ? (
+              <MoodBoard />
+            ) : shown.length === 0 ? (
+              <p className="tip">
+                Every widget is hidden. Use Customise to bring back the ones that match your life.
+              </p>
+            ) : (
+              <div className="pgrid2">
+                <div className="pcol-l">
+                  {shown.filter((w) => w.col === 'l').map((w) => (
+                    <React.Fragment key={w.key}>{w.node}</React.Fragment>
+                  ))}
+                </div>
+                <div className="pcol-r">
+                  {shown.filter((w) => w.col === 'r').map((w) => (
+                    <React.Fragment key={w.key}>{w.node}</React.Fragment>
+                  ))}
+                </div>
               </div>
-              <div className="pcol-r">
-                <StudyRhythm />
-                <StudyTimer />
-                <TimeLedger />
-                <FixedDates />
-                <RelocationDocs />
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
+      <CustomisePersonal open={customising} onClose={() => setCustomising(false)} />
     </MotionConfig>
   );
 }

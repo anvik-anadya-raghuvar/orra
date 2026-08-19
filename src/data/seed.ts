@@ -429,6 +429,37 @@ function rawSeed(): Dataset {
     day_plan_items: [],
     // A block is only ever a live session, never seeded.
     active_blocks: [],
+    // Two goals for the test workspace, one derived from a project and one
+    // from its own milestones, so the widget shows both shapes.
+    personal_goals: [
+      {
+        id: 'pg-goal-1', user_id: RG, title: 'Get the Italian driving licence', notes: 'Theory first, then practical.',
+        target_date: D('2026-11-30'), linked_project_id: null, linked_course_id: null,
+        milestones: [
+          { text: 'Book the theory test', done: true },
+          { text: 'Pass the theory test', done: false },
+          { text: 'Ten practical lessons', done: false },
+        ],
+        status: 'open', position: 1, created_at: T('2026-08-01T09:00:00'),
+      },
+      {
+        id: 'pg-goal-2', user_id: RG, title: 'Consumer venture actually validated', notes: '',
+        target_date: D('2026-10-15'), linked_project_id: 'con', linked_course_id: null,
+        milestones: [], status: 'open', position: 2, created_at: T('2026-08-05T09:00:00'),
+      },
+    ],
+    mood_items: [
+      {
+        id: 'mood-1', user_id: AN, kind: 'quote', title: 'Pinned',
+        body: 'Make something people want.', url: null, storage_path: null,
+        color: '', position: 1, pinned_at: T('2026-08-12T09:00:00'),
+      },
+      {
+        id: 'mood-2', user_id: AN, kind: 'link', title: 'Bovisa flat listing',
+        body: '', url: 'https://example.com/listing', storage_path: null,
+        color: '', position: 2, pinned_at: T('2026-08-16T09:00:00'),
+      },
+    ],
     day_events: [
       { id: 'ev-1', user_id: AN, date: D('2026-08-18'), start_min: 9 * 60 + 30, end_min: 12 * 60, label: 'Build · Registry', kind: 'focus', task_id: 'T-42' },
       { id: 'ev-2', user_id: AN, date: D('2026-08-18'), start_min: 12 * 60 + 15, end_min: 13 * 60, label: 'Admin batch', kind: 'admin', task_id: null },

@@ -69,6 +69,13 @@ export interface Personalization {
    *  never a permission — the other user's Home is unaffected by anything in
    *  here, exactly like the widget toggles above it. */
   home_layout?: HomeLayout;
+  /** Which Personal widgets this user keeps. Personal has to fit two different
+   *  lives — one with a degree in it, one without — so the whole room is
+   *  composable rather than built around whichever life came first. Absent
+   *  means "the defaults", which show everything. */
+  personal_widgets?: Record<string, boolean>;
+  /** How this user has arranged their own Personal grid. */
+  personal_layout?: HomeLayout;
 }
 
 export interface HomeLayout {
@@ -435,6 +442,44 @@ export interface LifeAdminItem {
   completed: boolean;
   created_at: string;
 }
+export interface Milestone {
+  text: string;
+  done: boolean;
+}
+
+/**
+ * An ambition that is not coursework — the other half of a personal life.
+ * Progress is derived from a linked project or course where one is set, and
+ * from the milestones otherwise, so it is never a number to maintain by hand.
+ */
+export interface PersonalGoal {
+  id: string;
+  user_id: UserId;
+  title: string;
+  notes: string;
+  target_date: string | null;
+  linked_project_id: string | null;
+  linked_course_id: string | null;
+  milestones: Milestone[];
+  status: 'open' | 'done' | 'dropped';
+  position: number;
+  created_at: string;
+}
+
+/** Anything pinned to the free page. No status, no due date, on purpose. */
+export interface MoodItem {
+  id: string;
+  user_id: UserId;
+  kind: 'image' | 'link' | 'quote' | 'note' | 'song';
+  title: string;
+  body: string;
+  url: string | null;
+  storage_path: string | null;
+  color: string;
+  position: number;
+  pinned_at: string;
+}
+
 export interface FixedDate {
   id: string;
   label: string;
@@ -638,6 +683,8 @@ export interface Dataset {
   day_plan_items: DayPlanItem[];
   day_events: DayEvent[];
   active_blocks: ActiveBlock[];
+  personal_goals: PersonalGoal[];
+  mood_items: MoodItem[];
   pulse_items: PulseItem[];
   task_links: TaskLink[];
   sprints: Sprint[];

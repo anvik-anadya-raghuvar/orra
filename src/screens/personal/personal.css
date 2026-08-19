@@ -536,3 +536,156 @@
     height: 34px;
   }
 }
+
+/* ── tabs: dashboard vs the free page ──────────────────────────────────── */
+.personal-screen .ptabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surf3);
+  padding: 3px;
+  border-radius: 10px;
+  margin-left: 14px;
+}
+.personal-screen .ptabs button {
+  min-height: 44px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--slate);
+  transition: background 0.2s, color 0.2s;
+}
+.personal-screen .ptabs button[aria-selected='true'] {
+  background: var(--surf);
+  color: var(--ink);
+  box-shadow: var(--sh1);
+  font-weight: 500;
+}
+
+/* ── goals ─────────────────────────────────────────────────────────────── */
+.personal-screen .pgoal {
+  border-bottom: 1px dashed var(--line);
+  padding: 9px 0;
+}
+.personal-screen .pgoal:last-of-type {
+  border-bottom: 0;
+}
+.personal-screen .pgoal-hd {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.personal-screen .pgoal-ttl {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.personal-screen .pgoal-body {
+  padding: 6px 0 2px 45px;
+}
+.personal-screen .ptitle.done {
+  color: var(--mute);
+  text-decoration: line-through;
+}
+
+/* ── mood board: masonry, so a tall pin does not force a tall row ──────── */
+.personal-screen .mb-wrap {
+  padding-top: 4px;
+}
+.personal-screen .mb-grid {
+  columns: 2;
+  column-gap: 12px;
+  margin-top: 12px;
+}
+.personal-screen .mb-card {
+  break-inside: avoid;
+  margin-bottom: 12px;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--sh1);
+  display: grid;
+  gap: 7px;
+  position: relative;
+  transition: box-shadow 0.22s var(--ease);
+}
+.personal-screen .mb-card:hover {
+  box-shadow: var(--sh2);
+}
+.personal-screen .mb-img {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+.personal-screen .mb-img-missing {
+  display: grid;
+  place-items: center;
+  height: 96px;
+  background: var(--surf3);
+  color: var(--mute);
+  font-size: 12px;
+}
+.personal-screen .mb-quote {
+  margin: 0;
+  padding-left: 11px;
+  border-left: 3px solid var(--violet);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.personal-screen .mb-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.personal-screen .mb-title {
+  font-size: 11px;
+  color: var(--mute);
+}
+.personal-screen .mb-link,
+.personal-screen .mb-song {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  min-height: 44px;
+  color: var(--ink);
+  word-break: break-word;
+}
+.personal-screen .mb-song {
+  flex-wrap: wrap;
+}
+.personal-screen .mb-acts {
+  display: flex;
+  justify-content: flex-end;
+}
+.personal-screen .mb-kinds {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.personal-screen .mb-kinds .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+}
+
+@media (min-width: 641px) {
+  .personal-screen .mb-grid {
+    columns: 3;
+  }
+}
+@media (min-width: 1025px) {
+  .personal-screen .mb-grid {
+    columns: 4;
+  }
+  .personal-screen .ptabs button,
+  .personal-screen .mb-kinds .chip,
+  .personal-screen .mb-link,
+  .personal-screen .mb-song {
+    min-height: 34px;
+  }
+}

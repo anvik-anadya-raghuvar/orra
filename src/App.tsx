@@ -42,6 +42,17 @@ const NAV = [
   { to: '/admin', label: 'Admin', icon: Shield },
 ];
 
+/**
+ * The six the phone gets. Personal earned a slot once it became a composable
+ * room holding the mood board and goals — it was previously unreachable on a
+ * phone entirely. People gave up its slot instead: it is a reference room you
+ * visit occasionally, and Home's "people going quiet" tile links straight into
+ * it. Everything remains reachable on tablet and desktop.
+ */
+const MOBILE_NAV = ['/', '/work', '/us', '/knowledge', '/personal', '/money'].map(
+  (to) => NAV.find((n) => n.to === to)!,
+);
+
 function useTheme() {
   const [theme, setTheme] = useState(
     () => document.documentElement.getAttribute('data-theme') ?? 'light',
@@ -267,14 +278,12 @@ function Nav() {
         ))}
       </nav>
       <nav className="tabbar" aria-label="Primary">
-        {NAV.slice(0, 5)
-          .concat(NAV.slice(6, 7))
-          .map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} end={to === '/'}>
-              <Icon size={18} strokeWidth={1.8} />
-              {label}
-            </NavLink>
-          ))}
+        {MOBILE_NAV.map(({ to, label, icon: Icon }) => (
+          <NavLink key={to} to={to} end={to === '/'}>
+            <Icon size={18} strokeWidth={1.8} />
+            {label}
+          </NavLink>
+        ))}
       </nav>
     </>
   );
