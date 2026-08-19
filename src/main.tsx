@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { MotionGlobalConfig } from 'framer-motion';
 import App from './App';
 import './styles/theme.css';
+import './styles/alive.css';
 import './styles/viz.css';
 
 /**

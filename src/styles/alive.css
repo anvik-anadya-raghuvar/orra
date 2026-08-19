@@ -1,0 +1,272 @@
+/* ── The portal, alive ─────────────────────────────────────────────────────
+   Depth, edge light, and small signs of life, applied to the surfaces every
+   room already uses (.bt, .pbig, .mn-panel, .uscard, .mb-card, .wk-card) so a
+   screen does not have to opt in one component at a time.
+
+   Rules this file keeps:
+     · Only transform, opacity, box-shadow and background are animated — all
+       compositor-friendly, so nothing here costs a frame.
+     · Every effect degrades to nothing under prefers-reduced-motion, which is
+       enforced in one block at the bottom rather than remembered per rule.
+     · Nothing here conveys information on its own. A glow is emphasis on top
+       of a label that already says the thing.
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Edge light: a hairline that catches the accent on hover, like a screen
+     bezel rather than a border. */
+  --edge: linear-gradient(140deg, var(--indigo), var(--violet) 45%, transparent 70%);
+  --lift: cubic-bezier(0.22, 1, 0.36, 1);
+  --sh-glow: 0 0 0 1px var(--glow), 0 14px 34px -12px var(--glow);
+}
+
+/* ── card depth ────────────────────────────────────────────────────────────
+   Cards sit on the page rather than being drawn on it: they rise slightly and
+   their shadow deepens together, which is what reads as physical. */
+.bt,
+.pbig,
+.mn-panel,
+.mn-stat,
+.uscard,
+.mb-card,
+.wk-card,
+.wk-inbox,
+.wk-reflow,
+.blk-shell {
+  position: relative;
+  transition:
+    transform 0.28s var(--lift),
+    box-shadow 0.28s var(--lift),
+    border-color 0.28s var(--lift);
+}
+
+.bt:hover,
+.pbig:hover,
+.mn-panel:hover,
+.mn-stat:hover,
+.uscard:hover,
+.mb-card:hover,
+.wk-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--sh2), var(--sh-glow);
+  border-color: transparent;
+}
+
+/* The edge light itself. A pseudo-element masked to the border box, so it can
+   be a gradient without repainting the card's own background. */
+.bt::after,
+.pbig::after,
+.mn-panel::after,
+.uscard::after,
+.mb-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--edge);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.28s var(--lift);
+  pointer-events: none;
+}
+.bt:hover::after,
+.bt:focus-within::after,
+.pbig:hover::after,
+.mn-panel:hover::after,
+.uscard:hover::after,
+.mb-card:hover::after {
+  opacity: 0.85;
+}
+
+/* ── things that are actually happening ────────────────────────────────────
+   A slow pulse, used only where something is genuinely live: a running block,
+   an unread count, a sync in flight. Never decoration. */
+@keyframes alive-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+.live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
+  animation: alive-pulse 2.4s var(--ease) infinite;
+  flex: none;
+}
+.live-dot.warn {
+  background: var(--stamp);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--stamp) 22%, transparent);
+}
+.live-dot.calm {
+  animation-duration: 4s;
+}
+
+/* The pair-pulse dot on Home was static; it is the one dot that should breathe. */
+.home-screen .pulsedot {
+  animation: alive-pulse 2.6s var(--ease) infinite;
+}
+
+/* ── the running block, unmistakably running ──────────────────────────────
+   A slow sweep across the clock while time is actually being counted. It
+   stops the moment the block is paused, which is the point: the surface tells
+   you the state without a label. */
+@keyframes alive-sweep {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -20% 0;
+  }
+}
+.blk-clock:not(.paused) {
+  background: linear-gradient(
+    100deg,
+    var(--ink) 38%,
+    color-mix(in oklab, var(--indigo) 70%, var(--ink)) 50%,
+    var(--ink) 62%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: alive-sweep 3.6s linear infinite;
+}
+
+/* ── skeletons that shimmer instead of sitting there ──────────────────── */
+@keyframes alive-shimmer {
+  0% {
+    background-position: -140% 0;
+  }
+  100% {
+    background-position: 140% 0;
+  }
+}
+.skeleton {
+  background:
+    linear-gradient(
+      100deg,
+      var(--surf3) 40%,
+      color-mix(in oklab, var(--surf) 70%, var(--surf3)) 50%,
+      var(--surf3) 60%
+    );
+  background-size: 220% 100%;
+  animation: alive-shimmer 1.5s linear infinite;
+  border-radius: 8px;
+}
+
+/* ── ambient background drift ──────────────────────────────────────────────
+   The page's own gradient moves, very slowly, so a screen left open does not
+   look like a screenshot. One minute per cycle and a few pixels of travel —
+   noticeable only if you look for it. */
+@keyframes alive-drift {
+  0%,
+  100% {
+    background-position:
+      8% -12%,
+      96% 0%,
+      0 0;
+  }
+  50% {
+    background-position:
+      12% -8%,
+      92% 4%,
+      0 0;
+  }
+}
+body {
+  animation: alive-drift 60s ease-in-out infinite;
+}
+
+/* ── press feedback everywhere ─────────────────────────────────────────────
+   A button that does not move under the finger feels broken on touch. */
+.btn:active,
+.chip:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* Primary actions carry the accent glow so the important button in a dialog
+   is obvious without being a different size. */
+.btn.solid {
+  box-shadow: var(--sh1), 0 6px 18px -8px var(--glow);
+}
+.btn.solid:hover {
+  box-shadow: var(--sh2), 0 10px 26px -10px var(--glow);
+}
+
+/* ── focus, visibly ────────────────────────────────────────────────────── */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── the one place all of this switches off ───────────────────────────────
+   Not a softening: the pulse, the sweep, the shimmer and the drift stop
+   entirely, and hover becomes a shadow change with no movement. */
+@media (prefers-reduced-motion: reduce) {
+  .live-dot,
+  .home-screen .pulsedot,
+  .blk-clock,
+  .skeleton,
+  body {
+    animation: none !important;
+  }
+  .blk-clock:not(.paused) {
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--ink);
+  }
+  .bt,
+  .pbig,
+  .mn-panel,
+  .mn-stat,
+  .uscard,
+  .mb-card,
+  .wk-card,
+  .wk-inbox,
+  .wk-reflow,
+  .blk-shell,
+  .btn,
+  .chip {
+    transition: box-shadow 0.2s linear, border-color 0.2s linear;
+  }
+  .bt:hover,
+  .pbig:hover,
+  .mn-panel:hover,
+  .mn-stat:hover,
+  .uscard:hover,
+  .mb-card:hover,
+  .wk-card:hover,
+  .btn:active,
+  .chip:active {
+    transform: none;
+  }
+}
+
+/* Header "something is running" badge. */
+.hdr-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--slate);
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px;
+}

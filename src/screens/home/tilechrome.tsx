@@ -154,11 +154,16 @@ export interface ArrangeApi {
   syncKeys: (keys: string[]) => void;
 }
 
-/** Owns the arrangement gestures for Home's grid. */
-export function useHomeArrange(): ArrangeApi {
+/** Which stored arrangement a grid reads and writes. Home was the only grid
+ *  when this was written; Personal now uses the same gestures against its own
+ *  field, so the key is a parameter rather than a constant. */
+export type LayoutField = 'home_layout' | 'personal_layout';
+
+/** Owns the arrangement gestures for a bento grid. */
+export function useHomeArrange(field: LayoutField = 'home_layout'): ArrangeApi {
   const store = useStore();
   const me = useData((_, s) => s.me);
-  const stored = me.personalization.home_layout ?? null;
+  const stored = me.personalization[field] ?? null;
 
   // A gesture writes to the draft on every pointer move so the grid reflows
   // under the finger; the store is written once, on release, so the audit trail
@@ -184,11 +189,11 @@ export function useHomeArrange(): ArrangeApi {
       store.update(
         'profiles',
         me.id,
-        { personalization: { ...me.personalization, home_layout: next } },
+        { personalization: { ...me.personalization, [field]: next } },
         store.asMe({ summary }),
       );
     },
-    [store, me.id, me.personalization],
+    [store, me.id, me.personalization, field],
   );
 
   /* ── move ── */
@@ -392,10 +397,10 @@ export function useHomeArrange(): ArrangeApi {
  * without being handed an ArrangeApi it has no other use for. Renders nothing
  * until there is actually an arrangement to undo.
  */
-export function ResetArrangement() {
+export function ResetArrangement({ field = 'home_layout' }: { field?: LayoutField } = {}) {
   const store = useStore();
   const me = useData((_, s) => s.me);
-  const layout = me.personalization.home_layout ?? null;
+  const layout = me.personalization[field] ?? null;
   if (!isArranged(layout)) return null;
   const moved = layout?.order.length ?? 0;
   const sized = Object.keys(layout?.size ?? {}).length;
@@ -417,8 +422,10 @@ export function ResetArrangement() {
           store.update(
             'profiles',
             me.id,
-            { personalization: { ...me.personalization, home_layout: { order: [], size: {} } } },
-            store.asMe({ summary: 'Home arrangement reset' }),
+            { personalization: { ...me.personalization, [field]: { order: [], size: {} } } },
+            store.asMe({
+              summary: `${field === 'home_layout' ? 'Home' : 'Personal'} arrangement reset`,
+            }),
           )
         }
       >

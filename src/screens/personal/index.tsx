@@ -19,6 +19,10 @@ import {
   TimeLedger,
   moveRows,
 } from './widgets';
+import { packBento } from '../../lib/bento';
+import { arrange } from '../home/layout';
+import { BentoTile, ResetArrangement, TileSheetHost, useHomeArrange } from '../home/tilechrome';
+import '../home/style.css';
 import { PersonalGoals, PersonalTasks } from './goals';
 import MoodBoard from './moodboard';
 import './personal.css';
@@ -469,19 +473,22 @@ const WIDGETS: {
   key: string;
   label: string;
   hint: string;
-  col: 'l' | 'r';
+  /** Preferred span at the four-column grid; the packer closes any gap and a
+   *  drag or resize overrides it per person. */
+  cols: 1 | 2 | 4;
+  rows?: 1 | 2;
   node: React.ReactNode;
 }[] = [
-  { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', col: 'l', node: <PersonalTasks /> },
-  { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', col: 'l', node: <PersonalGoals /> },
-  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', col: 'l', node: <Courses /> },
-  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', col: 'l', node: <ReadingQueue /> },
-  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', col: 'l', node: <LifeAdmin /> },
-  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', col: 'r', node: <StudyRhythm /> },
-  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', col: 'r', node: <StudyTimer /> },
-  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', col: 'r', node: <TimeLedger /> },
-  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', col: 'r', node: <FixedDates /> },
-  { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', col: 'r', node: <RelocationDocs /> },
+  { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', cols: 2, rows: 2, node: <PersonalTasks /> },
+  { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', cols: 2, rows: 2, node: <PersonalGoals /> },
+  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', cols: 2, node: <StudyRhythm /> },
+  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', cols: 2, node: <StudyTimer /> },
+  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', cols: 2, rows: 2, node: <Courses /> },
+  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', cols: 2, node: <ReadingQueue /> },
+  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', cols: 2, node: <LifeAdmin /> },
+  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', cols: 2, rows: 2, node: <TimeLedger /> },
+  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', cols: 2, node: <FixedDates /> },
+  { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', cols: 2, node: <RelocationDocs /> },
 ];
 
 /** Everything on, until someone turns something off. */
@@ -544,6 +551,65 @@ function CustomisePersonal({ open, onClose }: { open: boolean; onClose: () => vo
   );
 }
 
+/**
+ * The dashboard grid — the same bento Home uses, against Personal's own stored
+ * arrangement. Drag by the grip, resize from the corner or the expand sheet,
+ * and it is per person like everything else in this room.
+ */
+function PersonalBento({ shown }: { shown: typeof WIDGETS }) {
+  const api = useHomeArrange('personal_layout');
+  const laid = arrange(
+    shown.map((w) => ({ ...w, cols: w.cols as number, rows: w.rows ?? 1 })),
+    api.layout,
+  );
+  api.syncKeys(laid.map((t) => t.key));
+
+  const { rc4, rc2 } = useMemo(
+    () => packBento(laid.map((t) => ({ key: t.key, cols: t.cols, rows: t.rows }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [laid.map((t) => `${t.key}:${t.cols}x${t.rows}`).join(',')],
+  );
+
+  return (
+    <div className="home-screen">
+      <motion.div className="bento" ref={api.gridRef} {...staggerParent()}>
+        {laid.map((t) => (
+          <BentoTile
+            key={t.key}
+            tileKey={t.key}
+            span={{ cols: t.cols, rows: t.rows }}
+            api={api}
+            className="bt"
+            style={
+              {
+                '--rc4': rc4.get(t.key)?.renderCols ?? t.cols,
+                '--rr4': rc4.get(t.key)?.renderRows ?? t.rows,
+                '--gc4': rc4.get(t.key)?.col ?? 'auto',
+                '--gr4': rc4.get(t.key)?.row ?? 'auto',
+                '--rc2': rc2.get(t.key)?.renderCols ?? Math.min(t.cols, 2),
+                '--rr2': rc2.get(t.key)?.renderRows ?? t.rows,
+                '--gc2': rc2.get(t.key)?.col ?? 'auto',
+                '--gr2': rc2.get(t.key)?.row ?? 'auto',
+              } as React.CSSProperties
+            }
+          >
+            {t.node}
+          </BentoTile>
+        ))}
+      </motion.div>
+      <TileSheetHost
+        api={api}
+        tiles={laid.map((t) => ({
+          key: t.key,
+          title: t.label,
+          span: { cols: t.cols, rows: t.rows },
+          node: t.node,
+        }))}
+      />
+    </div>
+  );
+}
+
 type PersonalTab = 'dashboard' | 'board';
 
 export default function Personal() {
@@ -582,18 +648,7 @@ export default function Personal() {
                 Every widget is hidden. Use Customise to bring back the ones that match your life.
               </p>
             ) : (
-              <div className="pgrid2">
-                <div className="pcol-l">
-                  {shown.filter((w) => w.col === 'l').map((w) => (
-                    <React.Fragment key={w.key}>{w.node}</React.Fragment>
-                  ))}
-                </div>
-                <div className="pcol-r">
-                  {shown.filter((w) => w.col === 'r').map((w) => (
-                    <React.Fragment key={w.key}>{w.node}</React.Fragment>
-                  ))}
-                </div>
-              </div>
+              <PersonalBento shown={shown} />
             )}
           </div>
         </div>

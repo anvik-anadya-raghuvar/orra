@@ -19,6 +19,7 @@ import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
 import BlockOverlay from './ui/BlockOverlay';
 import { useAutoSync } from './lib/useAutoSync';
+import { activeBlockFor } from './lib/blocks';
 import { pageRise } from './ui/motion';
 import { clockIn, TZ_IN, TZ_IT } from './lib/dates';
 
@@ -229,10 +230,8 @@ function Header() {
   const { theme, toggle } = useTheme();
   const [clock, setClock] = useState(() => `IST ${clockIn(TZ_IN)} · CET ${clockIn(TZ_IT)}`);
   useEffect(() => {
-    const t = setInterval(
-      () => setClock(`IST ${clockIn(TZ_IN)} · CET ${clockIn(TZ_IT)}`),
-      30_000,
-    );
+    // Every 10s rather than 30: a clock that visibly lags is worse than none.
+    const t = setInterval(() => setClock(`IST ${clockIn(TZ_IN)} · CET ${clockIn(TZ_IT)}`), 10_000);
     return () => clearInterval(t);
   }, []);
   return (
@@ -258,6 +257,7 @@ function Header() {
         Anvik Ops
       </span>
       <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{clock}</span>
+      <RunningBlockBadge />
       <div className="spacer" />
       <NotificationBell />
       <AccountMenu />
@@ -341,6 +341,27 @@ function AnimatedRoutes() {
         </Suspense>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+/**
+ * A block running elsewhere in the portal, shown in the header.
+ *
+ * The overlay covers the screen while a block runs, so this is mostly for the
+ * moment after it is dismissed — but it is also the one honest "something is
+ * happening right now" indicator the shell has.
+ */
+function RunningBlockBadge() {
+  const ds = useData((d) => d);
+  const meId = useData((_, s) => s.meId);
+  const block = activeBlockFor(ds, meId);
+  if (!block) return null;
+  const running = !block.paused_at;
+  return (
+    <span className="hdr-live" title={running ? 'A block is running' : 'A block is paused'}>
+      <span className={`live-dot${running ? '' : ' calm warn'}`} aria-hidden />
+      <span className="mono">{running ? 'in a block' : 'paused'}</span>
+    </span>
   );
 }
 
