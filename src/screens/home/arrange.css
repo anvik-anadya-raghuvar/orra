@@ -212,8 +212,11 @@
 /* Inside the side page only the page scrolls: the widget lets go of its own
    scrolling so there is never a scrollbar inside a scrollbar, and its sticky
    header/add-form stick to the page instead. */
-.tilesheet-tile .pbig {
+.tilesheet-tile .pbig,
+.tilesheet-tile .bt-scroll {
   overflow: visible;
+  mask-image: none;
+  -webkit-mask-image: none;
 }
 .tilesheet-ft {
   flex: none;

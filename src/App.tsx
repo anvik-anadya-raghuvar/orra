@@ -19,6 +19,7 @@ import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
 import BlockOverlay from './ui/BlockOverlay';
 import PointerLight from './ui/PointerLight';
+import ClipWatch from './ui/ClipWatch';
 import { useAutoSync } from './lib/useAutoSync';
 import { activeBlockFor } from './lib/blocks';
 import { pageRise } from './ui/motion';
@@ -385,6 +386,7 @@ function Gated() {
     <BrowserRouter>
       <NotificationProvider>
         <PointerLight />
+        <ClipWatch />
         <div className="shell">
           <Header />
           <SyncErrorBanner />

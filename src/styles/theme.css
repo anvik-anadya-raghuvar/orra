@@ -511,6 +511,51 @@ tbody tr:hover {
   }
 }
 
+/* ── customise switches — shared vocabulary ──────────────────────────────
+   Used by the Customise modals on Home AND Personal. Global on purpose: these
+   modals portal outside any screen wrapper, and scoping this under one screen
+   once made Personal's customise render its switches invisibly — options that
+   exist but cannot be seen are indistinguishable from no options at all. */
+.swrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+  min-height: 48px;
+}
+.swrow .txt {
+  flex: 1;
+  font-size: 13.5px;
+}
+.swrow .txt small {
+  display: block;
+  color: var(--mute);
+  font-size: 11.5px;
+}
+.sw {
+  width: 46px;
+  height: 27px;
+  border-radius: 999px;
+  background: var(--line);
+  padding: 3px;
+  display: flex;
+  flex: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.sw[aria-checked='true'] {
+  background: var(--indigo);
+  justify-content: flex-end;
+}
+.sw .knob {
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--sh1);
+}
+
 /* ── overlay panels ──────────────────────────────────────────────────────
    Two shapes over one mask. `.modal-sheet` is the centered dialog — a yes/no
    or a short form. `.side-sheet` is the right-anchored drawer — anything you

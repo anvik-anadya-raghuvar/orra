@@ -171,64 +171,134 @@
   border-top: 1px solid var(--line);
 }
 
-/* ── tile preview + the way in ───────────────────────────────────────────
-   A widget on the grid is a preview: it clips rather than growing its own
-   scrollbar (a scrollbar inside a tile inside a scrolling page was three
-   nested scrolls — unusable). The rows that fit stay fully live; the Open bar
-   under them leads to the side page where the whole list and its add-form
-   live at full height.
-
-   `.pbig`'s own rule gives it `flex: 1 1 auto` so it fills a tile when it IS
-   the tile's only child (the normal case, and the side page). Inside the
-   clip it must NOT do that — a widget with one row would get stretched to
-   the tile's full height and leave a dead gap under its last row. Size to
-   content here instead; the clip's own height (from the grid) is what
-   actually bounds it. */
-.personal-screen .ptile-clip {
+/* ── glances: what a widget shows while it is a tile ─────────────────────
+   The tile is a glance, the side page is the workshop. A glance is a fixed
+   shape — headline number, at most three rows — so it can never outgrow its
+   box: no scrollbars inside tiles, no forms cut in half, and the wheel always
+   belongs to the page. The whole tile is one button that opens the side page
+   where the full widget works. */
+.personal-screen .pglance-hit {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
   position: relative;
-}
-.personal-screen .ptile-clip .pbig {
-  flex: none;
-  overflow: visible;
-}
-/* A fade only where content is truly cut — added by JS as `.clipping` once
-   the widget's natural height is measured against the box. Painting it
-   unconditionally (the earlier version) drew a seam across empty space when
-   nothing was actually hidden, and faded to an opaque colour that never
-   matched the translucent card around it. A mask instead of a background
-   layer: it thins the real content's own pixels rather than laying a second,
-   independently-coloured rectangle on top that can go out of sync with
-   whatever the card is showing at that spot. */
-.personal-screen .ptile-clip.clipping {
-  mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
-  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
-}
-.personal-screen .ptile-open {
-  flex: none;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 40px;
-  border-top: 1px solid var(--line);
-  color: var(--indigo);
-  font-size: 12.5px;
-  font-weight: 500;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
   background: none;
-  transition: color 0.16s, background 0.16s;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
-.personal-screen .ptile-open:hover,
-.personal-screen .ptile-open:focus-visible {
+.personal-screen .pglance-hit:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.personal-screen .pgl {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.personal-screen .pgl-hd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.personal-screen .pgl-hd h3 {
+  font-size: 14px;
+  margin: 0;
+}
+.personal-screen .pgl-stat {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.personal-screen .pgl-stat b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.personal-screen .pgl-stat small {
+  font-size: 10.5px;
+  color: var(--mute);
+}
+.personal-screen .pgl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.personal-screen .pgl-row:last-of-type {
+  border-bottom: 0;
+}
+.personal-screen .pgl-main {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.personal-screen .pgl-main.off {
+  color: var(--mute);
+  text-decoration: line-through;
+}
+.personal-screen .pgl-meta {
+  font-size: 10.5px;
+  color: var(--mute);
+  white-space: nowrap;
+}
+.personal-screen .pgl-bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  border-radius: 2px;
   background: var(--surf3);
-  color: var(--ink);
+  overflow: hidden;
 }
-/* Inside the side page only the page scrolls; restated here with the room's
-   own scope so import order can never flip the tile rule back on. */
-.personal-screen .tilesheet-tile .pbig {
-  overflow: visible;
+.personal-screen .pgl-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--violet), var(--indigo));
+}
+.personal-screen .pgl-none {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--mute);
+}
+.personal-screen .pgl-clock {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin: 2px 0 4px;
+}
+.personal-screen .pgl-hint {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  transition: color 0.16s;
+}
+.personal-screen .pglance-hit:hover .pgl-hint,
+.personal-screen .pglance-hit:focus-visible .pgl-hint {
+  color: var(--indigo);
 }
 
 /* ── inline click-to-edit ───────────────────────────────────────────────── */
@@ -631,8 +701,7 @@
   .personal-screen .picon,
   .personal-screen .bxbtn,
   .personal-screen .inl,
-  .personal-screen .pdocrow,
-  .personal-screen .ptile-open {
+  .personal-screen .pdocrow {
     min-height: 44px;
   }
   .personal-screen .picon,

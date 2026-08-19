@@ -60,11 +60,19 @@
 .home-screen .bt-num.alert {
   color: var(--rose);
 }
+/* Tiles never scroll themselves — a wheel over a tile used to scroll the
+   tile and trap the page. The list clips (with a fade only when something is
+   actually hidden — the `.clipping` class comes from ClipWatch, which
+   measures), and the tile's expand button opens the side page where the full
+   list scrolls comfortably. */
 .home-screen .bt-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
+}
+.home-screen .bt-scroll.clipping {
+  mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent);
 }
 .home-screen .rowgap {
   display: flex;
@@ -887,45 +895,6 @@
   background: var(--teal);
 }
 
-/* ── customise switches (modal lives inside .home-screen in the DOM) ───── */
-.home-screen .swrow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 0;
-  border-bottom: 1px dashed var(--line);
-  min-height: 48px;
-}
-.home-screen .swrow .txt {
-  flex: 1;
-  font-size: 13.5px;
-}
-.home-screen .swrow .txt small {
-  display: block;
-  color: var(--mute);
-  font-size: 11.5px;
-}
-.home-screen .sw {
-  width: 46px;
-  height: 27px;
-  border-radius: 999px;
-  background: var(--line);
-  padding: 3px;
-  display: flex;
-  flex: none;
-  transition: background 0.2s;
-}
-.home-screen .sw[aria-checked='true'] {
-  background: var(--indigo);
-  justify-content: flex-end;
-}
-.home-screen .sw .knob {
-  width: 21px;
-  height: 21px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: var(--sh1);
-}
 .home-screen .blkgrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

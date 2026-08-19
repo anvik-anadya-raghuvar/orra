@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { ChevronDown, Maximize2 } from 'lucide-react';
 import type { Course, CourseItem, ReadingItem } from '../../types';
@@ -24,6 +24,18 @@ import { arrange } from '../home/layout';
 import { BentoTile, ResetArrangement, TileSheetHost, useHomeArrange } from '../home/tilechrome';
 import '../home/style.css';
 import { PersonalGoals, PersonalTasks } from './goals';
+import {
+  BlocksGlance,
+  CoursesGlance,
+  DatesGlance,
+  DocsGlance,
+  GoalsGlance,
+  LedgerGlance,
+  LifeAdminGlance,
+  ReadingGlance,
+  RhythmGlance,
+  TasksGlance,
+} from './glances';
 import MoodBoard from './moodboard';
 import './personal.css';
 
@@ -498,9 +510,14 @@ export const TAB_META: { key: WidgetTab; label: string; blurb: string }[] = [
  * same room can be a degree tracker or a goals-and-agenda board.
  *
  * `cols`/`rows` are hints, not rules: the packer closes any gap and a drag or
- * resize overrides them per person. Everything here defaults to a full-height
- * tile — these are working panels with lists and add-forms, not glance tiles,
- * and a panel squeezed into one bento row scrolls before it shows anything.
+ * resize overrides them per person.
+ *
+ * Two faces per widget, on purpose:
+ *   `glance` — what the TILE shows. A fixed-shape, view-only summary that can
+ *              never outgrow its box, so tiles never scroll and never steal
+ *              the wheel from the page.
+ *   `node`   — the full working widget, which lives on the SIDE PAGE the tile
+ *              opens: every list, add-form and button, at full height.
  */
 const WIDGETS: {
   key: string;
@@ -509,18 +526,19 @@ const WIDGETS: {
   tab: WidgetTab;
   cols: 1 | 2 | 4;
   rows?: 1 | 2;
+  glance: React.ReactNode;
   node: React.ReactNode;
 }[] = [
-  { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', tab: 'today', cols: 2, rows: 2, node: <PersonalTasks /> },
-  { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', tab: 'today', cols: 2, rows: 2, node: <PersonalGoals /> },
-  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', tab: 'today', cols: 2, rows: 2, node: <StudyTimer /> },
-  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', tab: 'today', cols: 2, rows: 2, node: <LifeAdmin /> },
-  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', tab: 'study', cols: 2, rows: 2, node: <Courses /> },
-  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', tab: 'study', cols: 2, rows: 2, node: <ReadingQueue /> },
-  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', tab: 'study', cols: 2, rows: 2, node: <StudyRhythm /> },
-  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', tab: 'study', cols: 2, rows: 2, node: <TimeLedger /> },
-  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', tab: 'moving', cols: 2, rows: 2, node: <FixedDates /> },
-  { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', tab: 'moving', cols: 2, rows: 2, node: <RelocationDocs /> },
+  { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', tab: 'today', cols: 2, glance: <TasksGlance />, node: <PersonalTasks /> },
+  { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', tab: 'today', cols: 2, glance: <GoalsGlance />, node: <PersonalGoals /> },
+  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', tab: 'today', cols: 2, glance: <BlocksGlance />, node: <StudyTimer /> },
+  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', tab: 'today', cols: 2, glance: <LifeAdminGlance />, node: <LifeAdmin /> },
+  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', tab: 'study', cols: 2, glance: <CoursesGlance />, node: <Courses /> },
+  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', tab: 'study', cols: 2, glance: <ReadingGlance />, node: <ReadingQueue /> },
+  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', tab: 'study', cols: 2, glance: <RhythmGlance />, node: <StudyRhythm /> },
+  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', tab: 'study', cols: 2, glance: <LedgerGlance />, node: <TimeLedger /> },
+  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', tab: 'moving', cols: 2, glance: <DatesGlance />, node: <FixedDates /> },
+  { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', tab: 'moving', cols: 2, glance: <DocsGlance />, node: <RelocationDocs /> },
 ];
 
 /** Everything on, until someone turns something off. */
@@ -548,9 +566,9 @@ function CustomisePersonal({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <Modal open={open} onClose={onClose} title="Customise Personal">
       <p className="tip" style={{ margin: '-6px 0 8px' }}>
-        Yours only. This room has to fit two different lives — keep what matches yours and hide the
-        rest. {store.other.name}&apos;s Personal is untouched by anything here. A tab whose widgets
-        are all off stops appearing.
+        Pick what this room tracks for you. Every switch below is a widget — on means it shows on
+        your dashboard, off means it is gone. {store.other.name}&apos;s Personal is untouched by
+        anything here, and a tab whose widgets are all off stops appearing.
       </p>
       {TAB_META.map((t) => (
         <React.Fragment key={t.key}>
@@ -596,40 +614,6 @@ function CustomisePersonal({ open, onClose }: { open: boolean; onClose: () => vo
 }
 
 /**
- * The tile preview. Clips to the box the grid gave it — no scrollbar of its
- * own — and only ever fades the bottom edge when the widget's real content is
- * actually taller than that box. A widget with one row sits at its natural
- * height with plain breathing room below, exactly like an under-full tile
- * anywhere else in the app; a fade with nothing behind it would be a lie.
- * Re-measures on any size change: the box (tile resized) and the content
- * (a task ticked off, an item added) can each change independently.
- */
-function ClipPreview({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [clipping, setClipping] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const check = () => setClipping(el.scrollHeight > el.clientHeight + 1);
-    check();
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-    // Runs once: ResizeObserver already re-fires on its own whenever the
-    // observed element's box changes size, which covers both the tile being
-    // resized and its content growing or shrinking.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <div ref={ref} className={`ptile-clip${clipping ? ' clipping' : ''}`}>
-      {children}
-    </div>
-  );
-}
-
-/**
  * The dashboard grid — the same bento Home uses, against Personal's own stored
  * arrangement. Drag by the grip, resize from the corner or the expand sheet,
  * and it is per person like everything else in this room.
@@ -671,18 +655,20 @@ function PersonalBento({ shown }: { shown: typeof WIDGETS }) {
               } as React.CSSProperties
             }
           >
-            {/* The tile is a preview, not a well: it clips instead of growing a
-                scrollbar, and the Open bar below it is the honest way in. The
-                visible rows stay live — tick a task here without opening
-                anything — but managing the list happens on the side page. */}
-            <ClipPreview>{t.node}</ClipPreview>
+            {/* The whole tile is the door. What it shows is a glance — fixed
+                shape, view only, nothing to scroll — and one tap anywhere on
+                it opens the side page where the full widget actually works. */}
             <button
               type="button"
-              className="ptile-open"
+              className="pglance-hit"
               onClick={() => api.setOpenKey(t.key)}
+              aria-label={`Open ${t.label}`}
             >
-              <Maximize2 size={13} strokeWidth={2} aria-hidden />
-              Open {t.label}
+              {t.glance}
+              <span className="pgl-hint" aria-hidden>
+                <Maximize2 size={11} strokeWidth={2} />
+                open
+              </span>
             </button>
           </BentoTile>
         ))}
