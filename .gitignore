@@ -12,3 +12,8 @@ dist-audit/
 # env file and re-admit the checked-in template.
 .env*
 !.env.example
+
+# `supabase link` writes local CLI state here: the project ref, the pooler
+# connection URL, and pinned tool versions. Machine state for whoever ran the
+# link, not source — same reason .vercel/ is ignored above.
+supabase/.temp/
