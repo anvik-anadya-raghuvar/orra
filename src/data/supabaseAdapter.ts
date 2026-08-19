@@ -85,9 +85,16 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
         console.error(`[supabaseAdapter] failed to load ${TABLE[k]}:`, r.error?.message);
       }
       const results = raw.map(([k, r]) => [k, r.data ?? []] as const);
-      const weights = await sb.from('ranking_weights').select('*').limit(1).single();
+      /* Not `.single()`. That asks PostgREST for exactly one row via content
+         negotiation, and zero rows is answered with a 406 — which is what the
+         signed-out gate hit on every load, because RLS correctly returns
+         nothing to anon. The fallback below always handled it, so the app was
+         never broken; it just logged a failed request that looked like a fault
+         and would have hidden a real one. Taking the first row of a plain list
+         is the same query with no negotiation and no error status. */
+      const weights = await sb.from('ranking_weights').select('*').limit(1);
       const ds = Object.fromEntries(results) as unknown as Dataset;
-      ds.ranking_weights = (weights.data as Dataset['ranking_weights']) ?? {
+      ds.ranking_weights = (weights.data?.[0] as Dataset['ranking_weights']) ?? {
         id: 1,
         objective_fit: 40,
         unblocks: 30,
