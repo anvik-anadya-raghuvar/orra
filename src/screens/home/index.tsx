@@ -23,6 +23,7 @@ import {
   intentionsFor,
   itemDone,
   itemLabel,
+  minToLabel,
   nextPosition,
   planFor,
 } from '../../lib/dayPlan';
@@ -39,6 +40,7 @@ import {
   WorthTile,
 } from './personal';
 import { MomentsTile, SongTile } from './moments';
+import { MonthCalendar, type MonthItem } from '../../ui/monthcal';
 import { WeatherTile, WorldClockTile } from './utility';
 import { arrange } from './layout';
 import { BentoTile, TILE_TITLE, TileSheetHost, useHomeArrange } from './tilechrome';
@@ -72,6 +74,7 @@ const TODAY_TILES = new Set([
   'wins',
   'stuck',
   'ribbon',
+  'calendar',
   'ritual',
   'shutdown',
   'close-log',
@@ -209,6 +212,9 @@ export default function Home() {
       cols: 4,
       node: <RibbonTile events={events} onAdd={() => setAddingBlock(true)} />,
     },
+    ...(p.calendar_on_home !== false
+      ? [{ key: 'calendar', cols: 2 as const, tall: true, node: <CalendarTile /> }]
+      : []),
     {
       key: 'ritual',
       cols: 2,
@@ -944,6 +950,63 @@ function RibbonTile({
           No events yet today. Add a block to plan your day.
         </p>
       )}
+      </div>
+    </>
+  );
+}
+
+/* ── the month ─────────────────────────────────────────────────────────────
+   The ribbon above answers "what is today". This answers "what is the month",
+   which is the question the ribbon cannot be stretched to cover without
+   becoming a calendar — so it is one, in the smallest form that still reads.
+
+   Nothing here is a second copy of anything: due dates come off the tasks
+   table, blocks and synced Google events off day_events, fixed dates off
+   fixed_dates, and every row links back to where it actually lives. */
+function CalendarTile() {
+  const ds = useData((d) => d);
+  const meId = useData((_, s) => s.meId);
+
+  const items = useMemo(() => {
+    const out: MonthItem[] = [];
+    for (const t of myTasks(ds.tasks, meId)) {
+      if (!t.due_date || t.status === 'done') continue;
+      out.push({ id: `t-${t.id}`, date: t.due_date, label: t.title, tone: 'task', to: `/task/${t.id}` });
+    }
+    for (const e of ds.day_events) {
+      // Shared events belong on both calendars; the other person's do not.
+      if (e.user_id !== null && e.user_id !== meId) continue;
+      out.push({
+        id: `e-${e.id}`,
+        date: e.date,
+        label: e.label,
+        meta: minToLabel(e.start_min),
+        tone: 'event',
+        to: e.task_id ? `/task/${e.task_id}` : undefined,
+      });
+    }
+    for (const f of ds.fixed_dates) {
+      if (f.owner_id && f.owner_id !== meId) continue;
+      out.push({ id: `f-${f.id}`, date: f.date, label: f.label, tone: 'date' });
+    }
+    return out;
+  }, [ds.tasks, ds.day_events, ds.fixed_dates, meId]);
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Calendar</span>
+        <span className="spacer" />
+        <TileOpen to="/work" label="Work calendar" />
+      </div>
+      <div className="bt-mid">
+        <MonthCalendar
+          items={items}
+          upcoming={3}
+          openTo="/work"
+          openLabel="Open the full calendar"
+          emptyText="Nothing dated yet. Due dates, blocks and fixed dates all land here."
+        />
       </div>
     </>
   );

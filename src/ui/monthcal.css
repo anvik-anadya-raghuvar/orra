@@ -1,0 +1,213 @@
+/* ── the month glance ──────────────────────────────────────────────────────
+   Sized to sit inside a bento tile, so it never scrolls and never grows past
+   its box: the grid is a fixed seven columns and the list under it is capped by
+   the caller. Everything here uses tokens, so it follows the theme without a
+   dark-mode block of its own.
+
+   Touch targets: the steppers, the rows and the open link are all 44px on
+   mobile. Day cells deliberately are not — they are marks, not controls, and
+   nothing can be done only by tapping one. Same exception the charts take, for
+   the same reason: a seven-column month cannot be 44px wide per column on a
+   phone and still be a month. */
+.mcal {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ── month bar ─────────────────────────────────────────────────────────── */
+.mcal-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+/* Read-only: no steppers to sit beside, so the label starts at the edge. The
+   right padding keeps the count clear of the tile's own open/drag chrome, which
+   is 44px tall and reaches down into this row. */
+.mcal-bar.flat {
+  min-height: 26px;
+  padding-right: 34px;
+}
+.mcal-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mcal-count {
+  color: var(--mute);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.mcal-step {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  color: var(--slate);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: none;
+  transition:
+    background 0.16s var(--ease),
+    color 0.16s var(--ease),
+    border-color 0.16s var(--ease);
+}
+.mcal-step:hover,
+.mcal-step:focus-visible {
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--surf3);
+}
+.mcal-today {
+  height: 44px;
+  padding: 0 10px;
+  color: var(--indigo);
+  font-size: 11.5px;
+  border: 0;
+  background: none;
+}
+
+/* ── the month ─────────────────────────────────────────────────────────── */
+.mcal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+.mcal-dow {
+  padding-bottom: 2px;
+  color: var(--mute);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  text-align: center;
+  letter-spacing: 0.06em;
+}
+.mcal-day {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  aspect-ratio: 1 / 1;
+  min-height: 26px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--line) 34%, transparent);
+}
+.mcal-day.empty {
+  background: none;
+}
+.mcal-day.is-past .mcal-n {
+  opacity: 0.42;
+}
+.mcal-day.is-today {
+  border-color: var(--indigo);
+  background: color-mix(in srgb, var(--indigo) 16%, transparent);
+}
+.mcal-n {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.mcal-day.is-today .mcal-n {
+  color: var(--indigo);
+  font-weight: 600;
+}
+.mcal-dots {
+  display: flex;
+  gap: 2px;
+  min-height: 4px;
+}
+
+/* Three meanings, three marks. Magenta is what needs you, mint is what is
+   measured, violet is a date that is simply fixed — the same spend of accent
+   the rest of the portal makes. */
+.mcal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--slate);
+}
+.mcal-dot.task {
+  background: var(--indigo);
+}
+.mcal-dot.event {
+  background: var(--teal);
+}
+.mcal-dot.date {
+  background: var(--violet);
+}
+
+/* ── what is next ──────────────────────────────────────────────────────── */
+.mcal-next {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+.mcal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  min-width: 0;
+  padding: 4px 6px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: background 0.16s var(--ease);
+}
+a.mcal-row:hover,
+a.mcal-row:focus-visible {
+  background: var(--surf3);
+}
+.mcal-row .mcal-dot {
+  flex: 0 0 auto;
+}
+.mcal-nlabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mcal-nmeta {
+  flex: 0 0 auto;
+  color: var(--mute);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.mcal-empty {
+  margin: 2px 0;
+  font-size: 12px;
+}
+.mcal-open {
+  justify-self: start;
+  padding: 4px 2px;
+  color: var(--indigo);
+  font-size: 11.5px;
+  text-decoration: none;
+}
+.mcal-open:hover {
+  text-decoration: underline;
+}
+
+/* Phones and tablets: every control that does something grows to 44px. The day
+   marks stay marks. */
+@media (max-width: 1024px) {
+  .mcal-row {
+    min-height: 44px;
+  }
+  .mcal-open {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}

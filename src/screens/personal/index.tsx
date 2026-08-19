@@ -37,6 +37,7 @@ import {
   RhythmGlance,
   TasksGlance,
 } from './glances';
+import { CalendarGlance, PersonalCalendar } from './calendar';
 import MoodBoard from './moodboard';
 import { daysUntil, todayIso } from '../../lib/dates';
 import { isTerminalOrder } from '../../lib/personalOrders';
@@ -552,6 +553,7 @@ const WIDGETS: {
   node: React.ReactNode;
 }[] = [
   { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', tab: 'today', cols: 2, glance: <TasksGlance />, node: <PersonalTasks /> },
+  { key: 'calendar', label: 'Calendar', hint: 'Your month — personal due dates, fixed dates, blocks and trips on one grid', tab: 'today', cols: 2, rows: 2, glance: <CalendarGlance />, node: <PersonalCalendar /> },
   { key: 'blocks', label: 'Focus blocks', hint: 'Start a study or personal block', tab: 'today', cols: 2, glance: <BlocksGlance />, node: <StudyTimer /> },
   { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', tab: 'learning', cols: 2, glance: <CoursesGlance />, node: <Courses /> },
   { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', tab: 'learning', cols: 2, glance: <ReadingGlance />, node: <ReadingQueue /> },

@@ -68,6 +68,7 @@ export interface Personalization {
    * migration rewriting every personalization JSON document. */
   weather_on_home?: boolean;
   world_clocks_on_home?: boolean;
+  calendar_on_home?: boolean;
   weather_place?: {
     label: string;
     latitude: number;

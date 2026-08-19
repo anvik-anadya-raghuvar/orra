@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Music, Image as ImageIcon, Sparkles, Radar, Wallet, LayoutGrid, CloudSun, Clock3 } from 'lucide-react';
+import { Music, Image as ImageIcon, Sparkles, Radar, Wallet, LayoutGrid, CloudSun, Clock3, CalendarDays } from 'lucide-react';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { CountUp, InfoTip, Modal, useToast } from '../../ui/bits';
 import { spring } from '../../ui/motion';
@@ -37,7 +37,8 @@ export type WidgetKey =
   | 'projects_strip'
   | 'money_on_home'
   | 'weather_on_home'
-  | 'world_clocks_on_home';
+  | 'world_clocks_on_home'
+  | 'calendar_on_home';
 
 export const PERSONAL_KEYS: {
   key: WidgetKey;
@@ -51,9 +52,15 @@ export const PERSONAL_KEYS: {
   { key: 'life_radar', label: 'Personal radar', hint: 'Personal admin still open, and the dates that are fixed', Icon: Radar },
   { key: 'projects_strip', label: 'Projects', hint: 'Open counts per project, as small multiples', Icon: LayoutGrid },
   { key: 'money_on_home', label: 'Money on Home', hint: 'In and out as one mark, no table', Icon: Wallet },
+  { key: 'calendar_on_home', label: 'Calendar', hint: 'The month, with due dates, blocks and fixed dates on it', Icon: CalendarDays },
   { key: 'weather_on_home', label: 'Weather', hint: 'Weather for a place you choose manually', Icon: CloudSun },
   { key: 'world_clocks_on_home', label: 'World clocks', hint: 'Two time zones you choose', Icon: Clock3 },
 ];
+
+/** Home utilities arrive switched on and are turned off, rather than the other
+ *  way round: they cost nothing to look at, and a profile written before they
+ *  existed has no key for them at all. Absent therefore has to mean "on". */
+const OPT_OUT = new Set<WidgetKey>(['weather_on_home', 'world_clocks_on_home', 'calendar_on_home']);
 
 /** Compact money label so a number can live inside a donut without wrapping. */
 const shortInr = (n: number) => {
@@ -87,7 +94,7 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
         never a permission. Hiding a tile re-flows the grid; it never leaves a hole.
       </p>
       {PERSONAL_KEYS.map(({ key, label, hint, Icon }) => {
-        const on = key === 'weather_on_home' || key === 'world_clocks_on_home'
+        const on = OPT_OUT.has(key)
           ? me.personalization[key] !== false
           : Boolean(me.personalization[key]);
         return (
