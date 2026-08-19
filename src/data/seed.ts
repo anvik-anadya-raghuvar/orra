@@ -427,6 +427,8 @@ function rawSeed(): Dataset {
     ],
     // Empty on purpose: the intentions list is whatever you put in it today.
     day_plan_items: [],
+    // A block is only ever a live session, never seeded.
+    active_blocks: [],
     day_events: [
       { id: 'ev-1', user_id: AN, date: D('2026-08-18'), start_min: 9 * 60 + 30, end_min: 12 * 60, label: 'Build · Registry', kind: 'focus', task_id: 'T-42' },
       { id: 'ev-2', user_id: AN, date: D('2026-08-18'), start_min: 12 * 60 + 15, end_min: 13 * 60, label: 'Admin batch', kind: 'admin', task_id: null },

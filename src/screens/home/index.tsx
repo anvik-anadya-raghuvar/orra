@@ -16,6 +16,7 @@ import {
 } from '../../lib/ranking';
 import { isMyTask, myTasks } from '../../lib/workspace';
 import { blockedByOpenDep } from '../../lib/schedule';
+import { FOUNDER_TARGET_MINUTES, startBlock } from '../../lib/blocks';
 import {
   CAPACITY_COPY,
   eventsFor,
@@ -54,7 +55,6 @@ const GREETING: Record<DayMode, string> = {
 };
 const CAPACITIES: Capacity[] = ['light', 'medium', 'heavy'];
 const STALE_DECISION_DAYS = 7;
-const FOCUS_MINUTES = 50;
 
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m}m`);
 const fullDate = (d = new Date()) =>
@@ -89,7 +89,6 @@ export default function Home() {
 
   const [customising, setCustomising] = useState(false);
   const [addingBlock, setAddingBlock] = useState(false);
-  const [focusId, setFocusId] = useState<string | null>(null);
 
   /* ── the declared shape of the day ── */
   const plan = planFor(ds, me.id, today);
@@ -142,8 +141,15 @@ export default function Home() {
   const drifting = ds.people.filter((p) => warmth(p, today).drifting);
 
   const p = me.personalization;
-  const focusTask = focusId ? ds.tasks.find((t) => t.id === focusId) ?? null : null;
   const plannedMin = picked.reduce((a, r) => a + r.task.estimate_minutes, 0);
+
+  /** Entering a block from a particular task highlights it inside the block,
+   *  rather than being the only thing the block contains. */
+  const beginFounderBlock = (taskId: string) => {
+    if (!startBlock(store, 'founder', { focusTaskId: taskId })) {
+      toast('A block is already running.');
+    }
+  };
   const nextFixed = [...ds.fixed_dates]
     .filter((f) => daysUntil(f.date, today) >= 0)
     .sort((a, b) => a.date.localeCompare(b.date))[0];
@@ -173,7 +179,7 @@ export default function Home() {
       key: 'hero',
       cols: 2,
       tall: true,
-      node: <HeroTile top={top} onFocus={(id) => setFocusId(id)} />,
+      node: <HeroTile top={top} onFocus={beginFounderBlock} />,
     },
     {
       key: 'capacity',
@@ -207,7 +213,7 @@ export default function Home() {
     key: 'ritual',
     cols: 2,
     tall: mode === 'evening',
-    node: <RitualTile mode={mode} top={top} onFocus={(id) => setFocusId(id)} />,
+    node: <RitualTile mode={mode} top={top} onFocus={beginFounderBlock} />,
   });
 
   if (p.worth_knowing) tiles.push({ key: 'worth', cols: 2, node: <WorthTile /> });
@@ -330,18 +336,8 @@ export default function Home() {
 
       <CustomiseModal open={customising} onClose={() => setCustomising(false)} />
       <AddBlockModal open={addingBlock} onClose={() => setAddingBlock(false)} store={store} today={today} />
-      <AnimatePresence>
-        {focusTask && (
-          <FocusOverlay
-            task={focusTask}
-            intention={intentionsFor(ds, me.id, today)
-              .filter((i) => !i.task_id)
-              .map((i) => i.text)
-              .join(' · ')}
-            onExit={() => setFocusId(null)}
-          />
-        )}
-      </AnimatePresence>
+      {/* The block overlay itself is mounted app-wide in App.tsx — a block is a
+          state the whole portal is in, not a thing that lives on Home. */}
     </div>
   );
 }
@@ -561,9 +557,20 @@ function PlanTile({
       {rows.length > 0 && (
         <div className="rowgap">
           {isSaved ? (
-            <button className="btn sm" type="button" onClick={replan}>
-              Re-plan
-            </button>
+            <>
+              <button
+                className="btn solid"
+                type="button"
+                onClick={() =>
+                  startBlock(store, 'today_plan') || toast('A block is already running.')
+                }
+              >
+                Run as a block
+              </button>
+              <button className="btn sm" type="button" onClick={replan}>
+                Re-plan
+              </button>
+            </>
           ) : (
             <button className="btn solid" type="button" onClick={savePlan}>
               Make this my day
@@ -773,6 +780,17 @@ function IntentionsTile({ date }: { date: string }) {
         onBlur={add}
         onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
       />
+      {items.length > 0 && (
+        <div className="rowgap">
+          <button
+            className="btn sm"
+            type="button"
+            onClick={() => startBlock(store, 'intentions') || toast('A block is already running.')}
+          >
+            Run as a block
+          </button>
+        </div>
+      )}
     </>
   );
 }
@@ -1229,7 +1247,7 @@ function MiddayBlock({ top, onFocus }: { top?: RankedTask; onFocus: (id: string)
       <div className="rowgap">
         {top && (
           <button className="btn solid" onClick={() => onFocus(top.task.id)}>
-            {FOCUS_MINUTES}-minute block
+            {FOUNDER_TARGET_MINUTES}-minute block
           </button>
         )}
         <Link className="btn sm" to="/work">
@@ -1495,129 +1513,5 @@ function AddBlockModal({
         </button>
       </div>
     </Modal>
-  );
-}
-
-/* ── Founder block: only this task exists ──────────────────────────────── */
-function FocusOverlay({
-  task,
-  intention,
-  onExit,
-}: {
-  task: Task;
-  intention: string;
-  onExit: () => void;
-}) {
-  const store = useStore();
-  const toast = useToast();
-  const reduced = useReducedMotion();
-  const FULL = FOCUS_MINUTES * 60;
-  const [left, setLeft] = useState(FULL);
-  const [running, setRunning] = useState(true);
-  const logged = useRef(false);
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === 'Escape' && onExit();
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onExit]);
-
-  useEffect(() => {
-    if (!running) return;
-    const t = window.setInterval(() => setLeft((l) => Math.max(0, l - 1)), 1000);
-    return () => window.clearInterval(t);
-  }, [running]);
-
-  useEffect(() => {
-    if (left > 0 || logged.current) return;
-    logged.current = true;
-    setRunning(false);
-    store.insert(
-      'time_logs',
-      {
-        id: newId('tl'),
-        user_id: store.me.id,
-        date: todayIso(),
-        kind: 'founder',
-        minutes: FOCUS_MINUTES,
-        course_id: null,
-      },
-      store.asMe({ summary: `Focus block — ${FOCUS_MINUTES} min logged` }),
-    );
-    toast(`${FOCUS_MINUTES} minutes logged. Stand up, drink water.`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [left]);
-
-  const mm = String(Math.floor(left / 60)).padStart(2, '0');
-  const ss = String(left % 60).padStart(2, '0');
-
-  const progress = () => {
-    store.update(
-      'tasks',
-      task.id,
-      { progress_pct: Math.min(100, task.progress_pct + 15) },
-      store.asMe({ summary: 'Meaningful progress in a focus block' }),
-    );
-    toast('Progress logged. Trail updated.');
-    onExit();
-  };
-  const surface = () => {
-    store.update(
-      'tasks',
-      task.id,
-      { is_stuck: true },
-      store.asMe({ summary: 'Surfaced as stuck from focus mode' }),
-    );
-    toast('Surfaced as stuck — not failed.');
-    onExit();
-  };
-
-  return (
-    <motion.div
-      className="focusmask"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Founder block"
-      initial={reduced ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: micro }}
-      transition={entrance}
-    >
-      <div className="focusshell">
-        <div className="bt-hd">
-          <span className="eyebrow">Founder block</span>
-          <span className="spacer" />
-          <button className="btn" onClick={onExit}>
-            Exit
-          </button>
-        </div>
-        {intention && (
-          <>
-            <span className="eyebrow">Today's intentions</span>
-            <p className="focusintent">{intention}</p>
-          </>
-        )}
-        <span className="eyebrow">Focusing on</span>
-        <h2>{task.title}</h2>
-        <div className="mono focusmeta">
-          {task.id} · {task.effort} · {hm(task.estimate_minutes)} estimate
-        </div>
-        <div className="focusclock" aria-live="polite">
-          {mm}:{ss}
-        </div>
-        <p className="focusnote">Mail, navigation, counts and other ventures are deliberately gone.</p>
-        <div className="rowgap">
-          <button className="btn solid" onClick={progress}>
-            Meaningful progress
-          </button>
-          <button className="btn" onClick={surface}>
-            I'm stuck
-          </button>
-          <button className="btn" onClick={() => setRunning((r) => !r)}>
-            {running ? 'Pause' : 'Resume'}
-          </button>
-        </div>
-      </div>
-    </motion.div>
   );
 }

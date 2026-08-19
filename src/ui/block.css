@@ -1,0 +1,150 @@
+/* Category block overlay — app-wide, so it cannot live under .home-screen
+   the way the old focus mask did. Everything is prefixed `blk-`. */
+
+.blk-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 20px 16px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  padding-top: max(20px, env(safe-area-inset-top));
+  overflow: auto;
+}
+.blk-shell {
+  width: 100%;
+  max-width: 620px;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  box-shadow: var(--sh2);
+  padding: 22px;
+  display: grid;
+  gap: 8px;
+}
+.blk-hd {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.blk-hd .spacer {
+  flex: 1;
+}
+.blk-blurb {
+  margin: 0;
+  font-size: 13px;
+  color: var(--slate);
+}
+
+.blk-clock {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 54px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  margin-top: 2px;
+}
+.blk-clock.paused {
+  color: var(--mute);
+}
+.blk-target {
+  height: 4px;
+  border-radius: 3px;
+  background: var(--surf3);
+  overflow: hidden;
+}
+.blk-target > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--violet), var(--indigo));
+}
+.blk-meta {
+  font-size: 11px;
+  color: var(--mute);
+}
+
+/* The focused line, when a block was entered from one particular task. */
+.blk-focus {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--violet);
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.blk-focus h2 {
+  font-size: 19px;
+  line-height: 1.25;
+  margin: 2px 0 0;
+}
+
+.blk-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 42vh;
+  overflow-y: auto;
+  margin: 2px 0;
+}
+.blk-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  color: var(--slate);
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--line);
+  min-height: 44px;
+}
+.blk-row:last-child {
+  border-bottom: 0;
+}
+.blk-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  flex: none;
+  transition: background 0.2s, border-color 0.2s;
+}
+.blk-row.done {
+  color: var(--mute);
+  text-decoration: line-through;
+}
+.blk-row.done .blk-dot {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+.blk-row.is-focus {
+  color: var(--ink);
+  font-weight: 500;
+}
+.blk-empty {
+  font-size: 12.5px;
+  color: var(--mute);
+  margin: 4px 0;
+}
+.blk-note {
+  margin: 2px 0 6px;
+  font-size: 12.5px;
+  color: var(--mute);
+}
+.blk-acts {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.blk-acts .btn {
+  min-height: 44px;
+}
+
+@media (min-width: 1025px) {
+  .blk-row {
+    min-height: 32px;
+  }
+  .blk-acts .btn {
+    min-height: 38px;
+  }
+}

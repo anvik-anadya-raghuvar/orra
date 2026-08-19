@@ -398,9 +398,33 @@ export interface TimeLog {
   id: string;
   user_id: UserId;
   date: string;
-  kind: 'study' | 'founder';
+  /** 'personal' stays out of the study-vs-founder split bar on purpose — an
+   *  errand is not founder time and must not inflate that side. */
+  kind: 'study' | 'founder' | 'personal';
   minutes: number;
   course_id: string | null;
+}
+
+/** Which slice of work a block wraps around. The list is derived from this at
+ *  render time, never snapshotted. */
+export type BlockScope = 'founder' | 'study' | 'personal' | 'today_plan' | 'intentions';
+
+/**
+ * A running (or paused) block. One row per person: the whole timer state,
+ * held in the database so a reload or a different device resumes it rather
+ * than silently losing the session.
+ */
+export interface ActiveBlock {
+  id: string;
+  user_id: UserId;
+  scope: BlockScope;
+  focus_task_id: string | null;
+  course_id: string | null;
+  started_at: string;
+  /** Set while paused; null means running. */
+  paused_at: string | null;
+  paused_total_sec: number;
+  target_minutes: number | null;
 }
 export interface LifeAdminItem {
   id: string;
@@ -611,6 +635,7 @@ export interface Dataset {
   day_plans: DayPlan[];
   day_plan_items: DayPlanItem[];
   day_events: DayEvent[];
+  active_blocks: ActiveBlock[];
   pulse_items: PulseItem[];
   task_links: TaskLink[];
   sprints: Sprint[];

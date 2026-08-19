@@ -9,6 +9,8 @@ import { CountUp, useToast } from '../../ui/bits';
 import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { daysUntil, fmtDay } from '../../lib/dates';
 import { BarRows, HeatStrip, Ring, Sparkline, SplitBar as VizSplit, VIZ } from '../../ui/viz';
+import { activeBlockFor, startBlock } from '../../lib/blocks';
+import { ownRows } from '../../lib/workspace';
 
 /* ══════════════════════════════════════════════════════════════════════
    Editing primitives — direct manipulation, never a modal for a small
@@ -361,65 +363,57 @@ export function StudyRhythm() {
    the ledger right below, so a forgotten timer is no longer a trap.
    ══════════════════════════════════════════════════════════════════════ */
 
+/**
+ * Starts a block; the running block itself is the app-wide overlay.
+ *
+ * The old version was a stopwatch holding its seconds in component state, so
+ * leaving this screen or reloading threw the session away without saying so.
+ * Now the clock lives in the database and the whole portal goes quiet while it
+ * runs — see src/ui/BlockOverlay.tsx.
+ */
 export function StudyTimer() {
   const ds = useData((d) => d);
   const store = useStore();
+  const meId = useData((_, s) => s.meId);
   const toast = useToast();
-  const [courseId, setCourseId] = useState(ds.courses[0]?.id ?? '');
-  const [running, setRunning] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const intervalRef = useRef<number | undefined>(undefined);
+  const courses = useMemo(() => ownRows(ds.courses, meId), [ds.courses, meId]);
+  const [courseId, setCourseId] = useState(courses[0]?.id ?? '');
+  const live = activeBlockFor(ds, meId);
 
-  useEffect(() => {
-    if (running) intervalRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => window.clearInterval(intervalRef.current);
-  }, [running]);
-
-  const toggle = () => {
-    if (running) {
-      const minutes = Math.max(1, Math.round(seconds / 60));
-      store.insert(
-        'time_logs',
-        { id: newId('tl'), user_id: store.meId, date: today(), kind: 'study', minutes, course_id: courseId || null },
-        store.asMe({ summary: `Study session logged — ${minutes}m` }),
-      );
-      toast('Logged — edit it in the ledger below');
-      setRunning(false);
-      setSeconds(0);
-    } else {
-      setSeconds(0);
-      setRunning(true);
-    }
+  const begin = (scope: 'study' | 'personal') => {
+    const opts = scope === 'study' ? { courseId: courseId || null } : {};
+    if (!startBlock(store, scope, opts)) toast('A block is already running.');
   };
-
-  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-  const ss = String(seconds % 60).padStart(2, '0');
 
   return (
     <div className="pbig">
       <div className="phead">
-        <h3>Study block</h3>
-        {running && <span className="pill soon">running</span>}
+        <h3>Blocks</h3>
+        {live && <span className="pill soon">running</span>}
       </div>
+      <p className="tip" style={{ marginTop: 0 }}>
+        A block hides the rest of the portal and shows only that category&apos;s work. The clock
+        keeps running if you reload or switch device.
+      </p>
       <div className="ptimer">
-        <span className="pclock mono">
-          {mm}:{ss}
-        </span>
         <select
           className="pin"
           value={courseId}
-          disabled={running}
-          aria-label="Course for this block"
+          aria-label="Course for a study block"
           onChange={(e) => setCourseId(e.target.value)}
         >
-          {ds.courses.map((c) => (
+          <option value="">All courses</option>
+          {courses.map((c) => (
             <option key={c.id} value={c.id}>
               {c.title}
             </option>
           ))}
         </select>
-        <button className={`btn${running ? '' : ' solid'}`} type="button" onClick={toggle}>
-          {running ? 'Stop and log' : 'Start a block'}
+        <button className="btn solid" type="button" onClick={() => begin('study')} disabled={!!live}>
+          Start a study block
+        </button>
+        <button className="btn" type="button" onClick={() => begin('personal')} disabled={!!live}>
+          Start a personal block
         </button>
       </div>
       <p className="tip">Forgot to stop it? Fix the minutes in the ledger — nothing here is write-once.</p>
@@ -431,7 +425,9 @@ export function StudyTimer() {
    Time ledger — manual entry, plus edit and delete for anything logged.
    ══════════════════════════════════════════════════════════════════════ */
 
-const KINDS: TimeLog['kind'][] = ['study', 'founder'];
+/** 'personal' is loggable by hand too, and stays out of the study-vs-founder
+ *  split bar — an errand is neither side of that referee. */
+const KINDS: TimeLog['kind'][] = ['study', 'founder', 'personal'];
 
 export function TimeLedger() {
   const ds = useData((d) => d);
@@ -537,7 +533,14 @@ export function TimeLedger() {
       <motion.div {...staggerParent()} className="pledger">
         {rows.map((t) => (
           <motion.div className="plog" key={t.id} variants={staggerItem}>
-            <i className="pdot" style={{ background: t.kind === 'study' ? VIZ.cat[0] : VIZ.cat[1] }} aria-hidden />
+            <i
+              className="pdot"
+              style={{
+                background:
+                  t.kind === 'study' ? VIZ.cat[0] : t.kind === 'founder' ? VIZ.cat[1] : VIZ.cat[2],
+              }}
+              aria-hidden
+            />
             <input
               className="pin sm"
               type="date"

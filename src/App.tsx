@@ -17,6 +17,7 @@ import { ErrorBoundary } from './ui/ErrorBoundary';
 import { Gate } from './ui/gate';
 import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
+import BlockOverlay from './ui/BlockOverlay';
 import { pageRise } from './ui/motion';
 import { clockIn, TZ_IN, TZ_IT } from './lib/dates';
 
@@ -352,6 +353,10 @@ function Gated() {
           <ErrorBoundary>
             <AnimatedRoutes />
           </ErrorBoundary>
+          {/* A running block covers the whole portal, so it is mounted here
+              rather than inside a screen — navigating cannot escape it, and a
+              reload restores it because the block lives in the database. */}
+          <BlockOverlay />
         </div>
       </NotificationProvider>
     </BrowserRouter>
