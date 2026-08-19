@@ -208,17 +208,23 @@
    flag is stamped on <html> by PointerLight, because the light itself is a
    fixed sibling of the app and cannot inherit from the room inside it. */
 :root[data-dense='1'] {
-  --sheen: 0.035;
-  --card-sheen: rgba(255, 255, 255, 0.045);
+  --sheen: 0.04;
+  --card-sheen: rgba(255, 255, 255, 0.02);
+  /* Tables read better on their own surface than through one. Via tokens,
+     not literals — this flag is set per route regardless of theme, so a hard
+     colour here would drag light-theme Tracker and Admin into the dark. */
+  --surf: var(--surf-dense);
+  --surf2: var(--surf2-dense);
 }
 
-/* ── the light lands ON the cards, not just between them ───────────────────
-   The first attempt put the sheen behind the app, which is invisible: every
-   card is opaque, so the only place it ever showed was the gutters. Each card
-   now carries its own highlight layer, and because that layer is anchored to
-   the viewport (`background-attachment: fixed`) rather than to the card, one
-   global pointer position lights all of them correctly — no per-card
-   measurement, no per-card listener, and it stays exact while the page
+/* ── a top-up, not the whole effect ────────────────────────────────────────
+   The surfaces themselves are translucent (see --surf in theme.css), so the
+   ground's blooms and the pointer light already read through every card —
+   which is the point of the direction and what an opaque panel was throwing
+   away. This layer only tops that up: a faint highlight anchored to the
+   viewport (`background-attachment: fixed`) rather than to the card, so one
+   global pointer position lights all of them correctly with no per-card
+   measurement and no per-card listener, and it stays exact while the page
    scrolls under it.
 
    A pseudo-element rather than the card's own background, because several

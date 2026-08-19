@@ -6,12 +6,16 @@
 :root {
   --bg: #eff2f8;
   --bg2: #e6ebf4;
-  --surf: #fff;
-  --surf2: #f7f9fc;
+  --surf: rgba(255, 255, 255, 0.82);
+  --surf2: rgba(247, 249, 252, 0.8);
   --surf3: #eff3f9;
+  --surf-solid: #ffffff;
+  --surf2-solid: #f7f9fc;
+  --surf-dense: rgba(255, 255, 255, 0.96);
+  --surf2-dense: rgba(247, 249, 252, 0.95);
   --ink: #101623;
   --slate: #5a6478;
-  --mute: #6b7385;
+  --mute: #666e7f;
   --line: #dee4ee;
   --indigo: #c2168f;
   --indigo-s: #fdeaf6;
@@ -45,12 +49,27 @@
 html[data-theme='dark'] {
   --bg: #05030c;
   --bg2: #0a0714;
-  --surf: #100c1c;
-  --surf2: #161024;
-  --surf3: #1e1730;
+  /* Translucent on purpose. Deep Field is what makes glass legible — a dark
+     ground gives the light something to push against — so these are alphas
+     rather than solids, and the blooms and the pointer light show through
+     instead of being hidden behind an opaque panel.
+
+     Deliberately no backdrop-filter: what sits behind a card here is a smooth
+     gradient, not content, so blurring it changes almost nothing visually and
+     would cost a compositor layer on every one of Home's twenty-odd tiles. */
+  --surf: rgba(24, 18, 41, 0.66);
+  --surf2: rgba(30, 23, 50, 0.6);
+  --surf3: rgba(40, 31, 64, 0.62);
+  /* The opaque equivalents, for the few places that genuinely need to hide
+     what is behind them: menus, sheets, sticky headers. */
+  --surf-solid: #14101f;
+  --surf2-solid: #1a1430;
+  /* Dense rooms keep most of their own surface — see alive.css. */
+  --surf-dense: rgba(24, 18, 41, 0.92);
+  --surf2-dense: rgba(30, 23, 50, 0.9);
   --ink: #f3eeff;
   --slate: #b0a4c8;
-  --mute: #968cb0;
+  --mute: #a69ebe;
   --line: #241c38;
   /* The two that carry meaning. */
   --indigo: #ff5fd2;
@@ -73,8 +92,8 @@ html[data-theme='dark'] {
   --bloom-2: rgba(60, 240, 200, 0.2);
   --bloom-3: rgba(122, 86, 255, 0.3);
   /* How brightly the pointer light burns. Rooms full of data turn this down. */
-  --sheen: 0.11;
-  --card-sheen: rgba(255, 255, 255, 0.11);
+  --sheen: 0.13;
+  --card-sheen: rgba(255, 255, 255, 0.045);
 }
 
 * {
@@ -547,7 +566,7 @@ tbody tr:hover {
 
 /* centered dialog */
 .modal-sheet {
-  background: var(--surf);
+  background: var(--surf-solid);
   border: 1px solid var(--line);
   box-shadow: var(--sh2);
   width: 100%;
@@ -563,7 +582,7 @@ tbody tr:hover {
 
 /* right-anchored drawer */
 .side-sheet {
-  background: var(--surf);
+  background: var(--surf-solid);
   border-left: 1px solid var(--line);
   box-shadow: -18px 0 48px rgba(0, 0, 0, 0.36);
   width: min(640px, 100%);
@@ -584,7 +603,7 @@ tbody tr:hover {
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--line);
   /* the header sits on the surface, not on whatever scrolls under it */
-  background: var(--surf);
+  background: var(--surf-solid);
 }
 .side-sheet .ss-ttl {
   min-width: 0;
@@ -630,7 +649,7 @@ tbody tr:hover {
   flex-wrap: wrap;
   padding: 14px 20px;
   border-top: 1px solid var(--line);
-  background: var(--surf);
+  background: var(--surf-solid);
 }
 
 @media (max-width: 640px) {
@@ -726,7 +745,7 @@ tbody tr:hover {
     left: 0;
     right: 0;
     display: flex;
-    background: var(--surf);
+    background: var(--surf-solid);
     border-top: 1px solid var(--line);
     box-shadow: 0 -6px 20px rgba(16, 22, 35, 0.08);
     z-index: 50;
@@ -776,7 +795,7 @@ tbody tr:hover {
   right: 14px;
   z-index: 90;
   width: min(340px, calc(100vw - 28px));
-  background: var(--surf);
+  background: var(--surf-solid);
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--sh2);
@@ -887,7 +906,7 @@ tbody tr:hover {
   padding: 60px 14px 0;
 }
 .notif-panel {
-  background: var(--surf);
+  background: var(--surf-solid);
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--sh2);
