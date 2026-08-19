@@ -12,6 +12,7 @@ const task = (p: Partial<Task>): Task =>
     assignee_id: ME,
     created_by: ME,
     acknowledged_at: null,
+    ...p,
   }) as Task;
 
 describe('a task belongs to exactly one workspace', () => {

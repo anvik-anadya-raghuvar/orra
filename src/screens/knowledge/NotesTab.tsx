@@ -9,8 +9,8 @@ import {
   useImagePaste,
   type DroppedImage,
 } from '../../ui/imagedrop';
-import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
-import { fmtDay } from '../../lib/dates';
+import { staggerItem, staggerParent } from '../../ui/motion';
+import { fmtDay, localDay, todayIso } from '../../lib/dates';
 import { ownRows } from '../../lib/workspace';
 import { makeBlock } from './WikiBlocks';
 import type { PageBlock } from '../../types';
@@ -85,8 +85,8 @@ export default function NotesTab() {
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const iso = d.toISOString().slice(0, 10);
-      const count = notes.filter((n) => n.created_at.slice(0, 10) === iso).length;
+      const iso = todayIso(d);
+      const count = notes.filter((n) => localDay(n.created_at) === iso).length;
       cells.push({ label: fmtDay(iso), value: count });
     }
     return cells;

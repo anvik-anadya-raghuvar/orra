@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { AlertTriangle, ChevronRight, Plus, Settings2, Sparkles } from 'lucide-react';
 import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
 import { packBento } from '../../lib/bento';
 import { Avatar, CountUp, InfoTip, Modal, ProgressBar, SideSheet, useToast } from '../../ui/bits';
-import { entrance, micro, staggerParent } from '../../ui/motion';
-import { daysSinceTs, daysUntil, fmtDay, fmtTime, inr, todayIso } from '../../lib/dates';
+import { staggerParent } from '../../ui/motion';
+import { daysSinceTs, daysUntil, fmtDay, fmtTime, inr, localDay, todayIso } from '../../lib/dates';
 import {
   CAPACITY_MINUTES,
   planDay,
@@ -1229,14 +1229,19 @@ function MomentumTile() {
   // read on my Home as a productive week.
   const tasks = useMemo(() => myTasks(all, meId), [all, meId]);
   const { values, labels, total } = useMemo(() => {
+    // Local days, and rows bucketed by their local day: a task closed at 04:00
+    // in Delhi belongs to today's column, the same day the plan and the
+    // closeout put it on. Stepping a local Date and reading it back with
+    // toISOString() gave UTC days instead, so the whole week sat one column
+    // behind the reader's until half past five in the morning.
     const days: string[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      days.push(d.toISOString().slice(0, 10));
+      days.push(todayIso(d));
     }
     const vals = days.map(
-      (d) => tasks.filter((t) => t.status === 'done' && t.updated_at.slice(0, 10) === d).length,
+      (d) => tasks.filter((t) => t.status === 'done' && localDay(t.updated_at) === d).length,
     );
     const labs = days.map((d) =>
       new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(new Date(d + 'T00:00:00')),

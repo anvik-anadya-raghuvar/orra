@@ -18,7 +18,8 @@ const item = (p: Partial<DayPlanItem>): DayPlanItem => ({
   ...p,
 });
 
-const task = (p: Partial<Task>): Task => ({ id: 'T-1', title: 'Ship it', status: 'todo' }) as Task;
+const task = (p: Partial<Task>): Task =>
+  ({ id: 'T-1', title: 'Ship it', status: 'todo', ...p }) as Task;
 
 describe('todays intentions', () => {
   it('are mine, for today, in order', () => {

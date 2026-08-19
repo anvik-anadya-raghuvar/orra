@@ -6,7 +6,7 @@ import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Camera, CornerUpLeft, MoreHorizontal, Music, Send, X } from 'lucide-react';
 import { Avatar, InfoTip, Modal, useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
-import { fmtDay, fmtTime, todayIso } from '../../lib/dates';
+import { fmtDay, fmtTime, localDay, todayIso } from '../../lib/dates';
 import { momentSrc } from '../../lib/moments';
 import { sendPhoto, sendSong } from '../../lib/sends';
 import { isYouTubeUrl, playUrl } from '../../lib/song';
@@ -22,7 +22,7 @@ function groupByDay(sorted: Message[]): Row[] {
   const today = todayIso();
   let lastDay = '';
   for (const m of sorted) {
-    const day = m.created_at.slice(0, 10);
+    const day = localDay(m.created_at);
     if (day !== lastDay) {
       out.push({ kind: 'day', label: day === today ? `Today · ${fmtDay(m.created_at)}` : fmtDay(m.created_at), date: day });
       lastDay = day;

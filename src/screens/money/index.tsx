@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { Avatar, CountUp, InfoTip, useToast } from '../../ui/bits';
-import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay, inr, todayIso } from '../../lib/dates';
 import {
   RANGE_LABEL,
@@ -313,7 +313,7 @@ export default function Money() {
             <GroupedBars
               groups={periods.map((period) =>
                 new Intl.DateTimeFormat('en-GB', { month: 'short', year: '2-digit' }).format(
-                  new Date(`${period.week}T00:00:00`),
+                  new Date(`${period.start}T00:00:00`),
                 ),
               )}
               seriesA={periods.map((period) => period.in)}

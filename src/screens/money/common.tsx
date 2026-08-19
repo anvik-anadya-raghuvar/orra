@@ -14,52 +14,29 @@ export const NEXT_STATUS: Record<LedgerEntry['status'], LedgerEntry['status']> =
   overdue: 'paid',
 };
 
-/** Monday (local) of the ISO-ish week containing this YYYY-MM-DD date. */
-export function weekStart(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const dow = (d.getDay() + 6) % 7; // Monday = 0
-  d.setDate(d.getDate() - dow);
-  return d.toISOString().slice(0, 10);
-}
 
-export interface WeekBucket {
-  week: string;
+/** One bucket of the in/out chart. `start` is the first day of the period, as
+ *  YYYY-MM-DD. It was called `week` back when the chart was six weeks wide;
+ *  the chart has grouped by month for a while and the name had not caught up. */
+export interface PeriodBucket {
+  start: string;
   in: number;
   out: number;
-}
-
-/** Buckets the ledger into the last `weeks` calendar weeks (Mon–Sun), oldest first. */
-export function weeklyInOut(ledger: LedgerEntry[], weeks = 6): WeekBucket[] {
-  const thisWeek = weekStart(new Date().toISOString().slice(0, 10));
-  const keys: string[] = [];
-  for (let i = weeks - 1; i >= 0; i--) {
-    const d = new Date(thisWeek + 'T00:00:00');
-    d.setDate(d.getDate() - i * 7);
-    keys.push(d.toISOString().slice(0, 10));
-  }
-  const buckets = new Map<string, WeekBucket>(keys.map((k) => [k, { week: k, in: 0, out: 0 }]));
-  for (const row of ledger) {
-    const b = buckets.get(weekStart(row.date));
-    if (!b) continue;
-    if (row.direction === 'in') b.in += row.amount;
-    else b.out += row.amount;
-  }
-  return keys.map((k) => buckets.get(k)!);
 }
 
 /** Every row in the selected range, grouped by calendar month. Unlike the old
  * "last six weeks" chart this never contradicts an All time/custom filter by
  * quietly dropping older entries. */
-export function monthlyInOut(ledger: LedgerEntry[]): WeekBucket[] {
-  const buckets = new Map<string, WeekBucket>();
+export function monthlyInOut(ledger: LedgerEntry[]): PeriodBucket[] {
+  const buckets = new Map<string, PeriodBucket>();
   for (const row of ledger) {
     const key = `${row.date.slice(0, 7)}-01`;
-    const bucket = buckets.get(key) ?? { week: key, in: 0, out: 0 };
+    const bucket = buckets.get(key) ?? { start: key, in: 0, out: 0 };
     if (row.direction === 'in') bucket.in += row.amount;
     else bucket.out += row.amount;
     buckets.set(key, bucket);
   }
-  return [...buckets.values()].sort((a, b) => a.week.localeCompare(b.week));
+  return [...buckets.values()].sort((a, b) => a.start.localeCompare(b.start));
 }
 
 export interface CategoryTotal {

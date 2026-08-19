@@ -29,6 +29,23 @@ export function todayIso(d = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * The local calendar date a timestamp falls on.
+ *
+ * `created_at.slice(0, 10)` looks like the same thing and is not: that is the
+ * UTC date, and both people live east of Greenwich. A message sent at 04:00 in
+ * Delhi carries a timestamp whose UTC date is *yesterday*, so slicing it and
+ * comparing against `todayIso()` says "not today" for the first five and a half
+ * hours of every morning — the Us thread stops labelling today as Today, and a
+ * task closed before dawn lands in yesterday's column on Momentum.
+ *
+ * Anything that groups rows by day, or compares a row's day against
+ * `todayIso()`, has to come through here.
+ */
+export function localDay(ts: string): string {
+  return todayIso(new Date(ts));
+}
+
 export function daysUntil(dateIso: string, fromIso = todayIso()): number {
   const a = new Date(fromIso + 'T00:00:00Z').getTime();
   const b = new Date(dateIso + 'T00:00:00Z').getTime();
@@ -59,14 +76,6 @@ export function fmtDateTime(ts: string): string {
     minute: '2-digit',
     hour12: false,
   }).format(new Date(ts));
-}
-
-export type DayMode = 'morning' | 'midday' | 'evening';
-export function dayModeNow(d = new Date()): DayMode {
-  const h = d.getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'midday';
-  return 'evening';
 }
 
 export function inr(n: number): string {
