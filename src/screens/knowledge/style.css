@@ -362,6 +362,16 @@
   cursor: pointer;
   min-height: 44px;
 }
+.drive-results button span,
+.drive-results button small {
+  display: block;
+  text-align: left;
+}
+.drive-results button small {
+  color: var(--mute);
+  font-size: 10.5px;
+  margin-top: 2px;
+}
 .drive-results button:last-child {
   border-bottom: 0;
 }

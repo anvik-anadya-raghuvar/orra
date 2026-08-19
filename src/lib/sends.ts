@@ -83,6 +83,17 @@ export function latestFromOther(
   );
 }
 
+/** The newest shared photo or song, regardless of who sent it or when.
+ * Home uses this as a durable receipt: a thing you sent should not disappear
+ * from your own view merely because it is no longer "new". */
+export function latestMoment(ds: Dataset, kind: 'photo' | 'song'): Message | null {
+  return (
+    ds.messages
+      .filter((m) => m.kind === kind)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null
+  );
+}
+
 /** Everything said in answer to one moment, oldest first. */
 export function repliesTo(ds: Dataset, momentId: string): Message[] {
   return ds.messages

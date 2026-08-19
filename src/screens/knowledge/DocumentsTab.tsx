@@ -7,8 +7,8 @@ import { daysUntil } from '../../lib/dates';
 import { BarRows } from '../../ui/viz';
 import type { DocumentRef } from '../../types';
 import type { DriveFile } from '../../lib/google';
-import { getToken, googleConfigured, recentDrive, searchDrive } from '../../lib/google';
-import { hasScope } from '../../lib/googleSync';
+import { googleConfigured, hasLiveAccountToken, searchAllDrives } from '../../lib/google';
+import { googleAccounts } from '../../lib/googleSync';
 
 function urgency(doc: DocumentRef): 'ok' | 'soon' | 'over' {
   if (doc.expiry_date) {
@@ -178,6 +178,7 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
   const [expiry, setExpiry] = useState('');
   const [deadlineNote, setDeadlineNote] = useState('');
   const [url, setUrl] = useState('');
+  const [sourceAccount, setSourceAccount] = useState<Pick<DriveFile, 'accountId' | 'accountEmail'> | null>(null);
 
   const create = () => {
     const t = title.trim();
@@ -192,6 +193,9 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
         deadline_note: deadlineNote,
         cloud_ref_url: url || 'https://drive.google.com/',
         status_cache: 'ok',
+        owner_id: store.meId,
+        integration_grant_id: sourceAccount?.accountId ?? null,
+        account_email: sourceAccount?.accountEmail ?? null,
       },
       store.asMe({ summary: `Document added — ${t}` }),
     );
@@ -220,10 +224,11 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
         onPick={(f) => {
           if (!title.trim()) setTitle(f.name);
           setUrl(f.link);
+          setSourceAccount({ accountId: f.accountId, accountEmail: f.accountEmail });
         }}
       />
       <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" style={inputStyle} />
-      <select value={projectId} onChange={(e) => setProjectId(e.target.value)} style={inputStyle}>
+      <select aria-label="Project" value={projectId} onChange={(e) => setProjectId(e.target.value)} style={inputStyle}>
         {projects.map((p) => (
           <option key={p.id} value={p.id}>
             {p.name}
@@ -233,7 +238,7 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
       <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>
         Expiry date (optional)
       </label>
-      <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} style={inputStyle} />
+      <input aria-label="Expiry date" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} style={inputStyle} />
       <input
         type="text"
         value={deadlineNote}
@@ -260,34 +265,34 @@ function DrivePicker({ onPick }: { onPick: (f: DriveFile) => void }) {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /**
-   * Opening a modal must never make a Google popup appear out of nowhere, so
-   * the picker only searches once a *silent* token is in hand. If the session
-   * has none, it offers a button and waits to be asked.
-   */
-  const [ready, setReady] = useState(false);
-  const connected = googleConfigured() && hasScope(store, 'drive');
-
-  useEffect(() => {
-    if (!connected) return;
-    let alive = true;
-    getToken(['drive'], { interactive: false })
-      .then((t) => alive && setReady(!!t))
-      .catch(() => alive && setReady(false));
-    return () => {
-      alive = false;
-    };
-  }, [connected]);
+  const [accountFilter, setAccountFilter] = useState('all');
+  const accounts = googleAccounts(store).filter(
+    (account) => account.is_active !== false && account.scopes.some((scope) => scope.includes('/drive')),
+  );
+  const liveAccounts = accounts.filter((account) => hasLiveAccountToken(account.id, ['drive']));
+  const searchAccounts = liveAccounts
+    .filter((account) => accountFilter === 'all' || account.id === accountFilter)
+    .map((account) => ({ id: account.id, email: account.account_email ?? account.display_name ?? 'Google account' }));
+  const connected = googleConfigured() && accounts.length > 0;
+  const ready = searchAccounts.length > 0;
+  const accountKey = searchAccounts.map((account) => account.id).join('|');
 
   // Debounced: one request per pause in typing, not one per keystroke.
   useEffect(() => {
-    if (!connected || !ready) return;
+    if (!connected || !ready) {
+      setFiles([]);
+      return;
+    }
     let alive = true;
     setLoading(true);
+    setError(null);
     const t = setTimeout(() => {
-      const run = q.trim() ? searchDrive(q.trim()) : recentDrive();
-      run
-        .then((r) => alive && setFiles(r))
+      searchAllDrives(searchAccounts, q.trim())
+        .then((result) => {
+          if (!alive) return;
+          setFiles(result.files);
+          setError(result.errors.length ? `${result.errors.length} Drive account could not be searched.` : null);
+        })
         .catch((e) => alive && setError(e instanceof Error ? e.message : 'Drive search failed'))
         .finally(() => alive && setLoading(false));
     }, 280);
@@ -295,7 +300,7 @@ function DrivePicker({ onPick }: { onPick: (f: DriveFile) => void }) {
       alive = false;
       clearTimeout(t);
     };
-  }, [q, connected, ready]);
+  }, [q, connected, ready, accountFilter, accountKey]);
 
   if (!connected)
     return (
@@ -306,35 +311,41 @@ function DrivePicker({ onPick }: { onPick: (f: DriveFile) => void }) {
       </p>
     );
 
-  if (!ready)
-    return (
-      <div style={{ marginBottom: 11 }}>
-        <p className="tip" style={{ marginTop: 0 }}>
-          Drive is granted, but this session has no access token yet.
-        </p>
-        <button
-          type="button"
-          className="btn sm"
-          onClick={() =>
-            getToken(['drive'])
-              .then((t) => setReady(!!t))
-              .catch((e) => setError(e instanceof Error ? e.message : 'Google declined'))
-          }
-        >
-          Ask Google for Drive access
-        </button>
-      </div>
-    );
-
   return (
     <div>
+      {accounts.length > 1 && (
+        <div className="filters" style={{ marginBottom: 8 }}>
+          <button type="button" className={`chip ${accountFilter === 'all' ? 'on' : ''}`} onClick={() => setAccountFilter('all')}>
+            All Drives
+          </button>
+          {accounts.map((account) => (
+            <button
+              type="button"
+              className={`chip ${accountFilter === account.id ? 'on' : ''}`}
+              onClick={() => setAccountFilter(account.id)}
+              key={account.id}
+            >
+              {account.account_email ?? account.display_name ?? 'Google'}
+            </button>
+          ))}
+        </div>
+      )}
       <input
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search Drive by name"
         style={inputStyle}
+        disabled={!ready}
       />
+      {!ready && (
+        <p className="tip" style={{ marginTop: 0 }}>
+          {accountFilter === 'all'
+            ? 'Connected Drive accounts need reconnecting before this session can search them.'
+            : 'That Drive account needs reconnecting before this session can search it.'}{' '}
+          Use Admin → Connections → Reconnect; this picker never launches OAuth.
+        </p>
+      )}
       {error && (
         <p className="tip" style={{ marginTop: 0 }}>
           {error}
@@ -343,13 +354,19 @@ function DrivePicker({ onPick }: { onPick: (f: DriveFile) => void }) {
       {files.length > 0 && (
         <div className="drive-results">
           {files.map((f) => (
-            <button key={f.id} type="button" onClick={() => onPick(f)}>
-              {f.name}
+            <button key={`${f.accountId}:${f.id}`} type="button" onClick={() => onPick(f)}>
+              <span>{f.name}</span>
+              <small>{f.accountEmail}</small>
             </button>
           ))}
         </div>
       )}
-      {!loading && !error && files.length === 0 && (
+      {accounts.some((account) => !hasLiveAccountToken(account.id, ['drive'])) && (
+        <p className="tip" style={{ marginTop: 0 }}>
+          Partial results: one or more accounts need reconnecting in Admin → Connections.
+        </p>
+      )}
+      {ready && !loading && !error && files.length === 0 && (
         <p className="tip" style={{ marginTop: 0 }}>
           Nothing in Drive matches that.
         </p>

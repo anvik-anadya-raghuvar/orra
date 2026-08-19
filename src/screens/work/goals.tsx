@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
@@ -8,6 +7,8 @@ import { todayIso } from '../../lib/dates';
 import { rankTasks } from '../../lib/ranking';
 import { BarRows, MiniBars, Ring, VIZ } from '../../ui/viz';
 import { Field, projColor, projName } from './common';
+import QuickEdit from './quickedit';
+import type { Task } from '../../types';
 
 const WEIGHTS = [
   { key: 'objective_fit' as const, label: 'Objective fit' },
@@ -20,6 +21,19 @@ export default function GoalsTab() {
   const store = useStore();
   const toast = useToast();
   const [draft, setDraft] = useState<Record<string, number>>({});
+  const [quick, setQuick] = useState<Task | null>(null);
+
+  // This room ranks business work only. Personal goals have their own model
+  // and workspace under Personal; letting relocation/course objectives leak
+  // into this list made two unrelated things both look like "Goals".
+  const personalProjects = useMemo(
+    () => new Set(ds.projects.filter((project) => project.is_personal).map((project) => project.id)),
+    [ds.projects],
+  );
+  const businessObjectives = useMemo(
+    () => ds.objectives.filter((objective) => !personalProjects.has(objective.project_id)),
+    [ds.objectives, personalProjects],
+  );
 
   const w = ds.ranking_weights;
   const total = w.objective_fit + w.unblocks + w.deadline || 1;
@@ -45,15 +59,14 @@ export default function GoalsTab() {
     toast(`Key result → ${v}%`);
   };
 
-  const personal = new Set(ds.projects.filter((p) => p.is_personal).map((p) => p.id));
   const drifting = ds.tasks.filter(
-    (t) => t.status !== 'done' && !personal.has(t.project_id) && !t.objective_id,
+    (t) => t.status !== 'done' && !personalProjects.has(t.project_id) && !t.objective_id,
   );
 
   /** average KR progress per objective — drives the Ring on each card and the MiniBars snapshot. */
   const objAvg = useMemo(() => {
     const map = new Map<string, number>();
-    for (const o of ds.objectives) {
+    for (const o of businessObjectives) {
       const krs = ds.key_results.filter((k) => k.objective_id === o.id);
       map.set(
         o.id,
@@ -61,23 +74,18 @@ export default function GoalsTab() {
       );
     }
     return map;
-  }, [ds.objectives, ds.key_results]);
+  }, [businessObjectives, ds.key_results]);
 
   return (
     <div>
-      <p style={{ fontSize: 14, color: 'var(--slate)', maxWidth: '66ch', margin: '0 0 14px' }}>
-        Objectives are what make the ranking honest. Every business task points at one; the pointer
-        is what lets the portal tell you where to start. Today's order, with the maths visible.
-      </p>
-
       {/* objective progress snapshot — a glance instead of parsing per-KR percentages */}
-      {ds.objectives.length > 0 && (
+      {businessObjectives.length > 0 && (
         <div className="wk-ovpanel" style={{ marginBottom: 14 }}>
           <span className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>
             Objective progress · avg KR
           </span>
           <MiniBars
-            items={ds.objectives.map((o) => ({
+            items={businessObjectives.map((o) => ({
               label: o.title,
               value: objAvg.get(o.id) ?? 0,
               max: 100,
@@ -148,7 +156,7 @@ export default function GoalsTab() {
                 }
               >
                 <td>
-                  <Link to={`/task/${r.task.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <button type="button" className="wk-task-open" onClick={() => setQuick(r.task)}>
                     <b style={{ fontWeight: 500 }}>{r.task.title}</b>
                     <span className="wk-math">
                       {r.task.id} ·{' '}
@@ -156,7 +164,7 @@ export default function GoalsTab() {
                         ? ds.objectives.find((o) => o.id === r.task.objective_id)?.title
                         : 'no objective'}
                     </span>
-                  </Link>
+                  </button>
                 </td>
                 <td className="amt">
                   {part(r.objectiveFit, w.objective_fit)}
@@ -196,12 +204,12 @@ export default function GoalsTab() {
                 !r.task.objective_id ? ' drift' : ''
               }`}
             >
-              <Link to={`/task/${r.task.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <button type="button" className="wk-task-open" onClick={() => setQuick(r.task)}>
                 <b style={{ fontWeight: 500, fontSize: 14 }}>{r.task.title}</b>
                 <span className="wk-math">
                   {r.task.id} · score {r.score}
                 </span>
-              </Link>
+              </button>
               <div className="wk-rankgrid">
                 <div>
                   <b>{part(r.objectiveFit, w.objective_fit)}</b>
@@ -237,7 +245,7 @@ export default function GoalsTab() {
 
       {/* objectives + key results */}
       <motion.div {...staggerParent()}>
-        {ds.objectives.map((o) => {
+        {businessObjectives.map((o) => {
           const krs = ds.key_results
             .filter((k) => k.objective_id === o.id)
             .sort((a, b) => a.position - b.position);
@@ -315,12 +323,12 @@ export default function GoalsTab() {
         {drifting.map((t) => (
           <div className="wk-kr" key={t.id}>
             <span className="wk-krt" style={{ flex: 1 }}>
-              <Link to={`/task/${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <button type="button" className="wk-task-open" onClick={() => setQuick(t)}>
                 {t.title}{' '}
                 <span className="mono" style={{ fontSize: 10, color: 'var(--mute)' }}>
                   {t.id}
                 </span>
-              </Link>
+              </button>
             </span>
             <select
               className="wk-in"
@@ -334,7 +342,7 @@ export default function GoalsTab() {
               }}
             >
               <option value="">Point it at…</option>
-              {ds.objectives.map((o) => (
+              {businessObjectives.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.title}
                 </option>
@@ -352,6 +360,7 @@ export default function GoalsTab() {
           pointer or it probably shouldn't exist.
         </p>
       </motion.div>
+      {quick && <QuickEdit task={quick} onClose={() => setQuick(null)} />}
     </div>
   );
 }

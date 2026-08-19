@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Dataset, Message } from '../types';
-import { latestFromOther, repliesTo } from './sends';
+import { latestFromOther, latestMoment, repliesTo } from './sends';
 
 const ME = 'u-anadya';
 const THEM = 'u-raghuvar';
@@ -74,5 +74,15 @@ describe('replies to a moment', () => {
 
   it('is empty when nobody has replied', () => {
     expect(repliesTo(dsOf([msg({ id: 'moment', kind: 'photo' })]), 'moment')).toEqual([]);
+  });
+});
+
+describe('shared moment receipts', () => {
+  it('keeps the latest sent moment visible to its sender as well', () => {
+    const ds = dsOf([
+      msg({ id: 'theirs', kind: 'photo', created_at: '2026-08-16T08:00:00.000Z' }),
+      msg({ id: 'mine', kind: 'photo', sender_id: ME, created_at: '2026-08-19T08:00:00.000Z' }),
+    ]);
+    expect(latestMoment(ds, 'photo')?.id).toBe('mine');
   });
 });

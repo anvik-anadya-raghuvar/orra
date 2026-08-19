@@ -103,11 +103,11 @@
   min-width: 0;
 }
 
-/* ── transaction table → cards under 640px ───────────────────────────── */
+/* ── transaction table → cards before its actions run out of room ─────── */
 :is(.money-screen, .panel-mask) .mn-table {
   width: 100%;
 }
-@media (max-width: 640px) {
+@media (max-width: 800px) {
   :is(.money-screen, .panel-mask) .mn-table thead {
     display: none;
   }
@@ -181,6 +181,49 @@
   color: var(--mute);
   margin-bottom: 5px;
 }
+:is(.money-screen, .panel-mask) .mn-lbl.feature-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+:is(.money-screen, .panel-mask) .mn-span-2 {
+  grid-column: 1 / -1;
+}
+:is(.money-screen, .panel-mask) .mn-checkrow {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--slate);
+  font-size: 12.5px;
+}
+:is(.money-screen, .panel-mask) .mn-checkrow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+:is(.money-screen, .panel-mask) .mn-checkrow input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--indigo);
+}
+:is(.money-screen, .panel-mask) .mn-allocation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf2);
+}
+:is(.money-screen, .panel-mask) .mn-allocation-total {
+  grid-column: 1 / -1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--mute);
+}
 :is(.money-screen, .panel-mask) .mn-in {
   width: 100%;
   border: 1px solid var(--line);
@@ -191,6 +234,10 @@
   font-size: 13px;
   color: var(--ink);
   min-height: 44px;
+}
+:is(.money-screen, .panel-mask) textarea.mn-comments {
+  min-height: 92px;
+  resize: vertical;
 }
 :is(.money-screen, .panel-mask) .mn-acts {
   display: flex;
@@ -209,10 +256,25 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--mute);
+  flex-wrap: wrap;
 }
 :is(.money-screen, .panel-mask) .mn-steps .on {
   color: var(--indigo);
   font-weight: 600;
+}
+:is(.money-screen, .panel-mask) .mn-import-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  color: var(--slate);
+  font-size: 12px;
+}
+:is(.money-screen, .panel-mask) .mn-import-summary > span:not(.info-tip) {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--surf3);
 }
 :is(.money-screen, .panel-mask) .mn-drop {
   display: flex;
@@ -325,11 +387,45 @@
 :is(.money-screen, .panel-mask) .mn-rowacts .btn.sm {
   min-height: 44px;
 }
-/* A split is a note, not a debt — muted so it never reads as an amount. */
-:is(.money-screen, .panel-mask) .mn-split {
-  font-size: 10px;
-  color: var(--mute);
-  margin-left: 5px;
+:is(.money-screen, .panel-mask) .mn-section-title {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  margin: 4px 0 8px;
+}
+:is(.money-screen, .panel-mask) .mn-flow {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+:is(.money-screen, .panel-mask) .mn-flow.in {
+  color: var(--teal);
+  background: var(--teal-s);
+}
+:is(.money-screen, .panel-mask) .mn-flow.out {
+  color: var(--rose);
+  background: var(--rose-s);
+}
+:is(.money-screen, .panel-mask) .mn-payers {
+  display: grid;
+  gap: 4px;
+}
+:is(.money-screen, .panel-mask) .mn-payer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 9.5px;
+  color: var(--slate);
+}
+:is(.money-screen, .panel-mask) .mn-comment-cell {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 :is(.money-screen, .panel-mask) .mn-stats {
   display: grid;
@@ -365,6 +461,13 @@
   gap: 1px;
   flex: 1 1 180px;
   min-width: 0;
+}
+:is(.money-screen, .panel-mask) .mn-sub-note {
+  color: var(--mute);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 :is(.money-screen, .panel-mask) .mn-sub-amt {
   font-size: 13px;

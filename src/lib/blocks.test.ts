@@ -92,6 +92,7 @@ describe('what gets logged', () => {
     expect(logKind('founder')).toBe('founder');
     expect(logKind('today_plan')).toBe('founder');
     expect(logKind('intentions')).toBe('founder');
+    expect(logKind('custom', 'study')).toBe('study');
   });
 });
 
@@ -127,6 +128,7 @@ describe('targets', () => {
     expect(newBlockRow({ id: 'a', userId: ME, scope: 'founder' }).target_minutes).toBe(50);
     expect(newBlockRow({ id: 'a', userId: ME, scope: 'study' }).target_minutes).toBeNull();
     expect(newBlockRow({ id: 'a', userId: ME, scope: 'personal' }).target_minutes).toBeNull();
+    expect(newBlockRow({ id: 'a', userId: ME, scope: 'custom', targetMinutes: 35 }).target_minutes).toBe(35);
   });
 });
 
@@ -183,5 +185,23 @@ describe('the list inside a block is derived from its scope', () => {
       (scope) => blockLines(ds, block({ scope }), '2026-08-19'),
     );
     expect(all.some((l) => l.label === 'Theirs')).toBe(false);
+  });
+
+  it('keeps a custom block checklist exactly as scribbled', () => {
+    const lines = blockLines(
+      ds,
+      block({
+        scope: 'custom',
+        custom_items: [
+          { id: 'one', text: 'Draft it', done: true },
+          { id: 'two', text: 'Send it', done: false },
+        ],
+      }),
+      '2026-08-19',
+    );
+    expect(lines).toEqual([
+      { id: 'one', customItemId: 'one', label: 'Draft it', done: true },
+      { id: 'two', customItemId: 'two', label: 'Send it', done: false },
+    ]);
   });
 });

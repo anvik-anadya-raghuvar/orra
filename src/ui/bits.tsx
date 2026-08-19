@@ -1,9 +1,28 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 import { useData } from '../data/store';
 import { entrance, useAnimateIn } from './motion';
+
+/* ── Contextual help ─────────────────────────────────────────────────── */
+/** Compact help that works with hover, keyboard focus, and a tap. */
+export function InfoTip({ text, label = 'More information' }: { text: string; label?: string }) {
+  const id = useId();
+  return (
+    <span
+      className="info-tip"
+      tabIndex={0}
+      aria-label={`${label}. ${text}`}
+      aria-describedby={id}
+    >
+      <Info size={13} strokeWidth={2} aria-hidden />
+      <span className="info-tip-bubble" id={id} role="tooltip">
+        {text}
+      </span>
+    </span>
+  );
+}
 
 /* ── Tag chip ─────────────────────────────────────────────────────────── */
 export function TagChip({ name, onRemove }: { name: string; onRemove?: () => void }) {

@@ -5,12 +5,89 @@ import { ArrowUpRight, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import type { AppStore } from '../../data/store';
 import type { FixedDate, LifeAdminItem, TimeLog } from '../../types';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
-import { CountUp, useToast } from '../../ui/bits';
+import { CountUp, TagChip, useToast } from '../../ui/bits';
 import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { daysUntil, fmtDay } from '../../lib/dates';
 import { BarRows, HeatStrip, Ring, Sparkline, SplitBar as VizSplit, VIZ } from '../../ui/viz';
 import { activeBlockFor, startBlock } from '../../lib/blocks';
 import { ownRows } from '../../lib/workspace';
+
+const LABEL_COLORS = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'] as const;
+
+/** Labels are flexible shared vocabulary; workflow states remain meaningful
+ * controls. A newly typed label is created globally and attached here. */
+export function LabelEditor({
+  values,
+  onChange,
+  label,
+}: {
+  values: string[];
+  onChange: (values: string[]) => void;
+  label: string;
+}) {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const add = () => {
+    const next = draft.trim();
+    if (!next) return;
+    const attached = values.some((value) => value.toLowerCase() === next.toLowerCase());
+    if (!attached) onChange([...values, next]);
+    if (!ds.tags.some((tag) => tag.name.toLowerCase() === next.toLowerCase())) {
+      store.insert(
+        'tags',
+        {
+          id: newId('tag'),
+          name: next,
+          color: LABEL_COLORS[ds.tags.length % LABEL_COLORS.length],
+          created_by: store.meId,
+          created_at: nowIso(),
+        },
+        store.asMe({ summary: `Label created — ${next}` }),
+      );
+      toast(`Label “${next}” is now available everywhere.`);
+    }
+    setDraft('');
+    setEditing(false);
+  };
+
+  return (
+    <div className="plabels" aria-label={label}>
+      {values.map((value) => (
+        <TagChip key={value} name={value} onRemove={() => onChange(values.filter((item) => item !== value))} />
+      ))}
+      {editing ? (
+        <span className="plabel-add-form">
+          <input
+            className="pin sm"
+            value={draft}
+            autoFocus
+            placeholder="New label"
+            aria-label={`New label for ${label}`}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                add();
+              }
+              if (event.key === 'Escape') setEditing(false);
+            }}
+          />
+          <button type="button" className="btn sm" onClick={add} disabled={!draft.trim()}>
+            Add
+          </button>
+        </span>
+      ) : (
+        <button type="button" className="plabel-add" onClick={() => setEditing(true)}>
+          + label
+        </button>
+      )}
+    </div>
+  );
+}
 
 /* ══════════════════════════════════════════════════════════════════════
    Editing primitives — direct manipulation, never a modal for a small
@@ -396,33 +473,44 @@ export function StudyTimer() {
   return (
     <div className="pbig">
       <div className="phead">
-        <h3>Blocks</h3>
+        <h3>Focus blocks</h3>
         {live && <span className="pill soon">running</span>}
       </div>
       <p className="tip" style={{ marginTop: 0 }}>
-        A block hides the rest of the portal and shows only that category&apos;s work. The clock
-        keeps running if you reload or switch device.
+        Pick the kind of work first. Starting it clears the portal and keeps the clock safe across reloads.
       </p>
-      <div className="ptimer">
-        <select
-          className="pin"
-          value={courseId}
-          aria-label="Course for a study block"
-          onChange={(e) => setCourseId(e.target.value)}
-        >
-          <option value="">All courses</option>
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.title}
-            </option>
-          ))}
-        </select>
-        <button className="btn solid" type="button" onClick={() => begin('study')} disabled={!!live}>
-          Start a study block
-        </button>
-        <button className="btn" type="button" onClick={() => begin('personal')} disabled={!!live}>
-          Start a personal block
-        </button>
+      <div className="pblock-choices">
+        <section className="pblock-choice study">
+          <div>
+            <span className="eyebrow">Study</span>
+            <b>Learn one thing without context switching.</b>
+          </div>
+          <select
+            className="pin"
+            value={courseId}
+            aria-label="Course for a study block"
+            onChange={(e) => setCourseId(e.target.value)}
+          >
+            <option value="">All courses</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+          <button className="btn solid" type="button" onClick={() => begin('study')} disabled={!!live}>
+            Start study
+          </button>
+        </section>
+        <section className="pblock-choice personal">
+          <div>
+            <span className="eyebrow">Personal</span>
+            <b>Clear one personal loop without filling the work board.</b>
+          </div>
+          <button className="btn" type="button" onClick={() => begin('personal')} disabled={!!live}>
+            Start personal block
+          </button>
+        </section>
       </div>
 
       {/* The hours this thing produces, right where they are produced — the
@@ -660,7 +748,7 @@ export function LifeAdmin() {
   return (
     <div className="pbig">
       <div className="phead">
-        <h3>Life admin</h3>
+        <h3>Personal admin</h3>
         <span className="pmini">
           <Ring pct={mine.length ? (done / mine.length) * 100 : 0} size={30} color={VIZ.cat[2]} label={`${done} of ${mine.length} done`} />
           <span className="mono">
@@ -695,14 +783,14 @@ export function LifeAdmin() {
             />
           </motion.div>
         ))}
-        {mine.length === 0 && <p className="tip">Life admin is clear.</p>}
+        {mine.length === 0 && <p className="tip">Personal admin is clear.</p>}
       </motion.div>
       <div className="paddrow">
         <input
           className="addin"
           placeholder="+ Add something to deal with"
           value={text}
-          aria-label="New life admin item"
+          aria-label="New personal admin item"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {

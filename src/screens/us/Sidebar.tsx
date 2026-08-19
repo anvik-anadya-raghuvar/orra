@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
-import { Avatar, CountUp, useToast } from '../../ui/bits';
+import { Avatar, useToast } from '../../ui/bits';
 import { lift, staggerItem, staggerParent } from '../../ui/motion';
 
 type Expiry = '' | '1h' | '3h' | 'eod';
@@ -89,7 +89,12 @@ const RITUALS: { key: string; label: string; hint: string; text: string }[] = [
   { key: 'morning', label: 'Morning brief', hint: 'What today looks like for me', text: "Morning brief — today I'm on: " },
   { key: 'eod', label: 'End of day', hint: 'Shipped, stuck, tomorrow', text: 'End of day — shipped: \nStuck: \nTomorrow: ' },
   { key: 'blocked', label: 'Blocked on', hint: 'Say it before it festers', text: 'Blocked on: ' },
-  { key: 'chai', label: 'Chai break', hint: 'A legitimate operating ritual', text: 'Chai in 10?' },
+  {
+    key: 'chai',
+    label: 'Chai break',
+    hint: 'Let’s take a proper break and catch up on something beyond work.',
+    text: 'Chai break? Let’s catch up on something that isn’t work.',
+  },
 ];
 
 function RitualsCard({ onRitual }: { onRitual: (text: string) => void }) {
@@ -108,28 +113,6 @@ function RitualsCard({ onRitual }: { onRitual: (text: string) => void }) {
   );
 }
 
-/** Card 5 — a quiet count of what left the room this week. */
-function PromotedCard() {
-  const ds = useData((d) => d);
-  const count = useMemo(() => {
-    const cutoff = Date.now() - 7 * 86_400_000;
-    return ds.messages.filter((m) => m.promoted_to_type && new Date(m.created_at).getTime() >= cutoff).length;
-  }, [ds.messages]);
-
-  return (
-    <motion.div className="uscard" variants={staggerItem} {...lift}>
-      <h3>Promoted this week</h3>
-      <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28 }}>
-        <CountUp value={count} />
-      </div>
-      <p className="tip" style={{ marginTop: 6 }}>
-        Messages turned into tasks, notes, or decisions in the last 7 days. Everything else stayed a
-        conversation, which is the point.
-      </p>
-    </motion.div>
-  );
-}
-
 export function SideColumn({ onRitual }: { onRitual: (text: string) => void }) {
   return (
     <motion.div {...staggerParent()}>
@@ -138,7 +121,6 @@ export function SideColumn({ onRitual }: { onRitual: (text: string) => void }) {
           nowhere to answer. Sending lives in the composer now, and what
           arrived shows up in the thread and on Home. */}
       <RitualsCard onRitual={onRitual} />
-      <PromotedCard />
     </motion.div>
   );
 }

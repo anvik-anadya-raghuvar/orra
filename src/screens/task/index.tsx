@@ -138,12 +138,12 @@ function TaskDetail({ task }: { task: Task }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${task.id}.zip`;
+      a.download = `${task.id}-context.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast(`${task.id}.zip downloaded`);
+      toast(`${task.id} context folder downloaded`);
     } catch {
       toast('Export failed — try again');
     }
@@ -180,6 +180,25 @@ function TaskDetail({ task }: { task: Task }) {
       toast('Write something before posting');
       return;
     }
+    const decisionId = isDecision ? newId('dec') : null;
+    if (decisionId) {
+      store.insert(
+        'decisions',
+        {
+          id: decisionId,
+          question: body,
+          project_id: task.project_id,
+          recommendation: body,
+          owner_id: store.me.id,
+          status: 'open',
+          opened_at: nowIso(),
+          ruled_at: null,
+          ruling_note: '',
+          task_ids: [task.id],
+        },
+        store.asMe({ summary: `Decision opened from ${task.id}` }),
+      );
+    }
     store.insert(
       'comments',
       {
@@ -188,6 +207,7 @@ function TaskDetail({ task }: { task: Task }) {
         author_id: store.me.id,
         body,
         is_decision: isDecision,
+        decision_id: decisionId,
         created_at: nowIso(),
       },
       store.asMe({
@@ -251,6 +271,7 @@ function TaskDetail({ task }: { task: Task }) {
 
   const linkedNotes = ds.notes.filter((n) => n.task_id === task.id).sort(byCreated);
   const comments = ds.comments.filter((c) => c.task_id === task.id).sort(byCreated);
+  const linkedDecisions = ds.decisions.filter((decision) => (decision.task_ids ?? []).includes(task.id));
   const linkedLedger = ds.ledger.filter((l) => l.linked_task_id === task.id);
   const linkedMail = ds.mail_items.filter((m) => m.converted_to_id === task.id);
   const hasConnected = linkedLedger.length > 0 || linkedMail.length > 0;
@@ -459,15 +480,15 @@ function TaskDetail({ task }: { task: Task }) {
                 </div>
                 <p>
                   {task.type === 'code_change'
-                    ? 'Pins and criteria are ready. Export builds TASK.md plus screenshots, deterministically — no model in the loop.'
-                    : 'Export builds TASK.md plus any screenshots and pins, deterministically — no model in the loop.'}
+                    ? 'A ready-to-use context folder: TASK.md, CONTEXT.json, marked screenshots, and clean originals. Pin numbers follow the order you added them across every image.'
+                    : 'Build a context folder with TASK.md, CONTEXT.json, and any marked screenshots — deterministic, with no model in the loop.'}
                 </p>
                 <div className="acts">
                   <button type="button" className="btn solid sm" onClick={copyMd}>
                     Copy TASK.md
                   </button>
                   <button type="button" className="btn sm" onClick={downloadZip}>
-                    Download .zip
+                    Download context folder
                   </button>
                 </div>
               </div>
@@ -479,6 +500,43 @@ function TaskDetail({ task }: { task: Task }) {
                 <Checklist task={task} placeholder="+ Add subtask" showProgress={false} />
               </section>
             )}
+
+            <section>
+              <h3>Decisions</h3>
+              <p className="none" style={{ marginBottom: 9 }}>
+                These are the same decision rows shown in Work → Decisions.
+              </p>
+              <div className="task-decision-list">
+                {ds.decisions.map((decision) => {
+                  const linked = (decision.task_ids ?? []).includes(task.id);
+                  return (
+                    <label key={decision.id}>
+                      <input
+                        type="checkbox"
+                        checked={linked}
+                        onChange={() =>
+                          store.update(
+                            'decisions',
+                            decision.id,
+                            {
+                              task_ids: linked
+                                ? (decision.task_ids ?? []).filter((id) => id !== task.id)
+                                : [...(decision.task_ids ?? []), task.id],
+                            },
+                            store.asMe({ summary: `${linked ? 'Unlinked' : 'Linked'} ${task.id} ${linked ? 'from' : 'to'} decision` }),
+                          )
+                        }
+                      />
+                      <span>
+                        <b>{decision.question}</b>
+                        <small>{decision.status}</small>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {!linkedDecisions.length && !ds.decisions.length && <p className="none">No decisions yet.</p>}
+            </section>
 
             <section>
               <h3>Scribbles on this task</h3>

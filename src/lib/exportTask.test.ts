@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { seedDataset } from '../data/seed';
-import { generateTaskExport, pinNumber } from './exportTask';
+import { generateTaskContext, generateTaskExport, pinNumber, taskAssetName } from './exportTask';
 import { capacityFit, planDay, rankTasks, stuckTasks } from './ranking';
 
 describe('export determinism (gate §6 correctness)', () => {
@@ -96,6 +96,44 @@ describe('pin numbering', () => {
     const secondSection = md.slice(md.indexOf('## Screenshot 2'));
     expect(secondSection).not.toContain('1. (x');
   });
+
+  it('keeps chronology when a later pin is added back onto the first screenshot', () => {
+    const ds = seedDataset();
+    const first = ds.screenshot_attachments.find((s) => s.id === 'shot-1')!;
+    ds.screenshot_attachments.push({
+      ...first,
+      id: 'shot-2',
+      filename: 'second.jpg',
+      created_at: '2026-08-18T10:00:00+05:30',
+    });
+    ds.annotation_pins.push({
+      id: 'pin-on-second',
+      screenshot_id: 'shot-2',
+      x_pct: 40,
+      y_pct: 40,
+      note: 'third request',
+      label: 'layout',
+      author_id: 'u-anadya',
+      is_resolved: false,
+      created_at: '2026-08-18T10:05:00+05:30',
+    });
+    ds.annotation_pins.push({
+      id: 'pin-back-on-first',
+      screenshot_id: 'shot-1',
+      x_pct: 70,
+      y_pct: 20,
+      note: 'fourth request, back on screenshot one',
+      label: 'copy',
+      author_id: 'u-anadya',
+      is_resolved: false,
+      created_at: '2026-08-18T10:10:00+05:30',
+    });
+
+    expect(pinNumber(ds, 'pin-on-second')).toBe(3);
+    expect(pinNumber(ds, 'pin-back-on-first')).toBe(4);
+    const firstSection = generateTaskExport(ds, 'T-42').split('## Screenshot 2')[0];
+    expect(firstSection).toContain('4. (x 70.0%, y 20.0%)');
+  });
 });
 
 describe('ranking', () => {
@@ -174,7 +212,18 @@ describe('handoff bundle honesty', () => {
     const shot = ds.screenshot_attachments.find((s) => s.id === 'shot-1')!;
     shot.data_url = 'data:image/png;base64,iVBORw0KGgo=';
     const md = generateTaskExport(ds, 'T-42');
-    expect(md).toContain('![screenshot-1](assets/samadhaan_grid.png)');
+    expect(md).toContain('![screenshot-1](assets/01-samadhaan_grid.png)');
     expect(md).toContain('Numbered markers are drawn on this image');
+  });
+
+  it('exports a deterministic machine-readable hierarchy with global pin numbers', () => {
+    const context = JSON.parse(generateTaskContext(seedDataset(), 'T-42'));
+    expect(context.schema).toBe('anvik-task-context/v1');
+    expect(context.screenshots[0].pins.map((pin: { number: number }) => pin.number)).toEqual([1, 2]);
+  });
+
+  it('gives duplicate and unsafe filenames unique safe asset paths', () => {
+    expect(taskAssetName('../Screenshot 1.jpg', 0)).toBe('01-Screenshot-1.jpg');
+    expect(taskAssetName('../Screenshot 1.jpg', 1)).toBe('02-Screenshot-1.jpg');
   });
 });

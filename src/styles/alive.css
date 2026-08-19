@@ -1,6 +1,6 @@
 /* ── The portal, alive ─────────────────────────────────────────────────────
    Depth, edge light, and small signs of life, applied to the surfaces every
-   room already uses (.bt, .pbig, .mn-panel, .uscard, .mb-card, .wk-card) so a
+   room already uses (.bt, .mn-panel, .uscard, .mb-card, .wk-card) so a
    screen does not have to opt in one component at a time.
 
    Rules this file keeps:
@@ -24,7 +24,6 @@
    Cards sit on the page rather than being drawn on it: they rise slightly and
    their shadow deepens together, which is what reads as physical. */
 .bt,
-.pbig,
 .mn-panel,
 .mn-stat,
 .uscard,
@@ -38,7 +37,9 @@
 .pcard,
 .ad-goog,
 .ad-conn,
-.wk-ovpanel {
+.wk-ovpanel,
+.life-card,
+.life-focus {
   position: relative;
   transition:
     transform 0.28s var(--lift),
@@ -47,7 +48,6 @@
 }
 
 .bt:hover,
-.pbig:hover,
 .mn-panel:hover,
 .mn-stat:hover,
 .uscard:hover,
@@ -55,7 +55,9 @@
 .wk-card:hover,
 .note-card:hover,
 .kn-ov-panel:hover,
-.pcard:hover {
+.pcard:hover,
+.life-card:hover,
+.life-focus:hover {
   transform: translateY(-3px);
   box-shadow: var(--sh2), var(--sh-glow);
   border-color: transparent;
@@ -64,10 +66,11 @@
 /* The edge light itself. A pseudo-element masked to the border box, so it can
    be a gradient without repainting the card's own background. */
 .bt::after,
-.pbig::after,
 .mn-panel::after,
 .uscard::after,
-.mb-card::after {
+.mb-card::after,
+.life-card::after,
+.life-focus::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -85,10 +88,11 @@
 }
 .bt:hover::after,
 .bt:focus-within::after,
-.pbig:hover::after,
 .mn-panel:hover::after,
 .uscard:hover::after,
-.mb-card:hover::after {
+.mb-card:hover::after,
+.life-card:hover::after,
+.life-focus:hover::after {
   opacity: 0.85;
 }
 
@@ -231,7 +235,6 @@
    screens set `background:` shorthand on these classes and would wipe an
    image set here. */
 .bt::before,
-.pbig::before,
 .mn-panel::before,
 .mn-stat::before,
 .uscard::before,
@@ -242,7 +245,9 @@
 .kn-ov-panel::before,
 .pcard::before,
 .ad-goog::before,
-.wk-ovpanel::before {
+.wk-ovpanel::before,
+.life-card::before,
+.life-focus::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -274,7 +279,6 @@
 }
 /* Card contents sit above their own highlight. */
 .bt > *,
-.pbig > *,
 .mn-panel > *,
 .uscard > *,
 .mb-card > *,
@@ -283,7 +287,9 @@
 .kn-ov-panel > *,
 .pcard > *,
 .ad-goog > *,
-.wk-ovpanel > * {
+.wk-ovpanel > *,
+.life-card > *,
+.life-focus > * {
   position: relative;
   z-index: 1;
 }
@@ -296,13 +302,14 @@
    Motion instead (see BentoTile): they are layout-animated, so Framer owns
    their inline transform and a CSS one is silently discarded. */
 @media (hover: hover) and (pointer: fine) {
-  .pbig:hover,
   .mn-panel:hover,
   .uscard:hover,
   .mb-card:hover,
   .wk-card:hover,
   .note-card:hover,
-  .pcard:hover {
+  .pcard:hover,
+  .life-card:hover,
+  .life-focus:hover {
     transform: perspective(1000px) translateY(-4px) rotateX(1.6deg) rotateY(-1.6deg);
   }
 }
@@ -360,7 +367,6 @@ body {
   /* The tracking light is movement, so it goes entirely rather than dimming. */
   .pointer-light,
   .bt::before,
-  .pbig::before,
   .mn-panel::before,
   .mn-stat::before,
   .uscard::before,
@@ -372,7 +378,9 @@ body {
   .kn-ov-panel::before,
   .pcard::before,
   .ad-goog::before,
-  .wk-ovpanel::before {
+  .wk-ovpanel::before,
+  .life-card::before,
+  .life-focus::before {
     display: none;
   }
   .live-dot,
@@ -389,7 +397,6 @@ body {
     color: var(--ink);
   }
   .bt,
-  .pbig,
   .mn-panel,
   .mn-stat,
   .uscard,
@@ -399,18 +406,21 @@ body {
   .wk-reflow,
   .blk-shell,
   .btn,
-  .chip {
+  .chip,
+  .life-card,
+  .life-focus {
     transition: box-shadow 0.2s linear, border-color 0.2s linear;
   }
   .bt:hover,
-  .pbig:hover,
   .mn-panel:hover,
   .mn-stat:hover,
   .uscard:hover,
   .mb-card:hover,
   .wk-card:hover,
   .btn:active,
-  .chip:active {
+  .chip:active,
+  .life-card:hover,
+  .life-focus:hover {
     transform: none;
   }
 }

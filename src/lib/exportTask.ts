@@ -1,17 +1,32 @@
 import type { Dataset, Task } from '../types';
 
 /**
- * Claude-export generator — a PURE FUNCTION (principle 4). No LLM, no clock,
+ * Coding-agent export generator — a PURE FUNCTION (principle 4). No LLM, no clock,
  * no randomness: identical task state → byte-identical output. Format is
  * IMPLEMENTATION-PLAN-v2.md §5, implemented exactly.
  */
 
-const byCreatedAt = <T extends { created_at: string }>(a: T, b: T) =>
-  a.created_at.localeCompare(b.created_at) || (a as unknown as { id: string }).id.localeCompare((b as unknown as { id: string }).id);
+const byCreatedAt = <T extends { created_at: string; id: string }>(a: T, b: T) =>
+  a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
 
 const iso8601Utc = (ts: string) => new Date(ts).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 const one = (n: number) => n.toFixed(1);
+
+/**
+ * A screenshot filename is user input. Give every asset a deterministic,
+ * unique path so two pasted files called `Screenshot.jpg` cannot overwrite
+ * one another in the handoff bundle (and path separators cannot escape the
+ * assets folder).
+ */
+export function taskAssetName(filename: string, index: number): string {
+  const leaf = filename.split(/[\\/]/).pop() || 'screenshot.jpg';
+  const safe = leaf
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'screenshot.jpg';
+  return `${String(index + 1).padStart(2, '0')}-${safe}`;
+}
 
 export function generateTaskExport(ds: Dataset, taskId: string): string {
   const task = ds.tasks.find((t) => t.id === taskId);
@@ -36,10 +51,11 @@ export function generateTaskExport(ds: Dataset, taskId: string): string {
   const pinNumbers = taskPinNumbers(ds, task.id);
   shots.forEach((shot, si) => {
     const n = si + 1;
+    const asset = taskAssetName(shot.filename, si);
     lines.push('');
     lines.push(`## Screenshot ${n} — ${shot.filename} (${shot.width}×${shot.height})`);
     if (shot.data_url) {
-      lines.push(`![screenshot-${n}](assets/${shot.filename})`);
+      lines.push(`![screenshot-${n}](assets/${asset})`);
       lines.push(
         '_Numbered markers are drawn on this image; each matches a pin below._',
       );
@@ -152,13 +168,15 @@ export async function exportTaskZip(ds: Dataset, taskId: string): Promise<Blob> 
   const zip = new JSZip();
   zip.file('TASK.md', generateTaskExport(ds, taskId));
   zip.file('README.md', bundleReadme(ds, taskId));
+  zip.file('CONTEXT.json', generateTaskContext(ds, taskId));
 
   const assets = zip.folder('assets');
   const shots = ds.screenshot_attachments.filter((s) => s.task_id === taskId).sort(byCreatedAt);
   const pinNumbers = taskPinNumbers(ds, taskId);
 
-  for (const shot of shots) {
+  for (const [index, shot] of shots.entries()) {
     if (!shot.data_url) continue; // nothing stored to annotate
+    const asset = taskAssetName(shot.filename, index);
     // Burn the TASK-global number into each marker, so marker "5" on the
     // second screenshot is the same pin 5 the markdown talks about.
     const pins = ds.annotation_pins
@@ -167,12 +185,12 @@ export async function exportTaskZip(ds: Dataset, taskId: string): Promise<Blob> 
       .map((p) => ({ ...p, n: pinNumbers.get(p.id) ?? 0 }));
     try {
       const annotated = await annotateScreenshot(shot.data_url, pins);
-      assets?.file(shot.filename, annotated.dataUrl.split(',')[1], { base64: true });
+      assets?.file(asset, annotated.dataUrl.split(',')[1], { base64: true });
       // The clean original travels too, for anyone who wants the unmarked view.
-      assets?.file(`original-${shot.filename}`, shot.data_url.split(',')[1], { base64: true });
+      assets?.file(`original-${asset}`, shot.data_url.split(',')[1], { base64: true });
     } catch {
       // Annotation is an enhancement; never lose the evidence because of it.
-      assets?.file(shot.filename, shot.data_url.split(',')[1], { base64: true });
+      assets?.file(asset, shot.data_url.split(',')[1], { base64: true });
     }
   }
   return zip.generateAsync({ type: 'blob' });
@@ -188,10 +206,11 @@ function bundleReadme(ds: Dataset, taskId: string): string {
     '',
     'Contents:',
     '- `TASK.md` — the brief: objective, located change requests, decisions, acceptance criteria.',
+    '- `CONTEXT.json` — the same task, screenshots, and globally numbered pins in a machine-readable hierarchy.',
     withImages
-      ? '- `assets/*.png` — screenshots with **numbered markers drawn on them**. Marker ① is pin 1 in TASK.md, ② is pin 2, and so on. One sequence runs across the whole task: a second screenshot continues the numbering rather than restarting at 1.'
+      ? '- `assets/*` — screenshots with **numbered markers drawn on them**. Marker ① is pin 1 in TASK.md, ② is pin 2, and so on. One sequence follows the order pins were added across the whole task; returning to an earlier screenshot continues the sequence rather than renumbering it.'
       : '- `assets/` — empty: no screenshot image data was stored for this task.',
-    withImages ? '- `assets/original-*.png` — the same screenshots without markers.' : '',
+    withImages ? '- `assets/original-*` — the same screenshots without markers.' : '',
     '',
     'How to read it:',
     '1. Open `TASK.md`.',
@@ -207,26 +226,74 @@ function bundleReadme(ds: Dataset, taskId: string): string {
 }
 
 /**
- * Derived pin numbering — one sequence per TASK, never stored.
- *
- * The sequence runs across every screenshot in the task in upload order, so
- * the first pin on a second screenshot continues the count (5, 6, …) rather
- * than restarting at 1. A task therefore has exactly one "pin 3", and saying
- * "tag 3 is this change" is unambiguous no matter which image it sits on.
- * row_number() over (screenshot age, pin age) — deleting a pin closes the gap.
+ * Deterministic machine-readable companion to TASK.md. Coding agents can
+ * consume this without parsing prose, while humans keep the markdown view.
  */
-export function taskPinNumbers(ds: Dataset, taskId: string): Map<string, number> {
+export function generateTaskContext(ds: Dataset, taskId: string): string {
+  const task = ds.tasks.find((t) => t.id === taskId);
+  if (!task) throw new Error(`No task ${taskId}`);
+  const project = ds.projects.find((p) => p.id === task.project_id);
   const shots = ds.screenshot_attachments
     .filter((s) => s.task_id === taskId)
     .sort(byCreatedAt);
+  const numbers = taskPinNumbers(ds, taskId);
+  const context = {
+    schema: 'anvik-task-context/v1',
+    task: {
+      id: task.id,
+      title: task.title,
+      objective: task.description,
+      project: project?.name ?? null,
+      type: task.type,
+      priority: task.priority,
+      status: task.status,
+      due_date: task.due_date,
+      acceptance_criteria: task.acceptance_criteria
+        .split('\n')
+        .map((line) => line.replace(/^-\s*/, '').trim())
+        .filter(Boolean),
+    },
+    screenshots: shots.map((shot, index) => ({
+      number: index + 1,
+      filename: shot.filename,
+      annotated_asset: shot.data_url ? `assets/${taskAssetName(shot.filename, index)}` : null,
+      original_asset: shot.data_url ? `assets/original-${taskAssetName(shot.filename, index)}` : null,
+      width: shot.width,
+      height: shot.height,
+      pins: ds.annotation_pins
+        .filter((pin) => pin.screenshot_id === shot.id)
+        .sort(byCreatedAt)
+        .map((pin) => ({
+          number: numbers.get(pin.id),
+          label: pin.label || null,
+          note: pin.note,
+          x_pct: Number(one(pin.x_pct)),
+          y_pct: Number(one(pin.y_pct)),
+          resolved: pin.is_resolved,
+        })),
+    })),
+  };
+  return `${JSON.stringify(context, null, 2)}\n`;
+}
+
+/**
+ * Derived pin numbering — one sequence per TASK, never stored.
+ *
+ * The sequence follows pin creation time across every screenshot in the task.
+ * This detail matters when someone returns to screenshot 1 after annotating
+ * screenshot 2: that new change is pin 7, not a new pin 4 inserted into the
+ * middle of the series. A task therefore has exactly one current "pin 3" and
+ * its handoff reads in the same order the requests were made.
+ */
+export function taskPinNumbers(ds: Dataset, taskId: string): Map<string, number> {
+  const shotIds = new Set(
+    ds.screenshot_attachments.filter((s) => s.task_id === taskId).map((s) => s.id),
+  );
+  const pins = ds.annotation_pins
+    .filter((pin) => shotIds.has(pin.screenshot_id))
+    .sort(byCreatedAt);
   const numbers = new Map<string, number>();
-  let n = 0;
-  for (const shot of shots) {
-    const pins = ds.annotation_pins
-      .filter((p) => p.screenshot_id === shot.id)
-      .sort(byCreatedAt);
-    for (const pin of pins) numbers.set(pin.id, ++n);
-  }
+  pins.forEach((pin, index) => numbers.set(pin.id, index + 1));
   return numbers;
 }
 

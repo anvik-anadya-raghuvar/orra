@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Dataset, Message } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { Camera, Music } from 'lucide-react';
-import { Avatar, Modal, useToast } from '../../ui/bits';
+import { Camera, CornerUpLeft, MoreHorizontal, Music, Send, X } from 'lucide-react';
+import { Avatar, InfoTip, Modal, useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
 import { fmtDay, fmtTime, todayIso } from '../../lib/dates';
 import { momentSrc } from '../../lib/moments';
@@ -128,14 +128,17 @@ function SendSongButton() {
 /** A sent photo. The bucket is private, so the src is a signed URL fetched
  *  on demand rather than something stored in the row. */
 function PhotoBubble({ m }: { m: Message }) {
-  const [src, setSrc] = useState<string | null>(null);
+  const [src, setSrc] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     let alive = true;
+    setSrc(undefined);
     if (m.attachment_url) momentSrc(m.attachment_url).then((u) => alive && setSrc(u));
+    else setSrc(null);
     return () => {
       alive = false;
     };
   }, [m.attachment_url]);
+  if (src === undefined) return <div className="msgphoto msgphoto-missing">Loading photo…</div>;
   if (!src) return <div className="msgphoto msgphoto-missing">Photo unavailable</div>;
   return <img className="msgphoto" src={src} alt={m.body || 'A shared moment'} loading="lazy" />;
 }
@@ -145,14 +148,19 @@ function Bubble({
   mine,
   ds,
   onPromote,
+  onReply,
 }: {
   m: Message;
   mine: boolean;
   ds: Dataset;
   onPromote: (m: Message, kind: PromoteKind) => void;
+  onReply: (m: Message) => void;
 }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const sender = ds.profiles.find((p) => p.id === m.sender_id);
   const task = m.task_ref_id ? ds.tasks.find((t) => t.id === m.task_ref_id) : undefined;
+  const repliedTo = m.reply_to_id ? ds.messages.find((item) => item.id === m.reply_to_id) : undefined;
+  const repliedSender = repliedTo ? ds.profiles.find((p) => p.id === repliedTo.sender_id) : undefined;
 
   return (
     <motion.div
@@ -165,6 +173,18 @@ function Bubble({
         <div className="msgmeta">
           {sender?.name ?? 'Someone'} · {fmtTime(m.created_at)}
         </div>
+        {repliedTo && (
+          <div className="msgreplyquote">
+            <b>{repliedSender?.name ?? 'Message'}</b>
+            <span>
+              {repliedTo.kind === 'photo'
+                ? 'Photo'
+                : repliedTo.kind === 'song'
+                  ? repliedTo.song_ref?.title || 'Song'
+                  : repliedTo.body}
+            </span>
+          </div>
+        )}
         {m.kind === 'photo' && <PhotoBubble m={m} />}
         {m.kind === 'song' && m.song_ref && (
           <div className="msgsong">
@@ -190,29 +210,47 @@ function Bubble({
             {task.id} · {task.title}
           </Link>
         )}
-        {m.promoted_to_type ? (
-          <div className="msgact">
+        {m.promoted_to_type && (
+          <div className="msgpromoted">
             {m.promoted_to_type === 'task' ? (
               <Link className="lk" to={`/task/${m.promoted_to_id}`}>
-                → {m.promoted_to_id}
+                Task {m.promoted_to_id}
               </Link>
             ) : (
-              <span className="lk">→ {m.promoted_to_type}</span>
+              <span>Saved as {m.promoted_to_type === 'note' ? 'a scribble' : 'a decision'}</span>
             )}
           </div>
-        ) : (
-          <div className="msgact">
-            <button type="button" onClick={() => onPromote(m, 'task')}>
-              → task
-            </button>
-            <button type="button" onClick={() => onPromote(m, 'note')}>
-              → scribble
-            </button>
-            <button type="button" onClick={() => onPromote(m, 'decision')}>
-              → decision
-            </button>
-          </div>
         )}
+        <div className="msgact">
+          <button
+            type="button"
+            aria-expanded={actionsOpen}
+            aria-label="Message actions"
+            onClick={() => setActionsOpen((value) => !value)}
+          >
+            <MoreHorizontal size={14} strokeWidth={2} aria-hidden /> Actions
+          </button>
+          {actionsOpen && (
+            <div className="msgmenu">
+              <button
+                type="button"
+                onClick={() => {
+                  onReply(m);
+                  setActionsOpen(false);
+                }}
+              >
+                <CornerUpLeft size={14} strokeWidth={1.9} aria-hidden /> Reply
+              </button>
+              {!m.promoted_to_type && (
+                <>
+                  <button type="button" onClick={() => onPromote(m, 'task')}>Turn into task</button>
+                  <button type="button" onClick={() => onPromote(m, 'note')}>Turn into scribble</button>
+                  <button type="button" onClick={() => onPromote(m, 'decision')}>Turn into decision</button>
+                </>
+              )}
+            </div>
+          )}
+          </div>
       </div>
     </motion.div>
   );
@@ -226,6 +264,8 @@ function ChatColumn({
   send,
   textareaRef,
   onPromote,
+  replyTo,
+  setReplyTo,
 }: {
   body: string;
   setBody: (v: string) => void;
@@ -234,11 +274,16 @@ function ChatColumn({
   send: () => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   onPromote: (m: Message, kind: PromoteKind) => void;
+  replyTo: Message | null;
+  setReplyTo: (m: Message | null) => void;
 }) {
   const ds = useData((d) => d);
   const store = useStore();
   const other = useData((_, s) => s.other);
   const streamRef = useRef<HTMLDivElement>(null);
+  const initialScrollDone = useRef(false);
+  const nearBottom = useRef(true);
+  const [newBelow, setNewBelow] = useState(0);
 
   const sorted = useMemo(
     () => [...ds.messages].sort((a, b) => a.created_at.localeCompare(b.created_at)),
@@ -254,7 +299,14 @@ function ChatColumn({
 
   useEffect(() => {
     const el = streamRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    if (!initialScrollDone.current || nearBottom.current) {
+      el.scrollTop = el.scrollHeight;
+      initialScrollDone.current = true;
+      setNewBelow(0);
+    } else {
+      setNewBelow((count) => count + 1);
+    }
   }, [sorted.length]);
 
   return (
@@ -262,12 +314,23 @@ function ChatColumn({
       <div className="chathead">
         <Avatar userId={other.id} size={30} />
         <div>
-          <div className="disp" style={{ fontSize: 15 }}>You + {other.name}</div>
+          <div className="disp feature-label" style={{ fontSize: 15 }}>
+            You + {other.name}
+            <InfoTip label="Us" text="Your shared thread, status, photos, songs and small rituals. Messages stay conversations unless you deliberately turn one into work." />
+          </div>
           <div className="presence">Just the two of you</div>
         </div>
       </div>
 
-      <div className="stream" ref={streamRef}>
+      <div
+        className="stream"
+        ref={streamRef}
+        onScroll={(event) => {
+          const el = event.currentTarget;
+          nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          if (nearBottom.current) setNewBelow(0);
+        }}
+      >
         <AnimatePresence initial={false}>
           {rows.map((r) =>
             r.kind === 'day' ? (
@@ -275,15 +338,74 @@ function ChatColumn({
                 {r.label}
               </div>
             ) : (
-              <Bubble key={r.m.id} m={r.m} mine={r.m.sender_id === store.meId} ds={ds} onPromote={onPromote} />
+              <Bubble
+                key={r.m.id}
+                m={r.m}
+                mine={r.m.sender_id === store.meId}
+                ds={ds}
+                onPromote={onPromote}
+                onReply={setReplyTo}
+              />
             ),
           )}
         </AnimatePresence>
         {rows.length === 0 && <p className="tip">Nothing here yet — say something.</p>}
+        {newBelow > 0 && (
+          <button
+            type="button"
+            className="newbelow"
+            onClick={() => {
+              const el = streamRef.current;
+              if (el) el.scrollTop = el.scrollHeight;
+              nearBottom.current = true;
+              setNewBelow(0);
+            }}
+          >
+            {newBelow} new message{newBelow === 1 ? '' : 's'} ↓
+          </button>
+        )}
       </div>
 
       <div className="compose">
-        <div className="ctools" style={{ marginTop: 0, marginBottom: 8 }}>
+        {replyTo && (
+          <div className="replybar">
+            <CornerUpLeft size={14} strokeWidth={1.9} aria-hidden />
+            <div>
+              <b>Replying to {ds.profiles.find((p) => p.id === replyTo.sender_id)?.name ?? other.name}</b>
+              <span>{replyTo.kind === 'photo' ? 'Photo' : replyTo.kind === 'song' ? replyTo.song_ref?.title : replyTo.body}</span>
+            </div>
+            <button type="button" aria-label="Cancel reply" onClick={() => setReplyTo(null)}>
+              <X size={14} strokeWidth={2} />
+            </button>
+          </div>
+        )}
+        {attachedTask && (
+          <div className="attachedtask">
+            <span>Attached task</span>
+            <Link to={`/task/${attachedTask.id}`}>{attachedTask.id} · {attachedTask.title}</Link>
+            <button type="button" aria-label="Remove attached task" onClick={() => setAttachedTaskId(null)}>
+              <X size={14} strokeWidth={2} />
+            </button>
+          </div>
+        )}
+        <div className="composemain">
+          <textarea
+            ref={textareaRef}
+            value={body}
+            placeholder={`Message ${other.name}…`}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+          />
+          <button className="sendbtn" type="button" onClick={send} disabled={!body.trim()} aria-label="Send message">
+            <Send size={17} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
+        <div className="ctools">
           <select
             className="statuslike"
             value=""
@@ -293,46 +415,15 @@ function ChatColumn({
               e.target.value = '';
             }}
           >
-            <option value="">+ Attach a task</option>
+            <option value="">Attach a task</option>
             {attachable.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.id} · {t.title}
               </option>
             ))}
           </select>
-          {attachedTask && (
-            <span className="lk" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {attachedTask.id}
-              <button
-                type="button"
-                aria-label="Remove attached task"
-                onClick={() => setAttachedTaskId(null)}
-                style={{ opacity: 0.7 }}
-              >
-                ×
-              </button>
-            </span>
-          )}
-        </div>
-        <textarea
-          ref={textareaRef}
-          value={body}
-          placeholder={`Message ${other.name}… attach work only when it matters.`}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
-        <div className="ctools">
           <SendPhotoButton />
           <SendSongButton />
-          <div className="spacer" />
-          <button className="btn sm solid" type="button" onClick={send}>
-            Send
-          </button>
         </div>
       </div>
     </div>
@@ -344,7 +435,20 @@ export default function Us() {
   const [body, setBody] = useState('');
   const [attachedTaskId, setAttachedTaskId] = useState<string | null>(null);
   const [promote, setPromote] = useState<PromoteTarget | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messages = useData((ds) => ds.messages);
+
+  // Opening the conversation is the read receipt. Leaving messages unread
+  // while they are visibly on screen makes the bell and the relationship both
+  // feel unreliable.
+  useEffect(() => {
+    messages
+      .filter((message) => message.sender_id !== store.meId && !message.read_at)
+      .forEach((message) =>
+        store.update('messages', message.id, { read_at: nowIso() }, { ...store.asMe(), silent: true }),
+      );
+  }, [messages, store]);
 
   const send = () => {
     const trimmed = body.trim();
@@ -360,12 +464,16 @@ export default function Us() {
         song_ref: null,
         promoted_to_type: null,
         promoted_to_id: null,
+        reply_to_id: replyTo?.id ?? null,
+        kind: 'chat',
+        read_at: null,
         created_at: nowIso(),
       },
       store.asMe(),
     );
     setBody('');
     setAttachedTaskId(null);
+    setReplyTo(null);
   };
 
   const prefill = (text: string) => {
@@ -384,6 +492,11 @@ export default function Us() {
           send={send}
           textareaRef={textareaRef}
           onPromote={(m, kind) => setPromote({ message: m, kind })}
+          replyTo={replyTo}
+          setReplyTo={(message) => {
+            setReplyTo(message);
+            textareaRef.current?.focus();
+          }}
         />
         <SideColumn onRitual={prefill} />
       </div>

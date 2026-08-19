@@ -5,13 +5,16 @@ import { checkCredentials } from './auth';
 describe('member sign-in (mock mode)', () => {
   const profiles = seedDataset().profiles;
 
-  it('accepts both member accounts with their temp passwords', () => {
+  it('accepts the member accounts and development-only test account', () => {
     const a = checkCredentials(profiles, 'anvik.anadya@gmail.com', 'Anadya@2026');
     expect(a.ok).toBe(true);
     if (a.ok) expect(a.profile.name).toBe('Anadya');
     const r = checkCredentials(profiles, 'RAGHUVAR.ANVIK@GMAIL.COM ', 'Raghuvar@2026');
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.profile.name).toBe('Raghuvar');
+    const test = checkCredentials(profiles, 'test@anvik.ops', 'Test@2026');
+    expect(test.ok).toBe(true);
+    if (test.ok) expect(test.profile.name).toBe('Test');
   });
 
   it('rejects a wrong password', () => {

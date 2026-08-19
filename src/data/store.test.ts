@@ -75,6 +75,11 @@ describe('who "the other one" is', () => {
     const store = new AppStore(onlyMeAndDemo, fakeAdapter(), 'u-anadya');
     expect(store.other.name).toBe('Test');
   });
+
+  it('lets the development test workspace assign work to itself', () => {
+    const store = new AppStore(seedDataset(), fakeAdapter(), DEMO_USER_ID);
+    expect(store.members.map((profile) => profile.id)).toContain(DEMO_USER_ID);
+  });
 });
 
 describe('remove() → Trash', () => {

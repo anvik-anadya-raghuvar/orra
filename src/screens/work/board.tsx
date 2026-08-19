@@ -1,9 +1,9 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import type { DayEvent, Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
-import { newId, useData, useStore } from '../../data/store';
+import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Avatar, SideSheet, TagChip, useToast } from '../../ui/bits';
 import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
@@ -15,6 +15,7 @@ import { MiniBars } from '../../ui/viz';
 import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
 import QuickEdit from './quickedit';
 import ReflowBanner from './reflow';
+import DraftEvidenceEditor, { type DraftPin, type DraftShot } from './DraftEvidenceEditor';
 import { blockedByOpenDep } from '../../lib/schedule';
 import { minToLabel } from '../../lib/dayPlan';
 import {
@@ -23,6 +24,7 @@ import {
   STATUSES,
   Segment,
   TYPES,
+  WORK_TAG_COLORS,
   currentSprint,
   liveSprints,
   parentOf,
@@ -345,8 +347,8 @@ export default function BoardTab({
   const inbox = useMemo(() => inboxTasks(ds.tasks, store.meId), [ds.tasks, store.meId]);
 
   const liveTags = useMemo(
-    () => [...new Set(mineAll.flatMap((t) => t.tags))].sort(),
-    [mineAll],
+    () => [...new Set([...ds.tags.map((tag) => tag.name), ...mineAll.flatMap((t) => t.tags)])].sort(),
+    [ds.tags, mineAll],
   );
 
   const stuck = useMemo(
@@ -893,6 +895,7 @@ function CalendarView({
                   title={`${minToLabel(e.start_min)} · ${e.label}`}
                 >
                   {minToLabel(e.start_min)} {e.label}
+                  {e.account_email && <small className="wk-account-badge">{e.account_email}</small>}
                 </span>
               ))}
               {on.map((t) => (
@@ -991,6 +994,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const ds = useData((d) => d);
   const store = useStore();
   const toast = useToast();
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [projectId, setProjectId] = useState(ds.projects[0]?.id ?? '');
@@ -998,21 +1002,41 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [priority, setPriority] = useState<TaskPriority>('normal');
   const [assignee, setAssignee] = useState(store.meId);
   const [due, setDue] = useState(todayIso());
+  const [tagText, setTagText] = useState('');
+  const [decisionIds, setDecisionIds] = useState<string[]>([]);
   /* Screenshots captured while writing the task, attached the moment it
      exists. A task is most often created BECAUSE of something on screen, and
      having to create it, open it, then go back for the screenshot lost the
      one piece of evidence that made it worth writing down. Held in state
      until submit because the attachments need a task id to point at. */
-  const [shots, setShots] = useState<DroppedImage[]>([]);
+  const [shots, setShots] = useState<DraftShot[]>([]);
+  const [pins, setPins] = useState<DraftPin[]>([]);
+  const [pinDraftOpen, setPinDraftOpen] = useState(false);
   const [shotBusy, setShotBusy] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const lastTimestamp = useRef(0);
+
+  const nextTimestamp = useCallback(() => {
+    const next = Math.max(Date.now(), lastTimestamp.current + 1);
+    lastTimestamp.current = next;
+    return new Date(next).toISOString();
+  }, []);
+
+  const addShot = useCallback(
+    (img: DroppedImage) =>
+      setShots((prev) => [
+        ...prev,
+        { ...img, id: newId('shot'), created_at: nextTimestamp() },
+      ]),
+    [nextTimestamp],
+  );
 
   useImagePaste(
     sheetRef,
     (files) => {
       setShotBusy(true);
-      void processImages(files, (img) => setShots((prev) => [...prev, img]))
-        .then(() => toast('Screenshot attached — it lands on the task with pins ready'))
+      void processImages(files, addShot)
+        .then(() => toast('Screenshot ready — click it to pin the exact change'))
         .catch((err: Error) => toast(err.message || 'That image could not be attached'))
         .finally(() => setShotBusy(false));
     },
@@ -1023,8 +1047,19 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [estimate, setEstimate] = useState(45);
 
   const submit = () => {
+    const clean = title.trim();
+    if (!clean) {
+      toast('Give the task a clear title before creating it');
+      return;
+    }
+    if (pinDraftOpen) {
+      toast('Finish or cancel the open pin before creating the task');
+      return;
+    }
     const id = store.nextTaskId();
-    const clean = title.trim() || 'Untitled task';
+    const labels = Array.from(
+      new Set(tagText.split(',').map((label) => label.trim()).filter(Boolean)),
+    );
     store.insert(
       'tasks',
       makeTask({
@@ -1040,6 +1075,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
         due_date: due || null,
         effort,
         estimate_minutes: estimate,
+        tags: labels,
       }),
       store.asMe({ summary: `Task ${id} created — ${clean}` }),
     );
@@ -1048,7 +1084,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       store.insert(
         'screenshot_attachments',
         {
-          id: newId('shot'),
+          id: img.id,
           task_id: id,
           storage_path: `screenshots/${id}/${img.filename}`,
           filename: img.filename,
@@ -1056,18 +1092,65 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           width: img.width,
           height: img.height,
           uploaded_by: store.meId,
-          created_at: new Date().toISOString(),
+          created_at: img.created_at,
           data_url: img.data_url,
         },
         store.asMe({ summary: `Screenshot ${img.filename} attached to ${id}` }),
       ),
     );
+    labels.forEach((name) => {
+      if (ds.tags.some((tag) => tag.name.toLowerCase() === name.toLowerCase())) return;
+      store.insert(
+        'tags',
+        {
+          id: newId('tag'),
+          name,
+          color: WORK_TAG_COLORS[ds.tags.length % WORK_TAG_COLORS.length],
+          created_by: store.meId,
+          created_at: nowIso(),
+        },
+        store.asMe({ summary: `Tag created: ${name}` }),
+      );
+    });
+    decisionIds.forEach((decisionId) => {
+      const decision = ds.decisions.find((item) => item.id === decisionId);
+      if (!decision) return;
+      store.update(
+        'decisions',
+        decision.id,
+        { task_ids: [...new Set([...(decision.task_ids ?? []), id])] },
+        store.asMe({ summary: `Linked ${id} to decision` }),
+      );
+    });
+    // Pins keep the exact chronological order they were written in the
+    // creator. Because the task page/export also order globally by this time,
+    // returning to screenshot 1 after screenshot 2 correctly creates pin 7.
+    pins.forEach((pin) =>
+      store.insert(
+        'annotation_pins',
+        {
+          ...pin,
+          author_id: store.meId,
+          is_resolved: false,
+        },
+        store.asMe({ summary: `Pin ${pin.note} added to ${id}` }),
+      ),
+    );
     notifyAssignment(store, { id, title: clean, due_date: due || null }, assignee);
-    toast(shots.length ? `${id} created with ${shots.length} screenshot${shots.length === 1 ? '' : 's'}` : `${id} created`);
+    toast(
+      shots.length
+        ? `${id} created with ${shots.length} screenshot${shots.length === 1 ? '' : 's'} and ${pins.length} pin${pins.length === 1 ? '' : 's'}`
+        : `${id} created`,
+    );
     setTitle('');
     setDescription('');
+    setTagText('');
+    setDecisionIds([]);
     setShots([]);
+    setPins([]);
+    setPinDraftOpen(false);
     onClose();
+    navigate(`/task/${id}`);
   };
 
   return (
@@ -1075,14 +1158,15 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       open={open}
       onClose={onClose}
       title="New task"
-      subtitle="Type decides what the task page shows, so it is worth getting right now."
+      subtitle="Write the brief, paste the evidence, and pin every requested change before handoff."
+      wide
       footer={
         <>
           <button className="btn" type="button" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn solid" type="button" onClick={submit}>
-            Create task
+          <button className="btn solid" type="button" onClick={submit} disabled={shotBusy}>
+            Create task{pins.length ? ` · ${pins.length} pin${pins.length === 1 ? '' : 's'}` : ''}
           </button>
         </>
       }
@@ -1162,32 +1246,59 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       </div>
 
       <div style={{ height: 14 }} />
-      <div className="eyebrow" style={{ marginBottom: 6 }}>
-        Screenshots {shots.length ? `· ${shots.length}` : ''}
-      </div>
-      {shots.length > 0 && (
-        <div className="wk-newshots">
-          {shots.map((img, i) => (
-            <span className="wk-newshot" key={`${img.filename}-${i}`}>
-              <img src={img.data_url} alt={img.filename} />
-              <button
-                type="button"
-                aria-label={`Remove ${img.filename}`}
-                onClick={() => setShots((prev) => prev.filter((_, k) => k !== i))}
-              >
-                ×
-              </button>
-            </span>
+      <Field label="Labels · create anything">
+        <input
+          className="wk-in"
+          value={tagText}
+          placeholder="study, export, needs-raghuvar · comma separated"
+          onChange={(event) => setTagText(event.target.value)}
+        />
+      </Field>
+      <div style={{ height: 14 }} />
+      <Field label="Linked decisions · optional">
+        <div className="wk-decision-tasks">
+          {ds.decisions.map((decision) => (
+            <label key={decision.id}>
+              <input
+                type="checkbox"
+                checked={decisionIds.includes(decision.id)}
+                onChange={() =>
+                  setDecisionIds((ids) =>
+                    ids.includes(decision.id)
+                      ? ids.filter((id) => id !== decision.id)
+                      : [...ids, decision.id],
+                  )
+                }
+              />
+              <span><b>{decision.question}</b><small style={{ display: 'block', color: 'var(--mute)' }}>{decision.status}</small></span>
+            </label>
           ))}
+          {ds.decisions.length === 0 && <span className="tip">No decisions yet.</span>}
         </div>
-      )}
+      </Field>
+
+      <div style={{ height: 14 }} />
+      <div className="eyebrow" style={{ marginBottom: 6 }}>
+        Evidence {shots.length ? `· ${shots.length} screenshot${shots.length === 1 ? '' : 's'} · ${pins.length} pin${pins.length === 1 ? '' : 's'}` : ''}
+      </div>
+      <DraftEvidenceEditor
+        shots={shots}
+        pins={pins}
+        nextTimestamp={nextTimestamp}
+        onPinsChange={setPins}
+        onDraftStateChange={setPinDraftOpen}
+        onRemoveShot={(shotId) => {
+          setShots((prev) => prev.filter((shot) => shot.id !== shotId));
+          setPins((prev) => prev.filter((pin) => pin.screenshot_id !== shotId));
+        }}
+      />
       <ImageDrop
-        onImage={(img) => setShots((prev) => [...prev, img])}
+        onImage={addShot}
         onError={(m) => toast(m)}
         busy={shotBusy}
         setBusy={setShotBusy}
         label={shots.length ? 'Attach another screenshot' : 'Attach a screenshot'}
-        hint="Paste with Ctrl+V, drop a file, or click to browse — pin notes onto it after the task is created"
+        hint="Paste with Ctrl+V, drop a file, or click to browse — then click the image to add numbered change requests"
       />
       </div>
     </SideSheet>

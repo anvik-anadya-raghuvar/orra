@@ -4,14 +4,15 @@ import NotesTab from './NotesTab';
 import MailTab from './MailTab';
 import DocumentsTab from './DocumentsTab';
 import WikiTab from './WikiTab';
+import { InfoTip } from '../../ui/bits';
 
 type KTab = 'notes' | 'wiki' | 'mail' | 'docs';
 
-const TABS: { key: KTab; label: string }[] = [
-  { key: 'notes', label: 'Scribbles' },
-  { key: 'wiki', label: 'Wiki' },
-  { key: 'mail', label: 'Mail' },
-  { key: 'docs', label: 'Documents' },
+const TABS: { key: KTab; label: string; help: string }[] = [
+  { key: 'notes', label: 'Scribbles', help: 'Fast notes, checklists, meeting notes and voice captures.' },
+  { key: 'wiki', label: 'Wiki', help: 'Structured pages you write down to keep and navigate later.' },
+  { key: 'mail', label: 'Mail', help: 'Connected mail that can become tasks, notes or decisions.' },
+  { key: 'docs', label: 'Documents', help: 'Documents with owners, expiry dates and follow-up status.' },
 ];
 
 /**
@@ -30,7 +31,10 @@ export default function Knowledge() {
   return (
     <div className="frame">
       <div className="top">
-        <div className="disp">Notebook</div>
+        <div className="disp feature-label">
+          Notebook
+          <InfoTip label={TABS.find((item) => item.key === tab)!.label} text={TABS.find((item) => item.key === tab)!.help} />
+        </div>
         <div className="sub2" role="tablist" aria-label="Notebook sections">
           {TABS.map(({ key, label }) => (
             <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}>
@@ -40,16 +44,6 @@ export default function Knowledge() {
         </div>
         <div className="spacer" />
       </div>
-      {/* Its own band rather than a third item in `.top`: that row is a
-          wrapping flex line, and a paragraph with a readable measure is narrow
-          enough to fit beside the tabs, so it landed there instead of under
-          them however the basis was set. */}
-      <p className="kn-blurb">
-        <span>
-          Scribbles are what you jot down fast. The wiki is what you write down to keep. Documents
-          are the ones with dates on them.
-        </span>
-      </p>
       <div className="wrap">
         {tab === 'notes' && <NotesTab />}
         {tab === 'wiki' && <WikiTab />}

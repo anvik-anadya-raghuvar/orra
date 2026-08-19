@@ -64,6 +64,17 @@ export interface Personalization {
   life_radar: boolean;
   projects_strip: boolean;
   money_on_home: boolean;
+  /** Home utilities are opt-out so existing profiles receive them without a
+   * migration rewriting every personalization JSON document. */
+  weather_on_home?: boolean;
+  world_clocks_on_home?: boolean;
+  weather_place?: {
+    label: string;
+    latitude: number;
+    longitude: number;
+    time_zone: string;
+  } | null;
+  world_clocks?: { label: string; time_zone: string }[];
   /** How this user has arranged their own Home grid. Absent means "however the
    *  packer lays it out", which is what a fresh account gets. A preference,
    *  never a permission — the other user's Home is unaffected by anything in
@@ -208,6 +219,11 @@ export interface DayEvent {
   label: string;
   kind: 'focus' | 'meeting' | 'study' | 'admin' | 'personal';
   task_id: string | null;
+  /** Present for events mirrored from a connected Google account. */
+  integration_grant_id?: string | null;
+  external_event_id?: string | null;
+  account_email?: string | null;
+  source_url?: string | null;
 }
 
 export interface Subtask {
@@ -224,6 +240,8 @@ export interface Comment {
   author_id: UserId;
   body: string;
   is_decision: boolean;
+  /** When a comment raised a real decision, this points at the canonical row. */
+  decision_id?: string | null;
   created_at: string;
 }
 
@@ -269,6 +287,9 @@ export interface Decision {
   opened_at: string;
   ruled_at: string | null;
   ruling_note: string;
+  /** Tasks that need or are governed by this decision. Kept on the canonical
+   * decision row so Decisions and task editors are always the same view. */
+  task_ids?: string[];
 }
 
 /**
@@ -325,6 +346,11 @@ export interface ChecklistItem {
 
 export interface MailItem {
   id: string;
+  /** Whose Notebook this belongs to. Older shared/demo rows may be null. */
+  owner_id?: UserId | null;
+  integration_grant_id?: string | null;
+  gmail_message_id?: string | null;
+  gmail_thread_id?: string | null;
   account_email: string;
   sender: string;
   subject: string;
@@ -346,6 +372,8 @@ export interface DocumentRef {
   cloud_ref_url: string;
   status_cache: 'ok' | 'soon' | 'over';
   owner_id?: UserId | null;
+  integration_grant_id?: string | null;
+  account_email?: string | null;
 }
 
 export interface Person {
@@ -412,6 +440,8 @@ export interface Course {
   schedule_label: string;
   is_expanded: boolean;
   position: number;
+  /** Optional while older local/demo rows are still read; persisted by 0025. */
+  tags?: string[];
   owner_id?: UserId | null;
 }
 export interface CourseItem {
@@ -427,6 +457,8 @@ export interface ReadingItem {
   author: string;
   status: 'queued' | 'reading' | 'done';
   position: number;
+  /** Optional while older local/demo rows are still read; persisted by 0025. */
+  tags?: string[];
   owner_id?: UserId | null;
 }
 export interface TimeLog {
@@ -442,7 +474,7 @@ export interface TimeLog {
 
 /** Which slice of work a block wraps around. The list is derived from this at
  *  render time, never snapshotted. */
-export type BlockScope = 'founder' | 'study' | 'personal' | 'today_plan' | 'intentions';
+export type BlockScope = 'founder' | 'study' | 'personal' | 'today_plan' | 'intentions' | 'custom';
 
 /**
  * A running (or paused) block. One row per person: the whole timer state,
@@ -460,6 +492,11 @@ export interface ActiveBlock {
   paused_at: string | null;
   paused_total_sec: number;
   target_minutes: number | null;
+  /** Only custom blocks snapshot their handwritten checklist; every standard
+   * scope continues to derive its lines from the real tasks/items. */
+  custom_label?: string | null;
+  custom_items?: { id: string; text: string; done: boolean }[];
+  log_kind?: TimeLog['kind'] | null;
 }
 export interface LifeAdminItem {
   id: string;
@@ -482,6 +519,17 @@ export interface PersonalGoal {
   id: string;
   user_id: UserId;
   title: string;
+  /** A loose human label such as Health, Home or Learning. It is deliberately
+   *  free text: this portal never forces someone's life into an enum. */
+  area?: string;
+  /** The reason this deserves attention now, distinct from general notes. */
+  why?: string;
+  /** One concrete action that can move the goal without re-planning it. */
+  next_action?: string;
+  /** At most three open goals should sit in Now; the rest wait in Later. */
+  focus_state?: 'now' | 'later';
+  /** Last deliberate review, used to keep quiet goals from going stale. */
+  reviewed_at?: string | null;
   notes: string;
   target_date: string | null;
   linked_project_id: string | null;
@@ -542,15 +590,29 @@ export interface LedgerEntry {
   direction: 'in' | 'out';
   /** Who actually paid — the first thing either founder asks about a row. */
   paid_by?: UserId | null;
-  /** The payer's share when an expense was split. Bookkeeping colour only:
-   *  nothing computes what one of you owes the other, by decision. */
+  /** Legacy percentage annotation. New rows use exact payer allocations. */
   split_pct?: number | null;
+  /** Exact cash paid or contributed by each person. The UI requires these
+   *  amounts to add up to the entry amount before it will save. */
+  payer_allocations?: LedgerPayerAllocation[] | null;
+  /** Context attached to this money movement. */
+  comments?: string | null;
+  /** Only expenses with this date can be promoted into Subscriptions. */
+  ends_on?: string | null;
+  /** The renewal tracker created from this expense, when applicable. */
+  subscription_id?: string | null;
+  /** Legacy classification retained so older rows remain readable. */
   expense_kind?: 'one_time' | 'recurring' | null;
   amount: number;
   status: 'paid' | 'due' | 'overdue';
   receipt_url: string | null;
   linked_task_id: string | null;
   import_batch_id: string | null;
+}
+
+export interface LedgerPayerAllocation {
+  user_id: UserId;
+  amount: number;
 }
 export interface ImportBatch {
   id: string;
@@ -671,6 +733,90 @@ export interface IntegrationGrant {
   scopes: string[];
   connected_at: string;
   last_sync_at: string | null;
+  /** Stable Google identity. Null only on the pre-migration legacy grant. */
+  google_subject?: string | null;
+  account_email?: string | null;
+  display_name?: string;
+  is_active?: boolean;
+  gmail_history_id?: string | null;
+  initial_mail_scan_at?: string | null;
+  last_sync_error?: string | null;
+}
+
+export type PersonalOrderKind = 'physical' | 'travel';
+export type PersonalOrderReviewStatus = 'pending' | 'confirmed' | 'dismissed';
+export type PersonalOrderLifecycleStatus =
+  | 'unknown'
+  | 'ordered'
+  | 'processing'
+  | 'shipped'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'booked'
+  | 'changed'
+  | 'completed'
+  | 'cancelled'
+  | 'return_started'
+  | 'returned'
+  | 'refund_pending'
+  | 'refunded';
+
+export interface PhysicalOrderDetails {
+  items: string[];
+  carrier: string | null;
+  tracking_number: string | null;
+  tracking_url: string | null;
+}
+
+export interface TravelOrderDetails {
+  booking_reference: string | null;
+  origin: string | null;
+  destination: string | null;
+  departure_at: string | null;
+  arrival_at: string | null;
+  stay_end_at: string | null;
+}
+
+/** One reviewed life-admin record, shown in Review, Active or History. */
+export interface PersonalOrder {
+  id: string;
+  user_id: UserId;
+  integration_grant_id: string | null;
+  account_email: string;
+  kind: PersonalOrderKind;
+  review_status: PersonalOrderReviewStatus;
+  lifecycle_status: PersonalOrderLifecycleStatus;
+  merchant: string;
+  external_reference: string | null;
+  summary: string;
+  amount: number | null;
+  currency: string | null;
+  next_event_at: string | null;
+  details: PhysicalOrderDetails | TravelOrderDetails;
+  manual_fields: string[];
+  reviewed_at: string | null;
+  reviewed_by: UserId | null;
+  last_event_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Parsed evidence only. Full Gmail bodies and HTML are never persisted. */
+export interface PersonalOrderEvent {
+  id: string;
+  order_id: string;
+  user_id: UserId;
+  integration_grant_id: string | null;
+  gmail_message_id: string | null;
+  event_type: PersonalOrderLifecycleStatus;
+  event_at: string;
+  sender: string;
+  subject: string;
+  source_url: string;
+  detection_reason: string;
+  confidence: number;
+  parsed_fields: Record<string, unknown>;
+  created_at: string;
 }
 
 /**
@@ -745,6 +891,8 @@ export interface Dataset {
   pages: Page[];
   page_comments: PageComment[];
   integration_grants: IntegrationGrant[];
+  personal_orders: PersonalOrder[];
+  personal_order_events: PersonalOrderEvent[];
   trash_items: TrashItem[];
 }
 

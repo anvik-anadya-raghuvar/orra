@@ -64,11 +64,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const me = useData((_, s) => s.me);
   const other = useData((_, s) => s.other);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(sessionStorage.getItem('anvik:dismissed-notifications') ?? '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+  const [popupId, setPopupId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const { permission, request, notify } = useDesktopNotifications();
   const seen = useRef<Set<string>>(new Set());
+  const ready = useRef(false);
 
   const unread = useMemo(
     () =>
@@ -78,24 +86,48 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     [messages, me.id],
   );
 
-  // Newest unread that hasn't been dismissed drives the popup.
-  const popup = unread.filter((m) => !dismissed.has(m.id)).slice(-1)[0] ?? null;
+  // Only a message that arrives while this session is open drives the popup.
+  // Older unread belongs in the bell; replaying it on every reload is what
+  // made the app open with a third of the phone covered by stale chat.
+  const popup = popupId && !dismissed.has(popupId)
+    ? unread.find((message) => message.id === popupId) ?? null
+    : null;
 
   /** A photo or song carries no text of its own, so say what arrived. */
-  const notificationBody = (m: Message): string => {
+  const notificationBody = useCallback((m: Message): string => {
     if (m.kind === 'photo') return m.body ? `Sent a photo — ${m.body}` : 'Sent you a photo';
     if (m.kind === 'song') return `Suggested a song — ${m.song_ref?.title ?? ''}`.trim();
     return m.body.slice(0, 120);
-  };
+  }, []);
 
-  // Fire a desktop notification once per genuinely new message.
+  // Establish a quiet baseline on mount, then alert only for genuinely new
+  // arrivals. This effect owns both the in-app and desktop alert so they can
+  // never disagree about what counts as "new".
   useEffect(() => {
-    for (const m of unread) {
-      if (seen.current.has(m.id)) continue;
+    if (!ready.current) {
+      unread.forEach((message) => seen.current.add(message.id));
+      ready.current = true;
+      return;
+    }
+    const fresh = unread.filter((message) => !seen.current.has(message.id));
+    for (const m of fresh) {
       seen.current.add(m.id);
       notify(`${other.name} · Anvik Ops`, notificationBody(m));
     }
-  }, [unread, other.name, notify]);
+    const latest = fresh.filter((message) => !dismissed.has(message.id)).slice(-1)[0];
+    if (latest) setPopupId(latest.id);
+  }, [unread, other.name, notify, notificationBody, dismissed]);
+
+  const dismissPopup = (id: string) => {
+    setDismissed((current) => {
+      const next = new Set(current).add(id);
+      try {
+        sessionStorage.setItem('anvik:dismissed-notifications', JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+    setPopupId(null);
+  };
 
   const markRead = useCallback(
     (id: string) => {
@@ -123,6 +155,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         song_ref: null,
         promoted_to_type: null,
         promoted_to_id: null,
+        reply_to_id: parent.id,
+        kind: 'chat',
         read_at: null,
         created_at: nowIso(),
       },
@@ -162,7 +196,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 type="button"
                 className="notif-x"
                 aria-label="Dismiss"
-                onClick={() => setDismissed((s) => new Set(s).add(popup.id))}
+                onClick={() => dismissPopup(popup.id)}
               >
                 <X size={15} strokeWidth={2} />
               </button>

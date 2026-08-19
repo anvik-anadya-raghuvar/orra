@@ -87,7 +87,6 @@ html[data-theme='dark'] {
   --sh1: 0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.5);
   --sh2: 0 12px 30px rgba(0, 0, 0, 0.62), 0 30px 66px rgba(0, 0, 0, 0.55);
   --glow: rgba(255, 95, 210, 0.3);
-  /* Bloom stack, read by body below. Small and hot rather than wide and pale. */
   --bloom-1: rgba(255, 60, 200, 0.36);
   --bloom-2: rgba(60, 240, 200, 0.2);
   --bloom-3: rgba(122, 86, 255, 0.3);
@@ -147,6 +146,65 @@ button {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--mute);
+}
+.feature-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.info-tip {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--mute);
+  background: var(--surf);
+  cursor: help;
+  flex: none;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.info-tip:hover,
+.info-tip:focus-visible {
+  color: var(--indigo);
+  border-color: color-mix(in srgb, var(--indigo) 45%, var(--line));
+}
+.info-tip-bubble {
+  position: absolute;
+  z-index: 200;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(280px, 75vw);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--surf);
+  box-shadow: var(--sh2);
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.14s, transform 0.14s, visibility 0.14s;
+}
+.info-tip:hover .info-tip-bubble,
+.info-tip:focus .info-tip-bubble,
+.info-tip:focus-within .info-tip-bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
 }
 .mono {
   font-family: 'IBM Plex Mono', monospace;
@@ -779,11 +837,13 @@ tbody tr:hover {
     z-index: 50;
     padding-bottom: env(safe-area-inset-bottom);
   }
-  .tabbar a {
+  .tabbar a,
+  .tabbar > button {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 2px;
     padding: 8px 0 6px;
     font-size: 9.5px;
@@ -791,8 +851,12 @@ tbody tr:hover {
     color: var(--mute);
     text-decoration: none;
     min-height: 48px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
-  .tabbar a[aria-current='page'] {
+  .tabbar a[aria-current='page'],
+  .tabbar > button.active {
     color: var(--indigo);
   }
   .shell {
@@ -979,7 +1043,44 @@ tbody tr:hover {
   .notif-pop {
     top: auto;
     bottom: calc(72px + env(safe-area-inset-bottom));
+    padding: 10px 11px;
   }
+  .notif-pop .notif-body {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-top: 6px;
+    font-size: 12.5px;
+  }
+  .notif-pop .notif-acts {
+    margin-top: 7px;
+  }
+  .notif-pop .notif-acts .btn:not(:last-child) {
+    display: none;
+  }
+}
+
+.mobile-more {
+  display: grid;
+  gap: 8px;
+}
+.mobile-more a {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf2);
+  color: var(--ink);
+  text-decoration: none;
+}
+.mobile-more a[aria-current='page'] {
+  color: var(--indigo);
+  border-color: var(--indigo);
+  background: var(--indigo-s);
 }
 
 /* ── scrollbars ────────────────────────────────────────────────────────────

@@ -7,15 +7,16 @@ import TagsTab from './TagsTab';
 import ConnectionsTab from './ConnectionsTab';
 import DataTab from './DataTab';
 import './admin.css';
+import { InfoTip } from '../../ui/bits';
 
 type Tab = 'trail' | 'rules' | 'tags' | 'connections' | 'data';
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'trail', label: 'Trail' },
-  { key: 'rules', label: 'Rules' },
-  { key: 'tags', label: 'Tags' },
-  { key: 'connections', label: 'Connections' },
-  { key: 'data', label: 'Data' },
+const TABS: { key: Tab; label: string; help: string }[] = [
+  { key: 'trail', label: 'Trail', help: 'A chronological record of meaningful changes in the workspace.' },
+  { key: 'rules', label: 'Rules', help: 'Automation rules that classify or route incoming information.' },
+  { key: 'tags', label: 'Tags', help: 'The shared label library; task editors can also create labels inline.' },
+  { key: 'connections', label: 'Connections', help: 'External accounts connected to the workspace and their sync state.' },
+  { key: 'data', label: 'Data', help: 'Import, export, trash and maintenance tools for workspace data.' },
 ];
 
 export default function Admin() {
@@ -24,8 +25,11 @@ export default function Admin() {
   return (
     <div className="admin-screen frame">
       <div className="top">
-        <div className="disp">Admin</div>
-        <div className="sub2" role="tablist" aria-label="Admin sections">
+        <div className="disp feature-label">
+          Settings
+          <InfoTip label={TABS.find((item) => item.key === tab)!.label} text={TABS.find((item) => item.key === tab)!.help} />
+        </div>
+        <div className="sub2" role="tablist" aria-label="Settings sections">
           {TABS.map(({ key, label }) => (
             <button
               key={key}

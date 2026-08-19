@@ -470,7 +470,7 @@ export function DayRibbon({
   endHour = 22,
   onPick,
 }: {
-  events: { id: string; start_min: number; end_min: number; label: string; kind: string }[];
+  events: { id: string; start_min: number; end_min: number; label: string; kind: string; accountLabel?: string | null }[];
   nowMin: number;
   startHour?: number;
   endHour?: number;
@@ -509,9 +509,10 @@ export function DayRibbon({
               background: kindColor[e.kind] ?? 'var(--viz-seq)',
             }}
             onClick={() => onPick?.(e.id)}
-            title={`${e.label} · ${String(Math.floor(e.start_min / 60)).padStart(2, '0')}:${String(e.start_min % 60).padStart(2, '0')}`}
+            title={`${e.label} · ${String(Math.floor(e.start_min / 60)).padStart(2, '0')}:${String(e.start_min % 60).padStart(2, '0')}${e.accountLabel ? ` · ${e.accountLabel}` : ''}`}
           >
             <span>{e.label}</span>
+            {e.accountLabel && <small>{e.accountLabel}</small>}
           </button>
         ))}
         {nowMin >= startHour * 60 && nowMin <= endHour * 60 && (

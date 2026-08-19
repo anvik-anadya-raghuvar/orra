@@ -167,6 +167,13 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
           return;
         }
         store.setMe(res.profile.id);
+        // Mock workspaces use separate localStorage datasets. Reload after the
+        // identity is saved so the selected account gets its own adapter key.
+        try {
+          localStorage.setItem('anvik:signedin', '1');
+        } catch {}
+        window.location.reload();
+        return;
       }
       try {
         localStorage.setItem('anvik:signedin', '1');
@@ -220,20 +227,6 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
           <motion.p className="gate-sub" {...rise(0.3)}>
             Two people, eight rooms, one quiet place. Sign in and pick it up where you left it.
           </motion.p>
-          <motion.div className="gate-stats" {...rise(0.34)}>
-            <span>
-              <b>₹0</b>
-              <small>per month, forever</small>
-            </span>
-            <span>
-              <b>2</b>
-              <small>people · Anadya and Raghuvar</small>
-            </span>
-            <span>
-              <b>IST ⇄ CET</b>
-              <small>built for the gap</small>
-            </span>
-          </motion.div>
         </div>
 
         <motion.div

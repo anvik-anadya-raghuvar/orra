@@ -2,9 +2,8 @@
  * The Tracker's arithmetic — pure, so the summary, the charts and the export
  * can never disagree about the same range.
  *
- * Deliberately absent: anything that computes what one of you owes the other.
- * `split_pct` records that an expense was shared; turning that into a debt is
- * a different product and not this one.
+ * Exact payer allocations record who funded each movement. They do not infer
+ * reimbursement balances or turn this into a debt-settlement product.
  */
 import type { Dataset, LedgerEntry, Subscription } from '../types';
 
@@ -86,9 +85,10 @@ export function topExpenses(entries: LedgerEntry[], n = 5): LedgerEntry[] {
 }
 
 /**
- * One-off versus recurring spend. Rows that were never categorised count as
+ * Legacy one-off versus recurring spend. Rows that were never categorised count as
  * one-off rather than being dropped, so the two bars always sum to total spend
- * and the chart cannot quietly under-report.
+ * and the chart cannot quietly under-report. New entries use the dated
+ * Subscriptions model instead; this remains for older data and exports.
  */
 export function spendShape(entries: LedgerEntry[]): { oneTime: number; recurring: number } {
   let oneTime = 0;

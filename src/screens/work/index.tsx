@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { entrance, micro } from '../../ui/motion';
+import { InfoTip } from '../../ui/bits';
 import BoardTab from './board';
 import GoalsTab from './goals';
 import DecisionsTab from './decisions';
@@ -8,10 +9,10 @@ import './work.css';
 
 type Tab = 'board' | 'goals' | 'decisions';
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'board', label: 'To dos' },
-  { key: 'goals', label: 'Goals' },
-  { key: 'decisions', label: 'Decisions' },
+const TABS: { key: Tab; label: string; help: string }[] = [
+  { key: 'board', label: 'To dos', help: 'Create, filter, schedule and edit the real task rows.' },
+  { key: 'goals', label: 'Priorities', help: 'Shows why business tasks rank where they do. Every task opens its synced quick editor.' },
+  { key: 'decisions', label: 'Decisions', help: 'Canonical decisions and the tasks that need or follow each one.' },
 ];
 
 export default function Work() {
@@ -23,7 +24,10 @@ export default function Work() {
     <MotionConfig reducedMotion="user">
       <div className="frame">
         <div className="top">
-          <div className="disp">Work</div>
+          <div className="disp feature-label">
+            Work
+            <InfoTip label={TABS.find((item) => item.key === tab)!.label} text={TABS.find((item) => item.key === tab)!.help} />
+          </div>
           <div className="sub2" role="tablist" aria-label="Work sections">
             {TABS.map((t) => (
               <button

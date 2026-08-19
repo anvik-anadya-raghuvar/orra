@@ -29,14 +29,16 @@ const KINDS: { key: MoodItem['kind']; label: string; Icon: typeof Quote }[] = [
 ];
 
 function PinnedImage({ path }: { path: string }) {
-  const [src, setSrc] = useState<string | null>(null);
+  const [src, setSrc] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     let alive = true;
+    setSrc(undefined);
     momentSrc(path).then((u) => alive && setSrc(u));
     return () => {
       alive = false;
     };
   }, [path]);
+  if (src === undefined) return <div className="mb-img mb-img-missing">Loading image…</div>;
   if (!src) return <div className="mb-img mb-img-missing">Image unavailable</div>;
   return <img className="mb-img" src={src} alt="" loading="lazy" />;
 }
@@ -165,7 +167,7 @@ export default function MoodBoard() {
     <div className="mb-wrap">
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickImage} aria-label="Choose an image" />
       <div className="phead">
-        <h3>Mood board</h3>
+        <h3>Vision</h3>
         <span className="mono sub">{items.length} pinned</span>
         <div className="spacer" />
         <button type="button" className="btn sm solid" onClick={() => setOpen(true)}>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { LedgerEntry } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { SideSheet, useToast } from '../../ui/bits';
+import { InfoTip, SideSheet, useToast } from '../../ui/bits';
 import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { inr } from '../../lib/dates';
 import {
@@ -19,6 +19,16 @@ import {
 } from './common';
 
 type Step = 'file' | 'map' | 'dupes';
+
+const FIELD_HELP: Record<ImportField, string> = {
+  date: 'Choose the CSV column containing the transaction date.',
+  party: 'Choose the contribution source or expense recipient column.',
+  category: 'Choose the reporting category column, if present.',
+  amount: 'Choose the numeric amount column. Negative values are treated as expenses when no flow column exists.',
+  status: 'Choose paid, due, or overdue status, if present.',
+  project: 'Choose the business project column. Unknown or personal projects fall back to the first business project.',
+  direction: 'Choose the flow column: contribution/in/credit or expense/out/debit.',
+};
 
 const emptyMapping = (): ColumnMapping =>
   ({ date: '', party: '', category: '', amount: '', status: '', project: '', direction: '' } as ColumnMapping);
@@ -55,27 +65,12 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
     setBusy(true);
     setError(null);
     try {
-      let hdrs: string[] = [];
-      let data: ParsedRow[] = [];
-      if (/\.csv$/i.test(file.name)) {
-        const Papa = (await import('papaparse')).default;
-        const text = await file.text();
-        const parsed = Papa.parse<ParsedRow>(text, { header: true, skipEmptyLines: true });
-        hdrs = (parsed.meta.fields ?? []) as string[];
-        data = parsed.data as ParsedRow[];
-      } else {
-        const XLSX = await import('xlsx');
-        const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json<ParsedRow>(ws, { defval: '' });
-        data = json.map((r) => {
-          const out: ParsedRow = {};
-          for (const [k, v] of Object.entries(r)) out[k] = String(v ?? '');
-          return out;
-        });
-        hdrs = data.length ? Object.keys(data[0]) : [];
-      }
+      if (!/\.csv$/i.test(file.name)) throw new Error('Choose a CSV file');
+      const Papa = (await import('papaparse')).default;
+      const text = await file.text();
+      const parsed = Papa.parse<ParsedRow>(text, { header: true, skipEmptyLines: true });
+      const hdrs = (parsed.meta.fields ?? []) as string[];
+      let data = parsed.data as ParsedRow[];
       data = data.filter((r) => Object.values(r).some((v) => String(v ?? '').trim() !== ''));
       if (!hdrs.length || !data.length) {
         setError('No rows found in that file.');
@@ -87,8 +82,8 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
       setMapping(autoMapHeaders(hdrs));
       setFilename(file.name);
       setStep('map');
-    } catch {
-      setError('Could not read that file — check it is a valid CSV or XLSX.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not read that CSV file.');
     } finally {
       setBusy(false);
     }
@@ -150,6 +145,13 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
           receipt_url: null,
           linked_task_id: null,
           import_batch_id: batch.id,
+          paid_by: store.meId,
+          payer_allocations: [{ user_id: store.meId, amount: r.amount }],
+          split_pct: null,
+          expense_kind: null,
+          comments: '',
+          ends_on: null,
+          subscription_id: null,
         },
         store.asMe({ summary: `Imported from ${filename}` }),
       );
@@ -167,29 +169,35 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
        a 620px dialog turns that into a column of ellipses. Each step keeps its
        own Back/Next pair inline — they move you through the flow rather than
        committing the panel, so they are not the sheet's footer. */
-    <SideSheet open={open} onClose={close} title="Import ledger" wide>
+    <SideSheet open={open} onClose={close} title="Import money entries" wide>
       <div className="mn-steps">
-        <span className={step === 'file' ? 'on' : ''}>1 · File</span>
-        <span className={step === 'map' ? 'on' : ''}>2 · Mapping</span>
-        <span className={step === 'dupes' ? 'on' : ''}>3 · Duplicates</span>
+        <span className={`${step === 'file' ? 'on' : ''} feature-label`}>
+          1 · File
+          <InfoTip label="CSV file" text="Upload a CSV with one header row. Nothing is saved at this step." />
+        </span>
+        <span className={`${step === 'map' ? 'on' : ''} feature-label`}>
+          2 · Mapping
+          <InfoTip label="Column mapping" text="Match your CSV columns to Money fields and check the preview." />
+        </span>
+        <span className={`${step === 'dupes' ? 'on' : ''} feature-label`}>
+          3 · Duplicates
+          <InfoTip label="Duplicate check" text="Rows with the same date, party, and amount as an existing entry are skipped." />
+        </span>
       </div>
 
       {step === 'file' && (
         <div>
-          <p className="tip" style={{ marginTop: 0 }}>
-            CSV or XLSX, header row required. Column mapping is next.
-          </p>
           <label className="mn-drop">
             <input
               type="file"
-              accept=".csv,.xlsx,.xls"
+              accept=".csv,text/csv"
               style={{ display: 'none' }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) handleFile(f);
               }}
             />
-            {busy ? 'Reading file…' : 'Choose a CSV or XLSX file'}
+            {busy ? 'Reading file…' : 'Choose a CSV file'}
           </label>
           {error && (
             <p className="tip" style={{ color: 'var(--rose)' }}>
@@ -212,9 +220,10 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
           <div className="mn-ctl">
             {IMPORT_FIELDS.map((f) => (
               <label className="mn-fld" key={f.key}>
-                <span className="mn-lbl">
+                <span className="mn-lbl feature-label">
                   {f.label}
                   {f.required ? ' *' : ''}
+                  <InfoTip label={`${f.label} mapping`} text={FIELD_HELP[f.key]} />
                 </span>
                 <select
                   className="mn-in"
@@ -231,8 +240,9 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
               </label>
             ))}
           </div>
-          <p className="eyebrow" style={{ margin: '14px 0 8px' }}>
+          <p className="eyebrow feature-label" style={{ margin: '14px 0 8px' }}>
             Preview — first 3 rows
+            <InfoTip label="Import preview" text="A read-only sample of the current mapping; it is not saved yet." />
           </p>
           <div style={{ overflowX: 'auto' }}>
             <table className="mn-preview">
@@ -279,11 +289,11 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
 
       {step === 'dupes' && (
         <div>
-          <p className="tip" style={{ marginTop: 0 }}>
-            Duplicate = same date, party, and amount already in the ledger.{' '}
-            <strong>{skipped}</strong> will be skipped · <strong>{willImport}</strong> will be
-            imported.
-          </p>
+          <div className="mn-import-summary">
+            <span><strong>{skipped}</strong> duplicates skipped</span>
+            <span><strong>{willImport}</strong> entries imported</span>
+            <InfoTip label="Import result" text="Duplicate means the same date, party, and amount already exists in Money." />
+          </div>
           <motion.div
             {...staggerParent()}
             style={{ maxHeight: 260, overflowY: 'auto' }}

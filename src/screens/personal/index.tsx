@@ -1,16 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
-import { ChevronDown, Maximize2 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type { Course, CourseItem, ReadingItem } from '../../types';
 import { newId, useData, useStore } from '../../data/store';
-import { Modal, useToast } from '../../ui/bits';
+import { InfoTip, Modal, useToast } from '../../ui/bits';
 import { entrance, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { Donut, MiniBars, Ring, VIZ } from '../../ui/viz';
-import { ownRows } from '../../lib/workspace';
+import { myTasks, ownRows } from '../../lib/workspace';
 import {
   DeleteBtn,
   FixedDates,
   InlineText,
+  LabelEditor,
   LifeAdmin,
   MoveBtns,
   RelocationDocs,
@@ -29,14 +30,18 @@ import {
   CoursesGlance,
   DatesGlance,
   DocsGlance,
-  GoalsGlance,
   LedgerGlance,
   LifeAdminGlance,
+  OrdersGlance,
   ReadingGlance,
   RhythmGlance,
   TasksGlance,
 } from './glances';
 import MoodBoard from './moodboard';
+import { daysUntil, todayIso } from '../../lib/dates';
+import { isTerminalOrder } from '../../lib/personalOrders';
+import { goalsFor } from '../../lib/goals';
+import PersonalOrders from './PersonalOrders';
 import './personal.css';
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -176,6 +181,14 @@ function CourseCard({ course, siblings, index }: { course: Course; siblings: Cou
         </span>
       </div>
 
+      <LabelEditor
+        values={course.tags ?? []}
+        label={`Labels for ${course.title}`}
+        onChange={(tags) =>
+          store.update('courses', course.id, { tags }, store.asMe({ summary: `Labels updated — ${course.title}` }))
+        }
+      />
+
       <AnimatePresence initial={false}>
         {course.is_expanded && (
           <motion.div
@@ -248,6 +261,7 @@ function Courses() {
         schedule_label: schedule.trim(),
         is_expanded: true,
         position: courses.length + 1,
+        tags: [],
         owner_id: meId,
       },
       store.asMe({ summary: `Course added — ${t}` }),
@@ -352,6 +366,7 @@ function ReadingQueue() {
         author: author.trim(),
         status: 'queued',
         position: rows.length + 1,
+        tags: [],
         owner_id: meId,
       },
       store.asMe({ summary: `Reading item added — ${t}` }),
@@ -404,6 +419,13 @@ function ReadingQueue() {
                 className="mono sub"
                 onSave={(a) =>
                   store.update('reading_queue', r.id, { author: a }, store.asMe({ summary: `Author set — ${a || '—'}` }))
+                }
+              />
+              <LabelEditor
+                values={r.tags ?? []}
+                label={`Labels for ${r.title}`}
+                onChange={(tags) =>
+                  store.update('reading_queue', r.id, { tags }, store.asMe({ summary: `Labels updated — ${r.title}` }))
                 }
               />
             </span>
@@ -493,12 +515,12 @@ function ReadingQueue() {
  * where your own widgets live. A tab whose widgets you have all switched off
  * disappears rather than showing you an empty room.
  */
-export type WidgetTab = 'today' | 'study' | 'moving';
+export type WidgetTab = 'today' | 'learning' | 'plans';
 
 export const TAB_META: { key: WidgetTab; label: string; blurb: string }[] = [
   { key: 'today', label: 'Today', blurb: 'What you are actually doing with the day.' },
-  { key: 'study', label: 'Study', blurb: 'The degree, the reading, and where the hours went.' },
-  { key: 'moving', label: 'Moving', blurb: 'The dates and paperwork the move runs on.' },
+  { key: 'learning', label: 'Learning', blurb: 'Courses, reading and where the hours went.' },
+  { key: 'plans', label: 'Plans', blurb: 'Orders, dates, errands and relocation paperwork.' },
 ];
 
 /**
@@ -530,15 +552,15 @@ const WIDGETS: {
   node: React.ReactNode;
 }[] = [
   { key: 'tasks', label: 'Personal tasks', hint: 'Your board’s personal rows, checkable here', tab: 'today', cols: 2, glance: <TasksGlance />, node: <PersonalTasks /> },
-  { key: 'goals', label: 'Goals', hint: 'Your own ambitions, with progress that fills itself in', tab: 'today', cols: 2, glance: <GoalsGlance />, node: <PersonalGoals /> },
-  { key: 'blocks', label: 'Blocks', hint: 'Start a study or personal block', tab: 'today', cols: 2, glance: <BlocksGlance />, node: <StudyTimer /> },
-  { key: 'life_admin', label: 'Life admin', hint: 'The errands that are not tasks', tab: 'today', cols: 2, glance: <LifeAdminGlance />, node: <LifeAdmin /> },
-  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', tab: 'study', cols: 2, glance: <CoursesGlance />, node: <Courses /> },
-  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', tab: 'study', cols: 2, glance: <ReadingGlance />, node: <ReadingQueue /> },
-  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', tab: 'study', cols: 2, glance: <RhythmGlance />, node: <StudyRhythm /> },
-  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', tab: 'study', cols: 2, glance: <LedgerGlance />, node: <TimeLedger /> },
-  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas, term starts', tab: 'moving', cols: 2, glance: <DatesGlance />, node: <FixedDates /> },
-  { key: 'docs', label: 'Relocation documents', hint: 'The paperwork with expiry dates', tab: 'moving', cols: 2, glance: <DocsGlance />, node: <RelocationDocs /> },
+  { key: 'blocks', label: 'Focus blocks', hint: 'Start a study or personal block', tab: 'today', cols: 2, glance: <BlocksGlance />, node: <StudyTimer /> },
+  { key: 'courses', label: 'Courses', hint: 'Modules and their items, if you are studying', tab: 'learning', cols: 2, glance: <CoursesGlance />, node: <Courses /> },
+  { key: 'reading', label: 'Reading queue', hint: 'What you mean to read next', tab: 'learning', cols: 2, glance: <ReadingGlance />, node: <ReadingQueue /> },
+  { key: 'rhythm', label: 'Study rhythm', hint: 'The 21-day strip and the study-vs-founder split', tab: 'learning', cols: 2, glance: <RhythmGlance />, node: <StudyRhythm /> },
+  { key: 'ledger', label: 'Time ledger', hint: 'Every logged block, editable', tab: 'learning', cols: 2, glance: <LedgerGlance />, node: <TimeLedger /> },
+  { key: 'orders', label: 'Orders & travel', hint: 'Review purchases, deliveries and bookings', tab: 'plans', cols: 2, glance: <OrdersGlance />, node: <PersonalOrders /> },
+  { key: 'personal_admin', label: 'Personal admin', hint: 'Small errands that are not project tasks', tab: 'plans', cols: 2, glance: <LifeAdminGlance />, node: <LifeAdmin /> },
+  { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas and term starts', tab: 'plans', cols: 2, glance: <DatesGlance />, node: <FixedDates /> },
+  { key: 'docs', label: 'Relocation documents', hint: 'Paperwork with expiry dates', tab: 'plans', cols: 2, glance: <DocsGlance />, node: <RelocationDocs /> },
 ];
 
 /** Everything on, until someone turns something off. */
@@ -665,10 +687,6 @@ function PersonalBento({ shown }: { shown: typeof WIDGETS }) {
               aria-label={`Open ${t.label}`}
             >
               {t.glance}
-              <span className="pgl-hint" aria-hidden>
-                <Maximize2 size={11} strokeWidth={2} />
-                open
-              </span>
             </button>
           </BentoTile>
         ))}
@@ -686,86 +704,177 @@ function PersonalBento({ shown }: { shown: typeof WIDGETS }) {
   );
 }
 
-type PersonalTab = WidgetTab | 'board';
+type PersonalTab = WidgetTab | 'goals' | 'vision';
+
+const PERSONAL_TABS: { key: PersonalTab; label: string; blurb: string }[] = [
+  { key: 'today', label: 'Today', blurb: 'Your current direction and the personal work you can act on now.' },
+  { key: 'goals', label: 'Goals', blurb: 'Personal directions with a reason, next action and honest progress.' },
+  { key: 'learning', label: 'Learning', blurb: 'Courses, reading and the hours you are putting in.' },
+  { key: 'plans', label: 'Plans', blurb: 'Orders, travel, fixed dates, errands and relocation paperwork.' },
+  { key: 'vision', label: 'Vision', blurb: 'A private place for images, references, notes and songs.' },
+];
+
+function PersonalToday({
+  onOpen,
+  onCreateGoal,
+  widgets,
+}: {
+  onOpen: (tab: PersonalTab) => void;
+  onCreateGoal: () => void;
+  widgets: typeof WIDGETS;
+}) {
+  const ds = useData((d) => d);
+  const meId = useData((_, s) => s.meId);
+  const personalProjects = useMemo(
+    () => new Set(ds.projects.filter((project) => project.is_personal).map((project) => project.id)),
+    [ds.projects],
+  );
+  const actions = useMemo(
+    () =>
+      myTasks(ds.tasks, meId).filter(
+        (task) => personalProjects.has(task.project_id) && task.status !== 'done',
+      ),
+    [ds.tasks, meId, personalProjects],
+  );
+  const goals = useMemo(
+    () => goalsFor(ds, meId).filter((goal) => goal.status === 'open'),
+    [ds.personal_goals, meId],
+  );
+  const focus = goals.find((goal) => (goal.focus_state ?? 'now') === 'now') ?? goals[0];
+  const nextDate = useMemo(
+    () =>
+      [...ds.fixed_dates]
+        .map((item) => ({ ...item, days: daysUntil(item.date, todayIso()) }))
+        .filter((item) => item.days >= 0)
+        .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null,
+    [ds.fixed_dates],
+  );
+  const myOrders = useMemo(
+    () => ds.personal_orders.filter((order) => order.user_id === meId),
+    [ds.personal_orders, meId],
+  );
+  const pendingOrders = myOrders.filter((order) => order.review_status === 'pending');
+  const activeDeliveries = myOrders.filter(
+    (order) => order.review_status === 'confirmed' && order.kind === 'physical' && !isTerminalOrder(order),
+  );
+  const upcomingTrips = myOrders.filter(
+    (order) => order.review_status === 'confirmed' && order.kind === 'travel' && !isTerminalOrder(order),
+  );
+
+  return (
+    <div className="life-workspace">
+      <section className="life-focus" aria-label="Personal summary for today">
+        <span className="eyebrow">Personal briefing · today</span>
+        <h1>{focus?.title ?? 'What would make the next 90 days meaningfully better?'}</h1>
+        <p>
+          {focus?.next_action ||
+            (focus
+              ? 'Give this goal one concrete next action so it can move today.'
+              : 'Start with one direction. You do not need to design everything first.')}
+        </p>
+        <div className="life-focus-actions">
+          <button className="btn solid" type="button" onClick={focus ? () => onOpen('goals') : onCreateGoal}>
+            {focus ? 'Open this goal' : 'Create your first goal'}
+          </button>
+          <button className="btn" type="button" onClick={() => onOpen('plans')}>
+            Review plans
+          </button>
+        </div>
+        <div className="life-signal-grid">
+          <div>
+            <b>{actions.length}</b>
+            <span>next actions</span>
+          </div>
+          <button type="button" onClick={() => onOpen('goals')}>
+            <b>{goals.length}</b>
+            <span>active goals</span>
+          </button>
+          <button type="button" onClick={() => onOpen('plans')}>
+            <b>{nextDate ? nextDate.days : '—'}</b>
+            <span>{nextDate ? `days to ${nextDate.label}` : 'no fixed date'}</span>
+          </button>
+        </div>
+        <button className="life-order-radar" type="button" onClick={() => onOpen('plans')}>
+          <span><b>{pendingOrders.length}</b><i>orders to review</i></span>
+          <span><b>{activeDeliveries.length}</b><i>active deliveries</i></span>
+          <span><b>{upcomingTrips.length}</b><i>upcoming trips</i></span>
+        </button>
+      </section>
+      {widgets.length ? (
+        <PersonalBento shown={widgets} />
+      ) : (
+        <p className="tip">Today’s widgets are hidden. Use Customise to bring one back.</p>
+      )}
+    </div>
+  );
+}
 
 export default function Personal() {
   const me = useData((_, s) => s.me);
   const [tab, setTab] = useState<PersonalTab>('today');
+  const [goalComposerToken, setGoalComposerToken] = useState(0);
   const [customising, setCustomising] = useState(false);
-  const widgets = me.personalization.personal_widgets;
-
-  const shown = useMemo(() => WIDGETS.filter((w) => isOn(widgets, w.key)), [widgets]);
-
-  // A tab with nothing switched on is not a room worth offering — it would be
-  // an empty screen with a "you hid everything" note, which is a worse answer
-  // than simply not being there. Mood board is always available: it is the one
-  // surface with no widget behind it to switch off.
-  const tabs = useMemo(
-    () => TAB_META.filter((t) => shown.some((w) => w.tab === t.key)),
-    [shown],
+  const meta = PERSONAL_TABS.find((item) => item.key === tab)!;
+  const shown = useMemo(
+    () => WIDGETS.filter((widget) => isOn(me.personalization.personal_widgets, widget.key)),
+    [me.personalization.personal_widgets],
   );
-
-  // If the active tab just emptied out — every widget in it hidden — fall back
-  // to the first tab that still has something in it rather than rendering a
-  // void. Derived during render so there is no flash of the empty state.
-  const active: PersonalTab =
-    tab === 'board' || tabs.some((t) => t.key === tab) ? tab : (tabs[0]?.key ?? 'board');
-
-  const inTab = useMemo(() => shown.filter((w) => w.tab === active), [shown, active]);
-  const meta = TAB_META.find((t) => t.key === active);
+  const sectionWidgets = shown.filter(
+    (widget) => tab !== 'goals' && tab !== 'vision' && widget.tab === tab,
+  );
 
   return (
     <MotionConfig reducedMotion="user">
       <div className="personal-screen">
         <div className="frame">
-          <div className="top">
-            <div className="disp">Personal</div>
+          <div className="top life-top">
+            <div>
+              <div className="disp feature-label">
+                Personal
+                <InfoTip label={meta.label} text={meta.blurb} />
+              </div>
+            </div>
             <div className="ptabs" role="tablist" aria-label="Personal sections">
-              {tabs.map((t) => (
+              {PERSONAL_TABS.map((item) => (
                 <button
-                  key={t.key}
+                  key={item.key}
                   role="tab"
                   type="button"
-                  aria-selected={active === t.key}
-                  onClick={() => setTab(t.key)}
+                  aria-selected={tab === item.key}
+                  onClick={() => setTab(item.key)}
                 >
-                  {t.label}
+                  {item.label}
                 </button>
               ))}
-              <button
-                role="tab"
-                type="button"
-                aria-selected={active === 'board'}
-                onClick={() => setTab('board')}
-              >
-                Mood board
-              </button>
             </div>
-            <div className="spacer" />
             <button className="chip" type="button" onClick={() => setCustomising(true)}>
               Customise
             </button>
           </div>
-          <div className="wrap">
-            {active === 'board' ? (
-              <MoodBoard />
-            ) : (
-              <>
-                {meta && <p className="ptabblurb">{meta.blurb}</p>}
-                {inTab.length === 0 ? (
-                  <p className="tip">
-                    Every widget is hidden. Use Customise to bring back the ones that match your
-                    life.
-                  </p>
-                ) : (
-                  /* Keyed by tab so each one mounts its own grid: the arrangement
-                     hook tracks the keys currently on screen, and carrying one
-                     tab's key list into another would let a drag reorder tiles
-                     you cannot see. */
-                  <PersonalBento key={active} shown={inTab} />
-                )}
-              </>
+          <div className="wrap life-wrap">
+            {tab === 'today' && (
+              <PersonalToday
+                onOpen={setTab}
+                widgets={sectionWidgets}
+                onCreateGoal={() => {
+                  setGoalComposerToken((token) => token + 1);
+                  setTab('goals');
+                }}
+              />
             )}
+            {tab === 'goals' && (
+              <section className="life-card wide">
+                <PersonalGoals openComposerToken={goalComposerToken} />
+              </section>
+            )}
+            {(tab === 'learning' || tab === 'plans') && (
+              sectionWidgets.length ? (
+                <PersonalBento key={tab} shown={sectionWidgets} />
+              ) : (
+                <p className="tip">Every widget in this section is hidden. Use Customise to bring one back.</p>
+              )
+            )}
+            {tab === 'vision' && <MoodBoard />}
           </div>
         </div>
       </div>

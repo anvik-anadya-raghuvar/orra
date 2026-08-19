@@ -10,7 +10,7 @@ import { MiniBars } from '../../ui/viz';
 import type { MailItem } from '../../types';
 import { makeTask } from '../../lib/taskFactory';
 import { googleConfigured } from '../../lib/google';
-import { describeSync, googleGrant, hasScope, syncAll } from '../../lib/googleSync';
+import { describeSync, googleAccounts, hasLiveGoogleAccount, syncAll } from '../../lib/googleSync';
 
 /**
  * Sync control for the inbox.
@@ -26,8 +26,15 @@ function MailSyncBar() {
   const [busy, setBusy] = useState(false);
 
   if (!googleConfigured()) return null;
-  const grant = googleGrant(store);
-  const connected = hasScope(store, 'gmail');
+  const accounts = googleAccounts(store).filter(
+    (account) => account.is_active !== false && account.scopes.some((scope) => scope.includes('/gmail')),
+  );
+  const live = accounts.filter((account) => hasLiveGoogleAccount(account.id));
+  const syncTimes = accounts
+    .map((account) => account.last_sync_at)
+    .filter((value): value is string => !!value)
+    .sort();
+  const lastSync = syncTimes[syncTimes.length - 1];
 
   const run = async () => {
     setBusy(true);
@@ -43,23 +50,42 @@ function MailSyncBar() {
   return (
     <div className="mail-sync">
       <span className="tip" style={{ margin: 0 }}>
-        {connected
-          ? grant?.last_sync_at
-            ? `Last synced ${fmtDateTime(grant.last_sync_at)}`
-            : 'Connected — not synced yet'
+        {accounts.length
+          ? `${accounts.length} account${accounts.length === 1 ? '' : 's'} · ${live.length} live this session${
+              lastSync ? ` · last synced ${fmtDateTime(lastSync)}` : ' · not synced yet'
+            }`
           : 'Gmail is not connected. Admin → Connections links it in one click.'}
       </span>
-      {connected && (
+      {live.length > 0 && (
         <button type="button" className="btn sm" onClick={run} disabled={busy}>
-          <RefreshCw size={12} strokeWidth={2} /> {busy ? 'Syncing…' : 'Sync inbox'}
+          <RefreshCw size={12} strokeWidth={2} /> {busy ? 'Syncing…' : `Sync ${live.length === 1 ? 'account' : 'live accounts'}`}
         </button>
+      )}
+      {accounts.length > live.length && (
+        <span className="tip" style={{ margin: 0 }}>Reconnect the remaining account{accounts.length - live.length === 1 ? '' : 's'} in Admin.</span>
       )}
     </div>
   );
 }
 
 export default function MailTab() {
-  const mail = useData((ds) => ds.mail_items);
+  const store = useStore();
+  const allMail = useData((ds) => ds.mail_items);
+  const mail = useMemo(() => {
+    const mine = allMail.filter(
+      (item) => item.owner_id === store.meId || (!item.owner_id && item.account_email.toLowerCase() === store.me.email.toLowerCase()),
+    );
+    const byAccount = new Map<string, MailItem[]>();
+    for (const item of mine) {
+      const key = item.integration_grant_id ?? item.account_email;
+      const list = byAccount.get(key) ?? [];
+      list.push(item);
+      byAccount.set(key, list);
+    }
+    return [...byAccount.values()].flatMap((rows) =>
+      rows.sort((a, b) => b.received_at.localeCompare(a.received_at)).slice(0, 20),
+    );
+  }, [allMail, store.me.email, store.meId]);
 
   const summary = useMemo(() => {
     const total = mail.length;
@@ -117,8 +143,7 @@ export default function MailTab() {
         </div>
       ))}
       <p className="tip">
-        Read-only, and each of you syncs your own mailbox — the grant is per account, so signing in as
-        Anadya never reaches Raghuvar's inbox. Conversions keep the source message reference, so a task,
+        Read-only and limited to this signed-in Anvik profile: the latest 20 inbox messages from each connected account. Conversions keep the source message reference, so a task,
         note, or decision traces back to its email.
       </p>
     </div>

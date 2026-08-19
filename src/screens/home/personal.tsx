@@ -1,9 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Music, Image as ImageIcon, Sparkles, Radar, Wallet, LayoutGrid } from 'lucide-react';
+import { Music, Image as ImageIcon, Sparkles, Radar, Wallet, LayoutGrid, CloudSun, Clock3 } from 'lucide-react';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
-import { CountUp, Modal, useToast } from '../../ui/bits';
+import { CountUp, InfoTip, Modal, useToast } from '../../ui/bits';
 import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
 import { myTasks } from '../../lib/workspace';
@@ -12,9 +12,10 @@ import { quoteForDate } from '../../lib/quotes';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import { isYouTubeUrl, playUrl, youTubeThumb } from '../../lib/song';
 import { resolveSong } from '../../lib/youtube';
+import { isTerminalOrder } from '../../lib/personalOrders';
 import { ChevronRight } from 'lucide-react';
 import { ResetArrangement } from './tilechrome';
-import type { Personalization, Project, SharedDaily } from '../../types';
+import type { Project, SharedDaily } from '../../types';
 
 /* ── One consistent "open full page" affordance, shared with index.tsx.
    Always in the tile header, always a real link — keyboard reachable,
@@ -28,7 +29,15 @@ export function TileOpen({ to, label }: { to: string; label: string }) {
 }
 
 /* ── the six independent per-user toggles ──────────────────────────────── */
-export type WidgetKey = Exclude<keyof Personalization, 'home_layout'>;
+export type WidgetKey =
+  | 'song'
+  | 'photo'
+  | 'worth_knowing'
+  | 'life_radar'
+  | 'projects_strip'
+  | 'money_on_home'
+  | 'weather_on_home'
+  | 'world_clocks_on_home';
 
 export const PERSONAL_KEYS: {
   key: WidgetKey;
@@ -36,14 +45,14 @@ export const PERSONAL_KEYS: {
   hint: string;
   Icon: typeof Music;
 }[] = [
-  // One toggle now covers both: photos and songs arrive together in the
-  // "From {them}" tile. `song` is kept as a key so an existing saved layout
-  // does not break, but it no longer renders a tile of its own.
-  { key: 'photo', label: 'Moments', hint: 'Photos and songs the other one sent, with a reply box', Icon: ImageIcon },
+  { key: 'song', label: 'Song for today', hint: 'A daily playable pick plus songs either of you suggests', Icon: Music },
+  { key: 'photo', label: 'Moments', hint: 'Photos the other one sent, with a reply box', Icon: ImageIcon },
   { key: 'worth_knowing', label: 'AI news', hint: 'Three AI headlines, refreshed twice a day', Icon: Sparkles },
-  { key: 'life_radar', label: 'Life radar', hint: 'Life admin still open, and the dates that are fixed', Icon: Radar },
+  { key: 'life_radar', label: 'Personal radar', hint: 'Personal admin still open, and the dates that are fixed', Icon: Radar },
   { key: 'projects_strip', label: 'Projects', hint: 'Open counts per project, as small multiples', Icon: LayoutGrid },
   { key: 'money_on_home', label: 'Money on Home', hint: 'In and out as one mark, no table', Icon: Wallet },
+  { key: 'weather_on_home', label: 'Weather', hint: 'Weather for a place you choose manually', Icon: CloudSun },
+  { key: 'world_clocks_on_home', label: 'World clocks', hint: 'Two time zones you choose', Icon: Clock3 },
 ];
 
 /** Compact money label so a number can live inside a donut without wrapping. */
@@ -78,7 +87,9 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
         never a permission. Hiding a tile re-flows the grid; it never leaves a hole.
       </p>
       {PERSONAL_KEYS.map(({ key, label, hint, Icon }) => {
-        const on = Boolean(me.personalization[key]);
+        const on = key === 'weather_on_home' || key === 'world_clocks_on_home'
+          ? me.personalization[key] !== false
+          : Boolean(me.personalization[key]);
         return (
           <div className="swrow" key={key}>
             <Icon size={17} strokeWidth={1.7} color="var(--slate)" aria-hidden />
@@ -241,6 +252,15 @@ export function LifeTile() {
   const today = todayIso();
 
   const lifeOpen = ds.life_admin.filter((l) => l.user_id === me.id && !l.completed);
+  const myOrders = ds.personal_orders.filter((order) => order.user_id === me.id);
+  const pendingOrders = myOrders.filter((order) => order.review_status === 'pending');
+  const activeDeliveries = myOrders.filter(
+    (order) => order.review_status === 'confirmed' && order.kind === 'physical' && !isTerminalOrder(order),
+  );
+  const upcomingTrips = myOrders.filter(
+    (order) => order.review_status === 'confirmed' && order.kind === 'travel' && !isTerminalOrder(order),
+  );
+  const attention = lifeOpen.length + pendingOrders.length + activeDeliveries.length + upcomingTrips.length;
   const upcoming = [...ds.fixed_dates]
     .map((f) => ({ ...f, d: daysUntil(f.date, today) }))
     .filter((f) => f.d >= 0)
@@ -250,21 +270,39 @@ export function LifeTile() {
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Life radar</span>
+        <span className="eyebrow">Personal radar</span>
         <span className="spacer" />
         <span className="mono bt-num">
-          <CountUp value={lifeOpen.length} /> open
+          <CountUp value={attention} /> on radar
         </span>
         <TileOpen to="/personal" label="Personal" />
       </div>
       <div className="bt-scroll">
-        {lifeOpen.length === 0 && <p className="tip" style={{ marginTop: 0 }}>Life admin is clear.</p>}
+        {attention === 0 && <p className="tip" style={{ marginTop: 0 }}>Personal admin is clear.</p>}
+        {pendingOrders.length > 0 && (
+          <div className="mini-row">
+            <span>Orders to review</span>
+            <span className="pill soon">{pendingOrders.length}</span>
+          </div>
+        )}
+        {activeDeliveries.length > 0 && (
+          <div className="mini-row">
+            <span>Active deliveries</span>
+            <span className="pill q">{activeDeliveries.length}</span>
+          </div>
+        )}
+        {upcomingTrips.length > 0 && (
+          <div className="mini-row">
+            <span>Upcoming trips</span>
+            <span className="pill q">{upcomingTrips.length}</span>
+          </div>
+        )}
         {lifeOpen.map((l) => (
           <button
             className="check"
             key={l.id}
             onClick={() => {
-              store.update('life_admin', l.id, { completed: true }, store.asMe({ summary: 'Life admin ticked' }));
+              store.update('life_admin', l.id, { completed: true }, store.asMe({ summary: 'Personal admin ticked' }));
               toast('Ticked off');
             }}
           >
@@ -287,7 +325,9 @@ export function LifeTile() {
 
 /* ── Money — one mark, one headline number, no table ───────────────────── */
 export function MoneyTile() {
-  const ledger = useData((ds) => ds.ledger);
+  const ds = useData((data) => data);
+  const businessProjectIds = new Set(ds.projects.filter((project) => !project.is_personal).map((project) => project.id));
+  const ledger = ds.ledger.filter((entry) => businessProjectIds.has(entry.project_id));
   const money = ledger.reduce(
     (a, l) => (l.direction === 'in' ? { ...a, in: a.in + l.amount } : { ...a, out: a.out + l.amount }),
     { in: 0, out: 0 },
@@ -297,7 +337,10 @@ export function MoneyTile() {
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Money</span>
+        <span className="eyebrow feature-label">
+          Money
+          <InfoTip label="Money" text="Founder contributions and business expenses only; contributions are not revenue." />
+        </span>
         <span className="spacer" />
         <TileOpen to="/money" label="Money" />
       </div>
@@ -305,11 +348,11 @@ export function MoneyTile() {
         <Donut
           size={82}
           slices={[
-            { label: 'In', value: money.in, color: VIZ.in },
-            { label: 'Out', value: money.out, color: VIZ.out },
+            { label: 'Contributions', value: money.in, color: VIZ.in },
+            { label: 'Expenses', value: money.out, color: VIZ.out },
           ]}
           centerValue={shortInr(net)}
-          centerLabel="net"
+          centerLabel="balance"
         />
         <div className="viz-legend" style={{ marginTop: 0, flexDirection: 'column', gap: 6 }}>
           <span>
@@ -357,7 +400,7 @@ export function SubscriptionTile() {
       <div className="bt-hd">
         <span className="eyebrow">Renewing next</span>
         <div className="spacer" />
-        <TileOpen to="/money" label="Tracker" />
+        <TileOpen to="/money" label="Money" />
       </div>
       {next ? (
         <>
@@ -380,7 +423,7 @@ export function SubscriptionTile() {
         </>
       ) : (
         <p className="tip" style={{ marginTop: 0 }}>
-          Nothing subscribed. Add one in Tracker and the next renewal shows up here.
+          Nothing subscribed. Add one in Money and the next renewal shows up here.
         </p>
       )}
     </>

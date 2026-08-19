@@ -308,13 +308,24 @@ html[data-theme='dark'] {
   text-align: left;
   cursor: pointer;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: center;
+  flex-direction: column;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 .viz-ribbonev span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.viz-ribbonev small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7.5px;
+  line-height: 1;
+  opacity: 0.82;
 }
 .viz-ribbonnow {
   position: absolute;

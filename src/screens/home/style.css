@@ -22,6 +22,54 @@
   display: block;
 }
 
+/* Home has two jobs, but it is still one room: Today is the execution loop;
+   Overview is the ambient picture. The switch lives above the tiles so it
+   never gets buried inside whichever layout the user has arranged. */
+.home-screen .home-viewbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.home-screen .home-viewbar > div:first-child {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.home-screen .home-viewbar .disp {
+  font-size: 20px;
+}
+.home-screen .home-viewbar p {
+  margin: 2px 0 0;
+  color: var(--mute);
+  font-size: 12.5px;
+}
+.home-screen .home-viewtabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--surf3);
+}
+.home-screen .home-viewtabs button {
+  min-height: 44px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  color: var(--slate);
+  font-size: 12.5px;
+}
+.home-screen .home-viewtabs button[aria-selected='true'] {
+  color: var(--ink);
+  background: var(--surf);
+  box-shadow: var(--sh1);
+  font-weight: 500;
+}
+.home-screen .home-viewbar > .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ── the grid ──────────────────────────────────────────────────────────── */
 .home-screen .bento {
   display: grid;
@@ -511,6 +559,98 @@
   gap: 5px;
   min-height: 44px;
 }
+.home-screen .song-stack {
+  display: grid;
+  gap: 8px;
+}
+.home-screen .song-card {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--violet) 9%, var(--surf2)), var(--surf2));
+}
+.home-screen .song-card .btn {
+  justify-self: start;
+  margin-top: 5px;
+}
+
+/* User-set utilities: no browser location request, ever. */
+.home-screen .clock-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.home-screen .clock-city {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf2);
+}
+.home-screen .clock-city > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--slate);
+  font-size: 12px;
+}
+.home-screen .clock-city > b {
+  font-size: clamp(18px, 3vw, 25px);
+  font-variant-numeric: tabular-nums;
+}
+.home-screen .weather-search,
+.home-screen .weather-results {
+  display: grid;
+  gap: 6px;
+}
+.home-screen .weather-search .wk-inline {
+  display: flex;
+  gap: 7px;
+}
+.home-screen .weather-search .srch {
+  flex: 1;
+}
+.home-screen .weather-results button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surf2);
+  color: var(--ink);
+}
+.home-screen .weather-results button span {
+  color: var(--mute);
+  font-size: 11.5px;
+}
+.home-screen .weather-now {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 92px;
+}
+.home-screen .weather-now > div:nth-child(2) {
+  display: grid;
+}
+.home-screen .weather-now > div:nth-child(2) span,
+.home-screen .weather-detail span {
+  color: var(--mute);
+  font-size: 11.5px;
+}
+.home-screen .weather-now > div:nth-child(2) b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 31px;
+}
+.home-screen .weather-detail {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
 @media (min-width: 1025px) {
   .home-screen .mo-send .btn,
   .home-screen .mo-compose .btn {
@@ -851,7 +991,141 @@
 }
 
 /* ── shutdown ritual ───────────────────────────────────────────────────── */
-.home-screen .rit textarea {
+.home-screen .shutdown-launcher {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  align-content: space-between;
+  gap: 7px;
+}
+.home-screen .shutdown-launcher-copy {
+  display: grid;
+  gap: 3px;
+}
+.home-screen .shutdown-launcher-copy b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.home-screen .shutdown-launcher-copy p {
+  margin: 0;
+  color: var(--slate);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.home-screen .shutdown-launcher-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--mute);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.home-screen .shutdown-launcher-meta span {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surf);
+}
+.home-screen .shutdown-launcher-meta .shutdown-closed {
+  border-color: color-mix(in srgb, var(--teal) 50%, var(--line));
+  color: var(--teal);
+}
+.home-screen .shutdown-launcher .btn {
+  align-self: start;
+  min-height: 35px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+.home-screen .closeout-recap {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1;
+  min-height: 0;
+  gap: 9px;
+}
+.home-screen .closeout-recap-item,
+.home-screen .closeout-recap-empty {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surf) 82%, transparent);
+  padding: 11px 12px;
+}
+.home-screen .closeout-recap-item {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.home-screen .closeout-recap-item span {
+  color: var(--mute);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.home-screen .closeout-recap-item p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.42;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.home-screen .closeout-recap-empty {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+.home-screen .closeout-recap-empty b {
+  font-size: 13px;
+}
+.home-screen .closeout-recap-empty p {
+  margin: 0;
+  color: var(--slate);
+  font-size: 12px;
+  line-height: 1.45;
+}
+:is(.home-screen, .panel-mask) .closeout-history {
+  display: grid;
+  gap: 10px;
+}
+:is(.home-screen, .panel-mask) .closeout-history-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf2);
+}
+:is(.home-screen, .panel-mask) .closeout-history-date {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+:is(.home-screen, .panel-mask) .closeout-history-date b {
+  font-size: 14px;
+}
+:is(.home-screen, .panel-mask) .closeout-history-date span {
+  color: var(--mute);
+  font-size: 10px;
+}
+:is(.home-screen, .panel-mask) .closeout-history-row .closeout-recap-item {
+  box-shadow: none;
+}
+@media (min-width: 641px) {
+  :is(.home-screen, .panel-mask) .closeout-history-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  :is(.home-screen, .panel-mask) .closeout-history-date {
+    grid-column: 1 / -1;
+  }
+}
+:is(.home-screen, .panel-mask) .rit textarea {
   width: 100%;
   border: 1px solid var(--line);
   background: var(--surf2);
@@ -864,18 +1138,94 @@
   min-height: 46px;
   margin: 4px 0 9px;
 }
-.home-screen .rit label {
+:is(.home-screen, .panel-mask) .rit label {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mute);
 }
-.home-screen .rit .done-line {
+:is(.home-screen, .panel-mask) .rit .done-line {
   font-size: 13px;
   color: var(--slate);
   margin: 2px 0 9px;
   white-space: pre-wrap;
+}
+:is(.home-screen, .panel-mask) .rit-loose {
+  margin: 4px 0 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+}
+:is(.home-screen, .panel-mask) .rit-loose-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+:is(.home-screen, .panel-mask) .rit-loose-head .mono {
+  color: var(--mute);
+  font-size: 10px;
+}
+:is(.home-screen, .panel-mask) .rit-loose > p {
+  margin: 5px 0 9px;
+  color: var(--mute);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+:is(.home-screen, .panel-mask) .rit-loose-list {
+  display: grid;
+  gap: 5px;
+}
+:is(.home-screen, .panel-mask) .rit-loose-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+:is(.home-screen, .panel-mask) .rit-loose-row:hover,
+:is(.home-screen, .panel-mask) .rit-loose-row:focus-visible {
+  border-color: var(--line);
+  background: var(--surf2);
+}
+:is(.home-screen, .panel-mask) .rit-loose-tick {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  border: 1.5px solid var(--mute);
+  border-radius: 5px;
+}
+:is(.home-screen, .panel-mask) .rit-loose-row:hover .rit-loose-tick,
+:is(.home-screen, .panel-mask) .rit-loose-row:focus-visible .rit-loose-tick {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 18%, transparent);
+}
+:is(.home-screen, .panel-mask) .rit-loose-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+:is(.home-screen, .panel-mask) .rit-loose-copy b {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:is(.home-screen, .panel-mask) .rit-loose-copy small {
+  color: var(--mute);
+  font-size: 10.5px;
+}
+:is(.home-screen, .panel-mask) .rit-loose > .rit-loose-clear {
+  margin-bottom: 0;
 }
 .home-screen .modecopy {
   margin: 0;
@@ -1020,12 +1370,16 @@
   .home-screen .check,
   :is(.home-screen, .panel-mask) .planrow,
   .home-screen .stuckrow,
+  .home-screen .stuckttl,
   .home-screen .aiitem,
   .home-screen .mini-row,
   .home-screen .pulselast,
   .home-screen .amb,
   .home-screen .lk,
   .home-screen .pj-row {
+    min-height: 44px;
+  }
+  .home-screen .shutdown-launcher .btn {
     min-height: 44px;
   }
   .home-screen .btn.sm {

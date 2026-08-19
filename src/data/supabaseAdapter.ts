@@ -46,13 +46,15 @@ const TABLE: Record<CollectionKey, string> = {
   pages: 'pages',
   page_comments: 'page_comments',
   integration_grants: 'integration_grants',
+  personal_orders: 'personal_orders',
+  personal_order_events: 'personal_order_events',
   trash_items: 'trash_items',
 };
 
 /**
  * Supabase adapter. Reads the full dataset on load; writes are row-level
- * upserts of only the changed rows. audit_trail is INSERT-only (UPDATE/DELETE
- * are revoked at the database — see migration 0001).
+ * upserts of only the changed rows. audit_trail and personal_order_events are
+ * INSERT-only (UPDATE/DELETE are revoked at the database).
  */
 export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
   const knownIds = new Map<CollectionKey, Set<string>>();
@@ -105,7 +107,7 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
       }
       if (changed && changed.length) {
         const write =
-          key === 'audit_trail'
+          key === 'audit_trail' || key === 'personal_order_events'
             ? sb.from(table).insert(changed as never[])
             : sb.from(table).upsert(changed as never[]);
         // Fire-and-forget from the caller's point of view (the UI already

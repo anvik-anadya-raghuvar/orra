@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
@@ -7,15 +7,17 @@ import { staggerItem, staggerParent } from '../../ui/motion';
 import { googleConfigured } from '../../lib/google';
 import { youtubeConfigured } from '../../lib/youtube';
 import {
-  connectGoogle,
+  connectGoogleAccount,
   describeSync,
-  disconnectGoogle,
-  googleGrant,
+  disconnectGoogleAccount,
+  googleAccounts,
+  hasLiveGoogleAccount,
   hasScope,
-  syncAll,
-  trySilentConnect,
+  reconnectGoogleAccount,
+  syncGoogleAccount,
 } from '../../lib/googleSync';
 import { fmtDateTime } from '../../lib/dates';
+import type { IntegrationGrant } from '../../types';
 
 /**
  * Connections.
@@ -60,28 +62,12 @@ export default function ConnectionsTab() {
   const ds = useData((d) => d);
   const toast = useToast();
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const [busy, setBusy] = useState<'connect' | 'sync' | null>(null);
-  /**
-   * Consent is stored; the access token is not (it lives in memory for its
-   * hour and never touches the database). So a reload has a grant but no
-   * token — this tries a silent re-grant, and the panel says which is true.
-   */
-  const [tokenLive, setTokenLive] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [, setSessionVersion] = useState(0);
 
   const configured = googleConfigured();
-  const grant = googleGrant(store);
-  const linked = !!grant;
-
-  useEffect(() => {
-    if (!configured || !linked) return;
-    let alive = true;
-    trySilentConnect(store)
-      .then((ok) => alive && setTokenLive(ok))
-      .catch(() => alive && setTokenLive(false));
-    return () => {
-      alive = false;
-    };
-  }, [configured, linked, store]);
+  const accounts = googleAccounts(store);
+  const linked = accounts.some((account) => account.is_active !== false);
 
   const supabaseLive = store.adapter.kind === 'supabase';
   const me = store.me;
@@ -106,12 +92,10 @@ export default function ConnectionsTab() {
     ].join('\n');
   }, [ds.tasks, ds.decisions]);
 
-  const runSync = async () => {
-    setBusy('sync');
+  const runSync = async (account: IntegrationGrant) => {
+    setBusy(`sync:${account.id}`);
     try {
-      const result = await syncAll(store);
-      setTokenLive(true);
-      toast(describeSync(result));
+      toast(describeSync(await syncGoogleAccount(store, account.id)));
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Google sync failed');
     } finally {
@@ -120,16 +104,11 @@ export default function ConnectionsTab() {
   };
 
   const connectAndSync = async () => {
-    setBusy('connect');
+    setBusy('add');
     try {
-      const ok = await connectGoogle(store);
-      if (!ok) {
-        toast('Google sign-in was closed');
-        return;
-      }
-      setTokenLive(true);
-      const result = await syncAll(store);
-      toast(describeSync(result));
+      const connected = await connectGoogleAccount(store);
+      setSessionVersion((version) => version + 1);
+      toast(describeSync(connected.result));
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Could not connect Google');
     } finally {
@@ -137,14 +116,27 @@ export default function ConnectionsTab() {
     }
   };
 
-  const unlink = () => {
-    disconnectGoogle(store);
-    setTokenLive(false);
-    toast('Google disconnected');
+  const reconnect = async (account: IntegrationGrant) => {
+    setBusy(`reconnect:${account.id}`);
+    try {
+      const connected = await reconnectGoogleAccount(store, account.id);
+      setSessionVersion((version) => version + 1);
+      toast(describeSync(connected.result));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not reconnect Google');
+    } finally {
+      setBusy(null);
+    }
   };
 
-  /* Every Google-shaped card reads from the one grant, so three of them can
-     never disagree about whether you are connected. */
+  const unlink = (account: IntegrationGrant) => {
+    disconnectGoogleAccount(store, account.id);
+    setSessionVersion((version) => version + 1);
+    toast(`${account.account_email ?? 'Google account'} disconnected`);
+  };
+
+  /* Every Google-shaped card reads from the same account collection, so the
+     downstream connector summaries cannot disagree with the account rows. */
   const googleState = (key: 'gmail' | 'calendar' | 'drive'): ConnState => {
     if (!configured) return 'planned';
     return hasScope(store, key) ? 'live' : 'usable';
@@ -179,7 +171,7 @@ export default function ConnectionsTab() {
       name: 'Gmail',
       state: googleState('gmail'),
       desc: hasScope(store, 'gmail')
-        ? 'Your last 20 inbox messages sync into Notebook → Mail, where they convert to tasks, scribbles and decisions. Read-only: nothing is ever sent on your behalf.'
+        ? 'The latest 20 inbox messages per account sync into Notebook → Mail. Purchase and travel candidates enter Personal Orders review; nothing is ever sent.'
         : configured
           ? 'Compose opens prefilled in your own mailbox. Inbox sync starts the moment you connect Google above.'
           : 'Compose opens prefilled in your own mailbox. Reading the inbox into the Mail tab needs the client id.',
@@ -197,7 +189,7 @@ export default function ConnectionsTab() {
       name: 'Google Calendar',
       state: googleState('calendar'),
       desc: hasScope(store, 'calendar')
-        ? "Today's events land on the Home day ribbon, and a meeting cancelled in Google disappears from it on the next sync."
+        ? "Every live account's primary calendar lands on the schedule with its account label. Cancellations are cleaned up only inside their source account."
         : configured
           ? 'Opens a prefilled event today. Connect Google to pull your real day onto the ribbon.'
           : 'Task pages and people cards open a prefilled event. One-way, no linking needed.',
@@ -214,7 +206,7 @@ export default function ConnectionsTab() {
       name: 'Google Drive',
       state: googleState('drive'),
       desc: hasScope(store, 'drive')
-        ? 'Notebook → Documents → + Document searches your Drive and attaches a file by reference. Files stay in Drive; only the link and the date live here.'
+        ? 'Notebook → Documents → + Document searches all live Drives and labels each result by account. Files stay in Drive; only the reference lives here.'
         : configured
           ? 'Documents take a URL you paste. Connect Google to search Drive instead of pasting.'
           : 'Documents currently store a URL you paste. Search is not wired.',
@@ -234,24 +226,18 @@ export default function ConnectionsTab() {
         : 'A YouTube Data API v3 key set as VITE_YOUTUBE_API_KEY. It ships in the bundle, so restrict it in Cloud Console to these two site referrers and to the YouTube Data API alone — an unrestricted key lets a stranger spend your 10,000-unit daily quota.',
     },
     {
-      key: 'whatsapp',
-      name: 'WhatsApp',
-      state: 'usable',
-      desc: 'Click-to-chat for the escalation lane. Opens WhatsApp with the message ready.',
-      actions: [
-        {
-          label: 'Open chat',
-          href: `https://wa.me/?text=${encodeURIComponent('Anvik Ops — need you on something.')}`,
-        },
-      ],
-    },
-    {
       key: 'plaud',
       name: 'Plaud',
       state: 'planned',
-      desc: 'Voice notes with transcripts are modelled and seeded, but nothing syncs from the device.',
+      desc: 'Plaud now provides an official MCP server and CLI, but the deployed Anvik website is not connected to either one yet.',
       needs:
-        'Plaud has no public API — this would be an export drop into Storage, then a parser on a schedule.',
+        'Anvik still needs a small server-side adapter before Plaud records can import automatically; MCP or CLI credentials must never ship in the browser bundle.',
+      actions: [
+        {
+          label: 'Plaud MCP & CLI',
+          href: 'https://www.plaud.ai/blogs/news/introducing-plaud-mcp-and-cli',
+        },
+      ],
     },
     {
       key: 'vercel',
@@ -266,64 +252,97 @@ export default function ConnectionsTab() {
 
   return (
     <div>
-      {/* One account, one consent, one button — the three Google cards below
-          are all downstream of this. */}
       <div className="ad-goog">
         <div className="ad-conn-head">
-          <h4>Google account</h4>
+          <h4>Google accounts</h4>
           <span className={`pill ${linked ? 'ok' : configured ? 'soon' : 'q'}`}>
-            {linked ? 'connected' : configured ? 'ready to connect' : 'client id missing'}
+            {linked
+              ? `${accounts.filter((account) => account.is_active !== false).length} active`
+              : configured
+                ? 'ready to connect'
+                : 'client id missing'}
           </span>
         </div>
         <p>
           {!configured
-            ? 'Gmail, Calendar and Drive all run off one browser grant. Set VITE_GOOGLE_CLIENT_ID and this becomes a single button.'
-            : linked
-              ? `Gmail, Calendar and Drive granted${
-                  grant?.last_sync_at
-                    ? ` · last synced ${fmtDateTime(grant.last_sync_at)}`
-                    : ' · never synced'
-                }.`
-              : 'One click grants Gmail, Calendar and Drive together, then pulls the first sync.'}
+            ? 'Set VITE_GOOGLE_CLIENT_ID to connect Gmail, primary Calendar, and Drive.'
+            : "Connect opens Google’s account chooser. Pick one signed-in address and approve it; its row appears below. Repeat Add Google account for the rest. Tokens stay in browser memory, so background timers only sync accounts that are live in this open session."}
         </p>
-        {configured && linked && (
-          <p className="tip" style={{ margin: '8px 0 0' }}>
-            {tokenLive
-              ? 'Access token active for this session. Tokens live in memory only — never in the database, never in local storage.'
-              : 'Consent is on record but this session holds no token, so the next sync asks Google again. That is the trade for storing nothing long-lived.'}
-          </p>
+        {accounts.length > 0 && (
+          <div className="ad-google-accounts">
+            {accounts.map((account) => {
+              const active = account.is_active !== false;
+              const live = active && hasLiveGoogleAccount(account.id);
+              return (
+                <div className="ad-google-account" key={account.id}>
+                  <div className="ad-google-account-copy">
+                    <strong>{account.account_email ?? account.display_name ?? 'Legacy Google account'}</strong>
+                    <span>
+                      {active ? (live ? 'session active' : 'reconnect required') : 'disconnected'}
+                      {' · '}
+                      {account.last_sync_at ? `synced ${fmtDateTime(account.last_sync_at)}` : 'never synced'}
+                    </span>
+                    <span>{account.scopes.map((scope) => scope.split('/').pop()).join(' · ')}</span>
+                    {account.last_sync_error && <span className="ad-google-error">{account.last_sync_error}</span>}
+                  </div>
+                  <div className="ad-conn-acts">
+                    {live ? (
+                      <button
+                        type="button"
+                        className="btn sm solid"
+                        onClick={() => runSync(account)}
+                        disabled={busy !== null}
+                      >
+                        <RefreshCw size={12} strokeWidth={2} />{' '}
+                        {busy === `sync:${account.id}` ? 'Syncing…' : 'Sync'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn sm solid"
+                        onClick={() => reconnect(account)}
+                        disabled={busy !== null}
+                      >
+                        {busy === `reconnect:${account.id}` ? 'Waiting for Google…' : 'Reconnect'}
+                      </button>
+                    )}
+                    {active && (
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => unlink(account)}
+                        disabled={busy !== null}
+                      >
+                        Disconnect
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
         <div className="ad-conn-acts">
-          {!configured ? (
-            <button type="button" className="btn sm" onClick={() => setOpenKey('gmail')}>
-              What it needs
-            </button>
-          ) : linked ? (
-            <>
-              <button
-                type="button"
-                className="btn sm solid"
-                onClick={runSync}
-                disabled={busy !== null}
-              >
-                <RefreshCw size={12} strokeWidth={2} />{' '}
-                {busy === 'sync' ? 'Syncing…' : 'Sync all connectors'}
-              </button>
-              <button type="button" className="btn sm" onClick={unlink} disabled={busy !== null}>
-                Disconnect
-              </button>
-            </>
-          ) : (
+          {configured ? (
             <button
               type="button"
               className="btn sm solid"
               onClick={connectAndSync}
               disabled={busy !== null}
             >
-              {busy === 'connect' ? 'Waiting for Google…' : 'Connect & sync all'}
+              {busy === 'add' ? 'Waiting for Google…' : accounts.length ? 'Add Google account' : 'Connect Google account'}
+            </button>
+          ) : (
+            <button type="button" className="btn sm" onClick={() => setOpenKey('gmail')}>
+              What it needs
             </button>
           )}
         </div>
+        {configured && (
+          <p className="tip" style={{ margin: '10px 0 0' }}>
+            OAuth Testing mode may ask each Test user to consent again every seven days. Reconnect is always explicit; automatic sync never opens a Google popup.
+          </p>
+        )}
       </div>
 
       <motion.div className="ad-conns" {...staggerParent()}>

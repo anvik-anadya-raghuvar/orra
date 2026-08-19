@@ -5,8 +5,8 @@ you can go and do right now.
 
 ## The shape of it
 
-Nine rooms. **Four are yours** — Home, Work (your board), Knowledge, Personal.
-**Us is between the two of you.** **Three are shared** — Tracker, People, Admin
+Eight rooms. **Four are yours** — Home, Work (your board), Notebook, Life.
+**Us is between the two of you.** **Three are shared** — Money, People, Settings
 — plus Work's Goals and Decisions tabs, which are the company's rather than
 either person's. "Yours" means filtered to you, not hidden from them.
 
@@ -15,7 +15,8 @@ what a populated portal looks like. Your two real accounts never see any of it.
 
 ---
 
-**8:40 am. You open the portal on your phone.** It is your workspace. The top
+**8:40 am. You open the portal on your phone.** Home opens on **Today**: the
+part that helps you choose and run the day. The top
 says *Wednesday 19 August — Morning, Anadya*, and underneath, in plain words:
 how many minutes of work are assigned to you, how many events you have today,
 your cash balance, days to the next fixed date.
@@ -54,13 +55,13 @@ old and new dates per task with the reason. Untick anything you disagree with.
 Nothing moves until you press Apply. Tasks waiting on unfinished work wear a
 *waiting on T-101* chip and the planner leaves them out of today.
 
-**Lunch. Knowledge.** Your notes, your wiki (with today's quote at the top —
+**Lunch. Notebook.** Your notes, your wiki (with today's quote at the top —
 same line for both of you), your mail, and Documents, which now says what it is
 and gives you **Open · Edit · Delete** as real buttons. On Home, **AI news** is
 finally real: three headlines from actual feeds, refreshed twice a day, with
 **Podcast this week** under them.
 
-**2:30 pm. Tracker.** Two tabs. **Money**: cash in, cash out, net, over a range
+**2:30 pm. Money.** Two tabs. **Money**: cash in, cash out, net, over a range
 you choose — and the summary, every chart and the export all describe that same
 range. Every entry records who paid. Every row can be edited or deleted. Charts
 answer real questions: spend per month, most expensive, one-off vs recurring.
@@ -70,14 +71,19 @@ monthly run rate (annual plans amortised). Home carries the soonest one.
 **4:00 pm. People.** Shared, tag-filterable, warmth rings — now explained in one
 line: how long since you last talked, versus how often you meant to.
 
-**6:00 pm. Personal, shaped like your life.** It is a dashboard you compose:
-drag tiles, resize them, hide what does not apply. Yours keeps courses, study
-rhythm and study blocks. Raghuvar's keeps **Goals** instead — his own ambitions,
-each with milestones and progress that fills itself in when a goal is linked to
-a project or a course. Both of you get **Personal tasks**, which are the same
-rows as your board, so ticking one here closes it there. Second tab: the **Mood
-board**, a free page with no status and no deadlines, and genuinely private —
-the other board is unreadable, not merely hidden.
+**6:00 pm. Life.** **Today** asks what outside work needs attention now, shows
+the next actions from your personal projects, and can start a study or life
+block. **Goals** keeps no more than three directions in Now; each says why it
+matters and names one concrete next action. The rest wait in Later without
+being lost. **Learning** holds courses, reading, study rhythm and the time
+ledger. **Life admin** holds errands, fixed dates and temporary work such as
+relocation. **Vision** is the private free page: images, references, quotes,
+notes and songs, with no status or deadline. A next action is still the same
+task row as Work, so ticking it here closes it there.
+
+Whenever you want the wider picture, Home's **Overview** shows Us, news,
+people, life, money, subscriptions, momentum and project signals. Those do not
+compete with the Today plan while you are trying to execute it.
 
 **10:30 pm. Shutdown.** Two minutes: what shipped, what is stuck, tomorrow's one
 thing. Tomorrow the plan builds again from your tasks, your calendar, your
@@ -98,11 +104,11 @@ reduced motion.
 
 | Room | Whose | What lives there |
 |---|---|---|
-| **Home** | Yours | Capacity, plan → intentions, schedule with Google events, blocked tasks, what they are up to, Between us, From them, AI news + podcast, quote, next renewal, momentum, hours, money |
+| **Home** | Yours | **Today:** capacity, plan → intentions, schedule, focus and shutdown. **Overview:** Us, news, people, life, money, subscriptions, momentum and project signals |
 | **Work** | Yours (board) + shared (Goals, Decisions) | Your board, sprints, dependency chains and reflow, task pages that change by type, the export engine |
 | **Us** | Between you | The thread — chat, sent photos and songs, task asks, promote to task/note/decision, status of the day |
-| **Knowledge** | Yours | Notes, wiki (+ quote of the day), mail, documents with real actions |
-| **Personal** | Yours | A dashboard you compose + the Mood board tab |
-| **Tracker** | Shared | Money (who paid, ranges, charts, export) + Subscriptions |
+| **Notebook** | Yours | Notes, wiki (+ quote of the day), mail, documents with real actions |
+| **Life** | Yours | Today, Goals, Learning, Life admin and the private Vision page |
+| **Money** | Shared | Money (who paid, ranges, charts, export) + Subscriptions |
 | **People** | Shared | Everyone you deal with, warmth, nudges |
-| **Admin** | Shared | Audit trail, trash, tags, integrations |
+| **Settings** | Shared | Audit trail, trash, tags, integrations |

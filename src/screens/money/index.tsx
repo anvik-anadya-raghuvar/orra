@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
-import { Avatar, CountUp, useToast } from '../../ui/bits';
+import { Avatar, CountUp, InfoTip, useToast } from '../../ui/bits';
 import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { fmtDay, inr, todayIso } from '../../lib/dates';
 import {
@@ -10,7 +10,6 @@ import {
   inRange,
   monthlySpend,
   rangeBounds,
-  spendShape,
   summarise,
   topExpenses,
   type RangeKey,
@@ -23,12 +22,11 @@ import {
   categoryBreakdown,
   cumulativeNet,
   exportLedgerCsv,
-  exportLedgerXlsx,
   pillClass,
   projColor,
   projName,
   projectSpend,
-  weeklyInOut,
+  monthlyInOut,
 } from './common';
 import EntryModal from './EntryModal';
 import ImportModal from './ImportModal';
@@ -41,6 +39,22 @@ const toggle = (set: Set<string>, v: string): Set<string> => {
   if (next.has(v)) next.delete(v);
   else next.add(v);
   return next;
+};
+
+function FeatureTitle({ children, tip }: { children: string; tip: string }) {
+  return (
+    <span className="eyebrow feature-label">
+      {children}
+      <InfoTip label={children} text={tip} />
+    </span>
+  );
+}
+
+const statusLabel = (entry: LedgerEntry) => {
+  if (entry.direction === 'in') {
+    return entry.status === 'paid' ? 'added' : entry.status === 'due' ? 'planned' : 'late';
+  }
+  return entry.status;
 };
 
 export default function Money() {
@@ -56,6 +70,8 @@ export default function Money() {
   const [range, setRange] = useState<RangeKey>('all');
   const [custom, setCustom] = useState({ from: '', to: '' });
   const [editing, setEditing] = useState<LedgerEntry | null>(null);
+  const businessProjects = useMemo(() => ds.projects.filter((project) => !project.is_personal), [ds.projects]);
+  const businessProjectIds = useMemo(() => new Set(businessProjects.map((project) => project.id)), [businessProjects]);
 
   /* One range, applied before anything is counted — the summary, every chart
      and the export then describe the same set of rows by construction. */
@@ -67,16 +83,15 @@ export default function Money() {
   }, [range, custom.from, custom.to]);
 
   const inWindow = useMemo(
-    () => ds.ledger.filter((r) => inRange(r, bounds.from, bounds.to)),
-    [ds.ledger, bounds.from, bounds.to],
+    () => ds.ledger.filter((r) => businessProjectIds.has(r.project_id) && inRange(r, bounds.from, bounds.to)),
+    [ds.ledger, businessProjectIds, bounds.from, bounds.to],
   );
 
   const totals = useMemo(() => summarise(inWindow), [inWindow]);
   const monthly = useMemo(() => monthlySpend(inWindow), [inWindow]);
   const biggest = useMemo(() => topExpenses(inWindow), [inWindow]);
-  const shape = useMemo(() => spendShape(inWindow), [inWindow]);
 
-  const weeks = useMemo(() => weeklyInOut(inWindow, 6), [inWindow]);
+  const periods = useMemo(() => monthlyInOut(inWindow), [inWindow]);
   const categories = useMemo(() => categoryBreakdown(inWindow), [inWindow]);
 
   /* ── donut: top 2 categories + Other, headline net in the centre ─────── */
@@ -85,7 +100,6 @@ export default function Money() {
     const rest = categories.slice(2).reduce((a, c) => a + c.total, 0);
     return rest > 0 ? [...top, { label: 'Other', value: rest }] : top;
   }, [categories]);
-  const netLabel = (totals.net < 0 ? '−' : '') + inr(totals.net);
 
   /* ── cumulative net sparkline ──────────────────────────────────────── */
   const netSeries = useMemo(() => cumulativeNet(inWindow), [inWindow]);
@@ -126,19 +140,24 @@ export default function Money() {
   const cycleStatus = (row: LedgerEntry) => {
     const next = NEXT_STATUS[row.status];
     store.update('ledger', row.id, { status: next }, store.asMe());
-    toast(`${row.party} → ${next}`);
+    toast(`${row.party} → ${statusLabel({ ...row, status: next })}`);
   };
 
   const exportCsv = () => exportLedgerCsv(`ledger-${new Date().toISOString().slice(0, 10)}.csv`, ds, sorted);
-  const exportXlsx = () => exportLedgerXlsx(`ledger-${new Date().toISOString().slice(0, 10)}.xlsx`, ds, sorted);
 
   return (
     <div className="money-screen frame">
       <div className="top">
-        <div className="disp">Tracker</div>
-        <div className="mn-tabs" role="tablist" aria-label="Tracker sections">
+        <div className="disp feature-label">
+          Money
+          <InfoTip
+            label="Money"
+            text="Tracks founder contributions into the business and business expenses. Contributions are not revenue."
+          />
+        </div>
+        <div className="mn-tabs" role="tablist" aria-label="Money sections">
           <button role="tab" aria-selected={tab === 'money'} onClick={() => setTab('money')}>
-            Money
+            Entries
           </button>
           <button role="tab" aria-selected={tab === 'subs'} onClick={() => setTab('subs')}>
             Subscriptions
@@ -148,7 +167,7 @@ export default function Money() {
         {tab === 'money' && (
           <>
             <button className="btn sm" type="button" onClick={() => setImportOpen(true)}>
-              ↑ Import CSV / XLSX
+              ↑ Import CSV
             </button>
             <button className="btn sm solid" type="button" onClick={() => setAddOpen(true)}>
               + Entry
@@ -212,20 +231,29 @@ export default function Money() {
             <div className="n mono">
               <CountUp value={totals.in} format={inr} />
             </div>
-            <div className="k">cash in</div>
+            <div className="k feature-label">
+              business contributions
+              <InfoTip label="Business contributions" text="Money the founders put into the business. This is not sales revenue." />
+            </div>
           </div>
           <div className="mn-tile">
             <div className="n mono">
               <CountUp value={totals.out} format={inr} />
             </div>
-            <div className="k">cash out</div>
+            <div className="k feature-label">
+              expenses
+              <InfoTip label="Expenses" text="Money paid or still payable for business costs." />
+            </div>
           </div>
           <div className="mn-tile">
             <div className="n mono" style={{ color: totals.net >= 0 ? 'var(--teal)' : 'var(--rose)' }}>
               {totals.net < 0 ? '−' : ''}
               <CountUp value={Math.abs(totals.net)} format={inr} />
             </div>
-            <div className="k">net</div>
+            <div className="k feature-label">
+              contribution balance
+              <InfoTip label="Contribution balance" text="Founder contributions minus expenses in the selected range; it is not profit or revenue." />
+            </div>
           </div>
         </div>
 
@@ -233,7 +261,7 @@ export default function Money() {
         {(attn.due.count > 0 || attn.overdue.count > 0) && (
           <div className="mn-panel mn-attn">
             <div className="mn-panel-head">
-              <span className="eyebrow">Needs attention</span>
+              <FeatureTitle tip="Unpaid or overdue expenses only. Click a card to filter the entry table.">Needs attention</FeatureTitle>
               {statuses.size > 0 && (
                 <button className="chip" type="button" onClick={() => setStatuses(new Set())}>
                   Clear
@@ -274,32 +302,42 @@ export default function Money() {
           </div>
         )}
 
-        {/* ── in vs out, last 6 weeks ───────────────────────────────── */}
+        {/* ── in vs out, over the exact selected range ─────────────── */}
         <div className="mn-panel">
           <div className="mn-panel-head">
-            <span className="eyebrow">In vs out · last 6 weeks</span>
+            <FeatureTitle tip="Founder contributions compared with business expenses for the same date range used everywhere on this page.">
+              Contributions vs expenses
+            </FeatureTitle>
           </div>
-          <GroupedBars
-            groups={weeks.map((w) => fmtDay(w.week))}
-            seriesA={weeks.map((w) => w.in)}
-            seriesB={weeks.map((w) => w.out)}
-            labelA="In"
-            labelB="Out"
-            format={inr}
-          />
+          {periods.length ? (
+            <GroupedBars
+              groups={periods.map((period) =>
+                new Intl.DateTimeFormat('en-GB', { month: 'short', year: '2-digit' }).format(
+                  new Date(`${period.week}T00:00:00`),
+                ),
+              )}
+              seriesA={periods.map((period) => period.in)}
+              seriesB={periods.map((period) => period.out)}
+              labelA="Contributions"
+              labelB="Expenses"
+              format={inr}
+            />
+          ) : (
+            <p className="tip" style={{ margin: 0 }}>Nothing in this range.</p>
+          )}
         </div>
 
         {/* ── spend composition + cumulative net ──────────────────────── */}
         <div className="mn-panel mn-composition">
           <div className="mn-comp-col">
-            <span className="eyebrow">Spend composition</span>
+            <FeatureTitle tip="How total expenses are divided across categories.">Spend composition</FeatureTitle>
             {spendSlices.length === 0 ? (
               <p className="tip" style={{ margin: 0 }}>
                 Nothing spent yet.
               </p>
             ) : (
               <>
-                <Donut slices={spendSlices} centerValue={netLabel} centerLabel="net" />
+                <Donut slices={spendSlices} centerValue={inr(totals.out)} centerLabel="expenses" />
                 <div className="viz-legend">
                   {spendSlices.map((s, i) => (
                     <span key={s.label}>
@@ -312,7 +350,9 @@ export default function Money() {
             )}
           </div>
           <div className="mn-comp-col">
-            <span className="eyebrow">Cumulative net</span>
+            <FeatureTitle tip="A running total of founder contributions minus expenses over time.">
+              Running contribution balance
+            </FeatureTitle>
             {netSeries.length < 2 ? (
               <p className="tip" style={{ margin: 0 }}>
                 Not enough activity yet.
@@ -330,7 +370,7 @@ export default function Money() {
         {/* ── category breakdown (out only) ─────────────────────────── */}
         <div className="mn-panel">
           <div className="mn-panel-head">
-            <span className="eyebrow">Spend by category</span>
+            <FeatureTitle tip="Expenses only, grouped by the category saved on each entry.">Spend by category</FeatureTitle>
           </div>
           {categories.length === 0 ? (
             <p className="tip" style={{ margin: 0 }}>
@@ -344,7 +384,7 @@ export default function Money() {
         {/* ── what we spend each month ──────────────────────────────── */}
         <div className="mn-panel">
           <div className="mn-panel-head">
-            <span className="eyebrow">Spend per month</span>
+            <FeatureTitle tip="Business expenses grouped by calendar month in the selected range.">Spend per month</FeatureTitle>
           </div>
           {monthly.length === 0 ? (
             <p className="tip" style={{ margin: 0 }}>
@@ -358,7 +398,7 @@ export default function Money() {
         {/* ── the biggest single things, which is usually the answer ─── */}
         <div className="mn-panel">
           <div className="mn-panel-head">
-            <span className="eyebrow">Most expensive</span>
+            <FeatureTitle tip="The largest individual business expenses in the selected range.">Most expensive</FeatureTitle>
           </div>
           {biggest.length === 0 ? (
             <p className="tip" style={{ margin: 0 }}>
@@ -372,27 +412,10 @@ export default function Money() {
           )}
         </div>
 
-        {/* ── one-off versus what renews by itself ──────────────────── */}
-        <div className="mn-panel">
-          <div className="mn-panel-head">
-            <span className="eyebrow">One-off vs recurring</span>
-          </div>
-          <SplitBar
-            parts={[
-              { label: 'One-off', value: shape.oneTime, color: VIZ.cat[0] },
-              { label: 'Recurring', value: shape.recurring, color: VIZ.cat[1] },
-            ]}
-            height={12}
-          />
-          <p className="tip" style={{ marginTop: 8 }}>
-            Uncategorised spend counts as one-off, so these two always add up to what actually left.
-          </p>
-        </div>
-
         {/* ── spend per project — small multiples, not four competing colours ── */}
         <div className="mn-panel">
           <div className="mn-panel-head">
-            <span className="eyebrow">Spend per project</span>
+            <FeatureTitle tip="Expenses only, grouped by the project selected on each entry.">Spend per project</FeatureTitle>
           </div>
           {spendByProject.length === 0 ? (
             <p className="tip" style={{ margin: 0 }}>
@@ -404,8 +427,13 @@ export default function Money() {
         </div>
 
         {/* ── transaction table ──────────────────────────────────────── */}
+        <div className="mn-section-title">
+          <FeatureTitle tip="The source-of-truth list behind every total and chart above. Edit a row to see its exact payer allocation and comments.">
+            Money entries
+          </FeatureTitle>
+        </div>
         <div className="filters">
-          {ds.projects.map((p) => (
+          {businessProjects.map((p) => (
             <button
               key={p.id}
               className="chip"
@@ -433,9 +461,6 @@ export default function Money() {
           <button className="btn sm" type="button" onClick={exportCsv}>
             ↓ CSV
           </button>
-          <button className="btn sm" type="button" onClick={exportXlsx}>
-            ↓ XLSX
-          </button>
         </div>
 
         <div style={{ overflowX: 'auto' }}>
@@ -446,9 +471,11 @@ export default function Money() {
                 <th>Party</th>
                 <th>Category</th>
                 <th>Project</th>
+                <th>Flow</th>
                 <th>Status</th>
-                <th>Paid by</th>
+                <th>Funded / paid by</th>
                 <th>Task</th>
+                <th>Comments</th>
                 <th className="amt">Amount</th>
                 <th aria-label="Row actions" />
               </tr>
@@ -466,6 +493,11 @@ export default function Money() {
                       {projName(ds, r.project_id)}
                     </span>
                   </td>
+                  <td data-label="Flow">
+                    <span className={`mn-flow ${r.direction}`}>
+                      {r.direction === 'in' ? 'Contribution' : 'Expense'}
+                    </span>
+                  </td>
                   <td data-label="Status">
                     <button
                       className={`pill ${pillClass(r.status)}`}
@@ -473,12 +505,22 @@ export default function Money() {
                       onClick={() => cycleStatus(r)}
                       title="Click to change status"
                     >
-                      {r.status}
+                      {statusLabel(r)}
                     </button>
                   </td>
-                  <td data-label="Paid by">
-                    {r.paid_by ? (
-                      <Avatar userId={r.paid_by} size={22} />
+                  <td data-label="Funded / paid by">
+                    {(r.payer_allocations?.length || r.paid_by) ? (
+                      <span className="mn-payers">
+                        {(r.payer_allocations?.length
+                          ? r.payer_allocations
+                          : [{ user_id: r.paid_by!, amount: r.amount }]
+                        ).map((allocation) => (
+                          <span className="mn-payer" key={allocation.user_id}>
+                            <Avatar userId={allocation.user_id} size={22} />
+                            <span className="mono">{inr(allocation.amount)}</span>
+                          </span>
+                        ))}
+                      </span>
                     ) : (
                       <span className="tip" style={{ margin: 0 }}>
                         —
@@ -496,6 +538,9 @@ export default function Money() {
                       </span>
                     )}
                   </td>
+                  <td data-label="Comments" className="mn-comment-cell" title={r.comments ?? ''}>
+                    {r.comments || '—'}
+                  </td>
                   <td
                     data-label="Amount"
                     className="amt mono"
@@ -503,7 +548,6 @@ export default function Money() {
                   >
                     {r.direction === 'in' ? '+' : '−'}
                     {inr(r.amount)}
-                    {r.split_pct != null && <span className="mn-split">{r.split_pct}%</span>}
                   </td>
                   <td data-label="" className="mn-rowacts">
                     <button type="button" className="btn sm" onClick={() => setEditing(r)}>
@@ -516,7 +560,7 @@ export default function Money() {
                         if (!window.confirm(`Delete this ${inr(r.amount)} entry for ${r.party}? It moves to Trash.`))
                           return;
                         store.remove('ledger', r.id, store.asMe({ summary: `Ledger entry removed — ${r.party}` }));
-                        toast('Removed — restorable from Admin → Data');
+                        toast('Removed — restorable from Settings → Data');
                       }}
                     >
                       Delete
@@ -532,15 +576,10 @@ export default function Money() {
         {/* ── import history ─────────────────────────────────────────── */}
         <div className="mn-panel" style={{ marginTop: 18 }}>
           <div className="mn-panel-head">
-            <span className="eyebrow">Import history</span>
+            <FeatureTitle tip="Each CSV import can be rolled back as one batch if it brought in the wrong rows.">Import history</FeatureTitle>
           </div>
           <ImportHistory />
         </div>
-
-        <p className="tip">
-          Cash in and cash out, not your books. Shared: both of you see the same numbers. Who paid is
-          recorded, but nothing here works out what one of you owes the other — that is deliberate.
-        </p>
       </div>
       )}
 

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
-import { useToast } from '../../ui/bits';
+import { InfoTip, useToast } from '../../ui/bits';
 import { staggerList, staggerItem, staggerParent } from '../../ui/motion';
 import { todayIso } from '../../lib/dates';
 import { warmth, type Warmth } from '../../lib/warmth';
@@ -123,7 +123,10 @@ export default function People() {
   return (
     <div className="frame">
       <div className="top">
-        <div className="disp">People</div>
+        <div className="disp feature-label">
+          People
+          <InfoTip label="People" text="A relationship tracker: cadence, last touch, next action and the work or messages connected to each person." />
+        </div>
         <div className="spacer" />
         <button className="btn sm solid" onClick={() => setOpenProfileId('new')}>
           + Person
@@ -220,11 +223,6 @@ export default function People() {
           </motion.div>
         )}
 
-        <p className="tip">
-          Warmth is how long since you last talked, versus how often you meant to. The ring drains with silence
-          and refills when you log a touch. The strip below each card is the last ~12 weeks of contact — mail,
-          notes, tasks, ledger rows and logged touches all count.
-        </p>
       </div>
 
       {openProfileId && (

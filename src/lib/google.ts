@@ -1,20 +1,9 @@
 /**
- * Google integration — Gmail (read), Calendar (read/write), Drive (read).
+ * Browser-only Google integration.
  *
- * Uses Google Identity Services' token flow in the browser. That choice is
- * deliberate:
- *
- *  - It needs only a CLIENT ID, which is public by design. No client secret
- *    exists in this codebase, so none can leak from it.
- *  - Access tokens live in memory for their ~1 hour and are never written to
- *    the database or localStorage. A dump of the Postgres data therefore can
- *    never become access to a mailbox.
- *  - The trade-off, stated plainly: there is no background sync. Data refreshes
- *    when the portal is open. Background sync needs a refresh token held
- *    server-side, which is a different security posture and a separate build.
- *
- * What the database stores is only WHICH scopes were granted, so the UI can be
- * honest about what actually works.
+ * Every connected Google account has its own short-lived access token in this
+ * module's in-memory map. Account metadata may be persisted by googleSync.ts;
+ * tokens, raw mail bodies and attachments never are.
  */
 
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
@@ -26,20 +15,27 @@ export const SCOPES = {
   drive: 'https://www.googleapis.com/auth/drive.readonly',
 } as const;
 export type ScopeKey = keyof typeof SCOPES;
+export const IDENTITY_SCOPES = ['openid', 'email', 'profile'] as const;
 
 export const googleConfigured = () => Boolean(GOOGLE_CLIENT_ID);
-
-/* ── GIS script loading ─────────────────────────────────────────────── */
 
 interface TokenResponse {
   access_token?: string;
   expires_in?: number;
   scope?: string;
   error?: string;
+  error_description?: string;
 }
+
 interface TokenClient {
-  requestAccessToken: (opts?: { prompt?: string }) => void;
+  requestAccessToken: (opts?: {
+    prompt?: string;
+    login_hint?: string;
+    scope?: string;
+    include_granted_scopes?: boolean;
+  }) => void;
 }
+
 declare global {
   interface Window {
     google?: {
@@ -49,6 +45,8 @@ declare global {
             client_id: string;
             scope: string;
             prompt?: string;
+            login_hint?: string;
+            include_granted_scopes?: boolean;
             callback: (r: TokenResponse) => void;
             error_callback?: (e: unknown) => void;
           }) => TokenClient;
@@ -64,86 +62,210 @@ function loadGis(): Promise<void> {
   if (window.google?.accounts?.oauth2) return Promise.resolve();
   if (scriptPromise) return scriptPromise;
   scriptPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.async = true;
-    s.defer = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Could not load Google Identity Services'));
-    document.head.appendChild(s);
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Could not load Google Identity Services'));
+    document.head.appendChild(script);
   });
   return scriptPromise;
 }
 
-/* ── token cache (memory only, never persisted) ─────────────────────── */
-
-interface CachedToken {
+export interface AccountToken {
   token: string;
   expiresAt: number;
   scopes: Set<string>;
 }
-let cached: CachedToken | null = null;
 
-const hasScopes = (want: string[]) =>
-  !!cached && cached.expiresAt > Date.now() + 30_000 && want.every((s) => cached!.scopes.has(s));
+const tokenCache = new Map<string, AccountToken>();
 
-/**
- * Get an access token covering `keys`, prompting only when needed.
- * `interactive: false` attempts a silent grant and resolves null if Google
- * would need to show UI — used on load so the app never pops a dialog at you.
- */
-export async function getToken(
+const wantedScopes = (keys: ScopeKey[], includeIdentity = false) => [
+  ...keys.map((key) => SCOPES[key]),
+  ...(includeIdentity ? IDENTITY_SCOPES : []),
+];
+
+const tokenCovers = (entry: AccountToken | undefined, scopes: string[]) =>
+  !!entry && entry.expiresAt > Date.now() + 30_000 && scopes.every((scope) => entry.scopes.has(scope));
+
+async function requestToken(
   keys: ScopeKey[],
-  { interactive = true }: { interactive?: boolean } = {},
-): Promise<string | null> {
+  options: { prompt: '' | 'select_account' | 'consent'; loginHint?: string; includeIdentity?: boolean },
+): Promise<AccountToken> {
   if (!GOOGLE_CLIENT_ID) throw new Error('VITE_GOOGLE_CLIENT_ID is not set');
-  const want = keys.map((k) => SCOPES[k]);
-  if (hasScopes(want)) return cached!.token;
-
   await loadGis();
+  const want = wantedScopes(keys, options.includeIdentity);
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finishError = (value: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(value instanceof Error ? value : new Error('Google sign-in was closed'));
+    };
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: want.join(' '),
-      prompt: interactive ? '' : 'none',
-      callback: (res) => {
-        if (res.error || !res.access_token) {
-          if (!interactive) return resolve(null);
-          return reject(new Error(res.error ?? 'Google declined the request'));
+      prompt: options.prompt,
+      login_hint: options.loginHint,
+      include_granted_scopes: true,
+      callback: (response) => {
+        if (settled) return;
+        settled = true;
+        if (response.error || !response.access_token) {
+          reject(new Error(response.error_description ?? response.error ?? 'Google declined access'));
+          return;
         }
-        cached = {
-          token: res.access_token,
-          expiresAt: Date.now() + (res.expires_in ?? 3600) * 1000,
-          scopes: new Set((res.scope ?? want.join(' ')).split(' ')),
-        };
-        resolve(res.access_token);
+        resolve({
+          token: response.access_token,
+          expiresAt: Date.now() + (response.expires_in ?? 3600) * 1000,
+          scopes: new Set((response.scope ?? want.join(' ')).split(' ').filter(Boolean)),
+        });
       },
-      error_callback: (e) => (interactive ? reject(e instanceof Error ? e : new Error('Google sign-in was closed')) : resolve(null)),
+      error_callback: finishError,
     });
-    client.requestAccessToken({ prompt: interactive ? '' : 'none' });
+    client.requestAccessToken({
+      prompt: options.prompt,
+      login_hint: options.loginHint,
+      include_granted_scopes: true,
+    });
   });
 }
 
-export function forgetToken() {
-  if (cached) window.google?.accounts.oauth2.revoke(cached.token);
-  cached = null;
+export interface GoogleIdentity {
+  subject: string;
+  email: string;
+  name: string;
 }
 
-export const grantedScopes = (): string[] => (cached ? [...cached.scopes] : []);
+export interface ConnectedGoogleIdentity {
+  identity: GoogleIdentity;
+  token: AccountToken;
+}
 
-/** True while an unexpired token is held in memory for this session. */
-export const hasLiveToken = (): boolean => !!cached && cached.expiresAt > Date.now();
+/** User-driven account chooser used only by the Add account button. */
+export async function connectGoogleIdentity(keys: ScopeKey[]): Promise<ConnectedGoogleIdentity> {
+  const token = await requestToken(keys, { prompt: 'select_account', includeIdentity: true });
+  const identity = await apiWithToken<{
+    sub?: string;
+    email?: string;
+    name?: string;
+  }>('https://openidconnect.googleapis.com/v1/userinfo', token.token);
+  if (!identity.sub || !identity.email) throw new Error('Google did not return an account identity');
+  return {
+    identity: { subject: identity.sub, email: identity.email, name: identity.name ?? identity.email },
+    token,
+  };
+}
 
-/* ── API helpers ────────────────────────────────────────────────────── */
+export function adoptAccountToken(accountId: string, token: AccountToken) {
+  tokenCache.set(accountId, token);
+}
 
-async function api<T>(url: string, token: string): Promise<T> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Google API ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  return res.json() as Promise<T>;
+/** User-driven renewal for one known account. It never runs from a timer. */
+export async function reconnectAccountToken(
+  accountId: string,
+  email: string,
+  keys: ScopeKey[],
+): Promise<ConnectedGoogleIdentity> {
+  const token = await requestToken(keys, { prompt: '', loginHint: email, includeIdentity: true });
+  const identity = await apiWithToken<{ sub?: string; email?: string; name?: string }>(
+    'https://openidconnect.googleapis.com/v1/userinfo',
+    token.token,
+  );
+  if (!identity.sub || !identity.email) throw new Error('Google did not return an account identity');
+  tokenCache.set(accountId, token);
+  return {
+    identity: { subject: identity.sub, email: identity.email, name: identity.name ?? identity.email },
+    token,
+  };
+}
+
+export async function getAccountToken(
+  accountId: string,
+  keys: ScopeKey[],
+  options: { interactive?: boolean; loginHint?: string } = {},
+): Promise<string | null> {
+  const want = wantedScopes(keys);
+  const cached = tokenCache.get(accountId);
+  if (tokenCovers(cached, want)) return cached!.token;
+  tokenCache.delete(accountId);
+  if (!options.interactive) return null;
+  const token = await requestToken(keys, { prompt: '', loginHint: options.loginHint });
+  tokenCache.set(accountId, token);
+  return token.token;
+}
+
+export function hasLiveAccountToken(accountId: string, keys: ScopeKey[] = []): boolean {
+  return tokenCovers(tokenCache.get(accountId), wantedScopes(keys));
+}
+
+export function grantedAccountScopes(accountId: string): string[] {
+  return [...(tokenCache.get(accountId)?.scopes ?? [])];
+}
+
+export function forgetAccountToken(accountId: string) {
+  const cached = tokenCache.get(accountId);
+  if (cached) window.google?.accounts.oauth2.revoke(cached.token);
+  tokenCache.delete(accountId);
+}
+
+export class GoogleApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'GoogleApiError';
+  }
+}
+
+async function apiWithToken<T>(url: string, token: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
+  });
+  if (!response.ok) {
+    throw new GoogleApiError(response.status, `Google API ${response.status}: ${(await response.text()).slice(0, 240)}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function accountApi<T>(accountId: string, keys: ScopeKey[], url: string, init?: RequestInit): Promise<T> {
+  const token = await getAccountToken(accountId, keys);
+  if (!token) throw new Error('Reconnect this Google account to continue');
+  return apiWithToken<T>(url, token, init);
+}
+
+/* ── Gmail ──────────────────────────────────────────────────────────── */
+
+export interface GmailHeader {
+  name: string;
+  value: string;
+}
+
+export interface GmailPart {
+  mimeType?: string;
+  filename?: string;
+  headers?: GmailHeader[];
+  body?: { data?: string; attachmentId?: string; size?: number };
+  parts?: GmailPart[];
+}
+
+export interface GmailRawMessage {
+  id: string;
+  threadId: string;
+  historyId?: string;
+  labelIds?: string[];
+  snippet?: string;
+  internalDate?: string;
+  payload?: GmailPart;
 }
 
 export interface GmailMessage {
   id: string;
+  threadId: string;
+  historyId: string | null;
   from: string;
   subject: string;
   snippet: string;
@@ -151,42 +273,189 @@ export interface GmailMessage {
   link: string;
 }
 
-/** Recent inbox messages, flattened to what the Mail tab actually shows. */
-export async function fetchGmail(max = 15): Promise<GmailMessage[]> {
-  const token = await getToken(['gmail']);
-  if (!token) return [];
-  const list = await api<{ messages?: { id: string }[] }>(
-    `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${max}&q=in:inbox`,
-    token,
+export const gmailLink = (email: string, messageId: string) =>
+  `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(email)}#all/${messageId}`;
+
+export const gmailHeader = (message: GmailRawMessage, name: string): string =>
+  message.payload?.headers?.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value ?? '';
+
+export function toGmailMessage(message: GmailRawMessage, accountEmail: string): GmailMessage {
+  const timestamp = Number(message.internalDate);
+  return {
+    id: message.id,
+    threadId: message.threadId,
+    historyId: message.historyId ?? null,
+    from: gmailHeader(message, 'From'),
+    subject: gmailHeader(message, 'Subject') || '(no subject)',
+    snippet: message.snippet ?? '',
+    receivedAt: Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString(),
+    link: gmailLink(accountEmail, message.id),
+  };
+}
+
+export async function getGmailProfile(accountId: string): Promise<{ emailAddress: string; historyId: string }> {
+  return accountApi(accountId, ['gmail'], 'https://gmail.googleapis.com/gmail/v1/users/me/profile');
+}
+
+async function listGmailIds(
+  accountId: string,
+  query: string,
+  max: number,
+): Promise<{ id: string; threadId: string }[]> {
+  const out: { id: string; threadId: string }[] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < 5 && out.length < max; page++) {
+    const pageSize = Math.min(500, max - out.length);
+    const url =
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${pageSize}` +
+      `&q=${encodeURIComponent(query)}` +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+    const result = await accountApi<{
+      messages?: { id: string; threadId: string }[];
+      nextPageToken?: string;
+    }>(accountId, ['gmail'], url);
+    out.push(...(result.messages ?? []));
+    pageToken = result.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out.slice(0, max);
+}
+
+export async function fetchGmailMessage(
+  accountId: string,
+  messageId: string,
+  format: 'metadata' | 'full' = 'metadata',
+): Promise<GmailRawMessage> {
+  const headers = format === 'metadata'
+    ? '&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date'
+    : '';
+  return accountApi(
+    accountId,
+    ['gmail'],
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=${format}${headers}`,
   );
-  const ids = (list.messages ?? []).map((m) => m.id);
-  const full = await Promise.all(
-    ids.map((id) =>
-      api<{
-        id: string;
-        snippet: string;
-        internalDate: string;
-        payload: { headers: { name: string; value: string }[] };
-      }>(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`,
-        token,
-      ).catch(() => null),
-    ),
+}
+
+export async function fetchGmailInbox(
+  accountId: string,
+  accountEmail: string,
+  max = 20,
+): Promise<GmailMessage[]> {
+  const ids = await listGmailIds(accountId, 'in:inbox', max);
+  const rows = await Promise.all(
+    ids.map(({ id }) => fetchGmailMessage(accountId, id, 'metadata').catch(() => null)),
   );
-  return full.filter(Boolean).map((m) => {
-    const h = (n: string) =>
-      m!.payload.headers.find((x) => x.name.toLowerCase() === n)?.value ?? '';
-    return {
-      id: m!.id,
-      from: h('from'),
-      subject: h('subject') || '(no subject)',
-      // Bodies are never stored — only the snippet Gmail already returns.
-      snippet: m!.snippet ?? '',
-      receivedAt: new Date(Number(m!.internalDate)).toISOString(),
-      link: `https://mail.google.com/mail/u/0/#inbox/${m!.id}`,
-    };
+  return rows.filter((row): row is GmailRawMessage => !!row).map((row) => toGmailMessage(row, accountEmail));
+}
+
+const COMMERCE_QUERY = [
+  'subject:order', 'subject:shipped', 'subject:delivery', 'subject:delivered',
+  'subject:tracking', 'subject:return', 'subject:refund', 'subject:booking',
+  'subject:reservation', 'subject:itinerary', 'subject:flight', 'subject:hotel',
+  'subject:train', 'subject:ordine', 'subject:spedito', 'subject:consegna',
+  'subject:rimborso', 'subject:prenotazione', 'subject:volo', 'subject:treno',
+].join(' ');
+
+export async function fetchGmailCandidateIds(accountId: string, days = 30): Promise<string[]> {
+  const ids = await listGmailIds(
+    accountId,
+    `newer_than:${days}d -in:spam -in:trash {${COMMERCE_QUERY}}`,
+    500,
+  );
+  return ids.map((row) => row.id);
+}
+
+export function isCommerceEnvelope(message: GmailRawMessage): boolean {
+  const text = `${gmailHeader(message, 'From')} ${gmailHeader(message, 'Subject')} ${message.snippet ?? ''}`;
+  return /\b(order|shipment|shipped|delivery|delivered|tracking|return|refund|booking|reservation|itinerary|flight|hotel|train|ordine|spedito|consegna|rimborso|prenotazione|volo|treno)\b/i.test(text);
+}
+
+export async function fetchGmailHistory(
+  accountId: string,
+  startHistoryId: string,
+): Promise<{ messageIds: string[]; historyId: string }> {
+  const ids = new Set<string>();
+  let pageToken: string | undefined;
+  let latest = startHistoryId;
+  for (let page = 0; page < 10; page++) {
+    const url =
+      `https://gmail.googleapis.com/gmail/v1/users/me/history?startHistoryId=${encodeURIComponent(startHistoryId)}` +
+      '&historyTypes=messageAdded&maxResults=500' +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+    const response = await accountApi<{
+      history?: { messagesAdded?: { message: { id: string } }[] }[];
+      historyId?: string;
+      nextPageToken?: string;
+    }>(accountId, ['gmail'], url);
+    for (const history of response.history ?? []) {
+      for (const added of history.messagesAdded ?? []) ids.add(added.message.id);
+    }
+    latest = response.historyId ?? latest;
+    pageToken = response.nextPageToken;
+    if (!pageToken) break;
+  }
+  return { messageIds: [...ids], historyId: latest };
+}
+
+function decodeBase64Url(value: string): string {
+  const normal = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normal.padEnd(Math.ceil(normal.length / 4) * 4, '=');
+  try {
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return '';
+  }
+}
+
+function decodeEntities(value: string): string {
+  const named: Record<string, string> = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  };
+  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (_, entity: string) => {
+    if (entity[0] === '#') {
+      const hex = entity[1]?.toLowerCase() === 'x';
+      const code = parseInt(entity.slice(hex ? 2 : 1), hex ? 16 : 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : '';
+    }
+    return named[entity.toLowerCase()] ?? `&${entity};`;
   });
 }
+
+function htmlToText(html: string): string {
+  return decodeEntities(
+    html
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<br\s*\/?\s*>|<\/p>|<\/div>|<\/li>|<\/tr>/gi, '\n')
+      .replace(/<[^>]+>/g, ' '),
+  )
+    .replace(/[\t ]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export function extractGmailBodies(message: GmailRawMessage): { text: string; html: string } {
+  const plain: string[] = [];
+  const html: string[] = [];
+  const visit = (part: GmailPart | undefined) => {
+    if (!part) return;
+    const data = part.body?.data;
+    // attachmentId means the bytes are not inline. Never fetch it.
+    if (data && !part.body?.attachmentId) {
+      const decoded = decodeBase64Url(data);
+      if (part.mimeType?.toLowerCase() === 'text/html') html.push(decoded);
+      else if (part.mimeType?.toLowerCase() === 'text/plain' || !part.mimeType) plain.push(decoded);
+    }
+    for (const child of part.parts ?? []) visit(child);
+  };
+  visit(message.payload);
+  const rawHtml = html.join('\n');
+  return { text: plain.join('\n').trim() || htmlToText(rawHtml), html: rawHtml };
+}
+
+/* ── Calendar ───────────────────────────────────────────────────────── */
 
 export interface CalendarEvent {
   id: string;
@@ -201,69 +470,50 @@ interface RawEvent {
   id: string;
   summary?: string;
   htmlLink?: string;
+  status?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
 }
 
-const toEvent = (e: RawEvent): CalendarEvent => ({
-  id: e.id,
-  summary: e.summary ?? '(busy)',
-  start: e.start?.dateTime ?? `${e.start?.date}T00:00:00`,
-  end: e.end?.dateTime ?? `${e.end?.date}T23:59:59`,
-  allDay: !e.start?.dateTime,
-  link: e.htmlLink ?? 'https://calendar.google.com',
+const toEvent = (event: RawEvent): CalendarEvent => ({
+  id: event.id,
+  summary: event.summary ?? '(busy)',
+  start: event.start?.dateTime ?? `${event.start?.date}T00:00:00`,
+  end: event.end?.dateTime ?? `${event.end?.date}T23:59:59`,
+  allDay: !event.start?.dateTime,
+  link: event.htmlLink ?? 'https://calendar.google.com',
 });
 
-/**
- * Events between two dates, inclusive.
- *
- * `singleEvents=true` expands a recurring series into real instances, each
- * with its own id, which is what makes "this week's standups" five rows rather
- * than one rule the portal would have to interpret. Pages are followed to the
- * end: a month of a busy calendar exceeds one response, and a silently
- * truncated month is a calendar that lies.
- */
 export async function fetchCalendarRange(
+  accountId: string,
   fromIso: string,
   toIso: string,
 ): Promise<CalendarEvent[]> {
-  const token = await getToken(['calendar']);
-  if (!token) return [];
   const min = new Date(`${fromIso}T00:00:00`).toISOString();
   const max = new Date(`${toIso}T23:59:59`).toISOString();
-
   const out: CalendarEvent[] = [];
   let pageToken: string | undefined;
-  // A hard stop: a pathological calendar must not spin forever on the free tier.
   for (let page = 0; page < 10; page++) {
     const url =
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events` +
-      `?singleEvents=true&orderBy=startTime&maxResults=250` +
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events' +
+      '?singleEvents=true&orderBy=startTime&showDeleted=false&maxResults=250' +
       `&timeMin=${encodeURIComponent(min)}&timeMax=${encodeURIComponent(max)}` +
       (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
-    const res = await api<{ items?: RawEvent[]; nextPageToken?: string }>(url, token);
-    out.push(...(res.items ?? []).map(toEvent));
-    pageToken = res.nextPageToken;
+    const result = await accountApi<{ items?: RawEvent[]; nextPageToken?: string }>(accountId, ['calendar'], url);
+    out.push(...(result.items ?? []).filter((event) => event.status !== 'cancelled').map(toEvent));
+    pageToken = result.nextPageToken;
     if (!pageToken) break;
   }
   return out;
 }
 
-/** One day's events. */
-export async function fetchCalendar(dayIso: string): Promise<CalendarEvent[]> {
-  return fetchCalendarRange(dayIso, dayIso);
-}
-
-/** Create a real calendar event (used by "Schedule a call"). */
-export async function createCalendarEvent(input: {
-  summary: string;
-  startIso: string;
-  endIso: string;
-  description?: string;
-}): Promise<string> {
-  const token = await getToken(['calendar']);
-  if (!token) throw new Error('Calendar access was not granted');
-  const res = await fetch(
+export async function createCalendarEvent(
+  accountId: string,
+  input: { summary: string; startIso: string; endIso: string; description?: string },
+): Promise<string> {
+  const token = await getAccountToken(accountId, ['calendar']);
+  if (!token) throw new Error('Reconnect the selected Google account first');
+  const response = await fetch(
     'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1',
     {
       method: 'POST',
@@ -276,56 +526,72 @@ export async function createCalendarEvent(input: {
       }),
     },
   );
-  if (!res.ok) throw new Error(`Calendar refused: ${(await res.text()).slice(0, 160)}`);
-  const json = (await res.json()) as { htmlLink?: string };
-  return json.htmlLink ?? 'https://calendar.google.com';
+  if (!response.ok) throw new GoogleApiError(response.status, `Calendar refused: ${(await response.text()).slice(0, 180)}`);
+  const result = (await response.json()) as { htmlLink?: string };
+  return result.htmlLink ?? 'https://calendar.google.com';
 }
+
+/* ── Drive ──────────────────────────────────────────────────────────── */
 
 export interface DriveFile {
   id: string;
+  accountId: string;
+  accountEmail: string;
   name: string;
   mimeType: string;
   link: string;
   modifiedAt: string;
 }
 
-/** Search Drive by name — enough to attach a document by reference. */
-export async function searchDrive(query: string, max = 12): Promise<DriveFile[]> {
-  const token = await getToken(['drive']);
-  if (!token) return [];
-  const q = `name contains '${query.replace(/'/g, "\\'")}' and trashed = false`;
-  const res = await api<{
+export interface GoogleAccountRef {
+  id: string;
+  email: string;
+}
+
+async function driveFiles(
+  account: GoogleAccountRef,
+  query: string,
+  max: number,
+): Promise<DriveFile[]> {
+  const q = query.trim()
+    ? `name contains '${query.replace(/'/g, "\\'")}' and trashed = false`
+    : 'trashed = false';
+  const order = query.trim() ? '' : `&orderBy=${encodeURIComponent('modifiedTime desc')}`;
+  const response = await accountApi<{
     files?: { id: string; name: string; mimeType: string; webViewLink?: string; modifiedTime?: string }[];
   }>(
-    `https://www.googleapis.com/drive/v3/files?pageSize=${max}&q=${encodeURIComponent(q)}&fields=files(id,name,mimeType,webViewLink,modifiedTime)`,
-    token,
+    account.id,
+    ['drive'],
+    `https://www.googleapis.com/drive/v3/files?pageSize=${max}${order}` +
+      `&q=${encodeURIComponent(q)}&fields=files(id,name,mimeType,webViewLink,modifiedTime)`,
   );
-  return (res.files ?? []).map((f) => ({
-    id: f.id,
-    name: f.name,
-    mimeType: f.mimeType,
-    link: f.webViewLink ?? `https://drive.google.com/file/d/${f.id}/view`,
-    modifiedAt: f.modifiedTime ?? '',
+  return (response.files ?? []).map((file) => ({
+    id: file.id,
+    accountId: account.id,
+    accountEmail: account.email,
+    name: file.name,
+    mimeType: file.mimeType,
+    link: file.webViewLink ?? `https://drive.google.com/file/d/${file.id}/view`,
+    modifiedAt: file.modifiedTime ?? '',
   }));
 }
 
-/** Recently touched files — what the Documents picker shows before you type. */
-export async function recentDrive(max = 12): Promise<DriveFile[]> {
-  const token = await getToken(['drive']);
-  if (!token) return [];
-  const res = await api<{
-    files?: { id: string; name: string; mimeType: string; webViewLink?: string; modifiedTime?: string }[];
-  }>(
-    `https://www.googleapis.com/drive/v3/files?pageSize=${max}&orderBy=${encodeURIComponent(
-      'modifiedTime desc',
-    )}&q=${encodeURIComponent('trashed = false')}&fields=files(id,name,mimeType,webViewLink,modifiedTime)`,
-    token,
-  );
-  return (res.files ?? []).map((f) => ({
-    id: f.id,
-    name: f.name,
-    mimeType: f.mimeType,
-    link: f.webViewLink ?? `https://drive.google.com/file/d/${f.id}/view`,
-    modifiedAt: f.modifiedTime ?? '',
-  }));
+export async function searchAllDrives(
+  accounts: GoogleAccountRef[],
+  query: string,
+  maxPerAccount = 12,
+): Promise<{ files: DriveFile[]; errors: { accountId: string; message: string }[] }> {
+  const live = accounts.filter((account) => hasLiveAccountToken(account.id, ['drive']));
+  const settled = await Promise.allSettled(live.map((account) => driveFiles(account, query, maxPerAccount)));
+  const files: DriveFile[] = [];
+  const errors: { accountId: string; message: string }[] = [];
+  settled.forEach((result, index) => {
+    if (result.status === 'fulfilled') files.push(...result.value);
+    else errors.push({
+      accountId: live[index].id,
+      message: result.reason instanceof Error ? result.reason.message : 'Drive search failed',
+    });
+  });
+  files.sort((a, b) => b.modifiedAt.localeCompare(a.modifiedAt) || a.name.localeCompare(b.name));
+  return { files, errors };
 }

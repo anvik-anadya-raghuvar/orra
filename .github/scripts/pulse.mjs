@@ -12,7 +12,9 @@
 import { createHash } from 'node:crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/+$/, '');
-const KEY = process.env.SUPABASE_ANON_KEY;
+// This job is trusted server-side automation. The old public anon key forced
+// the database to accept spoofable `origin = auto` writes from anyone.
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 /** Official/primary sources — release notes and regulators, not aggregators. */
 // Each URL verified to return 200 (post-redirect) at time of writing. A feed

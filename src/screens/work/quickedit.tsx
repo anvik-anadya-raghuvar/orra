@@ -154,6 +154,19 @@ export default function QuickEdit({
       store.asMe({ summary: `Tag removed from ${live.id}: ${name}` }),
     );
 
+  const toggleDecision = (decisionId: string) => {
+    const decision = ds.decisions.find((item) => item.id === decisionId);
+    if (!decision) return;
+    const ids = decision.task_ids ?? [];
+    const linked = ids.includes(live.id);
+    store.update(
+      'decisions',
+      decision.id,
+      { task_ids: linked ? ids.filter((id) => id !== live.id) : [...ids, live.id] },
+      store.asMe({ summary: `${linked ? 'Unlinked' : 'Linked'} ${live.id} ${linked ? 'from' : 'to'} decision` }),
+    );
+  };
+
   const addLink = () => {
     if (!linkTarget || linkTarget === live.id) return;
     // Catches the reverse spelling too: "A relates to B" and "B relates to A"
@@ -316,6 +329,27 @@ export default function QuickEdit({
         <button className="btn sm" type="button" onClick={commitTag}>
           Add
         </button>
+      </div>
+
+      <span className="wk-lbl" style={{ marginTop: 16 }}>Decisions</span>
+      <p className="tip" style={{ margin: '0 0 8px' }}>
+        Link the canonical decision here; it updates the Decisions view immediately.
+      </p>
+      <div className="wk-decision-tasks">
+        {ds.decisions.map((decision) => (
+          <label key={decision.id}>
+            <input
+              type="checkbox"
+              checked={(decision.task_ids ?? []).includes(live.id)}
+              onChange={() => toggleDecision(decision.id)}
+            />
+            <span>
+              <b>{decision.question}</b>
+              <small style={{ display: 'block', color: 'var(--mute)' }}>{decision.status}</small>
+            </span>
+          </label>
+        ))}
+        {ds.decisions.length === 0 && <span className="tip">No decisions yet.</span>}
       </div>
 
       {/* links */}

@@ -18,6 +18,7 @@ import { daysUntil, fmtDay, todayIso } from '../../lib/dates';
 import { myTasks, ownRows } from '../../lib/workspace';
 import { goalProgress, goalsFor, progressLabel } from '../../lib/goals';
 import { SCOPE_COPY, activeBlockFor, clockLabel, elapsedSec } from '../../lib/blocks';
+import { isTerminalOrder } from '../../lib/personalOrders';
 
 /* ── shared frame ──────────────────────────────────────────────────────── */
 
@@ -149,11 +150,37 @@ export function LifeAdminGlance() {
   const store = useStore();
   const open = ds.life_admin.filter((l) => l.user_id === store.meId && !l.completed);
   return (
-    <Shell title="Life admin" stat={open.length} statLabel="to do">
+    <Shell title="Personal admin" stat={open.length} statLabel="to do">
       {open.slice(0, 3).map((l) => (
         <Row key={l.id} main={l.item} />
       ))}
       {open.length === 0 && <None>All clear.</None>}
+    </Shell>
+  );
+}
+
+export function OrdersGlance() {
+  const ds = useData((d) => d);
+  const meId = useData((_, s) => s.meId);
+  const mine = ds.personal_orders.filter((order) => order.user_id === meId);
+  const review = mine.filter((order) => order.review_status === 'pending');
+  const active = mine
+    .filter((order) => order.review_status === 'confirmed' && !isTerminalOrder(order))
+    .sort((a, b) => (a.next_event_at ?? '9999').localeCompare(b.next_event_at ?? '9999'));
+
+  return (
+    <Shell title="Orders & travel" stat={review.length} statLabel="to review">
+      {active.slice(0, 2).map((order) => (
+        <Row
+          key={order.id}
+          main={order.summary}
+          meta={order.kind === 'travel' ? 'trip' : order.lifecycle_status.replace(/_/g, ' ')}
+        />
+      ))}
+      {review.slice(0, Math.max(1, 3 - active.length)).map((order) => (
+        <Row key={order.id} main={order.summary} meta="review" />
+      ))}
+      {mine.length === 0 && <None>No orders or bookings tracked.</None>}
     </Shell>
   );
 }

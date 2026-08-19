@@ -68,6 +68,7 @@ export default function TagsTab() {
           onKeyDown={(e) => e.key === 'Enter' && create()}
         />
         <select
+          aria-label="New tag color"
           className="srch"
           style={{ flex: '0 0 130px' }}
           value={color}
@@ -92,7 +93,7 @@ export default function TagsTab() {
             <span className="mono ad-tag-count">
               {counts[t.name] ?? 0} use{(counts[t.name] ?? 0) === 1 ? '' : 's'}
             </span>
-            <select className="srch ad-tag-select" value={t.color} onChange={(e) => recolor(t, e.target.value)}>
+            <select aria-label={`Color for ${t.name}`} className="srch ad-tag-select" value={t.color} onChange={(e) => recolor(t, e.target.value)}>
               {TAG_COLORS.map((c) => (
                 <option key={c} value={c}>
                   {c}

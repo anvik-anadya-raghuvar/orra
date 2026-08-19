@@ -64,6 +64,14 @@ export default function BlockOverlay() {
   const focusLine = block.focus_task_id
     ? ds.tasks.find((t) => t.id === block.focus_task_id)
     : null;
+  const zoneTime = (timeZone: string) =>
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(new Date());
 
   const pauseResume = () => {
     if (running) {
@@ -86,7 +94,7 @@ export default function BlockOverlay() {
         id: newId('tl'),
         user_id: meId,
         date: todayIso(),
-        kind: logKind(block.scope),
+        kind: logKind(block.scope, block.log_kind),
         minutes,
         course_id: block.course_id,
       },
@@ -104,6 +112,19 @@ export default function BlockOverlay() {
 
   /** Ticking a line closes the real thing it stands for, never a copy. */
   const toggle = (line: BlockLine) => {
+    if (line.customItemId) {
+      store.update(
+        'active_blocks',
+        block.id,
+        {
+          custom_items: (block.custom_items ?? []).map((item) =>
+            item.id === line.customItemId ? { ...item, done: !item.done } : item,
+          ),
+        },
+        store.asMe({ silent: true }),
+      );
+      return;
+    }
     if (line.taskId) {
       const task = ds.tasks.find((t) => t.id === line.taskId);
       if (!task) return;
@@ -172,15 +193,23 @@ export default function BlockOverlay() {
         exit={{ opacity: 0, transition: micro }}
         transition={entrance}
       >
+        <div className="blk-now-art" aria-hidden>
+          <span>N</span><i>:</i><span>OW</span>
+        </div>
         <div className="blk-shell">
           <div className="blk-hd">
-            <span className="eyebrow">{copy.label}</span>
+            <span className="eyebrow">{block.custom_label || copy.label}</span>
             <span className="spacer" />
             <span className="mono blk-meta">
               {lines.filter((l) => l.done).length}/{lines.length} done
             </span>
           </div>
           <p className="blk-blurb">{copy.blurb}</p>
+
+          <div className="blk-zones" aria-label="Current time in India and Italy">
+            <span><b>India</b> <i className="mono">{zoneTime('Asia/Kolkata')}</i></span>
+            <span><b>Italy</b> <i className="mono">{zoneTime('Europe/Rome')}</i></span>
+          </div>
 
           <div className={`blk-clock${running ? '' : ' paused'}`} aria-live="polite">
             {clockLabel(seconds)}

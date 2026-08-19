@@ -177,6 +177,7 @@ export default function ProfileModal({
             Type
           </label>
           <select
+            aria-label="Relationship type"
             value={relationshipType}
             onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
             style={{ ...inputStyle, marginBottom: 0 }}
@@ -192,7 +193,7 @@ export default function ProfileModal({
           <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>
             Project
           </label>
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ ...inputStyle, marginBottom: 0 }}>
+          <select aria-label="Project" value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ ...inputStyle, marginBottom: 0 }}>
             <option value="">— none —</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
@@ -221,6 +222,7 @@ export default function ProfileModal({
             Cadence (days)
           </label>
           <input
+            aria-label="Cadence in days"
             type="number"
             min={1}
             value={cadenceDays}

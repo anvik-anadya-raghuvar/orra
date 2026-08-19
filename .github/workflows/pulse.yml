@@ -21,9 +21,10 @@ jobs:
       - name: Fetch feeds and upsert
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Server-side only. Never expose this secret to the Vite app.
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          if [ -z "$SUPABASE_URL" ]; then
-            echo "SUPABASE_URL not set — skipping."; exit 0
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set — skipping."; exit 0
           fi
           node .github/scripts/pulse.mjs

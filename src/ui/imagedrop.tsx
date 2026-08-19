@@ -227,6 +227,7 @@ export function ImageDrop({
       <input
         ref={inputRef}
         type="file"
+        aria-label={label}
         accept="image/*"
         multiple={multiple}
         disabled={running}

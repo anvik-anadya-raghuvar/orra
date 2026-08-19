@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useData } from '../../data/store';
 import { staggerItem, staggerList, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
-import { exportAuditCsv, exportAuditXlsx } from './common';
+import { exportAuditCsv } from './common';
 
 const PAGE = 100;
 
@@ -18,16 +18,12 @@ export default function TrailTab() {
   const shown = sorted.slice(0, visible);
 
   const exportCsv = () => exportAuditCsv(`audit-trail-${new Date().toISOString().slice(0, 10)}.csv`, sorted);
-  const exportXlsx = () => exportAuditXlsx(`audit-trail-${new Date().toISOString().slice(0, 10)}.xlsx`, sorted);
 
   return (
     <div>
       <div className="filters">
         <button className="btn sm" type="button" onClick={exportCsv}>
           ↓ CSV
-        </button>
-        <button className="btn sm" type="button" onClick={exportXlsx}>
-          ↓ XLSX
         </button>
       </div>
 

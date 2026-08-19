@@ -12,28 +12,37 @@ import type { MailItem } from '../types';
 
 const msg: GmailMessage = {
   id: '18f2a',
+  threadId: 'thread-1',
+  historyId: 'history-1',
   from: 'Studio <studio@example.com>',
   subject: 'Invoice for August',
   snippet: 'Attached is the invoice…',
   receivedAt: '2026-08-18T09:12:00.000Z',
   link: 'https://mail.google.com/mail/u/0/#inbox/18f2a',
 };
+const account = { id: 'ig-personal', account_email: 'a@b.com' };
 
 describe('Gmail → mail_items', () => {
   it('derives the row id from the Gmail id, so a re-sync cannot duplicate', () => {
-    expect(toMailRow(msg, 'a@b.com').id).toBe('gm-18f2a');
-    expect(toMailRow(msg, 'a@b.com')).toEqual(toMailRow(msg, 'a@b.com'));
+    expect(toMailRow(msg, account, 'u-anadya').id).toBe('gm-ig-personal-18f2a');
+    expect(toMailRow(msg, account, 'u-anadya')).toEqual(toMailRow(msg, account, 'u-anadya'));
+  });
+
+  it('uses the account id in composite ids when Gmail ids collide', () => {
+    expect(toMailRow(msg, account, 'u-anadya').id).not.toBe(
+      toMailRow(msg, { id: 'ig-work', account_email: 'work@example.com' }, 'u-anadya').id,
+    );
   });
 
   it('never clobbers work done on a message that was already synced', () => {
     const prior: MailItem = {
-      ...toMailRow(msg, 'a@b.com'),
+      ...toMailRow(msg, account, 'u-anadya'),
       flag_reason: 'money',
       project_id: 'anvik',
       converted_to_type: 'task',
       converted_to_id: 'T-104',
     };
-    const after = toMailRow({ ...msg, snippet: 'Gmail shortened this' }, 'a@b.com', prior);
+    const after = toMailRow({ ...msg, snippet: 'Gmail shortened this' }, account, 'u-anadya', prior);
     expect(after.converted_to_type).toBe('task');
     expect(after.converted_to_id).toBe('T-104');
     expect(after.flag_reason).toBe('money');
@@ -55,15 +64,17 @@ describe('Calendar → day_events', () => {
       allDay: false,
       link: 'https://calendar.google.com/evt1',
     };
-    const row = toDayEvent(e, 'u-anadya', '2026-08-18');
+    const row = toDayEvent(e, 'u-anadya', '2026-08-18', account);
     expect(row).toMatchObject({
-      id: 'gcal-evt1',
+      id: 'gcal-ig-personal-evt1',
       start_min: 9 * 60 + 30,
       end_min: 600,
       kind: 'meeting',
       label: 'Standup',
       date: '2026-08-18',
       task_id: null,
+      integration_grant_id: 'ig-personal',
+      account_email: 'a@b.com',
     });
   });
 
@@ -76,7 +87,7 @@ describe('Calendar → day_events', () => {
       allDay: true,
       link: 'https://calendar.google.com/evt2',
     };
-    const row = toDayEvent(e, 'u-anadya', '2026-08-18');
+    const row = toDayEvent(e, 'u-anadya', '2026-08-18', account);
     expect(row.start_min).toBe(0);
     expect(row.end_min).toBe(1439);
   });
@@ -105,7 +116,7 @@ describe('the rolling window', () => {
       link: 'https://calendar.google.com/evt3',
     };
     expect(eventDay(e)).toBe('2026-08-25');
-    expect(toDayEvent(e, 'u-anadya', eventDay(e)).date).toBe('2026-08-25');
+    expect(toDayEvent(e, 'u-anadya', eventDay(e), account).date).toBe('2026-08-25');
   });
 
   it('covers 38 days by default, so a month view is never half empty', () => {

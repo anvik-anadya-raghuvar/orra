@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion, MotionGlobalConfig } from 'framer-motion';
+import { motion, MotionGlobalConfig } from 'framer-motion';
 import {
   Home as HomeIcon,
   KanbanSquare,
@@ -10,9 +10,10 @@ import {
   User,
   Wallet,
   Shield,
+  Menu,
 } from 'lucide-react';
 import { StoreProvider, useData, useStore, useSyncError } from './data/store';
-import { ToastProvider, Avatar, Skeleton, Modal } from './ui/bits';
+import { ToastProvider, Avatar, Skeleton, Modal, SideSheet } from './ui/bits';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { Gate } from './ui/gate';
 import { getSupabase } from './lib/supabaseClient';
@@ -42,20 +43,15 @@ const NAV = [
   { to: '/knowledge', label: 'Notebook', icon: BookOpen },
   { to: '/people', label: 'People', icon: Users },
   { to: '/personal', label: 'Personal', icon: User },
-  { to: '/money', label: 'Tracker', icon: Wallet },
-  { to: '/admin', label: 'Admin', icon: Shield },
+  { to: '/money', label: 'Money', icon: Wallet },
+  { to: '/admin', label: 'Settings', icon: Shield },
 ];
 
-/**
- * The six the phone gets. Personal earned a slot once it became a composable
- * room holding the mood board and goals — it was previously unreachable on a
- * phone entirely. People gave up its slot instead: it is a reference room you
- * visit occasionally, and Home's "people going quiet" tile links straight into
- * it. Everything remains reachable on tablet and desktop.
- */
-const MOBILE_NAV = ['/', '/work', '/us', '/knowledge', '/personal', '/money'].map(
+/** The four rooms used every day; every other room lives behind one More tab. */
+const MOBILE_NAV = ['/', '/work', '/us', '/personal'].map(
   (to) => NAV.find((n) => n.to === to)!,
 );
+const MOBILE_MORE = NAV.filter((item) => !MOBILE_NAV.some((primary) => primary.to === item.to));
 
 function useTheme() {
   const [theme, setTheme] = useState(
@@ -271,6 +267,9 @@ function Header() {
 }
 
 function Nav() {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const location = useLocation();
+  const moreActive = MOBILE_MORE.some((item) => location.pathname === item.to);
   return (
     <>
       <nav className="nav-pills" aria-label="Primary">
@@ -287,7 +286,32 @@ function Nav() {
             {label}
           </NavLink>
         ))}
+        <button
+          type="button"
+          className={moreActive ? 'active' : undefined}
+          aria-label="More rooms"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen(true)}
+        >
+          <Menu size={18} strokeWidth={1.8} />
+          More
+        </button>
       </nav>
+      <SideSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        title="More rooms"
+        subtitle="Everything stays reachable without squeezing eight destinations into a phone bar."
+      >
+        <nav className="mobile-more" aria-label="More rooms">
+          {MOBILE_MORE.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} onClick={() => setMoreOpen(false)}>
+              <Icon size={18} strokeWidth={1.8} />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </SideSheet>
     </>
   );
 }
@@ -323,26 +347,42 @@ function ScreenFallback() {
   );
 }
 
+function NotFound() {
+  return (
+    <section className="card" style={{ maxWidth: 680, margin: '40px auto', padding: 28 }}>
+      <p className="eyebrow">Page not found</p>
+      <h1 style={{ marginTop: 8 }}>This room does not exist.</h1>
+      <p className="tip">The link may be old, or the address may have been typed incorrectly.</p>
+      <NavLink className="btn solid" to="/">
+        Back home
+      </NavLink>
+    </section>
+  );
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
-      <motion.div key={location.pathname} variants={pageRise} initial="initial" animate="animate" exit="exit">
-        <Suspense fallback={<ScreenFallback />}>
-          <Routes location={location}>
-            <Route path="/" element={<Home />} />
-            <Route path="/work" element={<Work />} />
-            <Route path="/task/:id" element={<TaskDetail />} />
-            <Route path="/us" element={<Us />} />
-            <Route path="/knowledge" element={<Knowledge />} />
-            <Route path="/people" element={<People />} />
-            <Route path="/personal" element={<Personal />} />
-            <Route path="/money" element={<Money />} />
-            <Route path="/admin" element={<Admin />} />
-          </Routes>
-        </Suspense>
-      </motion.div>
-    </AnimatePresence>
+    // The previous `mode="wait"` boundary could strand the old room when a
+    // hidden/background tab throttled its exit animation: the URL changed but
+    // the prior screen stayed mounted. Swap the route synchronously and animate
+    // only the arriving page, so navigation can never depend on animation.
+    <motion.div key={location.pathname} variants={pageRise} initial="initial" animate="animate">
+      <Suspense fallback={<ScreenFallback />}>
+        <Routes location={location}>
+          <Route path="/" element={<Home />} />
+          <Route path="/work" element={<Work />} />
+          <Route path="/task/:id" element={<TaskDetail />} />
+          <Route path="/us" element={<Us />} />
+          <Route path="/knowledge" element={<Knowledge />} />
+          <Route path="/people" element={<People />} />
+          <Route path="/personal" element={<Personal />} />
+          <Route path="/money" element={<Money />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </motion.div>
   );
 }
 
@@ -391,9 +431,11 @@ function Gated() {
           <Header />
           <SyncErrorBanner />
           <Nav />
-          <ErrorBoundary>
-            <AnimatedRoutes />
-          </ErrorBoundary>
+          <main id="main-content">
+            <ErrorBoundary>
+              <AnimatedRoutes />
+            </ErrorBoundary>
+          </main>
           {/* A running block covers the whole portal, so it is mounted here
               rather than inside a screen — navigating cannot escape it, and a
               reload restores it because the block lives in the database. */}

@@ -1,23 +1,23 @@
 /* ── the sign-in gate — N:OW ─────────────────────────────────────────────
-   The one screen that is not Deep Field. Before you sign in there is no data,
-   no rooms, no colour — just black, and one word in signal red. A cold open.
+   The sign-in screen now carries the portal's original Deep Field palette:
+   near-black violet ground, magenta signal and restrained mint bloom.
    Deliberately single-theme: it paints its own ground and every colour on it,
    so the OS theme cannot produce an unreadable half-state.
 
    All colours live on `.gate` so nothing leaks into (or in from) the app. */
 
 .gate {
-  --g-bg: #050404;
-  --g-red: #ff1f2e;
-  --g-red-hot: #ff4550;
-  --g-red-deep: #c4000f;
-  --g-glow: rgba(255, 31, 46, 0.4);
-  --g-ink: #f6efef;
-  --g-slate: #c0aeb1;
-  --g-mute: #8d7c7f;
-  --g-line: #341a1e;
-  --g-field: #140708;
-  --g-panel: rgba(18, 6, 8, 0.78);
+  --g-bg: #05030c;
+  --g-red: #ff5fd2;
+  --g-red-hot: #ff7be0;
+  --g-red-deep: #a5147c;
+  --g-glow: rgba(255, 95, 210, 0.4);
+  --g-ink: #f3eeff;
+  --g-slate: #b0a4c8;
+  --g-mute: #a69ebe;
+  --g-line: #241c38;
+  --g-field: #0f0a1a;
+  --g-panel: rgba(20, 16, 31, 0.78);
   --g-amber: #ffb454; /* errors — never the accent, so a failure reads as its own thing */
   --g-teal: #5ce8c8; /* notices */
 
@@ -32,15 +32,15 @@
   isolation: isolate;
 }
 
-/* ── the void: two anchored embers plus one light that follows the hand ── */
+/* ── the void: two anchored blooms plus one light that follows the hand ── */
 .gate-void {
   position: absolute;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(520px 420px at var(--gx, 78%) var(--gy, 24%), rgba(255, 31, 46, 0.13), transparent 66%),
-    radial-gradient(720px 560px at 12% 88%, rgba(164, 0, 12, 0.16), transparent 70%),
-    radial-gradient(900px 700px at 85% 10%, rgba(120, 0, 10, 0.1), transparent 72%);
+    radial-gradient(520px 420px at var(--gx, 78%) var(--gy, 24%), rgba(255, 60, 200, 0.18), transparent 66%),
+    radial-gradient(720px 560px at 12% 88%, rgba(122, 86, 255, 0.18), transparent 70%),
+    radial-gradient(900px 700px at 85% 10%, rgba(60, 240, 200, 0.1), transparent 72%);
 }
 
 .gate-stage {
@@ -92,7 +92,8 @@
   color: var(--g-red);
   margin: 10px 0 2px -4px;
   user-select: none;
-  animation: gate-flicker 7s infinite;
+  animation: gate-flicker 3s steps(1, end) infinite;
+  will-change: opacity;
 }
 .now-size {
   visibility: hidden;
@@ -102,32 +103,50 @@
   inset: 0;
   text-shadow:
     0 0 22px var(--g-glow),
-    0 0 90px rgba(255, 31, 46, 0.22);
+    0 0 90px rgba(255, 95, 210, 0.22);
 }
 .now-s1 {
   clip-path: inset(0 0 58% 0);
+  animation: gate-jitter-top 3s steps(1, end) infinite;
 }
 .now-s2 {
   clip-path: inset(44% 0 42% 0);
   transform: translateX(-0.045em);
+  animation: gate-jitter-mid 3s steps(1, end) infinite;
 }
 .now-s3 {
   clip-path: inset(60% 0 0 0);
   transform: translateX(0.055em);
-  animation: gate-jitter 7s infinite;
+  animation: gate-jitter-bottom 3s steps(1, end) infinite;
 }
 
 @keyframes gate-flicker {
-  0%, 91%, 100% { opacity: 1; }
-  92% { opacity: 0.68; }
-  93.2% { opacity: 1; }
-  95.4% { opacity: 0.84; }
-  96.4% { opacity: 1; }
+  0%, 72%, 74.5%, 77%, 81%, 100% { opacity: 1; }
+  73% { opacity: 0.68; }
+  75.5% { opacity: 0.86; }
+  78% { opacity: 0.58; }
+  79% { opacity: 0.94; }
 }
-@keyframes gate-jitter {
-  0%, 91.8%, 96.6%, 100% { transform: translateX(0.055em); }
-  92.6% { transform: translateX(0.11em); }
-  94.2% { transform: translateX(0.02em); }
+@keyframes gate-jitter-top {
+  0%, 72%, 81%, 100% { transform: translateX(0); }
+  73% { transform: translateX(0.035em); }
+  75.5% { transform: translateX(-0.018em); }
+  78% { transform: translateX(0.052em); }
+  79% { transform: translateX(-0.012em); }
+}
+@keyframes gate-jitter-mid {
+  0%, 72%, 81%, 100% { transform: translateX(-0.045em); }
+  73% { transform: translateX(-0.09em); }
+  75.5% { transform: translateX(0.012em); }
+  78% { transform: translateX(-0.105em); }
+  79% { transform: translateX(-0.02em); }
+}
+@keyframes gate-jitter-bottom {
+  0%, 72%, 81%, 100% { transform: translateX(0.055em); }
+  73% { transform: translateX(0.12em); }
+  75.5% { transform: translateX(0.015em); }
+  78% { transform: translateX(0.14em); }
+  79% { transform: translateX(0.035em); }
 }
 
 .gate-h1 {
@@ -145,30 +164,6 @@
   max-width: 42ch;
 }
 
-.gate-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 28px;
-  margin-top: 22px;
-}
-.gate-stats > span {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-}
-.gate-stats b {
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 500;
-  font-size: 21px;
-  color: var(--g-red-hot);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.gate-stats small {
-  font-size: 12px;
-  color: var(--g-mute);
-}
-
 /* ── the form panel ─────────────────────────────────────────────────────── */
 .gate-panel {
   width: 100%;
@@ -179,7 +174,7 @@
   padding: 26px 24px;
   box-shadow:
     0 30px 80px -30px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(255, 31, 46, 0.05);
+    0 0 0 1px rgba(255, 95, 210, 0.05);
   display: flex;
   flex-direction: column;
   gap: 11px;
@@ -220,7 +215,7 @@
 .gin:focus {
   outline: none;
   border-color: var(--g-red);
-  box-shadow: 0 0 0 3px rgba(255, 31, 46, 0.18);
+  box-shadow: 0 0 0 3px rgba(255, 95, 210, 0.18);
 }
 .gbtn {
   min-height: 48px;
@@ -304,6 +299,8 @@
 /* ── stillness ──────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .now-mark,
+  .now-s1,
+  .now-s2,
   .now-s3 {
     animation: none;
   }

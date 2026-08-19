@@ -1,4 +1,12 @@
-# Status: draft, not implemented, not deployed
+# Status: superseded, never deploy this draft
+
+Superseded on 2026-08-19 by the browser-token implementation in
+`src/lib/google.ts`, `src/lib/googleSync.ts`, and
+`supabase/migrations/0026_multi_google_personal_orders.sql`. The shipped design
+supports multiple Google accounts without refresh tokens, IMAP credentials,
+client secrets, Edge Functions, cron, or a credentials vault. This folder is
+historical context only; none of its proposed migration or function files
+should be applied.
 
 This folder is the output of a design pass for multi-account sync (multiple
 Google accounts, Titan Mail / IMAP, multiple YouTube accounts per profile).
@@ -27,8 +35,6 @@ into the app. Reviewed 2026-08-18 and held back for three concrete reasons:
    needs its own deploy step and its own verification — it shouldn't land
    silently inside an unrelated commit.
 
-None of this blocks what's live today. Gmail, Calendar and Drive already
-work per-profile through the browser OAuth flow in `src/lib/google.ts` — one
-Google account per person, which is what's connected right now. This draft
-is what *multiple* accounts per person would take, for when that's actually
-wanted.
+None of this blocks the current implementation. Gmail, Calendar and Drive now
+work across multiple per-profile Google accounts through the browser OAuth
+flow. IMAP and server-side background sync remain intentionally out of scope.

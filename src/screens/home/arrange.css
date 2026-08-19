@@ -1,4 +1,4 @@
-/* Tile chrome — expand, move, resize.
+/* Tile chrome — open, move, resize.
 
    Two pointer stories, because CLAUDE.md forbids hover-only interactions:
 
@@ -6,10 +6,8 @@
      anything inside the tile takes focus, so a dense grid stays quiet until you
      reach for it. The bottom-right corner grip appears at the same time.
    - Coarse pointer (touch): hover does not exist, and pinning three permanent
-     buttons over every tile would eat the content. So touch gets exactly one
-     always-visible control — expand — at a full 44px, and the pop-up it opens
-     carries the size and position controls. Every action is reachable both
-     ways; neither way is hover.
+     buttons over every tile would eat the content. The tile surface itself
+     opens its page; the small cluster only carries direct navigation and move.
 
    Keyboard is the third path and needs no media query: :focus-visible on any
    chrome button reveals the cluster, the grip takes arrow keys, and the pop-up
@@ -17,7 +15,7 @@
 */
 
 /* ── the control cluster ───────────────────────────────────────────────── */
-.home-screen .bt-chrome {
+:is(.home-screen, .personal-screen) .bt-chrome {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -37,15 +35,15 @@
   pointer-events: none;
   transition: opacity 0.16s var(--ease), transform 0.16s var(--ease);
 }
-.home-screen .bt:hover > .bt-chrome,
-.home-screen .bt:focus-within > .bt-chrome,
-.home-screen .bt-dragging > .bt-chrome {
+:is(.home-screen, .personal-screen) .bt:hover > .bt-chrome,
+:is(.home-screen, .personal-screen) .bt:focus-within > .bt-chrome,
+:is(.home-screen, .personal-screen) .bt-dragging > .bt-chrome {
   opacity: 1;
   transform: none;
   pointer-events: auto;
 }
 
-.home-screen .bt-cbtn {
+:is(.home-screen, .personal-screen) .bt-cbtn {
   display: inline-grid;
   place-items: center;
   width: 26px;
@@ -58,24 +56,24 @@
   cursor: pointer;
   transition: background-color 0.14s var(--ease), color 0.14s var(--ease);
 }
-.home-screen .bt-cbtn:hover {
+:is(.home-screen, .personal-screen) .bt-cbtn:hover {
   background: var(--surf3);
   color: var(--ink);
 }
-.home-screen .bt-cbtn:focus-visible {
+:is(.home-screen, .personal-screen) .bt-cbtn:focus-visible {
   outline: 2px solid var(--indigo);
   outline-offset: 1px;
 }
-.home-screen .bt-grip {
+:is(.home-screen, .personal-screen) .bt-grip {
   cursor: grab;
   touch-action: none; /* the drag is ours, not the scroller's */
 }
-.home-screen .bt-dragging .bt-grip {
+:is(.home-screen, .personal-screen) .bt-dragging .bt-grip {
   cursor: grabbing;
 }
 
 /* ── corner resize grip ────────────────────────────────────────────────── */
-.home-screen .bt-corner {
+:is(.home-screen, .personal-screen) .bt-corner {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -92,16 +90,16 @@
     linear-gradient(135deg, transparent 48%, var(--mute) 48%, var(--mute) 56%, transparent 56%),
     linear-gradient(135deg, transparent 68%, var(--mute) 68%, var(--mute) 76%, transparent 76%);
 }
-.home-screen .bt:hover > .bt-corner,
-.home-screen .bt:focus-within > .bt-corner {
+:is(.home-screen, .personal-screen) .bt:hover > .bt-corner,
+:is(.home-screen, .personal-screen) .bt:focus-within > .bt-corner {
   opacity: 0.75;
 }
-.home-screen .bt-corner:hover {
+:is(.home-screen, .personal-screen) .bt-corner:hover {
   opacity: 1 !important;
 }
 
 /* ── gesture states ────────────────────────────────────────────────────── */
-.home-screen .bt-dragging {
+:is(.home-screen, .personal-screen) .bt-dragging {
   z-index: 5;
   border-color: var(--indigo);
   box-shadow: var(--sh2), 0 0 0 2px var(--glow);
@@ -109,24 +107,24 @@
      readable underneath it. */
   opacity: 0.94;
 }
-.home-screen .bt-dropzone {
+:is(.home-screen, .personal-screen) .bt-dropzone {
   /* Every other tile is a valid drop target while a drag is live; say so
      quietly rather than outlining twenty boxes. */
   border-style: dashed;
 }
-.home-screen .bt-resizing {
+:is(.home-screen, .personal-screen) .bt-resizing {
   border-color: var(--indigo);
   box-shadow: var(--sh2), 0 0 0 2px var(--glow);
 }
 /* While a drag is in flight nothing inside a tile should react to the pointer,
    or hit testing lands on a button instead of the tile it belongs to. */
-.home-screen .bento:has(.bt-dragging) .bt > *:not(.bt-chrome):not(.bt-corner) {
+:is(.home-screen, .personal-screen) .bento:has(.bt-dragging) .bt > *:not(.bt-chrome):not(.bt-corner) {
   pointer-events: none;
 }
 
 /* ── touch: one always-on control, at a real touch size ────────────────── */
 @media (pointer: coarse) {
-  .home-screen .bt-chrome {
+  :is(.home-screen, .personal-screen) .bt-chrome {
     opacity: 1;
     transform: none;
     pointer-events: auto;
@@ -136,19 +134,19 @@
        full-width targets instead of 26px circles. */
     background: color-mix(in srgb, var(--surf) 78%, transparent);
   }
-  .home-screen .bt-chrome > .bt-grip {
+  :is(.home-screen, .personal-screen) .bt-chrome > .bt-grip {
     display: none;
   }
-  .home-screen .bt-cbtn {
-    width: 38px;
-    height: 38px;
+  :is(.home-screen, .personal-screen) .bt-cbtn {
+    width: 44px;
+    height: 44px;
   }
-  .home-screen .bt-corner {
+  :is(.home-screen, .personal-screen) .bt-corner {
     display: none;
   }
 }
 @media (pointer: coarse) and (max-width: 1024px) {
-  .home-screen .bt-cbtn {
+  :is(.home-screen, .personal-screen) .bt-cbtn {
     width: 44px;
     height: 44px;
   }
@@ -287,10 +285,25 @@
   font-size: 10.5px;
   opacity: 0.62;
 }
-.tilesheet-ft .tip {
+.tilesheet-display {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 2px;
+}
+.tilesheet-display > div {
+  display: grid;
+  gap: 10px;
+}
+.tilesheet-display .tip {
   margin: 2px 0 0;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--mute);
+}
+.tilesheet-back {
+  justify-self: start;
 }
 
 /* Mobile: the side page covers the screen, per the responsive rules. */
@@ -320,9 +333,9 @@
 
 /* ── reduced motion ────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .home-screen .bt-chrome,
-  .home-screen .bt-corner,
-  .home-screen .bt-cbtn {
+  :is(.home-screen, .personal-screen) .bt-chrome,
+  :is(.home-screen, .personal-screen) .bt-corner,
+  :is(.home-screen, .personal-screen) .bt-cbtn {
     transition: none;
   }
 }

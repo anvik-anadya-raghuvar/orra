@@ -34,6 +34,7 @@ import type { CollectionKey, Dataset } from '../types';
  *  - `tags` — free-form and possibly already in use on rows you created
  *  - `integration_grants` — your live Google connection
  *  - `audit_trail` — append-only at the database level; DELETE is revoked
+ *  - `personal_order_events` — immutable parsed evidence; DELETE is revoked
  */
 export const PURGE_ORDER: CollectionKey[] = [
   'annotation_pins',
@@ -53,6 +54,7 @@ export const PURGE_ORDER: CollectionKey[] = [
   'pages',
   'people_interactions',
   'people',
+  'personal_orders',
   'mail_items',
   'notes',
   'decisions',

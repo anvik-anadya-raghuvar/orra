@@ -28,8 +28,8 @@ import {
   ChevronLeft,
   ChevronRight,
   GripVertical,
-  Maximize2,
   RotateCcw,
+  Settings2,
   X,
 } from 'lucide-react';
 import { useData, useDataset, useStore } from '../../data/store';
@@ -68,11 +68,11 @@ export const TILE_PAGE: Record<string, { label: string; to: string }> = {
   warmth: { label: 'People', to: '/people' },
   momentum: { label: 'Work', to: '/work' },
   split: { label: 'Work', to: '/work' },
-  money: { label: 'Tracker', to: '/money' },
+  money: { label: 'Money', to: '/money' },
   projects: { label: 'Work', to: '/work' },
-  subs: { label: 'Tracker', to: '/money' },
+  subs: { label: 'Money', to: '/money' },
   quote: { label: 'Notebook', to: '/knowledge' },
-  song: { label: 'Personal', to: '/personal' },
+  song: { label: 'Us', to: '/us' },
   'st-tasks': { label: 'Work', to: '/work' },
   'st-dec': { label: 'Work', to: '/work' },
   'st-people': { label: 'People', to: '/people' },
@@ -91,9 +91,11 @@ export const TILE_TITLE: Record<string, string> = {
   pulse: 'What they are up to',
   thread: 'Between us',
   photo: 'Moments',
-  ritual: 'Ritual',
+  ritual: 'Next move',
+  shutdown: 'Close the day',
+  'close-log': 'Close log',
   worth: 'AI news',
-  life: 'Life radar',
+  life: 'Personal radar',
   warmth: 'People going quiet',
   momentum: 'Momentum',
   split: 'Where the hours went',
@@ -101,7 +103,9 @@ export const TILE_TITLE: Record<string, string> = {
   subs: 'Renewing next',
   quote: 'Quote of the day',
   projects: 'Open per project',
-  song: 'Moments',
+  song: 'Song for today',
+  weather: 'Weather',
+  clocks: 'World clocks',
   'st-tasks': 'Tasks open',
   'st-dec': 'Decisions waiting',
   'st-people': 'People drifting',
@@ -465,6 +469,17 @@ export function BentoTile({
   const resizing = api.resizeKey === tileKey;
   const page = TILE_PAGE[tileKey];
 
+  const openFromSurface = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return;
+    if (
+      target.closest(
+        'button, a, input, select, textarea, label, [role="button"], [role="link"], .bt-chrome, .bt-corner',
+      )
+    )
+      return;
+    api.setOpenKey(tileKey);
+  };
+
   return (
     <motion.section
       data-tilekey={tileKey}
@@ -476,6 +491,14 @@ export function BentoTile({
       variants={staggerItem}
       layout={reduced ? false : 'position'}
       transition={reduced ? { duration: 0 } : spring}
+      tabIndex={0}
+      aria-label={`Open ${TILE_TITLE[tileKey] ?? tileKey}`}
+      onClick={(e) => openFromSurface(e.target)}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        api.setOpenKey(tileKey);
+      }}
       /* The tilt has to live here rather than in CSS: this tile is
          layout-animated, so Framer writes an inline transform every frame and
          a stylesheet `:hover { transform }` is silently discarded. Skipped
@@ -492,15 +515,6 @@ export function BentoTile({
       {/* Always in the DOM so it is reachable by tab and by touch; CSS fades it
           in on hover and focus on pointer-fine devices only. Never hover-only. */}
       <div className="bt-chrome" role="group" aria-label={`Arrange ${tileKey} tile`}>
-        <button
-          type="button"
-          className="bt-cbtn"
-          aria-label="Expand this tile"
-          title="Expand"
-          onClick={() => api.setOpenKey(tileKey)}
-        >
-          <Maximize2 size={14} strokeWidth={2} aria-hidden />
-        </button>
         {page && (
           <Link
             className="bt-cbtn"
@@ -560,6 +574,9 @@ export function TileSheet({
   const page = TILE_PAGE[tileKey];
   const stored = api.layout?.size?.[tileKey];
   const other = useStore().other.name;
+  const [view, setView] = useState<'feature' | 'display'>('feature');
+
+  useEffect(() => setView('feature'), [tileKey]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && close();
@@ -592,13 +609,29 @@ export function TileSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="tilesheet-hd">
-          <b>{title}</b>
+          {view === 'display' && (
+            <button
+              type="button"
+              className="btn sm icon"
+              aria-label="Back to widget"
+              onClick={() => setView('feature')}
+            >
+              <ChevronLeft size={16} strokeWidth={2} aria-hidden />
+            </button>
+          )}
+          <b>{view === 'feature' ? title : `${title} · display`}</b>
           <span className="spacer" />
-          {page && (
+          {view === 'feature' && page && (
             <Link className="btn sm solid" to={page.to} onClick={close}>
               Open {page.label}
               <ArrowUpRight size={14} strokeWidth={2.2} aria-hidden />
             </Link>
+          )}
+          {view === 'feature' && (
+            <button type="button" className="btn sm" onClick={() => setView('display')}>
+              <Settings2 size={14} strokeWidth={2} aria-hidden />
+              Display
+            </button>
           )}
           <button type="button" className="btn sm icon" aria-label="Close" onClick={close}>
             <X size={16} strokeWidth={2} aria-hidden />
@@ -610,58 +643,75 @@ export function TileSheet({
             Deliberately NOT a `.bt`: on the grid the tile is a card, but here
             the page is already the card and a second border inside it was just
             a box drawn inside a box. */}
-        <div className="tilesheet-body">
-          <div className="tilesheet-tile">{children}</div>
-        </div>
-
-        <footer className="tilesheet-ft">
-          <span className="eyebrow">How much room it gets on {api.room}</span>
-          <div className="tilesheet-sizes" role="group" aria-label={`How much room this gets on ${api.room}`}>
-            {SIZE_PRESETS.map((p) => {
-              const on = active.cols === p.span.cols && active.rows === p.span.rows;
-              return (
-                <button
-                  key={p.label}
-                  type="button"
-                  className={`chip shape${on ? ' on' : ''}`}
-                  aria-pressed={on}
-                  aria-label={`${p.label} — ${p.span.cols} across, ${p.span.rows} down`}
-                  onClick={() => api.setSpan(tileKey, p.span)}
+        <div className={`tilesheet-body${view === 'display' ? ' display-page' : ''}`}>
+          {view === 'feature' ? (
+            <div className="tilesheet-tile">{children}</div>
+          ) : (
+            <div className="tilesheet-display">
+              <div>
+                <span className="eyebrow">How much room it gets on {api.room}</span>
+                <div
+                  className="tilesheet-sizes"
+                  role="group"
+                  aria-label={`How much room this gets on ${api.room}`}
                 >
-                  {p.label}
-                  <small className="mono" aria-hidden>
-                    {p.span.cols}&times;{p.span.rows}
-                  </small>
-                </button>
-              );
-            })}
-            {stored && (
+                  {SIZE_PRESETS.map((p) => {
+                    const on = active.cols === p.span.cols && active.rows === p.span.rows;
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        className={`chip shape${on ? ' on' : ''}`}
+                        aria-pressed={on}
+                        aria-label={`${p.label} — ${p.span.cols} across, ${p.span.rows} down`}
+                        onClick={() => api.setSpan(tileKey, p.span)}
+                      >
+                        {p.label}
+                        <small className="mono" aria-hidden>
+                          {p.span.cols}&times;{p.span.rows}
+                        </small>
+                      </button>
+                    );
+                  })}
+                  {stored && (
+                    <button
+                      type="button"
+                      className="chip"
+                      onClick={() => api.resetSpan(tileKey)}
+                      title="Go back to the size this one started at"
+                    >
+                      <RotateCcw size={13} strokeWidth={2} aria-hidden /> Back to default
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <span className="eyebrow">Where it sits</span>
+                <div className="tilesheet-sizes" role="group" aria-label="Where this sits in the room">
+                  <button type="button" className="chip" onClick={() => api.nudge(tileKey, -1)}>
+                    <ChevronLeft size={13} strokeWidth={2.2} aria-hidden /> Further up
+                  </button>
+                  <button type="button" className="chip" onClick={() => api.nudge(tileKey, 1)}>
+                    Further down <ChevronRight size={13} strokeWidth={2.2} aria-hidden />
+                  </button>
+                </div>
+              </div>
+              <p className="tip">
+                {api.room} is {MAX_COLS} across and {MAX_ROWS} down at its widest. The grid closes
+                around every change, and narrower screens shrink it to fit. Dragging and corner
+                resizing remain available with a mouse. This arrangement is yours only; {other}{' '}
+                keeps their own.
+              </p>
               <button
                 type="button"
-                className="chip"
-                onClick={() => api.resetSpan(tileKey)}
-                title="Go back to the size this one started at"
+                className="btn solid tilesheet-back"
+                onClick={() => setView('feature')}
               >
-                <RotateCcw size={13} strokeWidth={2} aria-hidden /> Back to default
+                Back to {title}
               </button>
-            )}
-          </div>
-          <span className="eyebrow">Where it sits</span>
-          <div className="tilesheet-sizes" role="group" aria-label="Where this sits in the room">
-            <button type="button" className="chip" onClick={() => api.nudge(tileKey, -1)}>
-              <ChevronLeft size={13} strokeWidth={2.2} aria-hidden /> Further up
-            </button>
-            <button type="button" className="chip" onClick={() => api.nudge(tileKey, 1)}>
-              Further down <ChevronRight size={13} strokeWidth={2.2} aria-hidden />
-            </button>
-          </div>
-          <p className="tip">
-            {api.room} is {MAX_COLS} across and {MAX_ROWS} down at its widest. Whatever you pick,
-            the rest close up around it — you can&apos;t leave a hole, and a narrow screen shrinks
-            everything to fit. With a mouse you can also drag the grip to move this, or its
-            bottom-right corner to resize it. Only you see this; {other} arranges their own.
-          </p>
-        </footer>
+            </div>
+          )}
+        </div>
       </motion.div>
     </motion.div>
   );

@@ -1,6 +1,6 @@
 import type { AuditEntry, Dataset } from '../../types';
 
-/* ── CSV / XLSX export (lazy — xlsx is only imported when actually used) ─ */
+/* ── CSV export ──────────────────────────────────────────────────────── */
 
 function csvEscape(v: unknown): string {
   const s = String(v ?? '');
@@ -32,23 +32,6 @@ export function exportAuditCsv(filename: string, rows: AuditEntry[]) {
   const headers = ['When', 'Actor', 'Entity type', 'Entity id', 'Change', 'Source'];
   const body = rows.map((e) => [e.occurred_at, e.actor_label, e.entity_type, e.entity_id, auditChangeText(e), e.source]);
   downloadBlob(filename, toCsv(headers, body), 'text/csv;charset=utf-8;');
-}
-
-export async function exportAuditXlsx(filename: string, rows: AuditEntry[]) {
-  const XLSX = await import('xlsx');
-  const sheetRows = rows.map((e) => ({
-    When: e.occurred_at,
-    Actor: e.actor_label,
-    'Entity type': e.entity_type,
-    'Entity id': e.entity_id,
-    Change: auditChangeText(e),
-    Source: e.source,
-  }));
-  const ws = XLSX.utils.json_to_sheet(sheetRows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Audit trail');
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
-  downloadBlob(filename, buf, 'application/octet-stream');
 }
 
 /* ── tags ─────────────────────────────────────────────────────────────── */

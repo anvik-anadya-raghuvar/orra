@@ -26,10 +26,12 @@ export const SCOPE_COPY: Record<BlockScope, { label: string; blurb: string }> = 
   personal: { label: 'Personal block', blurb: 'Your own life, off the business clock.' },
   today_plan: { label: "Today's plan", blurb: 'Exactly what you committed to today.' },
   intentions: { label: 'Today is a win if…', blurb: "Today's intentions, start to finish." },
+  custom: { label: 'Custom block', blurb: 'Your own timer, checklist and work category.' },
 };
 
 /** Which `time_logs.kind` a scope's hours belong to. */
-export function logKind(scope: BlockScope): TimeLog['kind'] {
+export function logKind(scope: BlockScope, override?: TimeLog['kind'] | null): TimeLog['kind'] {
+  if (scope === 'custom' && override) return override;
   if (scope === 'study') return 'study';
   // Personal hours stay out of the study-vs-founder split bar: an errand is
   // not founder time. Plan and intention blocks are founder work by nature.
@@ -89,6 +91,8 @@ export interface BlockLine {
   taskId?: string;
   /** Present when it stands for a course item. */
   courseItemId?: string;
+  /** Present when the line is a handwritten item owned by a custom block. */
+  customItemId?: string;
 }
 
 /**
@@ -107,6 +111,13 @@ export function blockLines(ds: Dataset, block: ActiveBlock, todayIso: string): B
     list.map((t) => ({ id: t.id, taskId: t.id, label: t.title, done: t.status === 'done' }));
 
   switch (block.scope) {
+    case 'custom':
+      return (block.custom_items ?? []).map((item) => ({
+        id: item.id,
+        customItemId: item.id,
+        label: item.text,
+        done: item.done,
+      }));
     case 'founder':
       return fromTasks(
         mine.filter((t) => openTask(t) && !personalProjects.has(t.project_id)),
@@ -149,6 +160,10 @@ export function newBlockRow(opts: {
   focusTaskId?: string | null;
   courseId?: string | null;
   startedAt?: string;
+  targetMinutes?: number | null;
+  customLabel?: string | null;
+  customItems?: { id: string; text: string; done: boolean }[];
+  logKind?: TimeLog['kind'] | null;
 }): ActiveBlock {
   return {
     id: opts.id,
@@ -159,8 +174,11 @@ export function newBlockRow(opts: {
     started_at: opts.startedAt ?? new Date().toISOString(),
     paused_at: null,
     paused_total_sec: 0,
-    // Only the founder block aims at a length; the rest run until you stop.
-    target_minutes: opts.scope === 'founder' ? FOUNDER_TARGET_MINUTES : null,
+    // Founder defaults to 50; custom blocks take the exact duration requested.
+    target_minutes: opts.targetMinutes ?? (opts.scope === 'founder' ? FOUNDER_TARGET_MINUTES : null),
+    custom_label: opts.customLabel ?? null,
+    custom_items: opts.customItems ?? [],
+    log_kind: opts.logKind ?? null,
   };
 }
 
@@ -172,7 +190,14 @@ export function newBlockRow(opts: {
 export function startBlock(
   store: AppStore,
   scope: BlockScope,
-  opts: { focusTaskId?: string | null; courseId?: string | null } = {},
+  opts: {
+    focusTaskId?: string | null;
+    courseId?: string | null;
+    targetMinutes?: number | null;
+    customLabel?: string | null;
+    customItems?: { id: string; text: string; done: boolean }[];
+    logKind?: TimeLog['kind'] | null;
+  } = {},
 ): boolean {
   if (activeBlockFor(store.ds, store.meId)) return false;
   store.insert(
@@ -183,6 +208,10 @@ export function startBlock(
       scope,
       focusTaskId: opts.focusTaskId ?? null,
       courseId: opts.courseId ?? null,
+      targetMinutes: opts.targetMinutes,
+      customLabel: opts.customLabel,
+      customItems: opts.customItems,
+      logKind: opts.logKind,
     }),
     store.asMe({ summary: `${SCOPE_COPY[scope].label} started` }),
   );

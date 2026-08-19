@@ -259,6 +259,47 @@
   color: var(--slate);
   margin: 0;
 }
+.admin-screen .ad-google-accounts {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.admin-screen .ad-google-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+.admin-screen .ad-google-account-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.admin-screen .ad-google-account-copy strong,
+.admin-screen .ad-google-account-copy span {
+  overflow-wrap: anywhere;
+}
+.admin-screen .ad-google-account-copy span {
+  color: var(--mute);
+  font-size: 11px;
+}
+.admin-screen .ad-google-account-copy .ad-google-error {
+  color: var(--red);
+}
+.admin-screen .ad-google-account > .ad-conn-acts {
+  flex: none;
+  margin-top: 0;
+}
+@media (max-width: 640px) {
+  .admin-screen .ad-google-account {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 
 /* ── Trash: a scrollable row list, not cards — could hold hundreds ──────── */
 .trash-list {

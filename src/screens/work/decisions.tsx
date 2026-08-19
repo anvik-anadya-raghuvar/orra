@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Decision } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
@@ -23,6 +24,7 @@ export default function DecisionsTab({
   const toast = useToast();
   const [ruling, setRuling] = useState<Decision | null>(null);
   const [note, setNote] = useState('');
+  const [linking, setLinking] = useState<Decision | null>(null);
 
   const { open, ruled } = useMemo(() => {
     const o = ds.decisions
@@ -68,12 +70,6 @@ export default function DecisionsTab({
 
   return (
     <div>
-      <p style={{ fontSize: 14, color: 'var(--slate)', maxWidth: '66ch', margin: '0 0 14px' }}>
-        Anything touching money, scoring, brand, hiring or a new venture lands here with a
-        recommendation. You rule; the portal never decides. Open past {STALE_DAYS} days turns red —
-        that is the whole mechanism against quiet indecision.
-      </p>
-
       {ageRows.length > 0 && (
         <div className="wk-ovpanel" style={{ marginBottom: 14 }}>
           <span className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>
@@ -100,6 +96,7 @@ export default function DecisionsTab({
             >
               <h4>{d.question}</h4>
               <p>{d.recommendation}</p>
+              <DecisionTaskLinks decision={d} onManage={() => setLinking(d)} />
               <div className="wk-decfoot">
                 <span
                   className="tagc"
@@ -150,6 +147,7 @@ export default function DecisionsTab({
           >
             <h4 style={{ fontSize: 14 }}>{d.question}</h4>
             <p>{d.ruling_note || d.recommendation}</p>
+            <DecisionTaskLinks decision={d} onManage={() => setLinking(d)} />
             <div className="wk-decfoot">
               <span
                 className="tagc"
@@ -178,6 +176,7 @@ export default function DecisionsTab({
       {ruled.length === 0 && <p className="wk-empty">No rulings yet.</p>}
 
       <NewDecisionModal open={newOpen} onClose={() => setNewOpen(false)} />
+      <DecisionTasksSheet decision={linking} onClose={() => setLinking(null)} />
 
       <Modal open={!!ruling} onClose={() => setRuling(null)} title="Rule on it">
         <p style={{ fontSize: 14, color: 'var(--slate)', margin: '0 0 12px' }}>{ruling?.question}</p>
@@ -212,6 +211,7 @@ function NewDecisionModal({ open, onClose }: { open: boolean; onClose: () => voi
   const [projectId, setProjectId] = useState(ds.projects[0]?.id ?? '');
   const [recommendation, setRecommendation] = useState('');
   const [owner, setOwner] = useState(store.meId);
+  const [taskIds, setTaskIds] = useState<string[]>([]);
 
   const submit = () => {
     const q = question.trim() || 'Untitled decision';
@@ -228,12 +228,14 @@ function NewDecisionModal({ open, onClose }: { open: boolean; onClose: () => voi
         opened_at: nowIso(),
         ruled_at: null,
         ruling_note: '',
+        task_ids: taskIds,
       },
       store.asMe({ summary: `Decision opened — ${q}` }),
     );
     toast('Decision opened');
     setQuestion('');
     setRecommendation('');
+    setTaskIds([]);
     onClose();
   };
 
@@ -292,6 +294,96 @@ function NewDecisionModal({ open, onClose }: { open: boolean; onClose: () => voi
             ))}
           </select>
         </Field>
+      </div>
+      <div style={{ height: 14 }} />
+      <Field label="Linked tasks · optional">
+        <div className="wk-decision-tasks">
+          {ds.tasks
+            .filter((task) => task.status !== 'done')
+            .slice(0, 40)
+            .map((task) => (
+              <label key={task.id}>
+                <input
+                  type="checkbox"
+                  checked={taskIds.includes(task.id)}
+                  onChange={() =>
+                    setTaskIds((ids) =>
+                      ids.includes(task.id) ? ids.filter((id) => id !== task.id) : [...ids, task.id],
+                    )
+                  }
+                />
+                <span><b className="mono">{task.id}</b> {task.title}</span>
+              </label>
+            ))}
+        </div>
+      </Field>
+    </SideSheet>
+  );
+}
+
+function DecisionTaskLinks({ decision, onManage }: { decision: Decision; onManage: () => void }) {
+  const ds = useData((d) => d);
+  const tasks = (decision.task_ids ?? [])
+    .map((id) => ds.tasks.find((task) => task.id === id))
+    .filter(Boolean);
+  return (
+    <div className="wk-decision-links">
+      {tasks.map((task) => task && (
+        <Link key={task.id} to={`/task/${task.id}`} className="tagc">
+          <span className="mono">{task.id}</span> · {task.title}
+        </Link>
+      ))}
+      <button type="button" className="btn sm" onClick={onManage}>
+        {tasks.length ? 'Change linked tasks' : 'Link tasks'}
+      </button>
+    </div>
+  );
+}
+
+function DecisionTasksSheet({ decision, onClose }: { decision: Decision | null; onClose: () => void }) {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const toast = useToast();
+  const [query, setQuery] = useState('');
+  if (!decision) return null;
+  const live = ds.decisions.find((item) => item.id === decision.id) ?? decision;
+  const ids = live.task_ids ?? [];
+  const q = query.trim().toLowerCase();
+  const tasks = ds.tasks
+    .filter((task) => !q || task.id.toLowerCase().includes(q) || task.title.toLowerCase().includes(q))
+    .slice(0, 60);
+  const toggle = (taskId: string) => {
+    const next = ids.includes(taskId) ? ids.filter((id) => id !== taskId) : [...ids, taskId];
+    store.update(
+      'decisions',
+      live.id,
+      { task_ids: next },
+      store.asMe({ summary: `${ids.includes(taskId) ? 'Unlinked' : 'Linked'} ${taskId} ${ids.includes(taskId) ? 'from' : 'to'} decision` }),
+    );
+    toast(ids.includes(taskId) ? 'Task unlinked' : 'Task linked');
+  };
+  return (
+    <SideSheet
+      open
+      onClose={onClose}
+      title="Linked tasks"
+      subtitle={live.question}
+      footer={<button type="button" className="btn solid" onClick={onClose}>Done</button>}
+    >
+      <input
+        className="wk-in"
+        value={query}
+        autoFocus
+        placeholder="Find by task ID or title"
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      <div className="wk-decision-tasks" style={{ marginTop: 10 }}>
+        {tasks.map((task) => (
+          <label key={task.id}>
+            <input type="checkbox" checked={ids.includes(task.id)} onChange={() => toggle(task.id)} />
+            <span><b className="mono">{task.id}</b> {task.title}</span>
+          </label>
+        ))}
       </div>
     </SideSheet>
   );

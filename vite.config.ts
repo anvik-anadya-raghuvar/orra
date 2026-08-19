@@ -1,19 +1,20 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: react(),
   server: {
     port: Number(process.env.PORT) || 5180,
     strictPort: false,
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          motion: ['framer-motion'],
-          // heavy import/export libs are lazy-loaded at call sites; keep them out of the entry
+        codeSplitting: {
+          groups: [
+            { name: 'vendor', test: /node_modules[\\/](react|react-dom|react-router-dom)/ },
+            { name: 'motion', test: /node_modules[\\/]framer-motion/ },
+          ],
         },
       },
     },
@@ -22,4 +23,4 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },
-} as Parameters<typeof defineConfig>[0]);
+});

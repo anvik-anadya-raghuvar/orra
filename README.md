@@ -18,7 +18,7 @@ With no `.env`, the app runs on the **local mock adapter** (localStorage-persist
 ## Connect the real backend
 
 1. Create a Supabase project (free tier).
-2. In the SQL editor, run every file in `supabase/migrations/` in numeric order, `0001_init.sql` through `0008_pin_label.sql`. (`0007` carries the board, the wiki, and the `integration_grants` table the Google connectors write to.)
+2. In the SQL editor, run every file in `supabase/migrations/` in numeric order, currently `0001_init.sql` through `0026_multi_google_personal_orders.sql`.
 3. Auth is **email + password** (no Google OAuth). In Authentication → Users, create the two
    member accounts `anvik.anadya@gmail.com` and `raghuvar.anvik@gmail.com` with temp passwords,
    and disable public signups. Each member changes their password from the in-app account menu.
@@ -28,16 +28,18 @@ With no `.env`, the app runs on the **local mock adapter** (localStorage-persist
 
 ## Google setup (Gmail, Calendar, Drive)
 
-All three connectors run off **one** OAuth **client id**. There is no client secret anywhere in
+All three connectors and every Google address run off **one** OAuth **client id**. There is no client secret anywhere in
 this codebase, so none can leak from it, and access tokens live in browser memory for their hour —
 never in Postgres, never in localStorage. What the database stores is only *which scopes were
-granted* (`integration_grants`), so the Connections screen can be honest.
+granted* and account/sync metadata (`integration_grants`), so the Connections screen can be honest.
+This does not require a paid API, subscription, server, or billing upgrade.
 
 1. [console.cloud.google.com](https://console.cloud.google.com) → new project, e.g. `anvik-ops`.
 2. **APIs & Services → Library** → enable **Gmail API**, **Google Calendar API**, **Google Drive API**.
 3. **APIs & Services → OAuth consent screen** → **External** → app name + support email →
-   **Audience → Test users**: add `anvik.anadya@gmail.com` and `raghuvar.anvik@gmail.com`.
-   Leave it in **Testing**; with two users it never needs Google verification.
+   **Audience → Test users**: add every Google address that will be connected.
+   Leave it in **Testing**. Testing supports up to 100 Test users, but Google may require each
+   address to consent again every seven days; the app exposes Reconnect on every account row.
 4. **Credentials → Create credentials → OAuth client ID → Web application**. Under
    **Authorised JavaScript origins** add both:
    ```
@@ -47,20 +49,28 @@ granted* (`integration_grants`), so the Connections screen can be honest.
    No redirect URIs — the token flow doesn't use them.
 5. Copy the client id (`….apps.googleusercontent.com`) into `.env` as `VITE_GOOGLE_CLIENT_ID`,
    and add the same variable in Vercel → Settings → Environment Variables. Restart dev / redeploy.
-6. In the app: **Admin → Connections → Connect & sync all**. One consent dialog covers all three.
+6. Apply `0026_multi_google_personal_orders.sql` before deploying this client. In the app, open
+   **Admin → Connections → Add Google account** once per address. The chooser requests Gmail,
+   Calendar, Drive, and identity together. Reconnect the legacy account once after migration.
 
 What each one then does:
 
 | Connector | After connecting | Scope |
 | --- | --- | --- |
-| Gmail | Last 20 inbox messages sync into Knowledge → Mail and convert to tasks/notes/decisions | `gmail.readonly` |
-| Calendar | Today's events appear on the Home day ribbon; cancellations disappear on the next sync | `calendar.events` |
-| Drive | Knowledge → Documents → **+ Document** searches Drive and attaches a file by reference | `drive.readonly` |
+| Gmail | Latest 20 inbox messages per account sync into Notebook → Mail. A bounded 30-day first scan detects physical purchases and travel bookings for Life → Personal orders review | `gmail.readonly` |
+| Calendar | Every account's primary calendar appears on the schedule with an account label; cancellation cleanup stays scoped to its source account | `calendar.events` |
+| Drive | Notebook → Documents → **+ Document** searches every live Drive in parallel, labels results by account, and attaches only a reference | `drive.readonly` |
 
-**The honest limit:** this syncs while the portal is open. Background sync (mail arriving while
-you're asleep) needs a refresh token held server-side — a different security posture and a
-separate build. Re-syncing is idempotent: row ids derive from the Google id, and a message you
-already converted keeps its conversion, flag, and project.
+The first sync scans only commerce/travel candidates, fetches full content transiently, and stores
+only structured detection evidence—never raw bodies, HTML, attachments, or tokens. Every detection
+must be confirmed in **Life → Life admin → Personal orders**. Subscriptions, recurring charges,
+Money, and the existing Subscriptions area are deliberately untouched.
+
+**The honest limit:** this syncs immediately after connection and every 15 minutes while the portal
+is open and that account's in-memory token is live. Timers never open OAuth. True background sync
+(mail arriving while you're asleep) would need a refresh token held server-side—a different
+security posture and a separate build. Account-prefixed external ids make re-sync idempotent even
+when two accounts return the same Gmail, Calendar, or Drive id.
 
 ## YouTube setup (song of the day) — optional
 
@@ -85,6 +95,7 @@ you save a pick with no URL, so a day of normal use is roughly 1% of the allowan
 - `vercel.json` carries the SPA rewrite so client-side routes (`/work`, `/task/:id`, …) don't 404 on refresh.
 - Add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_GOOGLE_CLIENT_ID` as Vercel project environment variables (same values as `.env`).
 - GitHub secrets `SUPABASE_URL` + `SUPABASE_ANON_KEY` power `.github/workflows/keepalive.yml` (3-day cron so the free Supabase project never pauses).
+- Add `SUPABASE_SERVICE_ROLE_KEY` as a GitHub Actions secret for `.github/workflows/pulse.yml`. It is used only by the server-side news job; never add it to `.env`, Vercel, or any `VITE_` variable.
 
 ## Tests
 
@@ -92,7 +103,9 @@ you save a pick with no URL, so a day of normal use is roughly 1% of the allowan
 npm test
 ```
 
-Vitest covers the §6 correctness gates: byte-identical exports, contiguous pin numbering after deletion, ranking reacting to `ranking_weights` without redeploy, personal/business separation.
+Vitest covers the §6 correctness gates plus Google token/account isolation, account reactivation,
+MIME decoding without attachments, account-specific links and composite ids, Drive partial failure,
+calendar cancellation boundaries, Gmail history recovery, and Personal Orders review/lifecycle rules.
 
 ## Layout
 

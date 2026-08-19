@@ -47,6 +47,21 @@ export function weeklyInOut(ledger: LedgerEntry[], weeks = 6): WeekBucket[] {
   return keys.map((k) => buckets.get(k)!);
 }
 
+/** Every row in the selected range, grouped by calendar month. Unlike the old
+ * "last six weeks" chart this never contradicts an All time/custom filter by
+ * quietly dropping older entries. */
+export function monthlyInOut(ledger: LedgerEntry[]): WeekBucket[] {
+  const buckets = new Map<string, WeekBucket>();
+  for (const row of ledger) {
+    const key = `${row.date.slice(0, 7)}-01`;
+    const bucket = buckets.get(key) ?? { week: key, in: 0, out: 0 };
+    if (row.direction === 'in') bucket.in += row.amount;
+    else bucket.out += row.amount;
+    buckets.set(key, bucket);
+  }
+  return [...buckets.values()].sort((a, b) => a.week.localeCompare(b.week));
+}
+
 export interface CategoryTotal {
   category: string;
   total: number;
@@ -66,6 +81,7 @@ export function attentionSummary(ledger: LedgerEntry[]): AttentionSummary {
   const due: AttentionBucket = { count: 0, total: 0 };
   const overdue: AttentionBucket = { count: 0, total: 0 };
   for (const row of ledger) {
+    if (row.direction !== 'out') continue;
     if (row.status === 'due') {
       due.count += 1;
       due.total += row.amount;
@@ -126,7 +142,7 @@ export function categoryBreakdown(ledger: LedgerEntry[]): CategoryTotal[] {
     .sort((a, b) => b.total - a.total);
 }
 
-/* ── CSV / XLSX export (lazy — xlsx is only imported when actually used) ─ */
+/* ── CSV export ──────────────────────────────────────────────────────── */
 
 function csvEscape(v: unknown): string {
   const s = String(v ?? '');
@@ -150,35 +166,41 @@ export function downloadBlob(filename: string, content: BlobPart, type: string) 
 }
 
 export function exportLedgerCsv(filename: string, ds: Dataset, rows: LedgerEntry[]) {
-  const headers = ['Date', 'Party', 'Category', 'Project', 'Direction', 'Amount', 'Status'];
+  const headers = [
+    'Date',
+    'Party',
+    'Category',
+    'Project',
+    'Flow',
+    'Amount',
+    'Status',
+    'Payer allocations',
+    'Comments',
+    'Renewal or end date',
+  ];
   const body = rows.map((r) => [
     r.date,
     r.party,
     r.category,
     projName(ds, r.project_id),
-    r.direction,
+    r.direction === 'in' ? 'Business contribution' : 'Business expense',
     r.amount,
     r.status,
+    (r.payer_allocations?.length
+      ? r.payer_allocations
+      : r.paid_by
+        ? [{ user_id: r.paid_by, amount: r.amount }]
+        : []
+    )
+      .map((allocation) => {
+        const name = ds.profiles.find((profile) => profile.id === allocation.user_id)?.name ?? allocation.user_id;
+        return `${name}: ${allocation.amount}`;
+      })
+      .join(' | '),
+    r.comments ?? '',
+    r.ends_on ?? '',
   ]);
   downloadBlob(filename, toCsv(headers, body), 'text/csv;charset=utf-8;');
-}
-
-export async function exportLedgerXlsx(filename: string, ds: Dataset, rows: LedgerEntry[]) {
-  const XLSX = await import('xlsx');
-  const sheetRows = rows.map((r) => ({
-    Date: r.date,
-    Party: r.party,
-    Category: r.category,
-    Project: projName(ds, r.project_id),
-    Direction: r.direction,
-    Amount: r.amount,
-    Status: r.status,
-  }));
-  const ws = XLSX.utils.json_to_sheet(sheetRows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Ledger');
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
-  downloadBlob(filename, buf, 'application/octet-stream');
 }
 
 /* ── import parsing shared between the import modal steps ────────────── */
@@ -245,10 +267,11 @@ export function parseImportDirection(raw: string | undefined, amount: number): L
 }
 
 export function resolveProjectId(ds: Dataset, raw: string | undefined): string {
-  const fallback = ds.projects[0]?.id ?? '';
+  const businessProjects = ds.projects.filter((project) => !project.is_personal);
+  const fallback = businessProjects[0]?.id ?? '';
   if (!raw) return fallback;
   const needle = raw.trim().toLowerCase();
-  const match = ds.projects.find(
+  const match = businessProjects.find(
     (p) => p.id.toLowerCase() === needle || p.name.toLowerCase() === needle,
   );
   return match?.id ?? fallback;

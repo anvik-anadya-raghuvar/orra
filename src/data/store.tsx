@@ -101,9 +101,11 @@ export class AppStore {
     const real = this.ds.profiles.filter((p) => p.id !== this.meId && p.id !== DEMO_USER_ID);
     return real[0] ?? this.ds.profiles.find((p) => p.id !== this.meId) ?? this.ds.profiles[0];
   }
-  /** The people this portal is for — everyone a task can be handed to. Excludes
-   *  the demo account, which owns no workspace anyone reads. */
+  /** The people this portal is for — everyone a task can be handed to. Real
+   *  members never see the demo identity; the isolated dev workspace includes
+   *  itself so its task forms remain fully testable. */
   get members() {
+    if (this.meId === DEMO_USER_ID) return this.ds.profiles;
     const real = this.ds.profiles.filter((p) => p.id !== DEMO_USER_ID);
     return real.length ? real : this.ds.profiles;
   }
@@ -144,6 +146,8 @@ export class AppStore {
       pages: 'page',
       page_comments: 'page_comment',
       integration_grants: 'integration_grant',
+      personal_orders: 'personal_order',
+      personal_order_events: 'personal_order_event',
       trash_items: 'trash_item',
     };
     return irregular[key] ?? key.replace(/s$/, '');
@@ -504,7 +508,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           try {
             const saved = localStorage.getItem('anvik:me');
-            if (saved && ds.profiles.some((p) => p.id === saved)) me = saved;
+            const migrated = saved === 'u-test' ? DEMO_USER_ID : saved;
+            if (migrated && ds.profiles.some((p) => p.id === migrated)) {
+              me = migrated;
+              if (saved !== migrated) localStorage.setItem('anvik:me', migrated);
+            }
           } catch {}
         }
         // Mock mode *is* the seed, so scoping there would empty the app. On a

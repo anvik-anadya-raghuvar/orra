@@ -4,9 +4,9 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, ChevronRight, Plus, Settings2, Sparkles } from 'lucide-react';
 import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
 import { packBento } from '../../lib/bento';
-import { Avatar, CountUp, Modal, ProgressBar, useToast } from '../../ui/bits';
+import { Avatar, CountUp, InfoTip, Modal, ProgressBar, SideSheet, useToast } from '../../ui/bits';
 import { entrance, micro, staggerParent } from '../../ui/motion';
-import { daysSinceTs, daysUntil, dayModeNow, fmtDay, fmtTime, inr, todayIso, type DayMode } from '../../lib/dates';
+import { daysSinceTs, daysUntil, fmtDay, fmtTime, inr, todayIso } from '../../lib/dates';
 import {
   CAPACITY_MINUTES,
   planDay,
@@ -16,7 +16,7 @@ import {
 } from '../../lib/ranking';
 import { isMyTask, myTasks } from '../../lib/workspace';
 import { blockedByOpenDep } from '../../lib/schedule';
-import { FOUNDER_TARGET_MINUTES, startBlock } from '../../lib/blocks';
+import { FOUNDER_TARGET_MINUTES, SCOPE_COPY, activeBlockFor, clockLabel, elapsedSec, startBlock } from '../../lib/blocks';
 import {
   CAPACITY_COPY,
   eventsFor,
@@ -38,22 +38,13 @@ import {
   TileOpen,
   WorthTile,
 } from './personal';
-import { MomentsTile } from './moments';
+import { MomentsTile, SongTile } from './moments';
+import { WeatherTile, WorldClockTile } from './utility';
 import { arrange } from './layout';
 import { BentoTile, TILE_TITLE, TileSheetHost, useHomeArrange } from './tilechrome';
-import type { Capacity, DayPlan, DayPlanItem, Task } from '../../types';
+import type { Capacity, DailyCloseout, DayPlan, DayPlanItem, Task } from '../../types';
 import './style.css';
 
-const MODES: { key: DayMode; label: string }[] = [
-  { key: 'morning', label: 'Morning' },
-  { key: 'midday', label: 'Midday' },
-  { key: 'evening', label: 'Evening' },
-];
-const GREETING: Record<DayMode, string> = {
-  morning: 'Morning',
-  midday: 'Afternoon',
-  evening: 'Evening',
-};
 const CAPACITIES: Capacity[] = ['light', 'medium', 'heavy'];
 const STALE_DECISION_DAYS = 7;
 
@@ -65,11 +56,26 @@ const minsNow = (d = new Date()) => d.getHours() * 60 + d.getMinutes();
 /* ── One bento tile: declares how many columns and rows it occupies ────── */
 interface Tile {
   key: string;
-  cols: 1 | 2 | 4;
+  cols: 1 | 2 | 3 | 4;
   tall?: boolean;
   cls?: string;
   node: React.ReactNode;
 }
+
+type HomeView = 'today' | 'overview';
+
+const TODAY_TILES = new Set([
+  'greet',
+  'hero',
+  'capacity',
+  'plan',
+  'wins',
+  'stuck',
+  'ribbon',
+  'ritual',
+  'shutdown',
+  'close-log',
+]);
 
 /* ── Home ──────────────────────────────────────────────────────────────── */
 export default function Home() {
@@ -79,17 +85,17 @@ export default function Home() {
   const toast = useToast();
   const today = todayIso();
 
-  // Auto mode + the ribbon's "now" marker, both recomputed each minute.
+  // The ribbon's "now" marker is recomputed each minute.
   const [, setTick] = useState(0);
   useEffect(() => {
     const t = window.setInterval(() => setTick((x) => x + 1), 60_000);
     return () => window.clearInterval(t);
   }, []);
-  const [manual, setManual] = useState<DayMode | null>(null);
-  const mode: DayMode = manual ?? dayModeNow();
-
   const [customising, setCustomising] = useState(false);
   const [addingBlock, setAddingBlock] = useState(false);
+  const [customBlockOpen, setCustomBlockOpen] = useState(false);
+  const [closeDayToken, setCloseDayToken] = useState(0);
+  const [view, setView] = useState<HomeView>('today');
 
   /* ── the declared shape of the day ── */
   const plan = planFor(ds, me.id, today);
@@ -154,7 +160,10 @@ export default function Home() {
   const nextFixed = [...ds.fixed_dates]
     .filter((f) => daysUntil(f.date, today) >= 0)
     .sort((a, b) => a.date.localeCompare(b.date))[0];
-  const runway = ds.ledger.reduce((a, l) => a + (l.direction === 'in' ? l.amount : -l.amount), 0);
+  const businessProjectIds = new Set(ds.projects.filter((project) => !project.is_personal).map((project) => project.id));
+  const runway = ds.ledger
+    .filter((entry) => businessProjectIds.has(entry.project_id))
+    .reduce((total, entry) => total + (entry.direction === 'in' ? entry.amount : -entry.amount), 0);
 
   /* ── tile inventory. Order is packing order; dense flow backfills. ── */
   const tiles: Tile[] = [
@@ -163,16 +172,12 @@ export default function Home() {
       cols: 4,
       node: (
         <GreetTile
-          mode={mode}
-          manual={manual}
-          setManual={setManual}
           name={me.name}
           plannedMin={plannedMin}
           blocks={events.length}
           runway={runway}
           nextFixed={nextFixed ? { label: nextFixed.label, days: daysUntil(nextFixed.date, today) } : null}
           stale={staleDecisions.length}
-          onCustomise={() => setCustomising(true)}
         />
       ),
     },
@@ -204,20 +209,21 @@ export default function Home() {
       cols: 4,
       node: <RibbonTile events={events} onAdd={() => setAddingBlock(true)} />,
     },
+    {
+      key: 'ritual',
+      cols: 2,
+      node: <NextMoveTile top={top} onFocus={beginFounderBlock} />,
+    },
+    { key: 'shutdown', cols: 2, node: <CloseDayTile openToken={closeDayToken} /> },
+    { key: 'close-log', cols: 4, node: <CloseLogTile /> },
     { key: 'pulse', cols: 2, node: <PulseTile /> },
     { key: 'thread', cols: 2, tall: true, node: <ThreadTile /> },
   ];
 
-  // One tile for both: a photo and a song are the same gesture, and they carry
-  // a sender now, so they belong together under "From {them}".
-  if (p.photo) tiles.push({ key: 'photo', cols: 2, tall: true, node: <MomentsTile /> });
-
-  tiles.push({
-    key: 'ritual',
-    cols: 2,
-    tall: mode === 'evening',
-    node: <RitualTile mode={mode} top={top} onFocus={beginFounderBlock} />,
-  });
+  if (p.photo) tiles.push({ key: 'photo', cols: 2, node: <MomentsTile /> });
+  if (p.song) tiles.push({ key: 'song', cols: 2, node: <SongTile /> });
+  if (p.weather_on_home !== false) tiles.push({ key: 'weather', cols: 2, node: <WeatherTile /> });
+  if (p.world_clocks_on_home !== false) tiles.push({ key: 'clocks', cols: 2, node: <WorldClockTile /> });
 
   if (p.worth_knowing) tiles.push({ key: 'worth', cols: 2, node: <WorthTile /> });
   if (p.life_radar) tiles.push({ key: 'life', cols: 2, node: <LifeTile /> });
@@ -288,11 +294,17 @@ export default function Home() {
   // hiding a widget makes a genuine neighbour bigger, not a fake patch — and
   // so dragging a tile can never open one either.
   const arrangeApi = useHomeArrange();
-  const laid = arrange(
+  const allLaid = arrange(
     tiles.map((t) => ({ ...t, cols: t.cols as number, rows: t.tall ? 2 : 1 })),
     arrangeApi.layout,
   );
-  arrangeApi.syncKeys(laid.map((t) => t.key));
+  // Keep one arrangement across the two faces of Home. Dragging a tile in one
+  // view must not discard the order of the tiles currently hidden in the
+  // other view, so the arrangement hook always receives the complete key list.
+  arrangeApi.syncKeys(allLaid.map((t) => t.key));
+  const laid = allLaid.filter((t) =>
+    view === 'today' ? TODAY_TILES.has(t.key) : !TODAY_TILES.has(t.key),
+  );
 
   const { rc4, rc2 } = useMemo(
     () => packBento(laid.map((t) => ({ key: t.key, cols: t.cols, rows: t.rows }))),
@@ -302,6 +314,57 @@ export default function Home() {
 
   return (
     <div className="home-screen">
+      <div className="home-viewbar">
+        <div>
+          <div className="disp feature-label">
+            Home
+            <InfoTip
+              label={view === 'today' ? 'Today' : 'Overview'}
+              text={
+                view === 'today'
+                  ? 'Choose the day, do the work, and close it properly.'
+                  : 'The wider picture across work, people, personal life, money and the two of you.'
+              }
+            />
+          </div>
+        </div>
+        <div className="home-viewtabs" role="tablist" aria-label="Home sections">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'today'}
+            onClick={() => setView('today')}
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'overview'}
+            onClick={() => setView('overview')}
+          >
+            Overview
+          </button>
+        </div>
+        {view === 'today' && (
+          <>
+            <button className="btn sm" type="button" onClick={() => setCustomBlockOpen(true)}>
+              Start custom block
+            </button>
+            <button
+              className="btn sm solid"
+              type="button"
+              onClick={() => setCloseDayToken((token) => token + 1)}
+            >
+              Close day
+            </button>
+          </>
+        )}
+        <button className="chip" type="button" onClick={() => setCustomising(true)}>
+          <Settings2 size={13} strokeWidth={1.8} aria-hidden />
+          Customise
+        </button>
+      </div>
       <motion.div className="bento" ref={arrangeApi.gridRef} {...staggerParent()}>
         {laid.map((t) => (
           <BentoTile
@@ -340,62 +403,36 @@ export default function Home() {
 
       <CustomiseModal open={customising} onClose={() => setCustomising(false)} />
       <AddBlockModal open={addingBlock} onClose={() => setAddingBlock(false)} store={store} today={today} />
+      <CustomBlockModal open={customBlockOpen} onClose={() => setCustomBlockOpen(false)} />
       {/* The block overlay itself is mounted app-wide in App.tsx — a block is a
           state the whole portal is in, not a thing that lives on Home. */}
     </div>
   );
 }
 
-/* ── Greeting + mode + quick capture, all in one compact band ──────────── */
+/* ── Greeting + quick capture, all in one compact band ────────────────── */
 function GreetTile({
-  mode,
-  manual,
-  setManual,
   name,
   plannedMin,
   blocks,
   runway,
   nextFixed,
   stale,
-  onCustomise,
 }: {
-  mode: DayMode;
-  manual: DayMode | null;
-  setManual: (m: DayMode | null) => void;
   name: string;
   plannedMin: number;
   blocks: number;
   runway: number;
   nextFixed: { label: string; days: number } | null;
   stale: number;
-  onCustomise: () => void;
 }) {
   return (
     <>
       <div className="bt-hd">
         <span className="eyebrow">{fullDate()}</span>
-        <span className="spacer" />
-        <div className="sub2" role="tablist" aria-label="Time of day">
-          {MODES.map((m) => (
-            <button key={m.key} role="tab" aria-selected={mode === m.key} onClick={() => setManual(m.key)}>
-              {m.label}
-            </button>
-          ))}
-        </div>
-        {manual && (
-          <button className="chip" onClick={() => setManual(null)} title="Follow the clock again">
-            Auto
-          </button>
-        )}
-        <button className="chip" onClick={onCustomise} title="Choose which widgets show on Home">
-          <Settings2 size={13} strokeWidth={1.8} style={{ verticalAlign: '-2px', marginRight: 5 }} />
-          Customise
-        </button>
       </div>
       <div className="greetrow">
-        <h1>
-          {GREETING[mode]}, {name}.
-        </h1>
+        <h1>Hello, {name}.</h1>
         <QuickCapture />
       </div>
       <div className="ambrow">
@@ -408,12 +445,16 @@ function GreetTile({
           </b>{' '}
           event{blocks === 1 ? '' : 's'} today
         </span>
-        <span className="amb" title="Money in minus money out, all projects">
+        <span className="amb feature-label">
           <b>
             {runway < 0 ? '−' : ''}
             <CountUp value={Math.abs(runway)} format={(n) => inr(n)} />
           </b>{' '}
-          cash balance
+          contribution balance
+          <InfoTip
+            label="Contribution balance"
+            text="Founder contributions minus business expenses. Personal projects, revenue, and profit are not included."
+          />
         </span>
         {nextFixed && (
           <span className="amb">
@@ -889,11 +930,13 @@ function RibbonTile({
             end_min: e.end_min,
             label: e.label,
             kind: e.kind,
+            accountLabel: e.account_email,
           }))}
           nowMin={minsNow()}
           onPick={(id) => {
             const ev = events.find((x) => x.id === id);
             if (ev?.task_id) navigate(`/task/${ev.task_id}`);
+            else if (ev?.source_url) window.open(ev.source_url, '_blank', 'noopener,noreferrer');
           }}
         />
       ) : (
@@ -914,9 +957,34 @@ function PulseTile() {
   const toast = useToast();
   const navigate = useNavigate();
 
+  const liveBlock = activeBlockFor(ds, other.id);
+  const [, setPresenceTick] = useState(0);
+  useEffect(() => {
+    if (!liveBlock || liveBlock.paused_at) return;
+    const timer = window.setInterval(() => setPresenceTick((value) => value + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [liveBlock?.id, liveBlock?.paused_at]);
+
   const theirs = ds.tasks
     .filter((t) => t.assignee_id === other.id && t.status !== 'done')
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+    .sort((a, b) => {
+      const active = Number(b.status === 'in_progress') - Number(a.status === 'in_progress');
+      return active || b.updated_at.localeCompare(a.updated_at);
+    })[0];
+  const focusTask = liveBlock?.focus_task_id
+    ? ds.tasks.find((task) => task.id === liveBlock.focus_task_id)
+    : null;
+  const statusValid = Boolean(
+    other.status_text &&
+      (!other.status_expires_at || new Date(other.status_expires_at).getTime() > Date.now()),
+  );
+  const primary = liveBlock
+    ? `${SCOPE_COPY[liveBlock.scope].label}${liveBlock.paused_at ? ' · paused' : ` · ${clockLabel(elapsedSec(liveBlock))}`}`
+    : theirs?.status === 'in_progress'
+      ? `In progress · ${theirs.title}`
+      : statusValid
+        ? other.status_text!
+        : 'No live update right now';
 
   const need = () => {
     store.insert(
@@ -948,12 +1016,16 @@ function PulseTile() {
         <TileOpen to="/us" label="Us" />
       </div>
       <div className="pulsehead">
-        <span className="pulsedot" aria-hidden />
-        <b>Status: {other.status_text ?? 'nothing set right now'}</b>
+        <span className={`pulsedot${liveBlock ? ' live' : ''}`} aria-hidden />
+        <b>{primary}</b>
       </div>
+      {liveBlock && focusTask && <p className="pulsestatus">Focused on {focusTask.id} · {focusTask.title}</p>}
+      {(liveBlock || theirs?.status === 'in_progress') && statusValid && (
+        <p className="pulsestatus">Shared status: {other.status_text}</p>
+      )}
       {theirs && (
         <>
-          <p className="pulsestatus">Latest task:</p>
+          <p className="pulsestatus">{theirs.status === 'in_progress' ? 'Active task:' : 'Latest task:'}</p>
           <Link className="pulselast" to={`/task/${theirs.id}`}>
             <span className="mono">{theirs.id}</span>
             <span>{theirs.title}</span>
@@ -1047,7 +1119,13 @@ function ThreadTile() {
                   <div className="threadmeta">
                     {sender?.name ?? 'Someone'} · <span className="mono">{fmtTime(m.created_at)}</span>
                   </div>
-                  <p>{m.body}</p>
+                  <p>
+                    {m.kind === 'photo'
+                      ? m.body || 'Shared a photo'
+                      : m.kind === 'song'
+                        ? `Suggested a song · ${m.song_ref?.title || 'Untitled song'}`
+                        : m.body}
+                  </p>
                   {task && (
                     <Link className="lk" style={{ marginTop: 6, display: 'inline-block' }} to={`/task/${task.id}`}>
                       {task.id} · {task.title}
@@ -1207,69 +1285,44 @@ function StatTile({
   );
 }
 
-/* ── The three time-of-day modes, compressed into one tile ─────────────── */
-function RitualTile({
-  mode,
+/* ── One useful action, independent of the clock ───────────────────────── */
+function NextMoveTile({
   top,
   onFocus,
 }: {
-  mode: DayMode;
   top?: RankedTask;
   onFocus: (id: string) => void;
 }) {
-  if (mode === 'midday') return <MiddayBlock top={top} onFocus={onFocus} />;
-  if (mode === 'evening') return <EveningRitual />;
-  return <MorningBlock top={top} onFocus={onFocus} />;
-}
-
-function MorningBlock({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) => void }) {
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Morning · before the inbox decides</span>
+        <span className="eyebrow">Next move</span>
       </div>
       <p className="modecopy">
-        The plan is assigned. Protect the first block and the rest of the day usually behaves.
+        {top ? top.task.title : 'The business board is clear.'}
       </p>
       <div className="rowgap">
         {top && (
           <button className="btn solid" onClick={() => onFocus(top.task.id)}>
-            Start the first block
+            Start a {FOUNDER_TARGET_MINUTES}-minute block
           </button>
         )}
         <Link className="btn sm" to="/work">
-          See the board
+          Open the board
         </Link>
       </div>
     </>
   );
 }
 
-function MiddayBlock({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) => void }) {
-  return (
-    <>
-      <div className="bt-hd">
-        <span className="eyebrow">Midday · one thing at a time</span>
-      </div>
-      <p className="modecopy">
-        {top ? top.task.title : 'Board is clear — pick anything.'}
-      </p>
-      <div className="rowgap">
-        {top && (
-          <button className="btn solid" onClick={() => onFocus(top.task.id)}>
-            {FOUNDER_TARGET_MINUTES}-minute block
-          </button>
-        )}
-        <Link className="btn sm" to="/work">
-          Board
-        </Link>
-      </div>
-    </>
-  );
-}
+/* ── Close day → daily_closeouts ───────────────────────────────────────── */
+type ShutdownItem =
+  | { key: string; kind: 'task'; id: string; title: string; hint: string }
+  | { key: string; kind: 'decision'; id: string; title: string; hint: string }
+  | { key: string; kind: 'plan'; id: string; title: string; hint: string }
+  | { key: string; kind: 'checklist'; id: string; index: number; title: string; hint: string };
 
-/* ── Evening: shutdown ritual → daily_closeouts ────────────────────────── */
-function EveningRitual() {
+function CloseDayTile({ openToken = 0 }: { openToken?: number }) {
   const ds = useData((d) => d);
   const store = useStore();
   const me = useData((_, s) => s.me);
@@ -1277,10 +1330,111 @@ function EveningRitual() {
   const today = todayIso();
 
   const existing = ds.daily_closeouts.find((c) => c.user_id === me.id && c.date === today);
-  const [editing, setEditing] = useState(!existing);
+  const [open, setOpen] = useState(false);
   const [shipped, setShipped] = useState(existing?.shipped ?? '');
   const [stuck, setStuck] = useState(existing?.stuck ?? '');
   const [tomorrow, setTomorrow] = useState(existing?.tomorrow ?? '');
+
+  useEffect(() => {
+    if (openToken > 0) setOpen(true);
+  }, [openToken]);
+
+  /* Shutdown is where a loose end becomes a real state change, not a line of
+     wishful text. Notes themselves are records, but their checklist items are
+     executable work and can therefore close here too. */
+  const looseEnds = useMemo<ShutdownItem[]>(() => {
+    const tasks = myTasks(ds.tasks, me.id)
+      .filter((task) => task.status !== 'done')
+      .map((task) => ({
+        key: `task:${task.id}`,
+        kind: 'task' as const,
+        id: task.id,
+        title: task.title,
+        hint: 'Task → Done',
+      }));
+    const decisions = ds.decisions
+      .filter((decision) => decision.owner_id === me.id && decision.status === 'open')
+      .map((decision) => ({
+        key: `decision:${decision.id}`,
+        kind: 'decision' as const,
+        id: decision.id,
+        title: decision.question,
+        hint: 'Decision → Ruled',
+      }));
+    const plan = ds.day_plan_items
+      .filter((item) => item.user_id === me.id && item.date === today && !item.done && !item.task_id)
+      .map((item) => ({
+        key: `plan:${item.id}`,
+        kind: 'plan' as const,
+        id: item.id,
+        title: item.text,
+        hint: 'Today → Done',
+      }));
+    const checklist = ds.notes.flatMap((note) =>
+      note.created_by !== me.id
+        ? []
+        : (note.checklist ?? [])
+            .map((item, index) => ({ item, index }))
+            .filter(({ item }) => !item.done)
+            .map(({ item, index }) => ({
+              key: `checklist:${note.id}:${index}`,
+              kind: 'checklist' as const,
+              id: note.id,
+              index,
+              title: item.text,
+              hint: `${note.title || 'Scribble'} → Done`,
+            })),
+    );
+    return [...tasks, ...decisions, ...plan, ...checklist];
+  }, [ds.day_plan_items, ds.decisions, ds.notes, ds.tasks, me.id, today]);
+
+  const completeLooseEnd = (item: ShutdownItem) => {
+    if (item.kind === 'task') {
+      store.update(
+        'tasks',
+        item.id,
+        { status: 'done', progress_pct: 100 },
+        store.asMe({ summary: `Closed in shutdown — ${item.title}` }),
+      );
+    }
+    if (item.kind === 'decision') {
+      const decision = ds.decisions.find((row) => row.id === item.id);
+      store.update(
+        'decisions',
+        item.id,
+        {
+          status: 'ruled',
+          ruled_at: nowIso(),
+          ruling_note: decision?.recommendation || 'Resolved during shutdown.',
+        },
+        store.asMe({ summary: `Ruled in shutdown — ${item.title}` }),
+      );
+    }
+    if (item.kind === 'plan') {
+      store.update(
+        'day_plan_items',
+        item.id,
+        { done: true },
+        store.asMe({ summary: `Completed today line — ${item.title}` }),
+      );
+    }
+    if (item.kind === 'checklist') {
+      const note = ds.notes.find((row) => row.id === item.id);
+      if (note?.checklist) {
+        store.update(
+          'notes',
+          item.id,
+          {
+            checklist: note.checklist.map((check, index) =>
+              index === item.index ? { ...check, done: true } : check,
+            ),
+          },
+          store.asMe({ summary: `Completed notebook checklist item — ${item.title}` }),
+        );
+      }
+    }
+    toast(`Closed: ${item.title}`);
+  };
 
   const mine = new Set(ds.daily_closeouts.filter((c) => c.user_id === me.id).map((c) => c.date));
   let streak = 0;
@@ -1311,14 +1465,14 @@ function EveningRitual() {
         store.asMe({ summary: 'Day closed' }),
       );
     }
-    setEditing(false);
+    setOpen(false);
     toast('Day closed. Tomorrow starts lighter.');
   };
 
   return (
     <>
       <div className="bt-hd">
-        <span className="eyebrow">Shutdown · 2 minutes</span>
+        <span className="eyebrow">Close the day · 2 minutes</span>
         <span className="spacer" />
         <span className="dots" aria-label={`${streak} day streak`}>
           {Array.from({ length: 7 }, (_, i) => (
@@ -1326,44 +1480,178 @@ function EveningRitual() {
           ))}
         </span>
       </div>
-      <div className="bt-scroll rit">
-        {editing ? (
-          <>
-            <label htmlFor="rit-shipped">What shipped</label>
-            <textarea id="rit-shipped" value={shipped} onChange={(e) => setShipped(e.target.value)} />
-            <label htmlFor="rit-stuck">What's stuck, honestly</label>
-            <textarea id="rit-stuck" value={stuck} onChange={(e) => setStuck(e.target.value)} />
-            <label htmlFor="rit-tomorrow">Tomorrow's one thing</label>
-            <textarea id="rit-tomorrow" value={tomorrow} onChange={(e) => setTomorrow(e.target.value)} />
-          </>
-        ) : (
-          <>
-            <label>Shipped</label>
-            <p className="done-line">{shipped || '—'}</p>
-            <label>Stuck</label>
-            <p className="done-line">{stuck || '—'}</p>
-            <label>Tomorrow's one thing</label>
-            <p className="done-line">{tomorrow || '—'}</p>
-          </>
-        )}
+      <div className="shutdown-launcher">
+        <div className="shutdown-launcher-copy">
+          <b>{existing ? 'Today is closed.' : 'End with a clean record.'}</b>
+          <p>
+            {existing
+              ? 'Review the record or adjust tomorrow’s first move.'
+              : 'Log the finish, name what remains, and set tomorrow’s first move.'}
+          </p>
+        </div>
+        <div className="shutdown-launcher-meta">
+          <span>{looseEnds.length ? `${looseEnds.length} loose ends` : 'No loose ends'}</span>
+          {existing && <span className="shutdown-closed">Closed ✓</span>}
+        </div>
+        <button className="btn solid" type="button" onClick={() => setOpen(true)}>
+          {existing ? 'Review close' : 'Close day'}
+        </button>
       </div>
-      <div className="rowgap">
-        {editing ? (
-          <button className="btn solid" onClick={save}>
-            Close the day
-          </button>
-        ) : (
+      <SideSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={existing ? 'Review today’s close' : 'Close the day'}
+        subtitle="A short record of what moved, what is still real, and what matters first tomorrow."
+        footer={
           <>
-            <span className="chip" style={{ borderColor: 'var(--teal)', color: 'var(--teal)' }}>
-              Day closed ✓
-            </span>
-            <button className="btn sm" onClick={() => setEditing(true)}>
-              Edit
+            <button className="btn sm" type="button" onClick={() => setOpen(false)}>
+              Keep editing
+            </button>
+            <button className="btn solid" type="button" onClick={save}>
+              {existing ? 'Save changes' : 'Close the day'}
             </button>
           </>
-        )}
-      </div>
+        }
+      >
+        <div className="rit shutdown-sheet">
+          <label htmlFor="rit-shipped">What shipped</label>
+          <textarea
+            id="rit-shipped"
+            rows={3}
+            value={shipped}
+            onChange={(e) => setShipped(e.target.value)}
+            placeholder="The work, choice, or moment that moved today."
+          />
+          <label htmlFor="rit-stuck">What's stuck, honestly</label>
+          <textarea
+            id="rit-stuck"
+            rows={3}
+            value={stuck}
+            onChange={(e) => setStuck(e.target.value)}
+            placeholder="Name it clearly so it does not follow you around vaguely."
+          />
+          <label htmlFor="rit-tomorrow">Tomorrow's one thing</label>
+          <textarea
+            id="rit-tomorrow"
+            rows={2}
+            value={tomorrow}
+            onChange={(e) => setTomorrow(e.target.value)}
+            placeholder="The first meaningful move."
+          />
+          <section className="rit-loose" aria-label="Close loose ends">
+            <div className="rit-loose-head">
+              <label>Close loose ends</label>
+              <span className="mono">{looseEnds.length} open</span>
+            </div>
+            <p>
+              Close the real thing here. Tasks move to Done, decisions to Ruled, and checklist
+              lines stay checked in the Notebook.
+            </p>
+            {looseEnds.length ? (
+              <div className="rit-loose-list">
+                {looseEnds.map((item) => (
+                  <button
+                    key={item.key}
+                    className="rit-loose-row"
+                    type="button"
+                    onClick={() => completeLooseEnd(item)}
+                    aria-label={`Close ${item.title}`}
+                  >
+                    <span className="rit-loose-tick" aria-hidden />
+                    <span className="rit-loose-copy">
+                      <b>{item.title}</b>
+                      <small>{item.hint}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="rit-loose-clear">No open tasks, decisions, or checklist lines to close.</p>
+            )}
+          </section>
+        </div>
+      </SideSheet>
     </>
+  );
+}
+
+function CloseLogTile() {
+  const ds = useData((d) => d);
+  const me = useData((_, s) => s.me);
+  const [open, setOpen] = useState(false);
+  const rows = useMemo(
+    () =>
+      ds.daily_closeouts
+        .filter((row) => row.user_id === me.id)
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [ds.daily_closeouts, me.id],
+  );
+  const closeout = rows[0];
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Close log</span>
+        <span className="spacer" />
+        {closeout && <span className="mono">Latest · {fmtDay(closeout.date)}</span>}
+        <button className="btn sm" type="button" onClick={() => setOpen(true)}>
+          View history
+        </button>
+      </div>
+      {closeout ? (
+        <div className="closeout-recap" aria-label={`Close log for ${closeout.date}`}>
+          <CloseoutRecap label="Shipped" value={closeout.shipped} empty="Nothing logged." />
+          <CloseoutRecap label="Still real" value={closeout.stuck} empty="Nothing marked stuck." />
+          <CloseoutRecap label="Next first move" value={closeout.tomorrow} empty="No first move chosen." />
+        </div>
+      ) : (
+        <div className="closeout-recap-empty">
+          <b>No close logs yet.</b>
+          <p>Close today once and the record will remain available here, regardless of the time.</p>
+        </div>
+      )}
+      <SideSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Close log"
+        subtitle="Your day-close records, newest first. These are history, not another task list."
+        footer={
+          <button className="btn solid" type="button" onClick={() => setOpen(false)}>
+            Done
+          </button>
+        }
+      >
+        <div className="closeout-history">
+          {rows.slice(0, 30).map((row) => (
+            <CloseoutHistoryRow key={row.id} row={row} />
+          ))}
+          {rows.length === 0 && <p className="tip">No days have been closed yet.</p>}
+        </div>
+      </SideSheet>
+    </>
+  );
+}
+
+function CloseoutHistoryRow({ row }: { row: DailyCloseout }) {
+  return (
+    <article className="closeout-history-row">
+      <div className="closeout-history-date">
+        <b>{fmtDay(row.date)}</b>
+        <span className="mono">{row.date}</span>
+      </div>
+      <CloseoutRecap label="Shipped" value={row.shipped} empty="Nothing logged." />
+      <CloseoutRecap label="Still real" value={row.stuck} empty="Nothing marked stuck." />
+      <CloseoutRecap label="Next first move" value={row.tomorrow} empty="No first move chosen." />
+    </article>
+  );
+}
+
+function CloseoutRecap({ label, value, empty }: { label: string; value: string; empty: string }) {
+  return (
+    <div className="closeout-recap-item">
+      <span>{label}</span>
+      <p>{value || empty}</p>
+    </div>
   );
 }
 
@@ -1520,6 +1808,102 @@ function AddBlockModal({
         </button>
         <button className="btn solid" onClick={save} disabled={!label.trim()}>
           Add block
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function CustomBlockModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const store = useStore();
+  const toast = useToast();
+  const [label, setLabel] = useState('');
+  const [minutes, setMinutes] = useState(25);
+  const [kind, setKind] = useState<'founder' | 'study' | 'personal'>('founder');
+  const [checklist, setChecklist] = useState('');
+
+  const begin = () => {
+    const name = label.trim();
+    if (!name || minutes < 1) return;
+    const items = checklist
+      .split('\n')
+      .map((text) => text.trim())
+      .filter(Boolean)
+      .map((text) => ({ id: newId('bci'), text, done: false }));
+    const started = startBlock(store, 'custom', {
+      customLabel: name,
+      customItems: items,
+      targetMinutes: minutes,
+      logKind: kind,
+    });
+    if (!started) {
+      toast('A block is already running. End or discard it first.');
+      return;
+    }
+    setLabel('');
+    setChecklist('');
+    setMinutes(25);
+    onClose();
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Start a custom block">
+      <p className="tip">
+        Give this block any duration, scribble a temporary checklist, and choose where its time is logged.
+      </p>
+      <label className="eyebrow" htmlFor="custom-block-label">What are you doing?</label>
+      <input
+        id="custom-block-label"
+        className="srch"
+        style={{ width: '100%', margin: '6px 0 12px' }}
+        value={label}
+        autoFocus
+        placeholder="Prepare the investor update"
+        onChange={(event) => setLabel(event.target.value)}
+      />
+      <div className="blkgrid">
+        <div>
+          <label className="eyebrow" htmlFor="custom-block-minutes">Minutes</label>
+          <input
+            id="custom-block-minutes"
+            className="srch"
+            type="number"
+            min={1}
+            max={480}
+            value={minutes}
+            onChange={(event) => setMinutes(Math.max(1, Number(event.target.value) || 1))}
+          />
+        </div>
+        <div>
+          <label className="eyebrow" htmlFor="custom-block-kind">Log as</label>
+          <select
+            id="custom-block-kind"
+            className="srch"
+            value={kind}
+            onChange={(event) => setKind(event.target.value as typeof kind)}
+          >
+            <option value="founder">Founder work</option>
+            <option value="study">Study</option>
+            <option value="personal">Personal</option>
+          </select>
+        </div>
+      </div>
+      <label className="eyebrow" htmlFor="custom-block-checklist" style={{ display: 'block', marginTop: 12 }}>
+        Scratch checklist · one item per line
+      </label>
+      <textarea
+        id="custom-block-checklist"
+        className="srch"
+        rows={6}
+        style={{ width: '100%', marginTop: 6, resize: 'vertical' }}
+        value={checklist}
+        placeholder={'Draft the outline\nCheck the figures\nSend it'}
+        onChange={(event) => setChecklist(event.target.value)}
+      />
+      <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 16 }}>
+        <button type="button" className="btn" onClick={onClose}>Cancel</button>
+        <button type="button" className="btn solid" disabled={!label.trim() || minutes < 1} onClick={begin}>
+          Start block
         </button>
       </div>
     </Modal>

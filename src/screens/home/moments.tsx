@@ -9,26 +9,27 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Camera, Music } from 'lucide-react';
+import { Camera, Music, Play } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
 import { fmtTime } from '../../lib/dates';
 import { momentSrc } from '../../lib/moments';
-import { latestFromOther, repliesTo, replyToMoment, sendPhoto, sendSong } from '../../lib/sends';
+import { latestMoment, repliesTo, replyToMoment, sendPhoto, sendSong } from '../../lib/sends';
 import { isYouTubeUrl, playUrl } from '../../lib/song';
 import { TileOpen } from './personal';
-import type { Message } from '../../types';
+import type { Message, SharedDaily } from '../../types';
 
 /** Resolves a stored photo to something an <img> can load. */
-function useMomentSrc(attachment: string | null | undefined): string | null {
-  const [src, setSrc] = useState<string | null>(null);
+function useMomentSrc(attachment: string | null | undefined): string | null | undefined {
+  const [src, setSrc] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     let alive = true;
     if (!attachment) {
       setSrc(null);
       return;
     }
+    setSrc(undefined);
     momentSrc(attachment).then((url) => alive && setSrc(url));
     return () => {
       alive = false;
@@ -86,12 +87,9 @@ export function MomentsTile() {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const [composing, setComposing] = useState<null | 'song'>(null);
   const [caption, setCaption] = useState('');
-  const [song, setSong] = useState({ title: '', artist: '', url: '' });
 
-  const photo = useMemo(() => latestFromOther(ds, meId, 'photo'), [ds.messages, meId]);
-  const track = useMemo(() => latestFromOther(ds, meId, 'song'), [ds.messages, meId]);
+  const photo = useMemo(() => latestMoment(ds, 'photo'), [ds.messages]);
   const photoSrc = useMomentSrc(photo?.attachment_url);
 
   const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,23 +110,6 @@ export function MomentsTile() {
     }
   };
 
-  const suggest = async () => {
-    const title = song.title.trim();
-    if (!title) return;
-    let url = song.url.trim();
-    // Resolve a real YouTube link when none was pasted, so "Play" works for
-    // the other person rather than dumping them into a search.
-    if (!url || !isYouTubeUrl(url)) {
-      const { resolveSong } = await import('../../lib/youtube');
-      const found = await resolveSong(title, song.artist.trim());
-      url = found?.url ?? url;
-    }
-    sendSong(store, { title, artist: song.artist.trim(), url }, '');
-    setSong({ title: '', artist: '', url: '' });
-    setComposing(null);
-    toast(`Suggested to ${other.name}.`);
-  };
-
   return (
     <>
       <input
@@ -141,15 +122,15 @@ export function MomentsTile() {
         aria-label="Take or choose a photo"
       />
       <div className="bt-hd">
-        <span className="eyebrow">From {other.name}</span>
+        <span className="eyebrow">Shared moments</span>
         <div className="spacer" />
         <TileOpen to="/us" label="Us" />
       </div>
 
       <div className="bt-scroll">
-        {!photo && !track && (
+        {!photo && (
           <p className="tip" style={{ marginTop: 0 }}>
-            Nothing shared lately. Send {other.name} a photo or a song.
+            No photo in your thread yet. Send {other.name} one from here.
           </p>
         )}
 
@@ -159,9 +140,13 @@ export function MomentsTile() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0, transition: entrance }}
           >
-            <span className="eyebrow">{other.name} shared a moment</span>
+            <span className="eyebrow">
+              {photo.sender_id === meId ? 'You shared a moment' : `${other.name} shared a moment`}
+            </span>
             {photoSrc ? (
               <img className="mo-photo" src={photoSrc} alt={photo.body || 'A shared moment'} loading="lazy" />
+            ) : photoSrc === undefined ? (
+              <div className="mo-photo mo-photo-missing">Loading photo…</div>
             ) : (
               <div className="mo-photo mo-photo-missing">Photo unavailable</div>
             )}
@@ -169,87 +154,129 @@ export function MomentsTile() {
             <Replies moment={photo} />
           </motion.div>
         )}
-
-        {track?.song_ref && (
-          <motion.div
-            className="mo-card"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0, transition: entrance }}
-          >
-            <span className="eyebrow">{other.name} suggested this song</span>
-            <b className="mo-song">{track.song_ref.title}</b>
-            <span className="mo-artist">{track.song_ref.artist}</span>
-            <a
-              className="btn sm"
-              href={playUrl({
-                song_url: track.song_ref.url,
-                song_title: track.song_ref.title,
-                song_artist: track.song_ref.artist,
-              })}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Play on YouTube
-            </a>
-            <Replies moment={track} />
-          </motion.div>
-        )}
       </div>
 
-      {composing === 'song' ? (
+      <div className="mo-send">
+        <input
+          className="srch"
+          value={caption}
+          placeholder="Caption, then send a photo…"
+          aria-label="Caption for the photo you send"
+          onChange={(e) => setCaption(e.target.value)}
+        />
+        <button
+          type="button"
+          className="btn sm"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+          aria-label="Send a photo"
+        >
+          <Camera size={14} strokeWidth={1.8} aria-hidden />
+          {busy ? 'Sending…' : 'Photo'}
+        </button>
+      </div>
+    </>
+  );
+}
+
+const DAILY_SONGS: Pick<SharedDaily, 'song_title' | 'song_artist' | 'song_url'>[] = [
+  { song_title: 'Ilahi', song_artist: 'Pritam · Arijit Singh', song_url: 'https://www.youtube.com/watch?v=UBscsdrK0Bo' },
+  { song_title: 'Here Comes the Sun', song_artist: 'The Beatles', song_url: '' },
+  { song_title: 'Bloom', song_artist: 'The Paper Kites', song_url: '' },
+  { song_title: 'Sweet Disposition', song_artist: 'The Temper Trap', song_url: '' },
+  { song_title: 'Kasoor', song_artist: 'Prateek Kuhad', song_url: '' },
+  { song_title: 'Dog Days Are Over', song_artist: 'Florence + The Machine', song_url: '' },
+  { song_title: 'The Nights', song_artist: 'Avicii', song_url: '' },
+];
+
+function automaticSong(date = new Date()): Pick<SharedDaily, 'song_title' | 'song_artist' | 'song_url'> {
+  const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
+  return DAILY_SONGS[Math.abs(day) % DAILY_SONGS.length];
+}
+
+/** A dedicated, always-playable Home surface. Suggestions never disappear
+ * behind the photo preference; the automatic pick still appears every day. */
+export function SongTile() {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const meId = useData((_, s) => s.meId);
+  const other = useData((_, s) => s.other);
+  const toast = useToast();
+  const [composing, setComposing] = useState(false);
+  const [song, setSong] = useState({ title: '', artist: '', url: '' });
+  const suggested = useMemo(() => latestMoment(ds, 'song'), [ds.messages]);
+  const stored = useMemo(
+    () => [...ds.shared_daily].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null,
+    [ds.shared_daily],
+  );
+  const daily = stored ?? automaticSong();
+
+  const suggest = async () => {
+    const title = song.title.trim();
+    if (!title) return;
+    let url = song.url.trim();
+    if (!url || !isYouTubeUrl(url)) {
+      const { resolveSong } = await import('../../lib/youtube');
+      const found = await resolveSong(title, song.artist.trim());
+      url = found?.url ?? url;
+    }
+    sendSong(store, { title, artist: song.artist.trim(), url }, '');
+    setSong({ title: '', artist: '', url: '' });
+    setComposing(false);
+    toast(`Suggested to ${other.name}.`);
+  };
+
+  const Track = ({ title, artist, url, label }: { title: string; artist: string; url: string; label: string }) => (
+    <div className="mo-card song-card">
+      <span className="eyebrow">{label}</span>
+      <b className="mo-song">{title}</b>
+      <span className="mo-artist">{artist}</span>
+      <a
+        className="btn sm solid"
+        href={playUrl({ song_url: url, song_title: title, song_artist: artist })}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <Play size={13} fill="currentColor" aria-hidden /> Play
+      </a>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="bt-hd">
+        <span className="eyebrow">Song for today</span>
+        <span className="spacer" />
+        <TileOpen to="/us" label="Us" />
+        <button type="button" className="btn sm" onClick={() => setComposing((v) => !v)}>
+          <Music size={13} aria-hidden /> Suggest one
+        </button>
+      </div>
+      <div className="bt-scroll song-stack">
+        {suggested?.song_ref && (
+          <>
+            <Track
+              title={suggested.song_ref.title}
+              artist={suggested.song_ref.artist}
+              url={suggested.song_ref.url}
+              label={suggested.sender_id === meId ? 'You suggested' : `${other.name} suggested`}
+            />
+            <Replies moment={suggested} />
+          </>
+        )}
+        <Track
+          title={daily.song_title}
+          artist={daily.song_artist}
+          url={daily.song_url}
+          label="Automatic daily pick"
+        />
+      </div>
+      {composing && (
         <div className="mo-compose">
-          <input
-            className="srch"
-            value={song.title}
-            placeholder="Song title"
-            aria-label="Song title"
-            autoFocus
-            onChange={(e) => setSong((s) => ({ ...s, title: e.target.value }))}
-          />
-          <input
-            className="srch"
-            value={song.artist}
-            placeholder="Artist"
-            aria-label="Artist"
-            onChange={(e) => setSong((s) => ({ ...s, artist: e.target.value }))}
-          />
-          <div className="rowgap">
-            <button type="button" className="btn solid" onClick={suggest}>
-              Send it
-            </button>
-            <button type="button" className="btn sm" onClick={() => setComposing(null)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mo-send">
-          <input
-            className="srch"
-            value={caption}
-            placeholder="Caption, then send a photo…"
-            aria-label="Caption for the photo you send"
-            onChange={(e) => setCaption(e.target.value)}
-          />
-          <button
-            type="button"
-            className="btn sm"
-            disabled={busy}
-            onClick={() => fileRef.current?.click()}
-            aria-label="Send a photo"
-          >
-            <Camera size={14} strokeWidth={1.8} aria-hidden />
-            {busy ? 'Sending…' : 'Photo'}
-          </button>
-          <button
-            type="button"
-            className="btn sm"
-            onClick={() => setComposing('song')}
-            aria-label="Suggest a song"
-          >
-            <Music size={14} strokeWidth={1.8} aria-hidden />
-            Song
-          </button>
+          <input className="srch" autoFocus value={song.title} placeholder="Song title" onChange={(e) => setSong((s) => ({ ...s, title: e.target.value }))} />
+          <input className="srch" value={song.artist} placeholder="Artist" onChange={(e) => setSong((s) => ({ ...s, artist: e.target.value }))} />
+          <input className="srch" value={song.url} placeholder="YouTube link (optional)" onChange={(e) => setSong((s) => ({ ...s, url: e.target.value }))} />
+          <button className="btn sm solid" type="button" disabled={!song.title.trim()} onClick={suggest}>Send suggestion</button>
         </div>
       )}
     </>

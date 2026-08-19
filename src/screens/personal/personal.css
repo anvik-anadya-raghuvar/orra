@@ -8,6 +8,312 @@
    Mobile-first: every layout below starts as a single column and widens.
    Nothing here is a table, so nothing has to become a card on a phone. */
 
+/* ── Life information architecture ──────────────────────────────────────
+   Life is no longer a configurable bento. The hierarchy is editorial and
+   stable: Today decides, Goals direct, Learning develops, Life admin clears,
+   and Vision stays private. Working components sit directly in honest cards;
+   opening a goal never exposes grid dimensions or position controls. */
+.personal-screen .life-top {
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.personal-screen .life-top > div:first-child {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.personal-screen .life-top p {
+  margin: 2px 0 0;
+  color: var(--mute);
+  font-size: 12.5px;
+}
+.personal-screen .life-top .ptabs {
+  flex: 1 1 100%;
+  margin-left: 0;
+}
+.personal-screen .life-wrap,
+.personal-screen .life-workspace {
+  display: grid;
+  gap: 14px;
+}
+.personal-screen .life-focus {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 0;
+  border-left: 5px solid var(--teal);
+  border-radius: 8px var(--rl) var(--rl) 8px;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--teal) 11%, var(--surf2)), color-mix(in srgb, var(--sky) 5%, var(--surf2)));
+  box-shadow: none;
+}
+.personal-screen .life-focus h1 {
+  max-width: 760px;
+  margin: 0;
+  font-size: clamp(23px, 5vw, 36px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+.personal-screen .life-focus > p {
+  max-width: 660px;
+  margin: 0;
+  color: var(--slate);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.personal-screen .life-focus-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.personal-screen .life-signal-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+.personal-screen .life-signal-grid > * {
+  display: grid;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--teal) 28%, var(--line));
+  border-radius: 0;
+  background: transparent;
+}
+.personal-screen .life-signal-grid button:hover,
+.personal-screen .life-signal-grid button:focus-visible {
+  border-color: var(--indigo);
+}
+.personal-screen .life-signal-grid b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.personal-screen .life-signal-grid span {
+  color: var(--mute);
+  font-size: 11px;
+}
+.personal-screen .life-order-radar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--line);
+}
+.personal-screen .life-order-radar:hover,
+.personal-screen .life-order-radar:focus-visible {
+  border-color: var(--indigo);
+}
+.personal-screen .life-order-radar > span {
+  display: grid;
+  gap: 1px;
+  padding: 9px 11px;
+  background: var(--surf2);
+}
+.personal-screen .life-order-radar b {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+}
+.personal-screen .life-order-radar i {
+  color: var(--mute);
+  font-size: 10.5px;
+  font-style: normal;
+}
+.personal-screen .life-workgrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.personal-screen .life-card {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  background: var(--surf);
+  box-shadow: var(--sh1);
+}
+.personal-screen .life-card .pbig {
+  overflow: visible;
+}
+.personal-screen .life-card .phead,
+.personal-screen .life-card .pbig > .pform {
+  position: static;
+}
+.personal-screen .life-card .phead {
+  margin: 0 0 12px;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+.personal-screen .life-card .pbig > .pform {
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
+}
+.personal-screen .life-card .prow,
+.personal-screen .life-card .pfixed,
+.personal-screen .life-card .pdocrow,
+.personal-screen .life-card .pgoal {
+  border-bottom: 0;
+}
+.personal-screen .life-card .prow + .prow,
+.personal-screen .life-card .pfixed + .pfixed,
+.personal-screen .life-card .pdocrow + .pdocrow {
+  margin-top: 4px;
+}
+.personal-screen .life-card .inl {
+  border-bottom: 0;
+}
+.personal-screen .life-card .addin {
+  border-style: solid;
+}
+.personal-screen .life-card .goal-links {
+  border-top-style: solid;
+}
+.personal-screen .life-card .goal-empty {
+  border: 0;
+  background: var(--surf2);
+}
+
+/* Personal Orders: a review queue and compact lifecycle rows, never a
+   duplicate checklist in Life Admin. */
+.personal-screen .po-head {
+  align-items: flex-start;
+}
+.personal-screen .po-head > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+.personal-screen .po-tabs {
+  margin: 0 0 10px;
+}
+.personal-screen .po-tabs button span {
+  margin-left: 3px;
+  color: var(--mute);
+  font-size: 10px;
+}
+.personal-screen .po-list {
+  display: grid;
+  gap: 7px;
+}
+.personal-screen .po-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf2);
+}
+.personal-screen .po-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--indigo);
+  background: color-mix(in srgb, var(--indigo) 10%, var(--surf));
+}
+.personal-screen .po-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.personal-screen .po-copy > span {
+  color: var(--mute);
+  font-size: 11px;
+}
+.personal-screen .po-titleline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.personal-screen .po-titleline strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.personal-screen .po-titleline .pill {
+  flex: none;
+}
+.personal-screen .po-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.personal-screen .po-meta i {
+  font-style: normal;
+}
+.personal-screen .po-actions {
+  display: flex;
+  grid-column: 2;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.personal-screen .po-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+.panel-mask .po-form {
+  display: grid;
+  gap: 12px;
+}
+.panel-mask .po-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--slate);
+  font-size: 11px;
+}
+.panel-mask .po-form input,
+.panel-mask .po-form select {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--surf2);
+  font: inherit;
+  font-size: 13px;
+}
+.panel-mask .po-form-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+@media (min-width: 641px) {
+  .personal-screen .life-signal-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .personal-screen .life-top .ptabs {
+    flex: 0 1 auto;
+  }
+}
+
+@media (min-width: 1025px) {
+  .personal-screen .life-workgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .personal-screen .life-card.wide {
+    grid-column: 1 / -1;
+  }
+}
+
 .personal-screen .pgrid2 {
   display: grid;
   grid-template-columns: 1fr;
@@ -111,7 +417,7 @@
 }
 
 /* ── shared field vocabulary ────────────────────────────────────────────── */
-.personal-screen .pin {
+:is(.personal-screen, .panel-mask) .pin {
   width: 100%;
   border: 1px solid var(--line);
   background: var(--surf);
@@ -122,7 +428,7 @@
   color: var(--ink);
   min-height: 44px;
 }
-.personal-screen .pin.sm {
+:is(.personal-screen, .panel-mask) .pin.sm {
   padding: 6px 9px;
   font-size: 12px;
   border-radius: 8px;
@@ -531,7 +837,7 @@
   margin-top: 0;
 }
 
-/* ── study timer ───────────────────────────────────────────────────────── */
+/* ── focus blocks ─────────────────────────────────────────────────────── */
 .personal-screen .ptimer {
   display: flex;
   gap: 10px;
@@ -542,12 +848,97 @@
   flex: 1 1 150px;
   width: auto;
 }
+.personal-screen .pblock-choices {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.personal-screen .pblock-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf2);
+  transition: border-color .22s var(--ease), background .22s var(--ease), transform .22s var(--ease);
+}
+.personal-screen .pblock-choice:hover,
+.personal-screen .pblock-choice:focus-within {
+  border-color: color-mix(in srgb, var(--indigo) 56%, var(--line));
+  background: color-mix(in srgb, var(--indigo) 7%, var(--surf2));
+  transform: translateY(-1px);
+}
+.personal-screen .pblock-choice > div {
+  display: grid;
+  gap: 3px;
+}
+.personal-screen .pblock-choice b {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.personal-screen .pblock-choice .pin {
+  width: 100%;
+}
+.personal-screen .pblock-choice .btn {
+  justify-self: start;
+}
+@media (min-width: 641px) {
+  .personal-screen .pblock-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .personal-screen .pclock {
   font-size: 30px;
   font-family: 'Space Grotesk', sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   flex: none;
+}
+
+/* ── flexible labels inside Life ─────────────────────────────────────── */
+.personal-screen .plabels {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+  margin: 7px 0 1px;
+}
+.personal-screen .plabels .tagc {
+  min-height: 25px;
+}
+.personal-screen .plabel-add,
+.personal-screen .plabel-add-form {
+  min-height: 27px;
+}
+.personal-screen .plabel-add {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mute);
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 11px;
+}
+.personal-screen .plabel-add:hover,
+.personal-screen .plabel-add:focus-visible {
+  border-color: var(--indigo);
+  color: var(--ink);
+  background: var(--surf2);
+}
+.personal-screen .plabel-add-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.personal-screen .plabel-add-form .pin.sm {
+  width: 120px;
+  min-height: 29px;
+}
+.personal-screen .plabel-add-form .btn.sm {
+  min-height: 29px;
 }
 
 /* ── time ledger ───────────────────────────────────────────────────────── */
@@ -725,10 +1116,7 @@
   }
 }
 
-/* ── tabs: dashboard vs the free page ──────────────────────────────────── */
-/* Four tabs now, so they wrap rather than push the Customise chip off the
-   header on a phone. `margin-left: 0` on mobile because the title above them
-   has already wrapped to its own line by then. */
+/* ── Personal section tabs ─────────────────────────────────────────────── */
 .personal-screen .ptabs {
   display: flex;
   flex-wrap: wrap;
@@ -763,6 +1151,17 @@
   box-shadow: var(--sh1);
   font-weight: 500;
 }
+@media (max-width: 640px) {
+  .personal-screen .life-top .ptabs {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    overflow-x: auto;
+  }
+  .personal-screen .life-top .ptabs button {
+    flex: 0 0 auto;
+    padding-inline: 8px;
+  }
+}
 
 /* ── goals ─────────────────────────────────────────────────────────────── */
 .personal-screen .pgoal {
@@ -789,6 +1188,258 @@
 .personal-screen .ptitle.done {
   color: var(--mute);
   text-decoration: line-through;
+}
+
+/* The goal page is its own workspace now, not content trapped in a resize
+   sheet. Existing pgoal primitives are kept underneath, then promoted into a
+   calm Now/Later list with the next action visible before opening anything. */
+.personal-screen .goals-workspace {
+  overflow: visible;
+}
+.personal-screen .goals-head {
+  align-items: flex-start;
+}
+.personal-screen .goals-head > div:first-child {
+  flex: 1 1 260px;
+}
+.personal-screen .goals-head p,
+.personal-screen .goal-section-head p {
+  margin: 3px 0 0;
+  color: var(--mute);
+  font-size: 12px;
+}
+.personal-screen .goals-head .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.personal-screen .goal-composer {
+  display: grid;
+  gap: 12px;
+  margin: 4px 0 18px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--indigo) 36%, var(--line));
+  border-radius: 14px;
+  background: var(--surf2);
+}
+.personal-screen .goal-composer-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.personal-screen .goal-composer-head > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.personal-screen .goal-composer h3 {
+  margin-top: 4px;
+  font-size: 17px;
+}
+.personal-screen .goal-composer label,
+.personal-screen .goal-fields label,
+.personal-screen .goal-links label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--slate);
+  font-size: 11px;
+}
+.personal-screen .goal-composer label > span,
+.personal-screen .goal-fields label > span,
+.personal-screen .goal-links label > span {
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.personal-screen .goal-composer label small {
+  color: var(--mute);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.personal-screen .goal-composer textarea,
+.personal-screen .goal-fields textarea,
+.personal-screen .goal-links textarea {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.45;
+}
+.personal-screen .goal-composer-row,
+.personal-screen .goal-field-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.personal-screen .goal-focus-choice {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.personal-screen .goal-focus-choice legend {
+  margin-bottom: 6px;
+  color: var(--slate);
+  font-size: 11px;
+}
+.personal-screen .goal-focus-choice button {
+  display: grid;
+  gap: 2px;
+  min-height: 58px;
+  padding: 9px 11px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surf);
+}
+.personal-screen .goal-focus-choice button[aria-pressed='true'] {
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 1px var(--indigo);
+}
+.personal-screen .goal-focus-choice button:disabled {
+  opacity: 0.48;
+}
+.personal-screen .goal-focus-choice b {
+  font-size: 13px;
+}
+.personal-screen .goal-focus-choice span {
+  color: var(--mute);
+  font-size: 10.5px;
+}
+.personal-screen .goal-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.personal-screen .goal-sections {
+  display: grid;
+  gap: 22px;
+}
+.personal-screen .goal-section {
+  display: grid;
+  gap: 9px;
+}
+.personal-screen .goal-section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 2px;
+}
+.personal-screen .goal-section-head > div {
+  flex: 1 1 auto;
+}
+.personal-screen .goal-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.personal-screen .goal-section-head > .mono {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 999px;
+  background: var(--surf3);
+  color: var(--mute);
+  font-size: 10px;
+}
+.personal-screen .goal-list {
+  display: grid;
+  gap: 8px;
+}
+.personal-screen .goal-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surf2);
+}
+.personal-screen .goal-card.open {
+  border-color: color-mix(in srgb, var(--indigo) 34%, var(--line));
+  background: var(--surf);
+}
+.personal-screen .goal-card .pgoal-hd {
+  align-items: center;
+}
+.personal-screen .goal-open {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--mute);
+}
+.personal-screen .goal-card.open .goal-open svg {
+  transform: rotate(180deg);
+}
+.personal-screen .goal-next-preview {
+  display: flex;
+  gap: 7px;
+  margin: 7px 0 0 51px;
+  color: var(--slate);
+  font-size: 12.5px;
+}
+.personal-screen .goal-next-preview span {
+  flex: none;
+  color: var(--indigo);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.personal-screen .goal-card .pgoal-body {
+  display: grid;
+  gap: 16px;
+  padding: 14px 0 0 51px;
+}
+.personal-screen .goal-fields,
+.personal-screen .goal-milestones,
+.personal-screen .goal-links[open] {
+  display: grid;
+  gap: 10px;
+}
+.personal-screen .goal-links {
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.personal-screen .goal-links summary {
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--slate);
+  font-size: 12px;
+}
+.personal-screen .goal-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.personal-screen .goal-empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  color: var(--mute);
+  font-size: 12.5px;
+}
+
+@media (min-width: 641px) {
+  .personal-screen .goal-composer-row,
+  .personal-screen .goal-field-row,
+  .personal-screen .goal-focus-choice {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .personal-screen .goal-card .pgoal-body,
+  .personal-screen .goal-next-preview {
+    margin-left: 0;
+    padding-left: 0;
+  }
+  .personal-screen .goal-next-preview {
+    margin-top: 8px;
+  }
 }
 
 /* ── mood board: masonry, so a tall pin does not force a tall row ──────── */

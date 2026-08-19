@@ -753,3 +753,30 @@
   color: var(--slate);
   margin-right: 6px;
 }
+.task-decision-list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.task-decision-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--slate);
+  cursor: pointer;
+}
+.task-decision-list input {
+  margin-top: 2px;
+}
+.task-decision-list span,
+.task-decision-list small {
+  display: block;
+}
+.task-decision-list small {
+  color: var(--mute);
+  margin-top: 2px;
+}

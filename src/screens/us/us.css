@@ -22,7 +22,7 @@
   min-height: 0;
   /* Fill the space rather than hugging one message. Capped so an enormous
      monitor does not stretch a two-line chat down a whole screen. */
-  height: clamp(420px, calc(100vh - 232px), 760px);
+  height: clamp(500px, calc(100dvh - 176px), 820px);
 }
 .us-screen .chathead {
   display: flex;
@@ -65,6 +65,7 @@
   flex-direction: row-reverse;
 }
 .us-screen .bubble {
+  position: relative;
   background: var(--surf2);
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -120,33 +121,86 @@
   color: var(--mute);
   margin-bottom: 3px;
 }
+.us-screen .msgreplyquote {
+  display: grid;
+  gap: 1px;
+  border-left: 2px solid var(--indigo);
+  background: color-mix(in srgb, var(--surf3) 82%, transparent);
+  border-radius: 0 8px 8px 0;
+  padding: 6px 8px;
+  margin: 1px 0 7px;
+  max-width: 100%;
+}
+.us-screen .msgreplyquote b {
+  color: var(--indigo);
+  font-size: 10.5px;
+}
+.us-screen .msgreplyquote span {
+  display: block;
+  font-size: 11.5px;
+  color: var(--slate);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.us-screen .msgpromoted {
+  margin-top: 7px;
+  font: 10px 'IBM Plex Mono', monospace;
+  color: var(--mute);
+}
 .us-screen .msgact {
+  position: relative;
   display: flex;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 5px;
   flex-wrap: wrap;
 }
 .us-screen .msgact button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 9.5px;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 999px;
-  padding: 4px 10px;
-  color: var(--slate);
+  padding: 3px 6px;
+  color: var(--mute);
+  background: transparent;
   transition: 0.18s;
-  min-height: 44px;
+  min-height: 28px;
 }
 .us-screen .msgact button:hover,
 .us-screen .msgact button:focus-visible {
   border-color: var(--indigo);
   color: var(--indigo);
+  background: var(--surf3);
+}
+.us-screen .msgmenu {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 2px;
+}
+.us-screen .msgmenu button {
+  border: 1px solid var(--line);
+  background: var(--surf);
+  color: var(--slate);
+  padding: 5px 8px;
+  min-height: 30px;
 }
 .us-screen .compose {
   border-top: 1px solid var(--line);
   padding: 12px 14px;
   background: var(--surf2);
 }
-.us-screen .compose textarea {
+.us-screen .composemain {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+}
+.us-screen .composemain textarea {
+  flex: 1;
   width: 100%;
   border: 1px solid var(--line);
   background: var(--surf);
@@ -155,8 +209,79 @@
   font: inherit;
   font-size: 13.5px;
   color: var(--ink);
-  resize: vertical;
-  min-height: 52px;
+  resize: none;
+  min-height: 46px;
+  max-height: 132px;
+}
+.us-screen .sendbtn {
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, var(--violet), var(--indigo));
+  color: #fff;
+  box-shadow: 0 5px 14px var(--glow);
+}
+.us-screen .sendbtn:disabled {
+  opacity: 0.42;
+  box-shadow: none;
+}
+.us-screen .replybar,
+.us-screen .attachedtask {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  margin-bottom: 7px;
+  border-radius: 10px;
+  background: var(--surf3);
+  color: var(--slate);
+}
+.us-screen .replybar > div {
+  display: grid;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.us-screen .replybar b,
+.us-screen .attachedtask > span {
+  font-size: 10px;
+  color: var(--indigo);
+}
+.us-screen .replybar span,
+.us-screen .attachedtask a {
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.us-screen .attachedtask a {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.us-screen .replybar > button,
+.us-screen .attachedtask > button {
+  width: 30px;
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--mute);
+}
+.us-screen .newbelow {
+  position: sticky;
+  bottom: 4px;
+  align-self: center;
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: var(--sh2);
+  font-size: 11px;
 }
 .us-screen .ctools {
   display: flex;
@@ -242,7 +367,8 @@
   font-weight: 600;
   font-size: 12.5px;
 }
-:is(.us-screen, .panel-mask) .statusinput {
+:is(.us-screen, .panel-mask) .statusinput,
+:is(.us-screen, .panel-mask) .statuslike {
   width: 100%;
   border: 1px solid var(--line);
   background: var(--surf2);
@@ -252,7 +378,7 @@
   font-size: 13px;
   color: var(--ink);
 }
-.us-screen select.statuslike {
+:is(.us-screen, .panel-mask) select.statuslike {
   border: 1px solid var(--line);
   background: var(--surf2);
   border-radius: 10px;
@@ -269,12 +395,26 @@
   }
   /* Stacked, so the card shares the viewport with the sidebar below it. */
   .us-screen .chatshell {
-    height: clamp(380px, calc(100vh - 268px), 640px);
+    height: clamp(520px, calc(100dvh - 166px), 760px);
   }
 }
 @media (max-width: 640px) {
   .us-screen .bubble {
     max-width: 88%;
+  }
+  .us-screen .stream {
+    padding: 12px 10px;
+  }
+  .us-screen .compose {
+    padding: 9px 10px;
+  }
+  .us-screen .ctools {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 1px;
+  }
+  .us-screen .ctools > * {
+    flex: 0 0 auto;
   }
 }
 @media (max-width: 1024px) {

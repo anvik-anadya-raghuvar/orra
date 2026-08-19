@@ -1,4 +1,5 @@
 import type { Dataset } from '../types';
+import { DEMO_USER_ID } from '../lib/demoScope';
 
 /**
  * Seed dataset — mirrors the v10 prototype's demo content, expanded to the
@@ -7,6 +8,7 @@ import type { Dataset } from '../types';
  */
 export const AN = 'u-anadya';
 export const RG = 'u-raghuvar';
+export const TEST = DEMO_USER_ID;
 
 /**
  * Local dev credentials for mock mode ONLY.
@@ -72,6 +74,28 @@ function rawSeed(): Dataset {
           money_on_home: false,
         },
       },
+      ...(import.meta.env.DEV
+        ? [
+            {
+              id: TEST,
+              email: 'test@anvik.ops',
+              password: devPassword('Test@2026'),
+              name: 'Test',
+              avatar_url: null,
+              time_zone: 'Asia/Kolkata',
+              status_text: 'Testing the local build',
+              status_expires_at: null,
+              personalization: {
+                song: true,
+                photo: true,
+                worth_knowing: true,
+                life_radar: true,
+                projects_strip: true,
+                money_on_home: true,
+              },
+            },
+          ]
+        : []),
     ],
     projects: [
       { id: 'anvik', name: 'Anvik', color: 'var(--indigo)', description: 'Scoring engine and core company', is_personal: false, created_at: T('2026-06-01T09:00:00') },
@@ -355,12 +379,12 @@ function rawSeed(): Dataset {
       { id: 'fd-4', label: 'Enrolment letter upload', date: D('2026-08-25'), category: 'university' },
     ],
     ledger: [
-      { id: 'lg-1', date: D('2026-08-17'), party: 'Ludhiana Steel', category: 'Pilot invoice', project_id: 'anvik', direction: 'in', amount: 86000, status: 'paid', receipt_url: null, linked_task_id: null, import_batch_id: null },
-      { id: 'lg-2', date: D('2026-08-16'), party: 'AWS India', category: 'Infra', project_id: 'reg', direction: 'out', amount: 34200, status: 'paid', receipt_url: null, linked_task_id: null, import_batch_id: null },
-      { id: 'lg-3', date: D('2026-08-15'), party: 'Surat Textiles', category: 'Sample run', project_id: 'con', direction: 'out', amount: 41500, status: 'overdue', receipt_url: null, linked_task_id: 'T-47', import_batch_id: null },
-      { id: 'lg-4', date: D('2026-08-14'), party: 'Politecnico Milano', category: 'Tuition instalment', project_id: 'personal', direction: 'out', amount: 210000, status: 'due', receipt_url: null, linked_task_id: null, import_batch_id: null },
-      { id: 'lg-5', date: D('2026-08-12'), party: 'MCA portal', category: 'Registry fees', project_id: 'reg', direction: 'out', amount: 12800, status: 'paid', receipt_url: null, linked_task_id: null, import_batch_id: null },
-      { id: 'lg-6', date: D('2026-08-10'), party: 'Contract designer', category: 'People', project_id: 'anvik', direction: 'out', amount: 55000, status: 'due', receipt_url: null, linked_task_id: null, import_batch_id: null },
+      { id: 'lg-1', date: D('2026-08-17'), party: 'Founder contribution', category: 'Founder capital', project_id: 'anvik', direction: 'in', amount: 86000, status: 'paid', paid_by: RG, payer_allocations: [{ user_id: RG, amount: 86000 }], comments: 'Money put into the business; not revenue.', ends_on: null, subscription_id: null, receipt_url: null, linked_task_id: null, import_batch_id: null },
+      { id: 'lg-2', date: D('2026-08-16'), party: 'AWS India', category: 'Infra', project_id: 'reg', direction: 'out', amount: 34200, status: 'paid', paid_by: null, payer_allocations: [{ user_id: RG, amount: 17100 }, { user_id: AN, amount: 17100 }], comments: 'Split equally between both founders.', ends_on: null, subscription_id: null, receipt_url: null, linked_task_id: null, import_batch_id: null },
+      { id: 'lg-3', date: D('2026-08-15'), party: 'Surat Textiles', category: 'Sample run', project_id: 'con', direction: 'out', amount: 41500, status: 'overdue', paid_by: RG, payer_allocations: [{ user_id: RG, amount: 41500 }], comments: '', ends_on: null, subscription_id: null, receipt_url: null, linked_task_id: 'T-47', import_batch_id: null },
+      { id: 'lg-4', date: D('2026-08-14'), party: 'Politecnico Milano', category: 'Tuition instalment', project_id: 'personal', direction: 'out', amount: 210000, status: 'due', paid_by: RG, payer_allocations: [{ user_id: RG, amount: 210000 }], comments: '', ends_on: null, subscription_id: null, receipt_url: null, linked_task_id: null, import_batch_id: null },
+      { id: 'lg-5', date: D('2026-08-12'), party: 'MCA portal', category: 'Registry fees', project_id: 'reg', direction: 'out', amount: 12800, status: 'paid', paid_by: AN, payer_allocations: [{ user_id: AN, amount: 12800 }], comments: '', ends_on: null, subscription_id: null, receipt_url: null, linked_task_id: null, import_batch_id: null },
+      { id: 'lg-6', date: D('2026-08-10'), party: 'Contract designer', category: 'People', project_id: 'anvik', direction: 'out', amount: 55000, status: 'due', paid_by: RG, payer_allocations: [{ user_id: RG, amount: 55000 }], comments: '', ends_on: null, subscription_id: null, receipt_url: null, linked_task_id: null, import_batch_id: null },
     ],
     import_batches: [],
     subscriptions: [
@@ -395,6 +419,8 @@ function rawSeed(): Dataset {
       { id: 'tl-2', from_task_id: 'T-45', to_task_id: 'T-36', type: 'related', created_by: AN, created_at: T('2026-08-16T09:00:00') },
     ],
     integration_grants: [],
+    personal_orders: [],
+    personal_order_events: [],
     trash_items: [],
     page_comments: [
       { id: 'pc-1', page_id: 'pg-2', author_id: RG, body: 'Added the Karnataka bench case — see T-42.', created_at: T('2026-08-17T12:00:00') },
@@ -405,7 +431,7 @@ function rawSeed(): Dataset {
         blocks: [
           { id: 'b1', type: 'heading', level: 1, text: 'How we build' },
           { id: 'b2', type: 'paragraph', text: 'Small commits, a passing gate before the next phase, and evidence over assertion.' },
-          { id: 'b3', type: 'callout', icon: '⚠️', color: 'stamp', text: 'Never put the service_role key in client code. Edge functions only.' },
+          { id: 'b3', type: 'callout', icon: '⚠️', color: 'stamp', text: 'Never put server-only secrets in client code.' },
           { id: 'b4', type: 'list', items: [{ text: 'Plan, then execute' }, { text: 'Verify, do not assert' }, { text: 'Commit after each passing gate' }] },
         ],
         tags: ['process'], linked_task_ids: [], is_archived: false, position: 1,
@@ -439,6 +465,8 @@ function rawSeed(): Dataset {
     personal_goals: [
       {
         id: 'pg-goal-1', user_id: RG, title: 'Get the Italian driving licence', notes: 'Theory first, then practical.',
+        area: 'Life in Italy', why: 'Being able to move independently will make the new city feel workable.',
+        next_action: 'Book the theory test', focus_state: 'now', reviewed_at: T('2026-08-18T09:00:00'),
         target_date: D('2026-11-30'), linked_project_id: null, linked_course_id: null,
         milestones: [
           { text: 'Book the theory test', done: true },
@@ -449,6 +477,8 @@ function rawSeed(): Dataset {
       },
       {
         id: 'pg-goal-2', user_id: RG, title: 'Consumer venture actually validated', notes: '',
+        area: 'Venture', why: 'Decide with evidence before giving it another quarter.',
+        next_action: 'Run five problem interviews', focus_state: 'later', reviewed_at: T('2026-08-18T09:00:00'),
         target_date: D('2026-10-15'), linked_project_id: 'con', linked_course_id: null,
         milestones: [], status: 'open', position: 2, created_at: T('2026-08-05T09:00:00'),
       },
@@ -512,4 +542,203 @@ export function generateBulkTasks(base: Dataset, n: number): Dataset {
     });
   }
   return { ...base, tasks };
+}
+
+/** A small, self-contained picture that renders without Storage or a network. */
+const TEST_MOMENT_PHOTO = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop stop-color="#6f75d9"/><stop offset="0.55" stop-color="#f1a56f"/><stop offset="1" stop-color="#f7d5a2"/>
+      </linearGradient>
+      <linearGradient id="water" x1="0" y1="0" x2="1" y2="0">
+        <stop stop-color="#243f58"/><stop offset="1" stop-color="#4f6d76"/>
+      </linearGradient>
+    </defs>
+    <rect width="960" height="640" fill="url(#sky)"/>
+    <circle cx="735" cy="150" r="64" fill="#ffe5a8" opacity=".92"/>
+    <path d="M0 380L120 295l88 56 112-142 112 147 95-86 118 94 92-62 133 78v260H0z" fill="#273849" opacity=".92"/>
+    <path d="M0 445c145-34 287-25 423 3s308 39 537-7v199H0z" fill="url(#water)"/>
+    <path d="M0 490c155-28 307-16 456 14s306 30 504-4" fill="none" stroke="#f8d7a2" stroke-width="9" opacity=".42"/>
+    <g fill="#fff3d4" opacity=".82">
+      <rect x="95" y="380" width="10" height="13"/><rect x="127" y="365" width="12" height="15"/>
+      <rect x="350" y="346" width="11" height="15"/><rect x="387" y="376" width="12" height="16"/>
+      <rect x="610" y="380" width="11" height="14"/><rect x="650" y="362" width="12" height="16"/>
+    </g>
+    <text x="48" y="72" fill="white" font-family="system-ui, sans-serif" font-size="28" font-weight="650" opacity=".9">Evening reset · test fixture</text>
+  </svg>
+`)}`;
+
+/** Replace only identity values; row ids and the two real profiles stay intact. */
+function remapFixtureUsers<T>(value: T): T {
+  if (value === AN || value === RG) return TEST as T;
+  if (Array.isArray(value)) return value.map(remapFixtureUsers) as T;
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, child]) => [key, remapFixtureUsers(child)]),
+    ) as T;
+  }
+  return value;
+}
+
+const localDate = (offsetDays = 0) => {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * A complete, isolated mock workspace for test@anvik.ops.
+ *
+ * It starts from the worked example so every shared room is populated, then
+ * remaps all user-owned rows to the test identity. The two founder profiles
+ * remain unchanged and are present only so avatars and the Us counterpart can
+ * render. This dataset is stored under a test-only localStorage key.
+ */
+export function seedTestDataset(): Dataset {
+  const base = seedDataset();
+  if (!import.meta.env.DEV || !base.profiles.some((profile) => profile.id === TEST)) return base;
+
+  const out = remapFixtureUsers(base);
+  out.profiles = base.profiles;
+
+  const now = new Date();
+  const at = (minutesAgo: number) => new Date(now.getTime() - minutesAgo * 60_000).toISOString();
+  const today = localDate();
+  const yesterday = localDate(-1);
+
+  out.mail_items = out.mail_items.map((item) => ({
+    ...item,
+    owner_id: TEST,
+    account_email: 'test@anvik.ops',
+  }));
+  out.documents = out.documents.map((item) => ({
+    ...item,
+    owner_id: TEST,
+    account_email: 'test@anvik.ops',
+  }));
+  out.courses = out.courses.map((item) => ({ ...item, owner_id: TEST }));
+  out.reading_queue = out.reading_queue.map((item) => ({ ...item, owner_id: TEST }));
+  out.fixed_dates = out.fixed_dates.map((item) => ({ ...item, owner_id: TEST }));
+  out.screenshot_attachments = out.screenshot_attachments.map((item) => ({
+    ...item,
+    data_url: TEST_MOMENT_PHOTO,
+  }));
+  out.notes = out.notes.map((note, index) =>
+    index === 0
+      ? {
+          ...note,
+          images: [
+            {
+              id: 'test-note-photo', filename: 'evening-reset.svg', mime: 'image/svg+xml',
+              width: 960, height: 640, bytes: TEST_MOMENT_PHOTO.length,
+              data_url: TEST_MOMENT_PHOTO, created_at: at(90),
+            },
+          ],
+        }
+      : note,
+  );
+  out.shared_daily = out.shared_daily.map((item) => ({
+    ...item,
+    picked_by: TEST,
+    photo_url: TEST_MOMENT_PHOTO,
+    photo_caption: 'Evening reset · test fixture',
+  }));
+  out.audit_trail = out.audit_trail.map((item) => ({
+    ...item,
+    actor_label: item.actor_id === TEST ? 'Test' : item.actor_label,
+  }));
+
+  out.import_batches = [
+    {
+      id: 'test-import-batch', filename: 'mock-ledger-august.csv', row_count: 2,
+      duplicates_skipped: 1, imported_by: TEST,
+      column_mapping: { Date: 'date', Party: 'party', Amount: 'amount', Direction: 'direction' },
+      imported_at: at(2 * 24 * 60),
+    },
+  ];
+  out.ledger = out.ledger.map((item, index) => ({
+    ...item,
+    paid_by: TEST,
+    payer_allocations: [{ user_id: TEST, amount: item.amount }],
+    split_pct: item.direction === 'out' ? 100 : null,
+    expense_kind: item.direction === 'out' ? (index % 2 === 0 ? 'one_time' : 'recurring') : null,
+    import_batch_id: index < 2 ? 'test-import-batch' : item.import_batch_id,
+  }));
+
+  out.day_plans = [
+    {
+      id: 'test-day-plan', user_id: TEST, date: today, capacity: 'medium',
+      intention: 'Exercise every room with realistic fixture data',
+      wins: [
+        { text: 'Review the priority board', done: true },
+        { text: 'Check Notebook and Money states', done: false },
+        { text: 'Reply to the shared moment', done: false },
+      ],
+      created_at: at(180),
+    },
+  ];
+  out.day_plan_items = [
+    { id: 'test-plan-task', user_id: TEST, date: today, task_id: 'T-42', text: 'Review the collector QA report', done: false, position: 1, source: 'task', created_at: at(175) },
+    { id: 'test-plan-manual', user_id: TEST, date: today, task_id: null, text: 'Walk through every module once', done: false, position: 2, source: 'manual', created_at: at(170) },
+  ];
+  out.day_events = [
+    { id: 'test-event-focus', user_id: TEST, date: today, start_min: 9 * 60 + 30, end_min: 11 * 60, label: 'Fixture review · focused', kind: 'focus', task_id: 'T-42' },
+    { id: 'test-event-admin', user_id: TEST, date: today, start_min: 11 * 60 + 30, end_min: 12 * 60 + 15, label: 'Notebook and Money pass', kind: 'admin', task_id: null },
+    { id: 'test-event-personal', user_id: TEST, date: today, start_min: 17 * 60, end_min: 18 * 60, label: 'Evening reset', kind: 'personal', task_id: null },
+  ];
+  out.daily_closeouts = [
+    ...out.daily_closeouts,
+    { id: 'test-closeout', user_id: TEST, date: yesterday, shipped: 'Mock workspace isolation', stuck: 'Photo fixture needed a local-safe source', tomorrow: 'Test every room end to end', created_at: at(12 * 60) },
+  ];
+
+  out.messages = [
+    ...out.messages,
+    {
+      id: 'test-msg-photo', sender_id: AN, body: 'A quiet reset before the next pass.', kind: 'photo',
+      reply_to_id: null, task_ref_id: null, attachment_url: TEST_MOMENT_PHOTO, song_ref: null,
+      promoted_to_type: null, promoted_to_id: null, read_at: null, created_at: at(8),
+    },
+    {
+      id: 'test-msg-song', sender_id: AN, body: 'This felt right for the build.', kind: 'song',
+      reply_to_id: null, task_ref_id: null, attachment_url: null,
+      song_ref: { title: 'Ilahi', artist: 'Pritam · Arijit Singh', url: 'https://www.youtube.com/watch?v=UBscsdrK0Bo' },
+      promoted_to_type: null, promoted_to_id: null, read_at: null, created_at: at(6),
+    },
+    {
+      id: 'test-msg-reply', sender_id: TEST, body: 'Perfect test pair — photo and song both render.', kind: 'chat',
+      reply_to_id: 'test-msg-photo', task_ref_id: null, attachment_url: null, song_ref: null,
+      promoted_to_type: null, promoted_to_id: null, read_at: null, created_at: at(4),
+    },
+  ];
+
+  out.mood_items = [
+    ...out.mood_items,
+    { id: 'test-mood-photo', user_id: TEST, kind: 'image', title: 'Evening reset', body: 'Keep one calm image in view.', url: null, storage_path: TEST_MOMENT_PHOTO, color: '', position: 3, pinned_at: at(60) },
+    { id: 'test-mood-song', user_id: TEST, kind: 'song', title: 'Ilahi', body: 'Pritam · Arijit Singh', url: 'https://www.youtube.com/watch?v=UBscsdrK0Bo', storage_path: null, color: 'indigo', position: 4, pinned_at: at(55) },
+    { id: 'test-mood-note', user_id: TEST, kind: 'note', title: 'Test intention', body: 'Every room should tell a coherent story.', url: null, storage_path: null, color: 'teal', position: 5, pinned_at: at(50) },
+  ];
+
+  out.personal_orders = [
+    {
+      id: 'test-order-physical', user_id: TEST, integration_grant_id: null, account_email: 'test@anvik.ops',
+      kind: 'physical', review_status: 'pending', lifecycle_status: 'out_for_delivery', merchant: 'Field Notes',
+      external_reference: 'FN-2048', summary: 'Notebook set · three pack', amount: 1890, currency: 'INR',
+      next_event_at: at(-90), details: { items: ['Pitch black notebook set'], carrier: 'Blue Dart', tracking_number: 'TEST2048', tracking_url: null },
+      manual_fields: [], reviewed_at: null, reviewed_by: null, last_event_at: at(35), created_at: at(3 * 24 * 60), updated_at: at(35),
+    },
+    {
+      id: 'test-order-travel', user_id: TEST, integration_grant_id: null, account_email: 'test@anvik.ops',
+      kind: 'travel', review_status: 'confirmed', lifecycle_status: 'booked', merchant: 'IndiGo',
+      external_reference: 'TESTPNR', summary: 'Bengaluru → Delhi', amount: 6840, currency: 'INR',
+      next_event_at: at(-2 * 24 * 60), details: { booking_reference: 'TESTPNR', origin: 'BLR', destination: 'DEL', departure_at: at(-2 * 24 * 60), arrival_at: at(-2 * 24 * 60 - 165), stay_end_at: null },
+      manual_fields: [], reviewed_at: at(24 * 60), reviewed_by: TEST, last_event_at: at(2 * 24 * 60), created_at: at(5 * 24 * 60), updated_at: at(24 * 60),
+    },
+  ];
+  out.personal_order_events = [
+    { id: 'test-order-event-1', order_id: 'test-order-physical', user_id: TEST, integration_grant_id: null, gmail_message_id: 'mock-field-notes-1', event_type: 'out_for_delivery', event_at: at(35), sender: 'updates@fieldnotes.example', subject: 'Your order is out for delivery', source_url: '', detection_reason: 'Delivery status phrase matched', confidence: 0.97, parsed_fields: { carrier: 'Blue Dart' }, created_at: at(34) },
+    { id: 'test-order-event-2', order_id: 'test-order-travel', user_id: TEST, integration_grant_id: null, gmail_message_id: 'mock-indigo-1', event_type: 'booked', event_at: at(2 * 24 * 60), sender: 'itinerary@indigo.example', subject: 'Booking confirmed · TESTPNR', source_url: '', detection_reason: 'Booking reference and itinerary matched', confidence: 0.99, parsed_fields: { origin: 'BLR', destination: 'DEL' }, created_at: at(2 * 24 * 60 - 1) },
+  ];
+
+  return out;
 }

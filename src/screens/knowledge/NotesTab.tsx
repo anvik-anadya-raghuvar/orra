@@ -19,6 +19,7 @@ import { MAX_NOTE_IMAGES } from '../../types';
 import type { AttachedImage, ChecklistItem, Note, NoteType } from '../../types';
 
 const NOTE_TYPE_ORDER: NoteType[] = ['plain', 'checklist', 'meeting', 'voice', 'email'];
+const NOTE_LABEL_COLORS = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'] as const;
 const NOTE_TYPE_LABEL: Record<NoteType, string> = {
   plain: 'Plain',
   checklist: 'Checklist',
@@ -320,6 +321,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   const toast = useToast();
   const projects = useData((ds) => ds.projects);
   const tasks = useData((ds) => ds.tasks);
+  const allTags = useData((ds) => ds.tags);
   const existing = useData((ds) => ds.notes.find((n) => n.id === noteId)) ?? null;
 
   const [title, setTitle] = useState(existing?.title ?? '');
@@ -380,6 +382,19 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     const v = tagDraft.trim();
     if (!v || tags.includes(v)) return;
     setTags([...tags, v]);
+    if (!allTags.some((tag) => tag.name.toLowerCase() === v.toLowerCase())) {
+      store.insert(
+        'tags',
+        {
+          id: newId('tag'),
+          name: v,
+          color: NOTE_LABEL_COLORS[allTags.length % NOTE_LABEL_COLORS.length],
+          created_by: store.meId,
+          created_at: nowIso(),
+        },
+        store.asMe({ summary: `Label created — ${v}` }),
+      );
+    }
     setTagDraft('');
   };
   const addItem = () => {
@@ -489,14 +504,14 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
         style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
       />
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 11 }}>
-        <select value={type} onChange={(e) => setType(e.target.value as NoteType)} style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 130 }}>
+        <select aria-label="Note type" value={type} onChange={(e) => setType(e.target.value as NoteType)} style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 130 }}>
           {(['plain', 'checklist', 'meeting', 'voice', 'email'] as NoteType[]).map((tp) => (
             <option key={tp} value={tp}>
               {tp}
             </option>
           ))}
         </select>
-        <select value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 130 }}>
+        <select aria-label="Project" value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 130 }}>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -570,7 +585,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       <div className="eyebrow" style={{ marginBottom: 6 }}>
         Attach to task
       </div>
-      <select value={taskId} onChange={(e) => setTaskId(e.target.value)} style={inputStyle}>
+      <select aria-label="Attach to task" value={taskId} onChange={(e) => setTaskId(e.target.value)} style={inputStyle}>
         <option value="">— none —</option>
         {tasks.map((t) => (
           <option key={t.id} value={t.id}>
