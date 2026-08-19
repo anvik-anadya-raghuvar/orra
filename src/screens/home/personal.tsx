@@ -171,7 +171,7 @@ export function WorthTile() {
       <div className="bt-hd">
         <span className="eyebrow">AI news · updated twice a day</span>
         <div className="spacer" />
-        <TileOpen to="/knowledge" label="Knowledge" />
+        <TileOpen to="/knowledge" label="Notebook" />
         <button type="button" className="btn sm" onClick={() => setAdding((v) => !v)}>
           {adding ? 'Cancel' : 'Pin one'}
         </button>

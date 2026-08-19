@@ -96,7 +96,7 @@ export default function NotesTab() {
       {notes.length > 0 && (
         <div className="kn-overview">
           <div className="kn-ov-panel">
-            <span className="eyebrow">Notes by type</span>
+            <span className="eyebrow">Scribbles by type</span>
             <MiniBars items={typeCounts} />
           </div>
           <div className="kn-ov-panel">
@@ -110,11 +110,11 @@ export default function NotesTab() {
           className="srch"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search notes, transcripts, tags…"
-          aria-label="Search notes"
+          placeholder="Search scribbles, transcripts, tags…"
+          aria-label="Search scribbles"
         />
         <button className="btn sm solid" onClick={() => setOpenId('new')}>
-          + Note
+          + Scribble
         </button>
       </div>
       <div className="filters">
@@ -167,7 +167,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
       store.insert(
         'subtasks',
         { id: newId('st'), task_id: taskId, title: c.text, completed: false, position: pos },
-        store.asMe({ summary: `Subtask created from note "${note.title}"` }),
+        store.asMe({ summary: `Subtask created from scribble "${note.title}"` }),
       );
     });
     toast(`${unchecked.length} action item${unchecked.length === 1 ? '' : 's'} pushed as subtasks`);
@@ -216,7 +216,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
         last_edited_by: store.meId,
         last_edited_at: nowIso(),
       },
-      store.asMe({ summary: `Note "${note.title || 'Untitled'}" became a Wiki page` }),
+      store.asMe({ summary: `Scribble "${note.title || 'Untitled'}" became a Wiki page` }),
     );
     toast('Now a Wiki page — open the Wiki tab to build on it');
   };
@@ -305,7 +305,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
         <button
           type="button"
           className="btn sm note-to-page"
-          title="Copy this note into the Wiki as an editable page — lines, to-dos and images become real blocks"
+          title="Copy this scribble into the Wiki as an editable page — lines, to-dos and images become real blocks"
           onClick={makePage}
         >
           Make it a page
@@ -342,7 +342,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   const addImage = (img: DroppedImage) => {
     setImages((prev) => {
       if (prev.length >= MAX_NOTE_IMAGES) {
-        toast(`A note holds at most ${MAX_NOTE_IMAGES} images`);
+        toast(`A scribble holds at most ${MAX_NOTE_IMAGES} images`);
         return prev;
       }
       return [
@@ -368,7 +368,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     (files) => {
       setImgBusy(true);
       void processImages(files, addImage)
-        .then(() => toast('Screenshot attached — it saves with the note'))
+        .then(() => toast('Screenshot attached — it saves with the scribble'))
         .catch((err: Error) => toast(err.message || 'That image could not be attached'))
         .finally(() => setImgBusy(false));
     },
@@ -432,7 +432,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
           owner_id: store.meId,
           created_at: nowIso(),
         },
-        store.asMe({ summary: `Note created — ${t}` }),
+        store.asMe({ summary: `Scribble created — ${t}` }),
       );
       toast('Note created');
     }
@@ -441,9 +441,9 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
 
   const remove = () => {
     if (!existing) return;
-    if (!window.confirm(`Delete "${existing.title || 'this note'}"? This cannot be undone.`)) return;
-    store.remove('notes', existing.id, store.asMe({ summary: `Note deleted — ${existing.title}` }));
-    toast('Note deleted');
+    if (!window.confirm(`Delete "${existing.title || 'this scribble'}"? This cannot be undone.`)) return;
+    store.remove('notes', existing.id, store.asMe({ summary: `Scribble deleted — ${existing.title}` }));
+    toast('Scribble deleted');
     onClose();
   };
 
@@ -451,7 +451,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     <SideSheet
       open
       onClose={onClose}
-      title={existing ? 'Edit note' : 'New note'}
+      title={existing ? 'Edit scribble' : 'New scribble'}
       subtitle="Paste a screenshot straight in with Ctrl+V — it is compressed in the browser."
       footer={
         <>
@@ -586,7 +586,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
         onClick={() => setPinned((p) => !p)}
         style={{ marginBottom: 14 }}
       >
-        {pinned ? 'Pinned' : 'Pin this note'}
+        {pinned ? 'Pinned' : 'Pin this scribble'}
       </button>
 
       </div>

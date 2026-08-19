@@ -179,7 +179,7 @@ export default function ConnectionsTab() {
       name: 'Gmail',
       state: googleState('gmail'),
       desc: hasScope(store, 'gmail')
-        ? 'Your last 20 inbox messages sync into Knowledge → Mail, where they convert to tasks, notes and decisions. Read-only: nothing is ever sent on your behalf.'
+        ? 'Your last 20 inbox messages sync into Notebook → Mail, where they convert to tasks, scribbles and decisions. Read-only: nothing is ever sent on your behalf.'
         : configured
           ? 'Compose opens prefilled in your own mailbox. Inbox sync starts the moment you connect Google above.'
           : 'Compose opens prefilled in your own mailbox. Reading the inbox into the Mail tab needs the client id.',
@@ -214,7 +214,7 @@ export default function ConnectionsTab() {
       name: 'Google Drive',
       state: googleState('drive'),
       desc: hasScope(store, 'drive')
-        ? 'Knowledge → Documents → + Document searches your Drive and attaches a file by reference. Files stay in Drive; only the link and the date live here.'
+        ? 'Notebook → Documents → + Document searches your Drive and attaches a file by reference. Files stay in Drive; only the link and the date live here.'
         : configured
           ? 'Documents take a URL you paste. Connect Google to search Drive instead of pasting.'
           : 'Documents currently store a URL you paste. Search is not wired.',

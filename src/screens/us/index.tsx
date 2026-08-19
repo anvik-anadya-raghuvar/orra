@@ -206,7 +206,7 @@ function Bubble({
               → task
             </button>
             <button type="button" onClick={() => onPromote(m, 'note')}>
-              → note
+              → scribble
             </button>
             <button type="button" onClick={() => onPromote(m, 'decision')}>
               → decision

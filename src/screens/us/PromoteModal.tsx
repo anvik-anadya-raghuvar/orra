@@ -12,7 +12,7 @@ export interface PromoteTarget {
 
 const KIND_LABEL: Record<PromoteKind, string> = {
   task: 'a task',
-  note: 'a note',
+  note: 'a scribble',
   decision: 'a decision',
 };
 
@@ -89,7 +89,7 @@ export function PromoteModal({ promote, onClose }: { promote: PromoteTarget | nu
         'notes',
         {
           id,
-          title: title.trim() || 'Untitled note',
+          title: title.trim() || 'Untitled scribble',
           body: desc,
           type: 'plain',
           project_id: projectId,
@@ -109,9 +109,9 @@ export function PromoteModal({ promote, onClose }: { promote: PromoteTarget | nu
         'messages',
         message.id,
         { promoted_to_type: 'note', promoted_to_id: id },
-        store.asMe({ summary: 'Message promoted to note' }),
+        store.asMe({ summary: 'Message promoted to scribble' }),
       );
-      toast('Promoted to a note');
+      toast('Promoted to a scribble');
     } else {
       const id = newId('dec');
       store.insert(

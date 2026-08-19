@@ -872,7 +872,7 @@ export function FixedDates() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Relocation documents — they live in Knowledge, so this is a read-only
+   Relocation documents — they live in the Notebook, so this is a read-only
    mirror that links through rather than dead-ending.
    ══════════════════════════════════════════════════════════════════════ */
 
@@ -886,11 +886,11 @@ export function RelocationDocs() {
       <div className="phead">
         <h3>Relocation documents</h3>
         <Link className="btn sm" to="/knowledge">
-          Open in Knowledge
+          Open in the Notebook
         </Link>
       </div>
       {docs.map((d) => (
-        <Link className="pdocrow" key={d.id} to="/knowledge" aria-label={`${d.title} — open in Knowledge`}>
+        <Link className="pdocrow" key={d.id} to="/knowledge" aria-label={`${d.title} — open in the Notebook`}>
           <span className="grow">
             {d.title}
             {(d.expiry_date || d.deadline_note) && (
@@ -902,7 +902,7 @@ export function RelocationDocs() {
         </Link>
       ))}
       {docs.length === 0 && <p className="tip">Nothing tracked yet.</p>}
-      <p className="tip">Documents are edited in Knowledge so there is one copy of the truth, not two.</p>
+      <p className="tip">Documents are edited in the Notebook so there is one copy of the truth, not two.</p>
     </div>
   );
 }

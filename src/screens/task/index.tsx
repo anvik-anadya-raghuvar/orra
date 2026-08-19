@@ -169,7 +169,7 @@ function TaskDetail({ task }: { task: Task }) {
         created_by: store.me.id,
         created_at: nowIso(),
       },
-      store.asMe({ summary: `Note linked to ${task.id}: ${t}` }),
+      store.asMe({ summary: `Scribble linked to ${task.id}: ${t}` }),
     );
     setNoteTitle('');
   };
@@ -481,7 +481,7 @@ function TaskDetail({ task }: { task: Task }) {
             )}
 
             <section>
-              <h3>Notes on this task</h3>
+              <h3>Scribbles on this task</h3>
               {linkedNotes.map((n) => (
                 <div className="lrow" key={n.id}>
                   <span style={{ flex: 1, minWidth: 0 }}>
@@ -498,7 +498,7 @@ function TaskDetail({ task }: { task: Task }) {
               <input
                 className="addin"
                 value={noteTitle}
-                placeholder="+ Write a note here"
+                placeholder="+ Write a scribble here"
                 aria-label="New linked note title"
                 onChange={(e) => setNoteTitle(e.target.value)}
                 onKeyDown={(e) => {

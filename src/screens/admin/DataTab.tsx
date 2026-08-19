@@ -163,7 +163,7 @@ export default function DataTab() {
           </span>
         </div>
         <p>
-          Anything deleted anywhere in the portal — a task, a note, a person, the demo purge above
+          Anything deleted anywhere in the portal — a task, a scribble, a person, the demo purge above
           — lands here first. Restore puts a row back exactly as it was; deleting from Trash is the
           only step in the app that cannot be undone.
         </p>

@@ -39,7 +39,7 @@ const NAV = [
   { to: '/', label: 'Home', icon: HomeIcon },
   { to: '/work', label: 'Work', icon: KanbanSquare },
   { to: '/us', label: 'Us', icon: Heart },
-  { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
+  { to: '/knowledge', label: 'Notebook', icon: BookOpen },
   { to: '/people', label: 'People', icon: Users },
   { to: '/personal', label: 'Personal', icon: User },
   { to: '/money', label: 'Tracker', icon: Wallet },

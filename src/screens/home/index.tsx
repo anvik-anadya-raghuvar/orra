@@ -1401,7 +1401,7 @@ function QuickCapture() {
       store.asMe({ summary: `Quick capture — "${title}"` }),
     );
     setText('');
-    toast('Captured as a note in Knowledge');
+    toast('Captured as a scribble in the Notebook');
   };
 
   return (
@@ -1410,7 +1410,7 @@ function QuickCapture() {
         className="srch"
         value={text}
         aria-label="Quick capture"
-        placeholder="Empty your head — one line becomes a note"
+        placeholder="Empty your head — one line becomes a scribble"
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
       />

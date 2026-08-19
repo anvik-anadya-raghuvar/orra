@@ -151,7 +151,7 @@ function rawSeed(): Dataset {
         created_at: T('2026-08-10T09:00:00'), updated_at: T('2026-08-17T09:14:00'),
       },
       {
-        id: 'T-41', title: 'Visa appointment — Milan consulate', description: 'Slot booking opens 8am. Documents checklist in Knowledge.', acceptance_criteria: '',
+        id: 'T-41', title: 'Visa appointment — Milan consulate', description: 'Slot booking opens 8am. Documents checklist in the Notebook.', acceptance_criteria: '',
         project_id: 'personal', type: 'ops', status: 'in_progress', priority: 'urgent', assignee_id: AN, created_by: AN,
         start_date: D('2026-08-17'), due_date: D('2026-08-20'), objective_id: 'okr-italy', tags: ['visa'], progress_pct: 30,
         effort: 'light', estimate_minutes: 20, impact: 5, is_stuck: false, blocked_reason: null,
