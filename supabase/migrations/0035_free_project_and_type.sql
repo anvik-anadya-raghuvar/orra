@@ -39,6 +39,13 @@ DELETE FROM public.people_interactions WHERE id IN ('pi-1', 'pi-2', 'pi-3', 'pi-
 DELETE FROM public.people WHERE id IN ('p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-6');
 DELETE FROM public.mail_items WHERE id IN ('m-1', 'm-2', 'm-3');
 DELETE FROM public.notes WHERE id IN ('n-1', 'n-2', 'n-3', 'n-4', 'n-5', 'n-6');
+-- One stray real row, not from the seed: a note titled "hello" created under
+-- the test account (00000000-0000-4000-8000-000000000001), referencing the
+-- 'anvik' project. Discovered when the first run of this migration failed on
+-- the FK below — swept for by hand rather than by id list, since it isn't a
+-- seed row. Not Anadya's or Raghuvar's: created_by confirmed test-account
+-- before this line was added.
+DELETE FROM public.notes WHERE id = 'n-mszoj2xu2' AND created_by = '00000000-0000-4000-8000-000000000001';
 DELETE FROM public.decisions WHERE id IN ('dec-1', 'dec-2', 'dec-3', 'dec-4');
 DELETE FROM public.documents WHERE id IN ('doc-1', 'doc-2', 'doc-3', 'doc-4', 'doc-5', 'doc-6', 'doc-7', 'doc-8');
 DELETE FROM public.messages WHERE id IN ('msg-1', 'msg-2', 'msg-3');

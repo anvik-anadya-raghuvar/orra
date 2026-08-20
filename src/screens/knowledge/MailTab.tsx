@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { useToast } from '../../ui/bits';
+import { ensureProjectId, projectExists } from '../../data/projects';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDateTime } from '../../lib/dates';
 import { MiniBars } from '../../ui/viz';
@@ -153,6 +154,18 @@ export default function MailTab() {
 function MailRow({ mail }: { mail: MailItem }) {
   const store = useStore();
   const toast = useToast();
+  const projects = useData((d) => d.projects);
+
+  /**
+   * Where a conversion should land.
+   *
+   * This used to be `mail.project_id ?? 'anvik'` — a hard-coded id that was
+   * only ever correct while the seeded projects existed. It also trusted a
+   * stored project_id that may since have been deleted, so the check is on
+   * whether the row still exists, not merely on whether the column is set.
+   */
+  const landingProject = () =>
+    projectExists(projects, mail.project_id) ? mail.project_id! : ensureProjectId(store, projects);
 
   const convertTask = () => {
     const id = store.nextTaskId();
@@ -162,7 +175,7 @@ function MailRow({ mail }: { mail: MailItem }) {
         id,
         title: mail.subject,
         description: mail.snippet,
-        project_id: mail.project_id ?? 'anvik',
+        project_id: landingProject(),
         created_by: store.meId,
       }),
       store.asMe({ summary: `Task created from mail — ${mail.subject}` }),
@@ -180,7 +193,7 @@ function MailRow({ mail }: { mail: MailItem }) {
         title: mail.subject,
         body: mail.snippet,
         type: 'email',
-        project_id: mail.project_id ?? 'anvik',
+        project_id: landingProject(),
         task_id: null,
         tags: [],
         is_pinned: false,
@@ -204,7 +217,7 @@ function MailRow({ mail }: { mail: MailItem }) {
       {
         id,
         question: mail.subject,
-        project_id: mail.project_id ?? 'anvik',
+        project_id: landingProject(),
         recommendation: '',
         owner_id: store.meId,
         status: 'open',

@@ -14,6 +14,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useData, useStore } from '../../data/store';
+import { personalProjectIds } from '../../data/projects';
 import { daysUntil, fmtDay, todayIso } from '../../lib/dates';
 import { myTasks, ownRows } from '../../lib/workspace';
 import { SCOPE_COPY, activeBlockFor, clockLabel, elapsedSec } from '../../lib/blocks';
@@ -271,7 +272,10 @@ export function DatesGlance() {
 }
 
 export function DocsGlance() {
-  const docs = useData((d) => d.documents.filter((x) => x.project_id === 'personal'));
+  const docs = useData((d) => {
+    const personal = personalProjectIds(d.projects);
+    return d.documents.filter((x) => personal.has(x.project_id));
+  });
   const dated = docs
     .filter((d) => d.expiry_date)
     .sort((a, b) => (a.expiry_date as string).localeCompare(b.expiry_date as string));

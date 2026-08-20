@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertTriangle, ChevronRight, Plus, RefreshCw, Settings2, Sparkles } from 'lucide-react';
 import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
+import { ensureProjectId } from '../../data/projects';
 import { packBento } from '../../lib/bento';
 import { Avatar, CountUp, InfoTip, Modal, ProgressBar, SideSheet, useToast } from '../../ui/bits';
 import { staggerParent } from '../../ui/motion';
@@ -1777,8 +1778,11 @@ function QuickCapture() {
   const submit = () => {
     const body = text.trim();
     if (!body) return;
-    const defaultProject = projects.find((p) => !p.is_personal)?.id ?? projects[0]?.id;
-    if (!defaultProject) return;
+    /* Quick capture exists so a thought is never lost. It used to return
+       silently when no project existed, which threw the typed text away —
+       invisible, and worst at exactly the moment a workspace is new. Make
+       somewhere for it to land instead. */
+    const defaultProject = ensureProjectId(store, projects);
     const title = body.split(/\s+/).slice(0, 6).join(' ');
     store.insert(
       'notes',

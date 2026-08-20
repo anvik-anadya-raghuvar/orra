@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { LedgerEntry } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
+import { ensureProjectId } from '../../data/projects';
 import { InfoTip, SideSheet, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { inr } from '../../lib/dates';
@@ -111,6 +112,10 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
 
   const confirmImport = () => {
     const clean = parsedRows.filter((r) => !r.dup);
+    /* ledger.project_id is NOT NULL, and resolveProjectId falls back to '' when
+       the workspace has no business project to land unmatched rows in. Settle
+       that here rather than in the preview memo, which must stay pure. */
+    const landing = clean.some((r) => !r.project_id) ? ensureProjectId(store, ds.projects) : '';
     const columnMapping: Record<string, string> = {};
     for (const f of IMPORT_FIELDS) if (mapping[f.key]) columnMapping[f.key] = mapping[f.key];
 
@@ -138,7 +143,7 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
           date: r.date,
           party: r.party,
           category: r.category,
-          project_id: r.project_id,
+          project_id: r.project_id || landing,
           direction: r.direction as LedgerEntry['direction'],
           amount: r.amount,
           status: r.status as LedgerEntry['status'],

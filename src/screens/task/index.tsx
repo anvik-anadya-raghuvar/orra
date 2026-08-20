@@ -9,7 +9,8 @@ import { fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment } from '../../lib/handoff';
 import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
 import { stripInlineImageMarkers } from '../../ui/inlineImages';
-import { PRIORITIES, ProjectPicker, STATUSES, TypePicker } from '../work/common';
+import { PRIORITIES, STATUSES } from '../work/common';
+import { ProjectCombo, TypeCombo } from '../../ui/pickers';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
 import Timeline from './Timeline';
@@ -376,10 +377,10 @@ function TaskDetail({ task }: { task: Task }) {
               </div>
               <div>
                 <label htmlFor="tf-project">Project</label>
-                <ProjectPicker
+                <ProjectCombo
                   id="tf-project"
                   value={task.project_id}
-                  onChange={(id) => setField('project_id', id)}
+                  onChange={(id) => id && setField('project_id', id)}
                 />
               </div>
               <div>
@@ -434,7 +435,7 @@ function TaskDetail({ task }: { task: Task }) {
               </div>
               <div className="wide">
                 <label htmlFor="tf-type">Type — 'ops' and 'code_change' unlock the panels below</label>
-                <TypePicker id="tf-type" value={task.type} onChange={(t) => setField('type', t)} />
+                <TypeCombo id="tf-type" value={task.type} onChange={(t) => t && setField('type', t)} />
               </div>
             </div>
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Pencil, ArrowUpRight } from 'lucide-react';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { SideSheet, useToast } from '../../ui/bits';
+import { ProjectCombo } from '../../ui/pickers';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { warmth } from '../../lib/warmth';
 import type { RelationshipType } from '../../types';
@@ -25,7 +26,6 @@ export default function ProfileModal({
   const store = useStore();
   const toast = useToast();
   const navigate = useNavigate();
-  const projects = useData((ds) => ds.projects);
   const ds = useData((d) => d);
   const existing = useData((ds) => ds.people.find((p) => p.id === personId)) ?? null;
   const today = todayIso();
@@ -198,14 +198,12 @@ export default function ProfileModal({
           <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>
             Project
           </label>
-          <select aria-label="Project" value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ ...inputStyle, marginBottom: 0 }}>
-            <option value="">— none —</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <ProjectCombo
+            value={projectId}
+            onChange={setProjectId}
+            allowNone="— none —"
+            inputStyle={{ ...inputStyle, marginBottom: 0 }}
+          />
         </div>
       </div>
 

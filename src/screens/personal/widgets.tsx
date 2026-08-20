@@ -5,6 +5,7 @@ import { ArrowUpRight, ChevronDown, ChevronUp } from 'lucide-react';
 import type { AppStore } from '../../data/store';
 import type { FixedDate, LifeAdminItem, TimeLog } from '../../types';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
+import { personalProjectIds } from '../../data/projects';
 import { CountUp, DeleteBtn, TagChip, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil, fmtDay } from '../../lib/dates';
@@ -936,7 +937,10 @@ export function FixedDates() {
 const DOC_LABEL: Record<string, string> = { ok: 'fine', soon: 'coming up', over: 'act now' };
 
 export function RelocationDocs() {
-  const docs = useData((d) => d.documents.filter((x) => x.project_id === 'personal'));
+  const docs = useData((d) => {
+    const personal = personalProjectIds(d.projects);
+    return d.documents.filter((x) => personal.has(x.project_id));
+  });
 
   return (
     <div className="pbig">

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Message } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
+import { ProjectCombo } from '../../ui/pickers';
 import { makeTask } from '../../lib/taskFactory';
 
 export type PromoteKind = 'task' | 'note' | 'decision';
@@ -62,6 +63,12 @@ export function PromoteModal({ promote, onClose }: { promote: PromoteTarget | nu
 
   const confirm = () => {
     if (!promote) return;
+    /* All three promotion targets — task, note, decision — have a NOT NULL
+       project_id, so one guard covers the lot. */
+    if (!projectId) {
+      toast('Choose or type a project to promote this into');
+      return;
+    }
     const { message, kind } = promote;
     if (kind === 'task') {
       const id = store.nextTaskId();
@@ -167,13 +174,7 @@ export function PromoteModal({ promote, onClose }: { promote: PromoteTarget | nu
           </Field>
           <div style={{ height: 10 }} />
           <Field label="Project">
-            <select className="statuslike" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              {ds.projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <ProjectCombo className="statuslike" value={projectId} onChange={setProjectId} />
           </Field>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, marginTop: 18 }}>
             <button className="btn" type="button" onClick={onClose}>

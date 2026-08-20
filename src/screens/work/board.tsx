@@ -19,13 +19,12 @@ import ReflowBanner from './reflow';
 import DraftEvidenceEditor, { type DraftPin, type DraftShot } from './DraftEvidenceEditor';
 import { blockedByOpenDep } from '../../lib/schedule';
 import { minToLabel } from '../../lib/dayPlan';
+import { ProjectCombo, TypeCombo } from '../../ui/pickers';
 import {
   Field,
   PRIORITIES,
-  ProjectPicker,
   STATUSES,
   Segment,
-  TypePicker,
   WORK_TAG_COLORS,
   currentSprint,
   liveSprints,
@@ -1464,7 +1463,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       <div style={{ height: 11 }} />
       <div className="wk-ctl">
         <Field label="Project">
-          <ProjectPicker value={projectId} onChange={setProjectId} />
+          <ProjectCombo className="wk-in" value={projectId} onChange={setProjectId} />
         </Field>
         <Field label="Assignee">
           <select className="wk-in" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
@@ -1476,7 +1475,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           </select>
         </Field>
         <Field label="Type">
-          <TypePicker value={type} onChange={setType} />
+          <TypeCombo className="wk-in" value={type} onChange={setType} />
         </Field>
         <Field label="Priority">
           <Segment value={priority} onChange={setPriority} options={PRIORITIES} label="Priority" />

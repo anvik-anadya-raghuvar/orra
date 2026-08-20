@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import type { Decision } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Avatar, Modal, SideSheet, useToast } from '../../ui/bits';
+import { ProjectCombo } from '../../ui/pickers';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysSinceTs, fmtDateTime } from '../../lib/dates';
 import { BarRows, VIZ } from '../../ui/viz';
@@ -215,6 +216,11 @@ function NewDecisionModal({ open, onClose }: { open: boolean; onClose: () => voi
 
   const submit = () => {
     const q = question.trim() || 'Untitled decision';
+    /* decisions.project_id is NOT NULL — see the same guard in board.tsx. */
+    if (!projectId) {
+      toast('Choose or type a project for this decision');
+      return;
+    }
     const id = newId('dec');
     store.insert(
       'decisions',
@@ -277,13 +283,7 @@ function NewDecisionModal({ open, onClose }: { open: boolean; onClose: () => voi
       <div style={{ height: 11 }} />
       <div className="wk-ctl">
         <Field label="Project">
-          <select className="wk-in" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-            {ds.projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <ProjectCombo className="wk-in" value={projectId} onChange={setProjectId} />
         </Field>
         <Field label="Owner">
           <select className="wk-in" value={owner} onChange={(e) => setOwner(e.target.value)}>

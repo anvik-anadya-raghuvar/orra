@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId } from '../../data/store';
 import { ProgressBar, SideSheet, useToast } from '../../ui/bits';
+import { ProjectCombo } from '../../ui/pickers';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil } from '../../lib/dates';
 import { BarRows } from '../../ui/viz';
@@ -183,6 +184,11 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
   const create = () => {
     const t = title.trim();
     if (!t) return;
+    /* documents.project_id is NOT NULL. */
+    if (!projectId) {
+      toast('Choose or type a project for this document');
+      return;
+    }
     store.insert(
       'documents',
       {
@@ -228,13 +234,7 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
         }}
       />
       <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" style={inputStyle} />
-      <select aria-label="Project" value={projectId} onChange={(e) => setProjectId(e.target.value)} style={inputStyle}>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+      <ProjectCombo value={projectId} onChange={setProjectId} inputStyle={inputStyle} />
       <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>
         Expiry date (optional)
       </label>
@@ -409,6 +409,10 @@ function EditDocumentModal({ doc, onClose }: { doc: DocumentRef; onClose: () => 
       toast('A document needs a title');
       return;
     }
+    if (!projectId) {
+      toast('Choose or type a project for this document');
+      return;
+    }
     store.update(
       'documents',
       doc.id,
@@ -447,13 +451,7 @@ function EditDocumentModal({ doc, onClose }: { doc: DocumentRef; onClose: () => 
       </label>
       <label className="kn-fld">
         <span className="kn-lbl">Project</span>
-        <select className="kn-in" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-          {ds.projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <ProjectCombo className="kn-in" value={projectId} onChange={setProjectId} />
       </label>
       <label className="kn-fld">
         <span className="kn-lbl">Expiry date</span>

@@ -1196,23 +1196,3 @@ tr.wk-driftrow td {
 .wk-task-open:focus-visible b {
   color: var(--indigo);
 }
-
-/* ── inline create: ProjectPicker / TypePicker (common.tsx) ────────────── */
-.wk-inline-create {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.wk-inline-create input {
-  flex: 1;
-  min-width: 140px;
-}
-.wk-inline-create .btn {
-  min-height: 44px;
-}
-@media (min-width: 1025px) {
-  .wk-inline-create .btn {
-    min-height: 30px;
-  }
-}

@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { SideSheet, TagChip, useToast } from '../../ui/bits';
+import { ProjectCombo } from '../../ui/pickers';
 import {
   ImageDrop,
   processImages,
@@ -441,6 +442,12 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
 
   const save = () => {
     const t = title.trim() || 'Untitled';
+    /* notes.project_id is NOT NULL — with no projects yet, the field starts
+       empty rather than defaulting to one that does not exist. */
+    if (!projectId) {
+      toast('Choose or type a project for this scribble');
+      return;
+    }
     if (existing) {
       store.update(
         'notes',
@@ -590,13 +597,12 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
             </option>
           ))}
         </select>
-        <select aria-label="Project" value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 130 }}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <ProjectCombo
+          value={projectId}
+          onChange={setProjectId}
+          style={{ flex: 1, minWidth: 130 }}
+          inputStyle={{ ...inputStyle, marginBottom: 0 }}
+        />
       </div>
 
       <div className="eyebrow" style={{ marginBottom: 6 }}>

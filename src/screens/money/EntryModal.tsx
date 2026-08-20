@@ -5,6 +5,7 @@ import { InfoTip, SideSheet, useToast } from '../../ui/bits';
 import { inr } from '../../lib/dates';
 import { myTasks } from '../../lib/workspace';
 import { DictateField } from '../../ui/dictation';
+import { ProjectCombo } from '../../ui/pickers';
 
 const toCents = (value: number) => Math.round(value * 100);
 
@@ -114,6 +115,13 @@ export default function EntryModal({
     }
     if (!n || Number.isNaN(n)) {
       toast('Enter an amount greater than zero');
+      return;
+    }
+    /* A ledger row must belong to a project. Before the project field could
+       create one, this was guaranteed by there always being a seeded project
+       to default to; now a fresh workspace can genuinely have none. */
+    if (!projectId) {
+      toast('Choose or type a project for this entry');
       return;
     }
 
@@ -297,13 +305,12 @@ export default function EntryModal({
         </label>
         <label className="mn-fld">
           <FieldLabel tip="The business project this money movement belongs to.">Project</FieldLabel>
-          <select className="mn-in" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-            {businessProjects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+          <ProjectCombo
+            className="mn-in"
+            businessOnly
+            value={projectId}
+            onChange={setProjectId}
+          />
         </label>
         <label className="mn-fld">
           <FieldLabel tip="The full amount. Split payer amounts must add up to this exactly.">Amount (₹)</FieldLabel>

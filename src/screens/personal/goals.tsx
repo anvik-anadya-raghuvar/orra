@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Plus } from 'lucide-react';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
+import { ProjectCombo } from '../../ui/pickers';
 import { rise, staggerItem, staggerParent } from '../../ui/motion';
 import { Ring, VIZ } from '../../ui/viz';
 import { daysUntil, fmtDay, todayIso } from '../../lib/dates';
@@ -461,14 +462,14 @@ function GoalRow({ goal, canPromote }: { goal: PersonalGoal; canPromote: boolean
               <div className="goal-field-row">
                 <label>
                   <span>Project</span>
-                  <select
+                  {/* Linking a project clears any course link — a goal
+                      measures progress against one or the other, never both. */}
+                  <ProjectCombo
                     className="pin sm"
+                    allowNone="No project"
                     value={goal.linked_project_id ?? ''}
-                    onChange={(e) => patch({ linked_project_id: e.target.value || null, linked_course_id: null }, `Goal project link updated — ${goal.title}`)}
-                  >
-                    <option value="">No project</option>
-                    {ds.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                  </select>
+                    onChange={(id) => patch({ linked_project_id: id || null, linked_course_id: null }, `Goal project link updated — ${goal.title}`)}
+                  />
                 </label>
                 <label>
                   <span>Course</span>

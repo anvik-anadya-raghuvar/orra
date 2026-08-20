@@ -1,0 +1,100 @@
+/* Type-to-create combobox — see pickers.tsx.
+   Mobile-first: every row is a 44px touch target below the desktop
+   breakpoint, and nothing here is reachable by hover alone (the highlight
+   follows the keyboard as well as the pointer). */
+
+.pk-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+/* Default field look, used when a caller passes no className of its own.
+   Callers that live inside a themed form (`wk-in`, `mn-in`, `kn-in`,
+   `statuslike`, `pin sm`) pass theirs instead and this never applies. */
+.pk-in {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surf);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.pk-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: min(44vh, 320px);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  /* Opaque on purpose: this floats over form fields, and the translucent
+     surface tokens would let the text underneath show through it. */
+  background: var(--surf-solid);
+  box-shadow: var(--sh2);
+}
+
+.pk-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pk-row.on {
+  background: var(--indigo-s);
+  color: var(--indigo);
+}
+.pk-row.off {
+  color: var(--mute);
+  cursor: default;
+}
+.pk-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The create row reads as an action, not another thing to pick. */
+.pk-row.make .pk-row-label {
+  font-weight: 500;
+}
+.pk-row-hint {
+  flex: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.pk-row.on .pk-row-hint {
+  color: var(--indigo);
+}
+
+.pk-empty {
+  padding: 10px;
+  color: var(--mute);
+  font-size: 12.5px;
+}
+
+@media (min-width: 1025px) {
+  .pk-in {
+    min-height: 38px;
+  }
+  .pk-row {
+    min-height: 32px;
+  }
+}
