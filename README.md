@@ -18,7 +18,20 @@ With no `.env`, the app runs on the **local mock adapter** (localStorage-persist
 ## Connect the real backend
 
 1. Create a Supabase project (free tier).
-2. In the SQL editor, run every file in `supabase/migrations/` in numeric order, currently `0001_init.sql` through `0026_multi_google_personal_orders.sql`.
+2. Apply the schema with the Supabase CLI, which tracks what a database has already had and
+   applies only what is new:
+
+   ```bash
+   npx supabase link --project-ref <your-project-ref>   # once
+   npx supabase migration list                          # local vs remote, before touching anything
+   npx supabase db push
+   ```
+
+   Do **not** paste the files into the SQL editor. `db push` records each file in the remote
+   migration history and the SQL editor does not, so a hand-run file is invisible to every later
+   push — and this repo's own history is now the source of truth for what has been applied.
+   (`db push`, `migration list` and `inspect db` talk straight to the remote and need no Docker;
+   `db dump` and `db diff` do need it.)
 3. Auth is **email + password** (no Google OAuth). In Authentication → Users, create the two
    member accounts `anvik.anadya@gmail.com` and `raghuvar.anvik@gmail.com` with temp passwords,
    and disable public signups. Each member changes their password from the in-app account menu.
