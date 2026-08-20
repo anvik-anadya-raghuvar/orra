@@ -1,30 +1,21 @@
 /**
- * App-wide presence for the companion — a generalisation of
- * screens/knowledge/wikiPresence.ts from one page to the whole portal, kept
- * deliberately close to that file so the two stay reviewable side by side.
+ * App-wide presence for the companion — who is online, where, and whether they
+ * are in a block.
  *
- * The tracked payload carries the route and the sender's running block: that
- * is how "Raghuvar just went deep on T-123" becomes a live signal without an
- * `active_blocks` realtime publication — presence and `messages` are the only
- * verified live paths, and this rides the first. One channel, two clients,
- * nothing added to the Supabase free-tier bill.
+ * The tracked payload carries the route and the sender's running block: that is
+ * how "Raghuvar just went deep on T-123" becomes a live signal without an
+ * `active_blocks` realtime publication, since presence and `messages` are the
+ * only verified live paths.
+ *
+ * The transport moved into companionChannel.ts so the same connection can also
+ * carry broadcast events. This hook is now just the throttle: re-announcing on
+ * every route hop would be chatty for no gain.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RealtimeChannel } from '@supabase/supabase-js';
-import { getSupabase } from '../../lib/supabaseClient';
 import { useData, useStore } from '../../data/store';
+import { companionChannel, type PresencePayload } from './companionChannel';
 
-export interface PresenceBlock {
-  task_ref: string | null;
-  scope: string;
-}
-
-export interface PresencePayload {
-  user_id: string;
-  at: string;
-  route?: string;
-  block?: PresenceBlock | null;
-}
+export type { PresenceBlock, PresencePayload } from './companionChannel';
 
 export interface PresenceInfo {
   /** Is the other person's portal open anywhere right now? */
@@ -35,8 +26,6 @@ export interface PresenceInfo {
 
 /** Don't re-announce every route hop — a track at most this often. */
 const TRACK_THROTTLE_MS = 10_000;
-const HEARTBEAT_MS = 15_000;
-const CUTOFF_MS = 45_000;
 
 export function useAppPresence(route: string): PresenceInfo {
   const store = useStore();
@@ -56,112 +45,33 @@ export function useAppPresence(route: string): PresenceInfo {
     block: myBlock,
   };
 
-  /** Set by whichever branch owns the transport; re-announces the payload. */
-  const announceRef = useRef<(() => void) | null>(null);
   const lastTrackAtRef = useRef(0);
-  const pendingTrackRef = useRef<number | null>(null);
+  const pendingRef = useRef<number | null>(null);
 
-  // Re-announce (throttled) when the interesting parts of my payload change.
-  const payloadKey = `${route}|${myBlock ? `${myBlock.scope}:${myBlock.task_ref ?? ''}` : ''}`;
+  // Subscribe only. The announce below fires on its first run anyway, and
+  // doing it here as well put two identical pings on the wire per change.
   useEffect(() => {
-    if (!announceRef.current) return;
-    const since = Date.now() - lastTrackAtRef.current;
-    if (pendingTrackRef.current) clearTimeout(pendingTrackRef.current);
-    if (since >= TRACK_THROTTLE_MS) {
-      lastTrackAtRef.current = Date.now();
-      announceRef.current();
-    } else {
-      pendingTrackRef.current = window.setTimeout(() => {
-        lastTrackAtRef.current = Date.now();
-        announceRef.current?.();
-      }, TRACK_THROTTLE_MS - since);
-    }
-    return () => {
-      if (pendingTrackRef.current) clearTimeout(pendingTrackRef.current);
-    };
-  }, [payloadKey]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    if (store.adapter.kind === 'supabase') {
-      let channel: RealtimeChannel | null = null;
-      void getSupabase().then((supabase) => {
-        if (disposed) return;
-        channel = supabase.channel('anvik-presence', {
-          config: { presence: { key: store.meId } },
-        });
-        channel
-          .on('presence', { event: 'sync' }, () => {
-            const state = channel?.presenceState() ?? {};
-            const entry = Object.entries(state)
-              .filter(([key]) => key !== store.meId)
-              .flatMap(([, rows]) => rows as unknown as PresencePayload[])
-              .find((row) => row.user_id && row.user_id !== store.meId);
-            if (!disposed) setOther(entry ?? null);
-          })
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              announceRef.current = () => void channel?.track({ ...payloadRef.current });
-              lastTrackAtRef.current = Date.now();
-              announceRef.current();
-            }
-          });
-      });
-      return () => {
-        disposed = true;
-        announceRef.current = null;
-        if (channel) {
-          void channel.untrack();
-          void channel.unsubscribe();
-        }
-      };
-    }
-
-    if (typeof BroadcastChannel === 'undefined') return;
-    const room = new BroadcastChannel('anvik:presence');
-    const seen = new Map<string, { at: number; payload: PresencePayload }>();
-    const publish = (type: 'join' | 'ping' | 'leave') =>
-      room.postMessage({ type, userId: store.meId, at: Date.now(), payload: payloadRef.current });
-    const sync = () => {
-      const cutoff = Date.now() - CUTOFF_MS;
-      for (const [id, row] of seen) if (row.at < cutoff) seen.delete(id);
-      const first = [...seen.values()][0];
-      setOther(first?.payload ?? null);
-    };
-    const onMessage = (
-      event: MessageEvent<{ type: string; userId: string; at: number; payload?: PresencePayload }>,
-    ) => {
-      const message = event.data;
-      if (!message?.userId || message.userId === store.meId) return;
-      if (message.type === 'leave') seen.delete(message.userId);
-      else if (message.payload)
-        seen.set(message.userId, { at: message.at || Date.now(), payload: message.payload });
-      else seen.delete(message.userId);
-      sync();
-      // A newcomer announces itself; answer so it learns about us too.
-      if (message.type === 'join') publish('ping');
-    };
-    room.addEventListener('message', onMessage);
-    announceRef.current = () => publish('ping');
-    publish('join');
-    const heartbeat = window.setInterval(() => {
-      publish('ping');
-      sync();
-    }, HEARTBEAT_MS);
-    return () => {
-      disposed = true;
-      announceRef.current = null;
-      publish('leave');
-      window.clearInterval(heartbeat);
-      room.removeEventListener('message', onMessage);
-      room.close();
-    };
+    return companionChannel(store.adapter.kind, store.meId).onPresence(setOther);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
 
-  return useMemo(
-    () => ({ otherOnline: other != null, otherPayload: other }),
-    [other],
-  );
+  // Announce (throttled) on mount and whenever my payload meaningfully changes.
+  const payloadKey = `${route}|${myBlock ? `${myBlock.scope}:${myBlock.task_ref ?? ''}` : ''}`;
+  useEffect(() => {
+    const channel = companionChannel(store.adapter.kind, store.meId);
+    const announce = () => {
+      lastTrackAtRef.current = Date.now();
+      channel.track({ ...payloadRef.current });
+    };
+    const since = Date.now() - lastTrackAtRef.current;
+    if (pendingRef.current) clearTimeout(pendingRef.current);
+    if (since >= TRACK_THROTTLE_MS) announce();
+    else pendingRef.current = window.setTimeout(announce, TRACK_THROTTLE_MS - since);
+    return () => {
+      if (pendingRef.current) clearTimeout(pendingRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payloadKey]);
+
+  return useMemo(() => ({ otherOnline: other != null, otherPayload: other }), [other]);
 }

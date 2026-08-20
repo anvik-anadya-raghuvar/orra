@@ -156,7 +156,8 @@
    half. The companion layer is fixed and the cards are in flow, so he cannot
    actually go behind one — clipping looks identical and stays correct on the
    translucent surfaces a mask would break on. */
-.vik-wrap.peeking {
+.vik-wrap.peeking,
+.vik-wrap.landed {
   right: auto;
   bottom: auto;
   transition: none;

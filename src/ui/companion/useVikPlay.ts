@@ -20,6 +20,7 @@ import {
 } from '../../lib/companionPlay';
 import type { Gesture } from '../../lib/companionPose';
 import type { MoodAction } from '../../lib/companionMood';
+import type { Release, Viewport } from '../../lib/companionLink';
 
 const POS_KEY = 'anvik:companion:pos';
 /** The tap cycle resets to "status" after this much quiet. */
@@ -59,6 +60,14 @@ interface Options {
   say: (text: string) => void;
   /** Tell the friendliness meter what just happened to him. */
   feel: (action: MoodAction) => void;
+  /** A poke landed — the other screen's robot giggles along. */
+  onPoke?: () => void;
+  /**
+   * A release that might be a throw abroad rather than a fling across the
+   * desk. Returns true if it was taken, in which case he is gone and the
+   * local dizziness is skipped.
+   */
+  onThrow?: (release: Release, view: Viewport) => boolean;
 }
 
 export function useVikPlay({
@@ -71,6 +80,8 @@ export function useVikPlay({
   doGesture,
   say,
   feel,
+  onPoke,
+  onThrow,
 }: Options) {
   const [playMood, setPlayMood] = useState<RobotMood | null>(null);
   const [petting, setPetting] = useState(false);
@@ -114,6 +125,7 @@ export function useVikPlay({
 
     const streak = nextStreak(streakRef.current.count, streakRef.current.at, now);
     streakRef.current = { count: streak, at: now };
+    onPoke?.();
 
     // The secret: he stops sulking and breakdances. Counted before the grump
     // gate, or the sulk would make it unreachable.
@@ -193,6 +205,18 @@ export function useVikPlay({
     try {
       sessionStorage.setItem(POS_KEY, JSON.stringify({ x: x.get(), y: y.get() }));
     } catch {}
+    // Hard, and near the edge he is heading for: that is a throw, not a fling.
+    const thrown = onThrow?.(
+      {
+        x: info.point.x,
+        y: info.point.y,
+        vx: info.velocity.x,
+        vy: info.velocity.y,
+      },
+      { width: window.innerWidth, height: window.innerHeight },
+    );
+    if (thrown) return;
+
     const speed = Math.hypot(info.velocity.x, info.velocity.y);
     if (speed > FLING_SPEED) {
       setReaction('dizzy', 1_600);

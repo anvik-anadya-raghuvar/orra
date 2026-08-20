@@ -18,6 +18,13 @@ import { quietHoursFor } from '../../lib/companion';
 import type { GameId } from '../../lib/companionGames';
 import * as hideSeek from '../../lib/companionGames/hideSeek';
 import { houseFor, PLACEMENT } from '../../lib/companionHouse';
+import {
+  arrivalEdge,
+  landingPoint,
+  RETURN_MS,
+  TRANSIT_MS,
+  throwVector,
+} from '../../lib/companionLink';
 import { bandOf, glowFor } from '../../lib/companionMood';
 import { GESTURE_ANIM, GESTURE_REST } from '../../lib/companionPose';
 import { isBusy, isSleeping, poseFor, type VikInputs } from '../../lib/companionState';
@@ -39,6 +46,7 @@ import { useCompanionMoments } from './useCompanionMoments';
 import { useCursorFollow } from './useCursorFollow';
 import { useIdleAntics } from './useIdleAntics';
 import { useVikBond } from './useVikBond';
+import { useVikLink, type Arrival } from './useVikLink';
 import { useVikGesture } from './useVikGesture';
 import { useVikMood } from './useVikMood';
 import { useVikPlay } from './useVikPlay';
@@ -123,6 +131,43 @@ export default function Companion() {
   const spriteW = dense ? SIZE.dense : SIZE.normal;
   const hideTarget = useHideTarget(bounds, spriteW, (spriteW * 74) / 64);
   const [hideState, setHideState] = useState<hideSeek.HideState | null>(null);
+  /* ── The two of you ─────────────────────────────────────────────────── */
+
+  // He is in the air: hidden here, on his way there.
+  const [inFlight, setInFlight] = useState(false);
+  const [arrival, setArrival] = useState<Arrival | null>(null);
+  const [mail, setMail] = useState<Arrival | null>(null);
+  const otherName = store.other.name;
+
+  const link = useVikLink({
+    // Asleep or heads-down: he waits in the mailbox rather than tumbling in
+    // at three in the morning.
+    reachable: () => !quiet && !myBlockUp && document.visibilityState === 'visible',
+    onArrive: (a) => {
+      setArrival(a);
+      dismiss();
+      say(a.note ? `${otherName}: “${a.note}”` : `${otherName} threw me at you.`);
+      feel('caught');
+    },
+    onMail: (a) => setMail(a),
+    onHighFive: () => {
+      doGesture('spin');
+      say('✋ Snap.');
+      feel('secret');
+    },
+    onTickle: (speak) => {
+      doGesture('tilt');
+      if (speak) say(`${otherName} says hi 👋`);
+    },
+  });
+
+  // Landing puts him where he came in, then he walks back to his dock.
+  useEffect(() => {
+    if (!arrival) return;
+    const t = window.setTimeout(() => setArrival(null), 2_600);
+    return () => clearTimeout(t);
+  }, [arrival]);
+
   const play = useVikPlay({
     quiet,
     animate,
@@ -133,6 +178,21 @@ export default function Companion() {
     doGesture,
     say,
     feel,
+    onPoke: () => link.pokedMine(),
+    onThrow: (release, view) => {
+      const vector = throwVector(release, view);
+      if (!vector) return false;
+      link.throwHim(vector.edge, vector.frac, vector.speed);
+      setInFlight(true);
+      // Fire and forget: he always comes back, whether or not anyone caught
+      // him. A robot permanently lost to a dropped packet is the one failure
+      // that would make this feel broken rather than whimsical.
+      window.setTimeout(() => {
+        setInFlight(false);
+        say(`…nobody was home.`);
+      }, RETURN_MS);
+      return true;
+    },
   });
   const celebration = useCelebrations(store, say);
 
@@ -243,11 +303,22 @@ export default function Companion() {
   if (!enabled || myBlockUp) return null;
 
   // Dense rooms keep the old bare corner: no house, so no placement either.
-  const house = houseFor({ band, quiet, mailWaiting: false, animate });
+  const house = houseFor({ band, quiet, mailWaiting: mail != null, animate });
   // Dense rooms keep the bare corner: no house to stand beside, so no offset.
   const spot = dense ? { left: 0, lift: 0 } : PLACEMENT[house.place];
   // Hiding puts him against a card instead of the dock, clipped to his top half.
   const peek = hideState?.phase === 'seeking' ? hideTarget.spot : null;
+  // An arrival puts him wherever he came in, clamped inside the safe rect.
+  const landed = arrival
+    ? landingPoint(
+        arrivalEdge(arrival.edge),
+        arrival.frac,
+        { width: bounds.width, height: bounds.height },
+        { top: bounds.topInset, bottom: bounds.bottomInset },
+        { w: spriteW, h: (spriteW * 74) / 64 },
+      )
+    : null;
+  const placed = peek ?? landed;
 
   const sleeping = isSleeping(inputs);
   // GESTURE_ANIM is a framer-free structural type by design (lib stays testable
@@ -269,13 +340,22 @@ export default function Companion() {
           glow={glowFor(mood.value)}
           robotName={robotName}
           animate={animate}
-          onOpen={() => setStatusOpen(true)}
+          onOpen={() => {
+            if (mail) {
+              // Whatever arrived while you were unreachable, delivered now.
+              say(mail.note ? `${otherName}: “${mail.note}”` : `${otherName} threw me at you.`);
+              feel('caught');
+              setMail(null);
+              return;
+            }
+            setStatusOpen(true);
+          }}
         />
       )}
 
       <motion.div
-        className={`vik-wrap${peek ? ' peeking' : ''}`}
-        drag={!peek}
+        className={`vik-wrap${peek ? ' peeking' : ''}${landed ? ' landed' : ''}`}
+        drag={!placed}
         dragMomentum={false}
         dragElastic={0.12}
         dragConstraints={boundsRef}
@@ -283,8 +363,8 @@ export default function Companion() {
         // The cast is only to admit the two custom properties alongside the
         // motion values, which framer's style type does not model.
         style={
-          (peek
-            ? { x: 0, y: 0, left: peek.left, top: peek.top }
+          (placed
+            ? { x: 0, y: 0, left: placed.left, top: placed.top }
             : {
                 x: play.x,
                 y: play.y,
@@ -292,6 +372,8 @@ export default function Companion() {
                 '--vik-place-lift': `${spot.lift}px`,
               }) as unknown as React.ComponentProps<typeof motion.div>['style']
         }
+        animate={{ opacity: inFlight ? 0 : 1, scale: inFlight ? 0.4 : 1 }}
+        transition={animate ? { duration: 0.22 } : { duration: 0 }}
         onDragStart={play.onDragStart}
         onDragEnd={play.onDragEnd}
       >
