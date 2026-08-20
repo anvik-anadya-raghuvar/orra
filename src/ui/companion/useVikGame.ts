@@ -34,7 +34,7 @@ export interface VikGame {
   setBlink: (b: boolean) => void;
 }
 
-export function useVikGame(feel: (a: MoodAction) => void): VikGame {
+export function useVikGame(feel: (a: MoodAction) => void, onRecord: () => void): VikGame {
   const store = useStore();
   const scores = useData((_, s) => s.me.personalization.companion?.scores ?? {});
   const [active, setActive] = useState<GameId | null>(null);
@@ -61,6 +61,8 @@ export function useVikGame(feel: (a: MoodAction) => void): VikGame {
 
       const best = store.me.personalization.companion?.scores?.[id];
       if (!isBetter(id, score, best)) return;
+      // Beating yourself is worth more to him than merely finishing.
+      onRecord();
       store.patchPersonalization(
         {
           companion: {
@@ -73,7 +75,7 @@ export function useVikGame(feel: (a: MoodAction) => void): VikGame {
         store.asMe({ silent: true }),
       );
     },
-    [feel, reset, store],
+    [feel, onRecord, reset, store],
   );
 
   const abandon = useCallback(() => {

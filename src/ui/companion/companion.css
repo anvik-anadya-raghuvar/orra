@@ -185,6 +185,36 @@
   fill: none;
   stroke-linecap: round;
 }
+/* Vanity, earned through the bond. Never carries information — which is why
+   none of it is allowed to win a slot from something that does. */
+.vik-bowtie path {
+  fill: var(--rose);
+}
+.vik-bowtie circle {
+  fill: var(--stamp);
+}
+.vik-monocle circle {
+  fill: none;
+  stroke: var(--stamp);
+  stroke-width: 1.6;
+}
+.vik-monocle path {
+  stroke: var(--stamp);
+  stroke-width: 1.2;
+  fill: none;
+  stroke-linecap: round;
+}
+.vik-cape path {
+  fill: var(--rose);
+  opacity: 0.85;
+}
+.vik-tophat rect {
+  fill: var(--ink);
+}
+.vik-tophat .vik-tophat-band {
+  fill: var(--rose);
+}
+
 /* A hot drink, by the hour rather than by the country. */
 .vik-cup path {
   fill: var(--surf-dense, var(--surf2));

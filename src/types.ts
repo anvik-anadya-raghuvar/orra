@@ -122,6 +122,19 @@ export interface Personalization {
     };
     /** Best result per game. Which way "best" runs is in companionGames. */
     scores?: Record<string, number>;
+    /**
+     * How well he knows you. Only ever climbs, and its only mechanical effect
+     * is the floor his mood settles back to. Shape mirrors BondState in
+     * lib/companionBond.ts.
+     */
+    bond?: {
+      v: 1;
+      xp: number;
+      seenDays: string[];
+      counts: { pokes: number; pets: number; games: number; finds: number };
+      today: { date: string; pokeXp: number; petXp: number };
+      unlocked: string[];
+    };
     /** Games switched off individually, for anything that stops being fun. */
     games?: Record<string, boolean>;
   };

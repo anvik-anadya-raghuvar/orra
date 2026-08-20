@@ -36,7 +36,13 @@ export type AccessoryId =
   | 'headphones'
   | 'umbrella'
   | 'chai'
-  | 'espresso';
+  | 'espresso'
+  // Vanity, earned through the bond. Never carries information, and never
+  // outranks something that does.
+  | 'bowtie'
+  | 'monocle'
+  | 'cape'
+  | 'tophat';
 
 /** Which slot each item occupies. One place, so nothing can disagree. */
 export const ACCESSORY_SLOT: Record<AccessoryId, Slot> = {
@@ -50,6 +56,10 @@ export const ACCESSORY_SLOT: Record<AccessoryId, Slot> = {
   umbrella: 'hand',
   chai: 'hand',
   espresso: 'hand',
+  bowtie: 'neck',
+  monocle: 'face',
+  cape: 'behind',
+  tophat: 'head',
 };
 
 /**
@@ -67,6 +77,12 @@ export const ACCESSORY_PRIORITY: Record<AccessoryId, number> = {
   espresso: 20,
   scarf: 10,
   sunglasses: 10,
+  // Below every reactive item that shares its slot: a scarf beats a bowtie
+  // when it is actually cold, because one of them is telling you something.
+  tophat: 40,
+  bowtie: 5,
+  monocle: 5,
+  cape: 5,
 };
 
 export type Outfit = Partial<Record<Slot, AccessoryId>>;
@@ -86,8 +102,12 @@ function drinkFor(hour: number): AccessoryId | null {
 /**
  * The outfit, resolved. Pure and deterministic: the same world always dresses
  * him the same way, and never puts two things in one slot.
+ *
+ * `unlocked` is whatever the bond has earned. Those are added last and always
+ * lose a contested slot, so nothing you have earned can ever hide something
+ * the weather or the board is trying to tell you.
  */
-export function resolveOutfit(world: WorldSignals): Outfit {
+export function resolveOutfit(world: WorldSignals, unlocked: AccessoryId[] = []): Outfit {
   const wanted: AccessoryId[] = [];
 
   if (world.dayCleared) wanted.push('crown');
@@ -104,6 +124,8 @@ export function resolveOutfit(world: WorldSignals): Outfit {
 
   if (world.cold) wanted.push('scarf');
   if (world.hot) wanted.push('sunglasses');
+
+  wanted.push(...unlocked);
 
   // Highest priority wins its slot; everything else is simply not worn.
   const outfit: Outfit = {};

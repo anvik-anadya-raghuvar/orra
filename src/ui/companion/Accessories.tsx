@@ -106,6 +106,48 @@ function Cup({ className }: { className: string }) {
   );
 }
 
+/* ── Vanity, earned through the bond ──────────────────────────────────── */
+
+/** Neck, under the head. Loses the slot to a scarf whenever it is cold. */
+function Bowtie() {
+  return (
+    <g className="vik-bowtie">
+      <path d="M32,36.5 L25,33 L25,40 Z" />
+      <path d="M32,36.5 L39,33 L39,40 Z" />
+      <circle cx="32" cy="36.5" r="1.8" />
+    </g>
+  );
+}
+
+/** Face, over the right eye. Loses the slot to sunglasses when it is hot. */
+function Monocle() {
+  return (
+    <g className="vik-monocle">
+      <circle cx="38" cy="20" r="5.4" />
+      <path d="M42.6,22.6 L45,28" />
+    </g>
+  );
+}
+
+/** Behind everything, so it reads as hanging off his shoulders. */
+function Cape() {
+  return (
+    <g className="vik-cape">
+      <path d="M20,37 q12,26 24,0 q-2,16 -12,17 q-10,-1 -12,-17 Z" />
+    </g>
+  );
+}
+
+function TopHat() {
+  return (
+    <g className="vik-tophat">
+      <rect x="15" y="8" width="34" height="3" rx="1.5" />
+      <rect x="23" y="-4" width="18" height="12" rx="1.5" />
+      <rect x="23" y="4" width="18" height="3" className="vik-tophat-band" />
+    </g>
+  );
+}
+
 const ART: Record<AccessoryId, () => JSX.Element> = {
   party: Party,
   graduation: Graduation,
@@ -117,6 +159,10 @@ const ART: Record<AccessoryId, () => JSX.Element> = {
   umbrella: Umbrella,
   chai: () => <Cup className="chai" />,
   espresso: () => <Cup className="espresso" />,
+  bowtie: Bowtie,
+  monocle: Monocle,
+  cape: Cape,
+  tophat: TopHat,
 };
 
 export default function Accessory({ id }: { id: AccessoryId }) {

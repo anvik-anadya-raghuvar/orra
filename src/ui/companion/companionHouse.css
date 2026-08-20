@@ -189,6 +189,39 @@
   color: var(--slate);
 }
 
+/* ── The shelf ────────────────────────────────────────────────────────── */
+.vik-shelf {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.vik-shelf h4,
+.vik-status-games h4 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--slate);
+}
+.vik-bond-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surf-dense, var(--surf2));
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.vik-bond-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--indigo);
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vik-band-pip em {
+  font-style: normal;
+  opacity: 0.7;
+}
+
 .vik-status-games {
   display: grid;
   gap: 6px;
@@ -273,6 +306,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .vik-meter-fill,
+  .vik-bond-fill,
   .vik-house-glow {
     transition: none;
   }

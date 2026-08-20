@@ -38,6 +38,7 @@ import { useCelebrations } from './useCelebrations';
 import { useCompanionMoments } from './useCompanionMoments';
 import { useCursorFollow } from './useCursorFollow';
 import { useIdleAntics } from './useIdleAntics';
+import { useVikBond } from './useVikBond';
 import { useVikGesture } from './useVikGesture';
 import { useVikMood } from './useVikMood';
 import { useVikPlay } from './useVikPlay';
@@ -84,21 +85,35 @@ export default function Companion() {
   const now = new Date();
   const quiet = quietHoursFor(store.me.time_zone, now);
 
-  // The bond arrives in its own phase; until then everyone settles at the floor.
-  const bondLevel = 0;
+  // The two clocks. The bond only ever climbs and does exactly one mechanical
+  // thing: it raises the floor his mood settles back to. Everything else it
+  // unlocks is a trinket.
+  const bond = useVikBond();
+  const bondLevel = bond.level;
   const mood = useVikMood(bondLevel);
   const band = bandOf(mood.value);
+
+  // One call site for "something happened to him" — both clocks hear it.
+  const moodFeel = mood.feel;
+  const bondEarn = bond.earn;
+  const feel = useCallback(
+    (action: Parameters<typeof moodFeel>[0]) => {
+      moodFeel(action);
+      bondEarn(action);
+    },
+    [moodFeel, bondEarn],
+  );
 
   // How the day is going: what he wears, and how he holds himself.
   const weather = useWeatherSignal();
   const world = useData((ds, s) =>
     readWorld({ ds, meId: s.meId, now, weather, otherTimeZone: s.other.time_zone ?? null }),
   );
-  const outfit = resolveOutfit(world);
+  const outfit = resolveOutfit(world, bond.unlocked);
 
   const { quip, say } = useVikVoice();
   const { gesture, doGesture } = useVikGesture();
-  const game = useVikGame(mood.feel);
+  const game = useVikGame(feel, bond.record);
   // Fixed when a round starts, not on every render — otherwise the machines
   // would be re-seeded underneath themselves and nothing could be replayed.
   const seedRef = useRef(1);
@@ -117,13 +132,12 @@ export default function Companion() {
     demand,
     doGesture,
     say,
-    feel: mood.feel,
+    feel,
   });
   const celebration = useCelebrations(store, say);
 
   // Clearing every intention of the day is worth something to him too.
   const clearedRef = useRef(world.dayCleared);
-  const feel = mood.feel;
   useEffect(() => {
     if (world.dayCleared && !clearedRef.current) feel('day-cleared');
     clearedRef.current = world.dayCleared;
@@ -364,6 +378,7 @@ export default function Companion() {
         robotName={robotName}
         value={mood.value}
         bondLevel={bondLevel}
+        bond={bond.state}
         playful={playful}
         animate={animate}
         scores={game.scores}

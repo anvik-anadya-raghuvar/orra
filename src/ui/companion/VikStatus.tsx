@@ -9,7 +9,8 @@
  * The trophy shelf lands here too once there is a bond to put on it.
  */
 import { Modal } from '../bits';
-import { playableGames, type GameId } from '../../lib/companionGames';
+import { levelProgress, UNLOCKS, xpToNext, type BondState } from '../../lib/companionBond';
+import { GAMES, playableGames, type GameId } from '../../lib/companionGames';
 import {
   BAND_BEHAVIOUR,
   BANDS,
@@ -39,6 +40,7 @@ interface Props {
   robotName: string;
   value: number;
   bondLevel: number;
+  bond: BondState;
   playful: boolean;
   onPlayful: (next: boolean) => void;
   /** Animation is allowed — games that need it are hidden when it is not. */
@@ -53,6 +55,7 @@ export default function VikStatus({
   robotName,
   value,
   bondLevel,
+  bond,
   playful,
   onPlayful,
   animate,
@@ -103,6 +106,74 @@ export default function VikStatus({
             <strong>{b.antics.length || 'Nothing'}</strong>
           </li>
         </ul>
+
+        <div className="vik-shelf">
+          <h4>How well he knows you</h4>
+          <div className="vik-bond">
+            <div className="vik-bond-track">
+              <div
+                className="vik-bond-fill"
+                style={{ width: `${Math.round(levelProgress(bond.xp) * 100)}%` }}
+              />
+            </div>
+            <div className="vik-meter-row">
+              <strong>Level {bondLevel}</strong>
+              <span className="vik-meter-num">
+                {xpToNext(bond.xp) == null
+                  ? 'as well as he can'
+                  : `${xpToNext(bond.xp)} to go`}
+              </span>
+            </div>
+          </div>
+
+          <ul className="vik-status-list">
+            <li>
+              <span>Days he has seen you</span>
+              <strong>{bond.seenDays.length}</strong>
+            </li>
+            <li>
+              <span>Games played</span>
+              <strong>{bond.counts.games}</strong>
+            </li>
+            <li>
+              <span>Times petted</span>
+              <strong>{bond.counts.pets}</strong>
+            </li>
+          </ul>
+
+          {Object.keys(scores).length > 0 && (
+            <ul className="vik-status-list">
+              {(Object.keys(scores) as GameId[])
+                .filter((id) => GAMES[id])
+                .map((id) => (
+                  <li key={id}>
+                    <span>{GAMES[id].label}</span>
+                    <strong>{SCORE_LABEL[id]?.(scores[id]) ?? scores[id]}</strong>
+                  </li>
+                ))}
+            </ul>
+          )}
+
+          <div className="vik-status-bands">
+            {UNLOCKS.map((u) => (
+              <span
+                key={u.id}
+                className="vik-band-pip"
+                data-on={bond.unlocked.includes(u.id) ? '1' : '0'}
+                title={
+                  bond.unlocked.includes(u.id) ? 'Earned' : `Unlocks at level ${u.level}`
+                }
+              >
+                {u.label}
+                {!bond.unlocked.includes(u.id) && <em> · lvl {u.level}</em>}
+              </span>
+            ))}
+          </div>
+          <p className="vik-status-note">
+            Trinkets only. Anything he wears to tell you something — an umbrella, a hard
+            hat — is never locked away.
+          </p>
+        </div>
 
         <div className="vik-status-games">
           <h4>Play</h4>
