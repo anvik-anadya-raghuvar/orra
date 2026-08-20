@@ -22,6 +22,9 @@ import {
   pokeLevel,
 } from '../../lib/companionPlay';
 import { entrance, micro, spring, useAnimateIn } from '../motion';
+import { isMyTask } from '../../lib/workspace';
+import { intentionsFor, itemDone } from '../../lib/dayPlan';
+import { todayIso } from '../../lib/dates';
 import RobotSprite from './RobotSprite';
 import { useAppPresence } from './useAppPresence';
 import { useCompanionMoments } from './useCompanionMoments';
@@ -31,6 +34,18 @@ const POS_KEY = 'anvik:companion:pos';
 const QUIP_MS = 2_600;
 /** The tap cycle resets to "status" after this much quiet. */
 const CYCLE_RESET_MS = 30_000;
+
+/** Confetti vectors, precomputed and deterministic — a burst, not a library.
+ *  Angles fan the full circle with an upward bias; distances vary by index. */
+const CONFETTI = Array.from({ length: 12 }, (_, i) => {
+  const a = (i / 12) * Math.PI * 2;
+  const d = 46 + (i % 4) * 9;
+  return {
+    x: Math.round(Math.cos(a) * d),
+    y: Math.round(Math.sin(a) * d - 34),
+    r: 140 + i * 22,
+  };
+});
 
 function savedPos(): { x: number; y: number } {
   try {
@@ -142,6 +157,47 @@ export default function Companion() {
     }
   };
 
+  /* ── Celebrations — a task crossing into done, watched with a prev-status
+     ledger so a reload replays nothing. Mine → jump and confetti (the day's
+     last intention closing earns the big one). The other person landing
+     something urgent gets applause — shared wins are the point of the Us
+     rooms, and a robot clapping costs nothing. ─────────────────────────── */
+  const [celebration, setCelebration] = useState<null | { key: number; big: boolean }>(null);
+  const celebTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    const prev = new Map(store.ds.tasks.map((t) => [t.id, t.status]));
+    const unsub = store.subscribe(() => {
+      for (const t of store.ds.tasks) {
+        const was = prev.get(t.id);
+        prev.set(t.id, t.status);
+        if (was === undefined || was === t.status || t.status !== 'done') continue;
+        const mine = isMyTask(t, store.meId);
+        if (!mine && t.priority !== 'urgent' && t.priority !== 'high') continue;
+        let big = false;
+        if (mine) {
+          const items = intentionsFor(store.ds, store.meId, todayIso());
+          big = items.length > 0 && items.every((i) => itemDone(i, store.ds.tasks));
+          if (big) say('Day: cleared. 🎉');
+        } else {
+          say(`${store.other.name} just landed ${t.id} 👏`);
+        }
+        setCelebration({ key: Date.now(), big });
+        if (celebTimerRef.current) clearTimeout(celebTimerRef.current);
+        celebTimerRef.current = window.setTimeout(() => setCelebration(null), 1_800);
+      }
+    });
+    return () => {
+      unsub();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store]);
+  useEffect(
+    () => () => {
+      if (celebTimerRef.current) clearTimeout(celebTimerRef.current);
+    },
+    [],
+  );
+
   /* Press-and-hold reads as a pet. Movement hands over to drag instead. */
   const petDown = () => {
     petHitRef.current = false;
@@ -181,7 +237,14 @@ export default function Companion() {
   if (!enabled || myBlockUp) return null;
 
   const mood: RobotMood =
-    playMood ?? (petting ? 'happy' : draggingRef.current ? 'excited' : (current?.mood ?? 'idle'));
+    playMood ??
+    (celebration
+      ? 'excited'
+      : petting
+        ? 'happy'
+        : draggingRef.current
+          ? 'excited'
+          : (current?.mood ?? 'idle'));
 
   const bubbleText = quip ?? current?.text ?? null;
   const showControls = !quip && current != null;
@@ -268,7 +331,15 @@ export default function Companion() {
           className="vik-btn"
           aria-label={`${robotName}, your companion — tap for what's happening`}
           initial={animate ? { scale: 0, y: 24 } : false}
-          animate={{ scale: 1, y: 0, transition: spring }}
+          animate={
+            celebration && animate
+              ? {
+                  scale: 1,
+                  y: [0, celebration.big ? -18 : -12, 0, -7, 0],
+                  transition: { duration: 0.55 },
+                }
+              : { scale: 1, y: 0, transition: spring }
+          }
           whileTap={animate ? { scale: 0.9 } : undefined}
           onClick={handleTap}
           onPointerDown={petDown}
@@ -277,6 +348,24 @@ export default function Companion() {
           onPointerLeave={petUp}
         >
           <RobotSprite mood={mood} animate={animate} size={dense ? 36 : 58} />
+          {celebration && animate && (
+            <span aria-hidden key={celebration.key}>
+              {CONFETTI.map((c, i) => (
+                <motion.span
+                  key={i}
+                  className={`vik-cf c${i % 5}`}
+                  initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
+                  animate={{
+                    x: c.x * (celebration.big ? 1.5 : 1),
+                    y: c.y * (celebration.big ? 1.5 : 1),
+                    opacity: 0,
+                    rotate: c.r,
+                  }}
+                  transition={{ duration: 0.9, ease: 'easeOut' }}
+                />
+              ))}
+            </span>
+          )}
           <AnimatePresence>
             {petting && animate && (
               <span aria-hidden>

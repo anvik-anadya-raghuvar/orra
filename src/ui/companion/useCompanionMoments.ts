@@ -146,6 +146,37 @@ export function useCompanionMoments(opts: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opts.otherBlock?.scope, opts.otherBlock?.task_ref, opts.otherBlock == null]);
 
+  /* Songs from the other person → events, on the notifications seen-baseline
+     pattern: everything present at subscribe time is history, not news. The
+     announcement waits 2s so the bell popup (which owns message notification)
+     lands first — Vik garnishes, he doesn't double-announce. */
+  useEffect(() => {
+    const seen = new Set(store.ds.messages.map((m) => m.id));
+    const unsub = store.subscribe(() => {
+      for (const m of store.ds.messages) {
+        if (seen.has(m.id)) continue;
+        seen.add(m.id);
+        if (m.kind === 'song' && m.sender_id !== store.meId && m.song_ref) {
+          pendingRef.current.push({
+            at: Date.now(),
+            event: {
+              type: 'song',
+              messageId: m.id,
+              title: m.song_ref.title,
+              artist: m.song_ref.artist || null,
+              url: m.song_ref.url || null,
+            },
+          });
+          scheduleSoon(2_000);
+        }
+      }
+    });
+    return () => {
+      unsub();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store]);
+
   useEffect(() => {
     if (!opts.active) return;
     const tick = () => {
