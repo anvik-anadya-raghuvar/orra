@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MotionConfig, motion } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { newId, nowIso, useData, useDataset, useStore } from '../../data/store';
 import { Avatar, TagChip, useToast } from '../../ui/bits';
-import { entrance } from '../../ui/motion';
+import { entrance, micro } from '../../ui/motion';
 import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
 import { fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment } from '../../lib/handoff';
@@ -21,6 +21,15 @@ import './task.css';
 /** Tags stay centrally managed — new tag names rotate through this palette
  *  rather than being hard-coded per task (principle 7). */
 const TAG_COLORS = ['indigo', 'teal', 'stamp', 'rose', 'sky', 'violet'];
+
+/** The task page's two views. Both are the same row (principle 10) — one shows
+ *  its current state, the other everything that ever happened to it. */
+type TaskTab = 'task' | 'workflow';
+
+const TABS: { key: TaskTab; label: string }[] = [
+  { key: 'task', label: 'Task' },
+  { key: 'workflow', label: 'Workflow' },
+];
 
 const byCreated = <T extends { created_at: string; id: string }>(a: T, b: T) =>
   a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
@@ -64,6 +73,10 @@ function TaskDetail({ task }: { task: Task }) {
   const [noteTitle, setNoteTitle] = useState('');
   const [commentBody, setCommentBody] = useState('');
   const [isDecision, setIsDecision] = useState(false);
+  /** Which half of the page is showing. The Workflow trail used to sit at the
+   *  bottom of the sidebar, below six other sections — findable only by
+   *  scrolling past everything. It is a view of the task, not an aside to it. */
+  const [tab, setTab] = useState<TaskTab>('task');
 
   const saveTitle = () => {
     const t = title.trim();
@@ -284,376 +297,422 @@ function TaskDetail({ task }: { task: Task }) {
     <div className="tpage">
       <MotionConfig reducedMotion="user">
         <motion.div
-          className="frame tw"
+          className="frame"
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={entrance}
         >
-          <div className="tl-main">
+          <div className="thead">
             <p className="crumb">
               <Link to="/work">Work</Link> / {task.id}
             </p>
-
-            <DictateField label="Dictate the task title" className="tin-wrap">
-              <input
-                className="tin"
-                value={title}
-                aria-label="Task title"
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={saveTitle}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                }}
-              />
-            </DictateField>
-
-            <Screenshots
-              task={task}
-              description={desc}
-              onDescriptionChange={setDesc}
-              onDescriptionCommit={saveDesc}
-            />
-
-            <div className="tagrow" style={{ marginTop: 12 }}>
-              {task.tags.map((name) => (
-                <TagChip key={name} name={name} onRemove={() => removeTag(name)} />
-              ))}
-              {addingTag ? (
-                <input
-                  autoFocus
-                  className="taginput"
-                  value={tagDraft}
-                  placeholder="tag name"
-                  aria-label="New tag name"
-                  onChange={(e) => setTagDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      commitTag();
-                    }
-                    if (e.key === 'Escape') {
-                      setTagDraft('');
-                      setAddingTag(false);
-                    }
-                  }}
-                  onBlur={commitTag}
-                />
-              ) : (
-                <button type="button" className="tagadd" onClick={() => setAddingTag(true)}>
-                  + tag
+            <div className="sub2" role="tablist" aria-label="Task views">
+              {TABS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  id={`tk-tab-${key}`}
+                  aria-controls={`tk-panel-${key}`}
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                >
+                  {label}
                 </button>
-              )}
+              ))}
             </div>
-
-            <div className="ctl">
-              <div>
-                <label htmlFor="tf-status">Status</label>
-                <select
-                  id="tf-status"
-                  value={task.status}
-                  onChange={(e) => setField('status', e.target.value as TaskStatus)}
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="tf-assignee">Assignee</label>
-                <select
-                  id="tf-assignee"
-                  value={task.assignee_id ?? ''}
-                  onChange={(e) => setField('assignee_id', e.target.value || null)}
-                >
-                  <option value="">Unassigned</option>
-                  {store.members.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="tf-project">Project</label>
-                <ProjectCombo
-                  id="tf-project"
-                  value={task.project_id}
-                  onChange={(id) => id && setField('project_id', id)}
-                />
-              </div>
-              <div>
-                <label htmlFor="tf-start">Start</label>
-                <input
-                  id="tf-start"
-                  type="date"
-                  value={task.start_date ?? ''}
-                  onChange={(e) => setField('start_date', e.target.value || null)}
-                />
-              </div>
-              <div>
-                <label htmlFor="tf-due">Due</label>
-                <input
-                  id="tf-due"
-                  type="date"
-                  value={task.due_date ?? ''}
-                  onChange={(e) => setField('due_date', e.target.value || null)}
-                />
-              </div>
-              <div>
-                <label htmlFor="tf-okr">Objective</label>
-                <select
-                  id="tf-okr"
-                  value={task.objective_id ?? ''}
-                  onChange={(e) => setField('objective_id', e.target.value || null)}
-                >
-                  <option value="">— none —</option>
-                  {ds.objectives.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="wide">
-                <label>Priority</label>
-                <div className="seg" role="group" aria-label="Priority">
-                  {PRIORITIES.map((p) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      aria-pressed={task.priority === p.key}
-                      aria-label={`${p.label} — ${p.hint}`}
-                      title={p.hint}
-                      onClick={() => setField('priority', p.key as TaskPriority)}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="wide">
-                <label htmlFor="tf-type">Type — 'ops' and 'code_change' unlock the panels below</label>
-                <TypeCombo id="tf-type" value={task.type} onChange={(t) => t && setField('type', t)} />
-              </div>
-            </div>
-
-            {task.type === 'ops' && (
-              <section aria-label="Checklist">
-                <div className="eyebrow" style={{ marginBottom: 8 }}>
-                  Checklist
-                </div>
-                <Checklist task={task} placeholder="+ Add a step" />
-              </section>
-            )}
           </div>
 
-          <div className="tside">
-            {/* The generator has never cared about the type — it writes
-                `Task type: ...` into TASK.md and walks whatever evidence and
-                criteria exist. Gating the button on code_change only meant a
-                research task could hold pinned screenshots that nothing could
-                ever export, which is the one thing this app is built to do. */}
-            {(
-              <div className="exportbox">
-                <div className="eyebrow" style={{ color: 'var(--indigo)' }}>
-                  {task.type === 'code_change' ? 'Code-change task' : 'Export'}
-                </div>
-                <p>
-                  {task.type === 'code_change'
-                    ? 'A ready-to-use context folder: TASK.md, CONTEXT.json, marked screenshots, and clean originals. Pin numbers follow the order you added them across every image.'
-                    : 'Build a context folder with TASK.md, CONTEXT.json, and any marked screenshots — deterministic, with no model in the loop.'}
-                </p>
-                <div className="acts">
-                  <button type="button" className="btn solid sm" onClick={copyMd}>
-                    Copy TASK.md
-                  </button>
-                  <button type="button" className="btn sm" onClick={downloadZip}>
-                    Download context folder
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {task.type !== 'ops' && (
-              <section>
-                <h3>Subtasks</h3>
-                <Checklist task={task} placeholder="+ Add subtask" showProgress={false} />
-              </section>
-            )}
-
-            <section>
-              <h3>Decisions</h3>
-              <p className="none" style={{ marginBottom: 9 }}>
-                These are the same decision rows shown in Work → Decisions.
-              </p>
-              <div className="task-decision-list">
-                {ds.decisions.map((decision) => {
-                  const linked = (decision.task_ids ?? []).includes(task.id);
-                  return (
-                    <label key={decision.id}>
-                      <input
-                        type="checkbox"
-                        checked={linked}
-                        onChange={() =>
-                          store.update(
-                            'decisions',
-                            decision.id,
-                            {
-                              task_ids: linked
-                                ? (decision.task_ids ?? []).filter((id) => id !== task.id)
-                                : [...(decision.task_ids ?? []), task.id],
-                            },
-                            store.asMe({ summary: `${linked ? 'Unlinked' : 'Linked'} ${task.id} ${linked ? 'from' : 'to'} decision` }),
-                          )
-                        }
-                      />
-                      <span>
-                        <b>{decision.question}</b>
-                        <small>{decision.status}</small>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              {!linkedDecisions.length && !ds.decisions.length && <p className="none">No decisions yet.</p>}
-            </section>
-
-            <section>
-              <h3>Scribbles on this task</h3>
-              {linkedNotes.map((n) => (
-                <div className="lrow" key={n.id}>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <b>{n.title}</b>
-                    <span className="sn">{stripInlineImageMarkers(n.body || '').split('\n')[0] || '—'}</span>
-                  </span>
-                </div>
-              ))}
-              {!linkedNotes.length && (
-                <p className="none" style={{ marginBottom: 9 }}>
-                  None yet.
-                </p>
-              )}
-              <DictateField label="Dictate a scribble title">
+          {/* mode="wait" so one panel is gone before the next rises — a
+              cross-fade of two full-height columns reads as a flicker.
+              MotionConfig reducedMotion="user" above turns both into cuts. */}
+          <AnimatePresence mode="wait" initial={false}>
+            {tab === 'task' ? (
+              <motion.div
+                key="task"
+                className="tw"
+                id="tk-panel-task"
+                role="tabpanel"
+                aria-labelledby="tk-tab-task"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0, transition: entrance }}
+                exit={{ opacity: 0, y: -6, transition: micro }}
+              >
+            <div className="tl-main">
+              <DictateField label="Dictate the task title" className="tin-wrap">
                 <input
-                  className="addin"
-                  value={noteTitle}
-                  placeholder="+ Write a scribble here"
-                  aria-label="New linked note title"
-                  onChange={(e) => setNoteTitle(e.target.value)}
+                  className="tin"
+                  value={title}
+                  aria-label="Task title"
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={saveTitle}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addNote();
-                    }
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                   }}
-                  onBlur={addNote}
                 />
               </DictateField>
-            </section>
 
-            <section>
-              <h3>Thread</h3>
-              {comments.map((c) => {
-                const author = ds.profiles.find((p) => p.id === c.author_id);
-                return (
-                  <div className="cmt" key={c.id}>
-                    <Avatar userId={c.author_id} />
-                    <div>
-                      <div className="n">
-                        {author?.name ?? '—'}
-                        <span className="w">{fmtTime(c.created_at)}</span>
-                        {c.is_decision && <span className="dec">DECISION</span>}
-                      </div>
-                      <p>{c.body}</p>
-                    </div>
+              <Screenshots
+                task={task}
+                description={desc}
+                onDescriptionChange={setDesc}
+                onDescriptionCommit={saveDesc}
+              />
+
+              <div className="tagrow" style={{ marginTop: 12 }}>
+                {task.tags.map((name) => (
+                  <TagChip key={name} name={name} onRemove={() => removeTag(name)} />
+                ))}
+                {addingTag ? (
+                  <input
+                    autoFocus
+                    className="taginput"
+                    value={tagDraft}
+                    placeholder="tag name"
+                    aria-label="New tag name"
+                    onChange={(e) => setTagDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitTag();
+                      }
+                      if (e.key === 'Escape') {
+                        setTagDraft('');
+                        setAddingTag(false);
+                      }
+                    }}
+                    onBlur={commitTag}
+                  />
+                ) : (
+                  <button type="button" className="tagadd" onClick={() => setAddingTag(true)}>
+                    + tag
+                  </button>
+                )}
+              </div>
+
+              <div className="ctl">
+                <div>
+                  <label htmlFor="tf-status">Status</label>
+                  <select
+                    id="tf-status"
+                    value={task.status}
+                    onChange={(e) => setField('status', e.target.value as TaskStatus)}
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s.key} value={s.key}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="tf-assignee">Assignee</label>
+                  <select
+                    id="tf-assignee"
+                    value={task.assignee_id ?? ''}
+                    onChange={(e) => setField('assignee_id', e.target.value || null)}
+                  >
+                    <option value="">Unassigned</option>
+                    {store.members.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="tf-project">Project</label>
+                  <ProjectCombo
+                    id="tf-project"
+                    value={task.project_id}
+                    onChange={(id) => id && setField('project_id', id)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="tf-start">Start</label>
+                  <input
+                    id="tf-start"
+                    type="date"
+                    value={task.start_date ?? ''}
+                    onChange={(e) => setField('start_date', e.target.value || null)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="tf-due">Due</label>
+                  <input
+                    id="tf-due"
+                    type="date"
+                    value={task.due_date ?? ''}
+                    onChange={(e) => setField('due_date', e.target.value || null)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="tf-okr">Objective</label>
+                  <select
+                    id="tf-okr"
+                    value={task.objective_id ?? ''}
+                    onChange={(e) => setField('objective_id', e.target.value || null)}
+                  >
+                    <option value="">— none —</option>
+                    {ds.objectives.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="wide">
+                  <label>Priority</label>
+                  <div className="seg" role="group" aria-label="Priority">
+                    {PRIORITIES.map((p) => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        aria-pressed={task.priority === p.key}
+                        aria-label={`${p.label} — ${p.hint}`}
+                        title={p.hint}
+                        onClick={() => setField('priority', p.key as TaskPriority)}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
-              {!comments.length && (
-                <p className="none" style={{ marginBottom: 9 }}>
-                  No updates yet.
-                </p>
+                </div>
+                <div className="wide">
+                  <label htmlFor="tf-type">Type — 'ops' and 'code_change' unlock the panels below</label>
+                  <TypeCombo id="tf-type" value={task.type} onChange={(t) => t && setField('type', t)} />
+                </div>
+              </div>
+
+              {task.type === 'ops' && (
+                <section aria-label="Checklist">
+                  <div className="eyebrow" style={{ marginBottom: 8 }}>
+                    Checklist
+                  </div>
+                  <Checklist task={task} placeholder="+ Add a step" />
+                </section>
               )}
-              <div className="composer">
-                <DictateField label="Dictate this update">
-                  <textarea
-                    value={commentBody}
-                    placeholder="Write an update…"
-                    aria-label="New comment"
-                    onChange={(e) => setCommentBody(e.target.value)}
+            </div>
+
+            <div className="tside">
+              {/* The generator has never cared about the type — it writes
+                  `Task type: ...` into TASK.md and walks whatever evidence and
+                  criteria exist. Gating the button on code_change only meant a
+                  research task could hold pinned screenshots that nothing could
+                  ever export, which is the one thing this app is built to do. */}
+              {(
+                <div className="exportbox">
+                  <div className="eyebrow" style={{ color: 'var(--indigo)' }}>
+                    {task.type === 'code_change' ? 'Code-change task' : 'Export'}
+                  </div>
+                  <p>
+                    {task.type === 'code_change'
+                      ? 'A ready-to-use context folder: TASK.md, CONTEXT.json, marked screenshots, and clean originals. Pin numbers follow the order you added them across every image.'
+                      : 'Build a context folder with TASK.md, CONTEXT.json, and any marked screenshots — deterministic, with no model in the loop.'}
+                  </p>
+                  <div className="acts">
+                    <button type="button" className="btn solid sm" onClick={copyMd}>
+                      Copy TASK.md
+                    </button>
+                    <button type="button" className="btn sm" onClick={downloadZip}>
+                      Download context folder
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {task.type !== 'ops' && (
+                <section>
+                  <h3>Subtasks</h3>
+                  <Checklist task={task} placeholder="+ Add subtask" showProgress={false} />
+                </section>
+              )}
+
+              <section>
+                <h3>Decisions</h3>
+                <p className="none" style={{ marginBottom: 9 }}>
+                  These are the same decision rows shown in Work → Decisions.
+                </p>
+                <div className="task-decision-list">
+                  {ds.decisions.map((decision) => {
+                    const linked = (decision.task_ids ?? []).includes(task.id);
+                    return (
+                      <label key={decision.id}>
+                        <input
+                          type="checkbox"
+                          checked={linked}
+                          onChange={() =>
+                            store.update(
+                              'decisions',
+                              decision.id,
+                              {
+                                task_ids: linked
+                                  ? (decision.task_ids ?? []).filter((id) => id !== task.id)
+                                  : [...(decision.task_ids ?? []), task.id],
+                              },
+                              store.asMe({ summary: `${linked ? 'Unlinked' : 'Linked'} ${task.id} ${linked ? 'from' : 'to'} decision` }),
+                            )
+                          }
+                        />
+                        <span>
+                          <b>{decision.question}</b>
+                          <small>{decision.status}</small>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {!linkedDecisions.length && !ds.decisions.length && <p className="none">No decisions yet.</p>}
+              </section>
+
+              <section>
+                <h3>Scribbles on this task</h3>
+                {linkedNotes.map((n) => (
+                  <div className="lrow" key={n.id}>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <b>{n.title}</b>
+                      <span className="sn">{stripInlineImageMarkers(n.body || '').split('\n')[0] || '—'}</span>
+                    </span>
+                  </div>
+                ))}
+                {!linkedNotes.length && (
+                  <p className="none" style={{ marginBottom: 9 }}>
+                    None yet.
+                  </p>
+                )}
+                <DictateField label="Dictate a scribble title">
+                  <input
+                    className="addin"
+                    value={noteTitle}
+                    placeholder="+ Write a scribble here"
+                    aria-label="New linked note title"
+                    onChange={(e) => setNoteTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addNote();
+                      }
+                    }}
+                    onBlur={addNote}
                   />
                 </DictateField>
-                <label className="flagline">
-                  <input
-                    type="checkbox"
-                    checked={isDecision}
-                    onChange={(e) => setIsDecision(e.target.checked)}
-                  />
-                  Flag as decision
-                </label>
-                <button type="button" className="btn sm solid" onClick={submitComment}>
-                  Post
-                </button>
-              </div>
-            </section>
+              </section>
 
-            <section>
-              <h3>Connected items</h3>
-              {linkedLedger.map((l) => (
-                <div className="conn" key={l.id}>
-                  <span>{l.party}</span>
-                  <span className="spacer" />
-                  <span className="mono">
-                    {l.direction === 'out' ? '−' : '+'}
-                    {inr(l.amount)}
-                  </span>
-                  <span className={`pill ${l.status === 'overdue' ? 'over' : l.status}`}>
-                    {l.status}
-                  </span>
+              <section>
+                <h3>Thread</h3>
+                {comments.map((c) => {
+                  const author = ds.profiles.find((p) => p.id === c.author_id);
+                  return (
+                    <div className="cmt" key={c.id}>
+                      <Avatar userId={c.author_id} />
+                      <div>
+                        <div className="n">
+                          {author?.name ?? '—'}
+                          <span className="w">{fmtTime(c.created_at)}</span>
+                          {c.is_decision && <span className="dec">DECISION</span>}
+                        </div>
+                        <p>{c.body}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!comments.length && (
+                  <p className="none" style={{ marginBottom: 9 }}>
+                    No updates yet.
+                  </p>
+                )}
+                <div className="composer">
+                  <DictateField label="Dictate this update">
+                    <textarea
+                      value={commentBody}
+                      placeholder="Write an update…"
+                      aria-label="New comment"
+                      onChange={(e) => setCommentBody(e.target.value)}
+                    />
+                  </DictateField>
+                  <label className="flagline">
+                    <input
+                      type="checkbox"
+                      checked={isDecision}
+                      onChange={(e) => setIsDecision(e.target.checked)}
+                    />
+                    Flag as decision
+                  </label>
+                  <button type="button" className="btn sm solid" onClick={submitComment}>
+                    Post
+                  </button>
                 </div>
-              ))}
-              {linkedMail.map((m) => (
+              </section>
+
+              <section>
+                <h3>Connected items</h3>
+                {linkedLedger.map((l) => (
+                  <div className="conn" key={l.id}>
+                    <span>{l.party}</span>
+                    <span className="spacer" />
+                    <span className="mono">
+                      {l.direction === 'out' ? '−' : '+'}
+                      {inr(l.amount)}
+                    </span>
+                    <span className={`pill ${l.status === 'overdue' ? 'over' : l.status}`}>
+                      {l.status}
+                    </span>
+                  </div>
+                ))}
+                {linkedMail.map((m) => (
+                  <a
+                    className="conn"
+                    key={m.id}
+                    href={m.gmail_link}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span>{m.subject}</span>
+                    <span className="spacer" />
+                    <span className="mono" style={{ color: 'var(--mute)' }}>
+                      {m.sender}
+                    </span>
+                  </a>
+                ))}
+                {!hasConnected && <p className="none">Nothing linked yet.</p>}
+              </section>
+
+              <div className="sideacts">
+                <button type="button" className="btn solid" onClick={addToToday} disabled={onToday}>
+                  {onToday ? 'On today’s list' : 'Add to today’s intentions'}
+                </button>
                 <a
-                  className="conn"
-                  key={m.id}
-                  href={m.gmail_link}
+                  className="btn"
+                  href={scheduleUrl}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <span>{m.subject}</span>
-                  <span className="spacer" />
-                  <span className="mono" style={{ color: 'var(--mute)' }}>
-                    {m.sender}
-                  </span>
+                  Schedule a call
                 </a>
-              ))}
-              {!hasConnected && <p className="none">Nothing linked yet.</p>}
-            </section>
-
-            <Timeline taskId={task.id} />
-
-            <div className="sideacts">
-              <button type="button" className="btn solid" onClick={addToToday} disabled={onToday}>
-                {onToday ? 'On today’s list' : 'Add to today’s intentions'}
-              </button>
-              <a
-                className="btn"
-                href={scheduleUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Schedule a call
-              </a>
-              <button type="button" className="btn" onClick={messageAboutThis}>
-                Message about this
-              </button>
-              <button type="button" className="btn danger" onClick={deleteTask}>
-                Delete task
-              </button>
+                <button type="button" className="btn" onClick={messageAboutThis}>
+                  Message about this
+                </button>
+                <button type="button" className="btn danger" onClick={deleteTask}>
+                  Delete task
+                </button>
+              </div>
             </div>
-          </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="workflow"
+                className="tflow"
+                id="tk-panel-workflow"
+                role="tabpanel"
+                aria-labelledby="tk-tab-workflow"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0, transition: entrance }}
+                exit={{ opacity: 0, y: -6, transition: micro }}
+              >
+                <Timeline taskId={task.id} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </MotionConfig>
     </div>

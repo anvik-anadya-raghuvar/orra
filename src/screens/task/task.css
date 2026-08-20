@@ -5,6 +5,39 @@
    the 375px layout, min-width queries widen it.
    ────────────────────────────────────────────────────────────────────────── */
 
+/* ── page header: crumb + view tabs ───────────────────────────────────────
+   Sits above the panels, so the frame itself is no longer the grid. `.sub2`
+   is the portal-wide tab vocabulary (Settings, Notebook, Money) — reused
+   rather than restyled, and it already carries the 44px mobile target. */
+.tpage .thead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.tpage .thead .crumb {
+  margin: 0;
+}
+@media (min-width: 981px) {
+  .tpage .thead {
+    padding: 12px 20px;
+  }
+}
+
+/* The Workflow panel is a single column — no sidebar to inherit padding from. */
+.tpage .tflow {
+  padding: 16px;
+  min-width: 0;
+}
+@media (min-width: 981px) {
+  .tpage .tflow {
+    padding: 20px;
+  }
+}
+
 /* ── two-column shell ─────────────────────────────────────────────────── */
 .tpage .tw {
   display: grid;

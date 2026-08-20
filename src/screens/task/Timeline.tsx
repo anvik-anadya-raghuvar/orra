@@ -1,6 +1,9 @@
 /**
  * The workflow view: everything that ever happened to one task.
  *
+ * Rendered as the Task page's "Workflow" tab, which is what names the panel —
+ * hence no heading of its own here.
+ *
  * The narration itself lives in `lib/taskTimeline.ts` as a pure function, so
  * this file is only presentation — a rail, a marker per event, and a filter.
  */
@@ -65,7 +68,6 @@ export default function Timeline({ taskId }: { taskId: string }) {
   if (all.length === 0) {
     return (
       <section aria-label="Task history">
-        <h3>Workflow</h3>
         <p className="none">
           Nothing recorded yet. Every change from here on is logged — the trail is
           append-only, so this cannot be edited after the fact.
@@ -76,8 +78,6 @@ export default function Timeline({ taskId }: { taskId: string }) {
 
   return (
     <section aria-label="Task history">
-      <h3>Workflow</h3>
-
       <div className="tl-controls">
         <div className="tl-filters" role="group" aria-label="Filter history">
           {GROUPS.map((g) => {
