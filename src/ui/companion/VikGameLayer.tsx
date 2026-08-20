@@ -14,7 +14,6 @@ import type { GameId } from '../../lib/companionGames';
 import * as decide from '../../lib/companionGames/decide';
 import * as simon from '../../lib/companionGames/simon';
 import * as blink from '../../lib/companionGames/blinkTap';
-import './companionGames.css';
 
 export interface GameHost {
   robotName: string;

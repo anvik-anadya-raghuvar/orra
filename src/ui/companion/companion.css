@@ -215,6 +215,16 @@
   fill: var(--rose);
 }
 
+/* You are it. */
+.vik-tagmark circle {
+  fill: var(--rose);
+}
+.vik-tagmark text {
+  fill: var(--surf-solid, var(--surf));
+  font-size: 8px;
+  font-weight: 700;
+}
+
 /* A hot drink, by the hour rather than by the country. */
 .vik-cup path {
   fill: var(--surf-dense, var(--surf2));

@@ -148,6 +148,18 @@ function TopHat() {
   );
 }
 
+/** Overhead: you are it. Deliberately loud — it is meant to be noticed. */
+function TagMark() {
+  return (
+    <g className="vik-tagmark">
+      <circle cx="32" cy="-4" r="6" />
+      <text x="32" y="-1" textAnchor="middle">
+        !
+      </text>
+    </g>
+  );
+}
+
 const ART: Record<AccessoryId, () => JSX.Element> = {
   party: Party,
   graduation: Graduation,
@@ -163,6 +175,7 @@ const ART: Record<AccessoryId, () => JSX.Element> = {
   monocle: Monocle,
   cape: Cape,
   tophat: TopHat,
+  tagmark: TagMark,
 };
 
 export default function Accessory({ id }: { id: AccessoryId }) {

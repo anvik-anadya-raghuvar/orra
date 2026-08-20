@@ -46,6 +46,8 @@ interface Props {
   /** Animation is allowed — games that need it are hidden when it is not. */
   animate: boolean;
   scores: Record<string, number>;
+  /** Two-player games are only listed when there is a second player. */
+  otherOnline: boolean;
   onPlay: (id: GameId) => void;
 }
 
@@ -60,6 +62,7 @@ export default function VikStatus({
   onPlayful,
   animate,
   scores,
+  otherOnline,
   onPlay,
 }: Props) {
   const band = bandOf(value);
@@ -177,7 +180,7 @@ export default function VikStatus({
 
         <div className="vik-status-games">
           <h4>Play</h4>
-          {playableGames(!animate).map((g) => {
+          {playableGames(!animate, otherOnline).map((g) => {
             const best = scores[g.id];
             const label = best != null ? SCORE_LABEL[g.id]?.(best) : null;
             return (

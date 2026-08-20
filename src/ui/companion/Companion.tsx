@@ -15,8 +15,17 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom';
 import { useData, useStore } from '../../data/store';
 import { quietHoursFor } from '../../lib/companion';
-import type { GameId } from '../../lib/companionGames';
+import { todayIso } from '../../lib/dates';
+import { GAMES, type GameId } from '../../lib/companionGames';
 import * as hideSeek from '../../lib/companionGames/hideSeek';
+import * as rps from '../../lib/companionGames/rps';
+import {
+  canInvite,
+  emptyInvites,
+  noteInvite,
+  pickInvite,
+  type InviteMemory,
+} from '../../lib/companionInvite';
 import { houseFor, PLACEMENT } from '../../lib/companionHouse';
 import {
   arrivalEdge,
@@ -55,6 +64,7 @@ import { useVikVoice } from './useVikVoice';
 import { useWeatherSignal } from './useWeatherSignal';
 import './companion.css';
 import './companionHouse.css';
+import './companionGames.css';
 
 // The games and their timers are never needed to render a robot in a corner.
 const VikGameLayer = lazy(() => import('./VikGameLayer'));
@@ -126,11 +136,18 @@ export default function Companion() {
   const world = useData((ds, s) =>
     readWorld({ ds, meId: s.meId, now, weather, otherTimeZone: s.other.time_zone ?? null }),
   );
-  const outfit = resolveOutfit(world, bond.unlocked);
+  const baseOutfit = resolveOutfit(world, bond.unlocked);
 
   const { quip, say } = useVikVoice();
   const { gesture, doGesture } = useVikGesture();
   const game = useVikGame(feel, bond.record);
+  /* ── Asking you to play ─────────────────────────────────────────────── */
+
+  // He is playful by default, which only survives a working day because the
+  // gate around it is strict. Every clause lives in lib/companionInvite.ts.
+  const invitesRef = useRef<InviteMemory>(emptyInvites());
+  const lastTouchRef = useRef(Date.now());
+  const [invited, setInvited] = useState<GameId | null>(null);
   // Fixed when a round starts, not on every render — otherwise the machines
   // would be re-seeded underneath themselves and nothing could be replayed.
   const seedRef = useRef(1);
@@ -146,6 +163,11 @@ export default function Companion() {
   const [inFlight, setInFlight] = useState(false);
   const [arrival, setArrival] = useState<Arrival | null>(null);
   const [mail, setMail] = useState<Arrival | null>(null);
+  // Tag: whoever was hit last is it, until they throw him back.
+  const [isIt, setIsIt] = useState(false);
+  // Rock paper scissors, live. Null when nobody has asked.
+  const [rpsState, setRpsState] = useState<rps.RpsState | null>(null);
+  const [rpsAsked, setRpsAsked] = useState(false);
   const otherName = store.other.name;
 
   const link = useVikLink({
@@ -155,7 +177,14 @@ export default function Companion() {
     onArrive: (a) => {
       setArrival(a);
       dismiss();
-      say(a.note ? `${otherName}: “${a.note}”` : `${otherName} threw me at you.`);
+      if (a.tag) setIsIt(true);
+      say(
+        a.note
+          ? `${otherName}: “${a.note}”`
+          : a.tag
+            ? `Tag — you're it.`
+            : `${otherName} threw me at you.`,
+      );
       feel('caught');
     },
     onMail: (a) => setMail(a),
@@ -168,6 +197,16 @@ export default function Companion() {
       doGesture('tilt');
       if (speak) say(`${otherName} says hi 👋`);
     },
+    onRpsInvite: () => {
+      setRpsAsked(true);
+      say(`${otherName} wants rock paper scissors.`);
+    },
+    onRpsDecline: () => {
+      setRpsState(null);
+      setRpsAsked(false);
+      say(`${otherName} passed.`);
+    },
+    onRpsMove: (round, move) => setRpsState((s) => (s ? rps.receive(s, round, move) : s)),
   });
 
   // Landing puts him where he came in, then he walks back to his dock.
@@ -191,7 +230,9 @@ export default function Companion() {
     onThrow: (release, view) => {
       const vector = throwVector(release, view);
       if (!vector) return false;
-      link.throwHim(vector.edge, vector.frac, vector.speed);
+      // Throwing him back is how you stop being it.
+      link.throwHim(vector.edge, vector.frac, vector.speed, undefined, isIt);
+      if (isIt) setIsIt(false);
       setInFlight(true);
       // Fire and forget: he always comes back, whether or not anyone caught
       // him. A robot permanently lost to a dropped packet is the one failure
@@ -238,6 +279,35 @@ export default function Companion() {
     onReaction: setReaction,
   });
 
+  // One check a minute is plenty for something that happens twice a day.
+  useEffect(() => {
+    const iv = window.setInterval(() => {
+      if (invited || game.active) return;
+      const ctx = {
+        now: Date.now(),
+        today: todayIso(),
+        chattiness: store.me.personalization.companion?.chattiness ?? 'normal',
+        band,
+        memory: invitesRef.current,
+        playful,
+        dense,
+        quiet,
+        busy: busyRef.current,
+        blocked: myBlockUp,
+        idleMs: Date.now() - lastTouchRef.current,
+        disabled: store.me.personalization.companion?.games,
+        animate,
+      };
+      if (!canInvite(ctx)) return;
+      const pick = pickInvite(ctx);
+      if (!pick) return;
+      invitesRef.current = noteInvite(invitesRef.current, ctx.today, ctx.now);
+      setInvited(pick);
+    }, 60_000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [band, playful, dense, quiet, myBlockUp, animate, invited, game.active]);
+
   const bubbleText = quip ?? current?.text ?? null;
   const { hoverProps } = useBubbleLife({ ttlMs: current?.ttlMs ?? null, onExpire: dismiss });
 
@@ -259,6 +329,13 @@ export default function Companion() {
     (id: GameId) => {
       setStatusOpen(false);
       dismiss();
+      if (id === 'rps') {
+        // Not something you can start on your own: it is an ask.
+        link.inviteRps();
+        setRpsState(rps.init());
+        say(`Asked ${otherName}.`);
+        return;
+      }
       seedRef.current = Date.now() % 100000;
       if (id === 'hide') {
         const key = hideTarget.choose(Date.now() % 9973);
@@ -301,6 +378,10 @@ export default function Companion() {
   }, [pathname]);
 
   const [statusOpen, setStatusOpen] = useState(false);
+
+  // Tag is live game state rather than weather or a reward, so it is layered
+  // on last and outranks everything in its slot.
+  const outfit = isIt ? resolveOutfit(world, bond.unlocked, ['tagmark']) : baseOutfit;
 
   const inputs: VikInputs = {
     playMood: play.playMood,
@@ -422,8 +503,92 @@ export default function Companion() {
           )}
         </AnimatePresence>
 
+        {/* An offer, and the two ways out of it. */}
+        {invited && !game.active && (
+          <div className="vik-game" role="status" aria-live="polite">
+            <p className="vik-game-line">{GAMES[invited].label}?</p>
+            <div className="vik-game-row">
+              <button
+                className="vik-game-btn"
+                onClick={() => {
+                  const id = invited;
+                  setInvited(null);
+                  startGame(id);
+                }}
+              >
+                Go on then
+              </button>
+            </div>
+            <button className="vik-game-quit" onClick={() => setInvited(null)}>
+              Not now
+            </button>
+          </div>
+        )}
+
+        {/* Rock paper scissors, live. */}
+        {(rpsAsked || rpsState) && !game.active && (
+          <div className="vik-game" role="status" aria-live="polite">
+            {rpsState ? (
+              <>
+                <p className="vik-game-line">
+                  {rpsState.phase === 'over'
+                    ? rps.verdict(rpsState, otherName)
+                    : rpsState.rounds[rpsState.round]?.mine
+                      ? `Waiting for ${otherName}…`
+                      : `Round ${rpsState.round + 1} of ${rps.ROUNDS}`}
+                </p>
+                {rpsState.phase === 'over' ? (
+                  <button className="vik-game-quit" onClick={() => setRpsState(null)}>
+                    Done
+                  </button>
+                ) : (
+                  <div className="vik-game-row">
+                    {rps.MOVES.map((m) => (
+                      <button
+                        key={m}
+                        className="vik-game-btn"
+                        disabled={Boolean(rpsState.rounds[rpsState.round]?.mine)}
+                        onClick={() => {
+                          link.sendMove(rpsState.round, m);
+                          setRpsState((st) => (st ? rps.play(st, m) : st));
+                        }}
+                      >
+                        {m[0].toUpperCase() + m.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="vik-game-line">{otherName} wants rock paper scissors.</p>
+                <div className="vik-game-row">
+                  <button
+                    className="vik-game-btn"
+                    onClick={() => {
+                      setRpsAsked(false);
+                      setRpsState(rps.init());
+                    }}
+                  >
+                    Play
+                  </button>
+                </div>
+                <button
+                  className="vik-game-quit"
+                  onClick={() => {
+                    setRpsAsked(false);
+                    link.declineRps();
+                  }}
+                >
+                  Pass
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <VikBubble
-          text={game.active ? null : bubbleText}
+          text={game.active || invited || rpsAsked || rpsState ? null : bubbleText}
           moment={spoken}
           snoozable={snoozable}
           robotName={robotName}
@@ -451,7 +616,14 @@ export default function Companion() {
               : { scale: 1, y: 0, transition: spring }
           }
           whileTap={animate ? { scale: 0.9 } : undefined}
-          onClick={peek ? () => endHide(true) : play.handleTap}
+          onClick={
+            peek
+              ? () => endHide(true)
+              : () => {
+                  lastTouchRef.current = Date.now();
+                  play.handleTap();
+                }
+          }
           onPointerDown={play.petDown}
           onPointerUp={play.petUp}
           onPointerCancel={play.petUp}
@@ -484,6 +656,7 @@ export default function Companion() {
         playful={playful}
         animate={animate}
         scores={game.scores}
+        otherOnline={presence.otherOnline}
         onPlay={startGame}
         onPlayful={(next) =>
           store.patchPersonalization(

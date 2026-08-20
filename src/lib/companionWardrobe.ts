@@ -42,7 +42,9 @@ export type AccessoryId =
   | 'bowtie'
   | 'monocle'
   | 'cape'
-  | 'tophat';
+  | 'tophat'
+  /** You are it. Not earned, not weather — a live game state. */
+  | 'tagmark';
 
 /** Which slot each item occupies. One place, so nothing can disagree. */
 export const ACCESSORY_SLOT: Record<AccessoryId, Slot> = {
@@ -60,6 +62,7 @@ export const ACCESSORY_SLOT: Record<AccessoryId, Slot> = {
   monocle: 'face',
   cape: 'behind',
   tophat: 'head',
+  tagmark: 'overhead',
 };
 
 /**
@@ -83,6 +86,7 @@ export const ACCESSORY_PRIORITY: Record<AccessoryId, number> = {
   bowtie: 5,
   monocle: 5,
   cape: 5,
+  tagmark: 100,
 };
 
 export type Outfit = Partial<Record<Slot, AccessoryId>>;
@@ -107,7 +111,12 @@ function drinkFor(hour: number): AccessoryId | null {
  * lose a contested slot, so nothing you have earned can ever hide something
  * the weather or the board is trying to tell you.
  */
-export function resolveOutfit(world: WorldSignals, unlocked: AccessoryId[] = []): Outfit {
+export function resolveOutfit(
+  world: WorldSignals,
+  unlocked: AccessoryId[] = [],
+  /** Live game state, which is neither earned nor reactive. */
+  extra: AccessoryId[] = [],
+): Outfit {
   const wanted: AccessoryId[] = [];
 
   if (world.dayCleared) wanted.push('crown');
@@ -125,7 +134,7 @@ export function resolveOutfit(world: WorldSignals, unlocked: AccessoryId[] = [])
   if (world.cold) wanted.push('scarf');
   if (world.hot) wanted.push('sunglasses');
 
-  wanted.push(...unlocked);
+  wanted.push(...unlocked, ...extra);
 
   // Highest priority wins its slot; everything else is simply not worn.
   const outfit: Outfit = {};

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GAME_IDS, GAMES, isBetter, playableGames, rng } from './index';
+import { GAME_IDS, GAMES, isBetter, playableGames, rng, SOLO_IDS } from './index';
 import * as decide from './decide';
 import * as simon from './simon';
 import * as blink from './blinkTap';
@@ -10,8 +10,16 @@ describe('the registry', () => {
     for (const id of GAME_IDS) expect(GAMES[id].id).toBe(id);
   });
 
-  it('offers every game when motion is allowed', () => {
-    expect(playableGames(false)).toHaveLength(GAME_IDS.length);
+  it('offers every solo game when motion is allowed', () => {
+    expect(playableGames(false)).toHaveLength(SOLO_IDS.length);
+  });
+
+  it('only offers a two-player game when there is a second player', () => {
+    const alone = playableGames(false).map((g) => g.id);
+    const together = playableGames(false, true).map((g) => g.id);
+    for (const id of alone) expect(GAMES[id].players).toBe(1);
+    expect(together).toHaveLength(GAME_IDS.length);
+    expect(together).toContain('rps');
   });
 
   it('offers only games that genuinely play under reduced motion', () => {
@@ -268,5 +276,79 @@ describe('hide and seek', () => {
   it('cannot be found after you have given up', () => {
     const s = hide.giveUp(hide.hidden(hide.start('a', 0)));
     expect(hide.found(s, 500).phase).toBe('gave-up');
+  });
+});
+
+/* ── Rock paper scissors ──────────────────────────────────────────────── */
+
+import * as rps from './rps';
+
+describe('rock paper scissors', () => {
+  it('knows the three rules and nothing else', () => {
+    expect(rps.resolve('rock', 'scissors')).toBe('win');
+    expect(rps.resolve('paper', 'rock')).toBe('win');
+    expect(rps.resolve('scissors', 'paper')).toBe('win');
+    expect(rps.resolve('scissors', 'rock')).toBe('lose');
+    expect(rps.resolve('rock', 'rock')).toBe('draw');
+  });
+
+  /**
+   * The property both screens depend on. Nobody referees this game: each side
+   * scores locally, so if `resolve` were not exactly mirrored the two of you
+   * would end up with different results and no way to tell who was right.
+   */
+  it('gives the two of you mirrored answers on all nine pairs', () => {
+    for (const mine of rps.MOVES) {
+      for (const theirs of rps.MOVES) {
+        const a = rps.resolve(mine, theirs);
+        const b = rps.resolve(theirs, mine);
+        if (a === 'draw') expect(b).toBe('draw');
+        else expect(b).toBe(a === 'win' ? 'lose' : 'win');
+      }
+    }
+  });
+
+  it('waits for both of you before closing a round', () => {
+    let s = rps.init();
+    s = rps.play(s, 'rock');
+    expect(s.round).toBe(0);
+    s = rps.receive(s, 0, 'scissors');
+    expect(s.round).toBe(1);
+  });
+
+  it('does not let you change your mind once committed', () => {
+    let s = rps.play(rps.init(), 'rock');
+    s = rps.play(s, 'paper');
+    expect(s.rounds[0].mine).toBe('rock');
+  });
+
+  it('ignores a move that arrives for the wrong round', () => {
+    const s = rps.init();
+    expect(rps.receive(s, 9, 'rock')).toBe(s);
+    expect(rps.receive(s, -1, 'rock')).toBe(s);
+  });
+
+  it('ignores a duplicate of their move for a round', () => {
+    let s = rps.receive(rps.init(), 0, 'rock');
+    s = rps.receive(s, 0, 'paper');
+    expect(s.rounds[0].theirs).toBe('rock');
+  });
+
+  it('scores only decided rounds, and draws count for neither', () => {
+    let s = rps.init();
+    s = rps.receive(rps.play(s, 'rock'), 0, 'scissors'); // win
+    s = rps.receive(rps.play(s, 'rock'), 1, 'rock'); // draw
+    s = rps.receive(rps.play(s, 'rock'), 2, 'paper'); // lose
+    expect(rps.score(s)).toEqual({ mine: 1, theirs: 1 });
+    expect(s.phase).toBe('over');
+    expect(rps.verdict(s, 'Raghuvar')).toMatch(/draw/i);
+  });
+
+  it('ends after three rounds and stops accepting moves', () => {
+    let s = rps.init();
+    for (let i = 0; i < rps.ROUNDS; i++) s = rps.receive(rps.play(s, 'rock'), i, 'scissors');
+    expect(s.phase).toBe('over');
+    expect(rps.play(s, 'paper')).toBe(s);
+    expect(rps.verdict(s, 'Raghuvar')).toMatch(/You win/);
   });
 });

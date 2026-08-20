@@ -42,9 +42,27 @@ export type VikMessage = Envelope &
         speed: number;
         /** A line he is carrying. */
         note?: string;
+        /**
+         * Tag. It rides the throw rather than being its own game, because that
+         * is what tag actually is: whoever was hit last is it, and stays it
+         * until they hit you back.
+         */
+        tag?: boolean;
       }
     | { k: 'poke' }
+    | { k: 'rps-invite' }
+    | { k: 'rps-decline' }
+    | { k: 'rps'; round: number; move: 'rock' | 'paper' | 'scissors' }
   );
+
+/**
+ * A message without its envelope — what a caller actually supplies.
+ *
+ * Distributive on purpose: a plain Omit over a union collapses to the keys the
+ * variants have in common, which would quietly forbid `edge` and `round`.
+ */
+export type VikMessageBody =
+  VikMessage extends infer T ? (T extends VikMessage ? Omit<T, 'id' | 'from' | 'at'> : never) : never;
 
 /** There is no server to enforce this, so encode() is where it is true. */
 export const NOTE_MAX = 120;
@@ -73,6 +91,17 @@ export function decode(raw: unknown): VikMessage | null {
     return null;
   }
   if (m.k === 'poke') return { id: m.id, from: m.from, at: m.at, k: 'poke' };
+  if (m.k === 'rps-invite' || m.k === 'rps-decline') {
+    return { id: m.id, from: m.from, at: m.at, k: m.k };
+  }
+  if (m.k === 'rps') {
+    const r = m as Extract<VikMessage, { k: 'rps' }>;
+    if (!['rock', 'paper', 'scissors'].includes(r.move)) return null;
+    // The round travels with the move so a late message cannot be applied to
+    // the wrong one.
+    if (typeof r.round !== 'number' || r.round < 0 || r.round > 8) return null;
+    return { id: m.id, from: m.from, at: m.at, k: 'rps', round: Math.floor(r.round), move: r.move };
+  }
   if (m.k === 'throw') {
     const t = m as Extract<VikMessage, { k: 'throw' }>;
     if (!['left', 'right', 'top', 'bottom'].includes(t.edge)) return null;
@@ -86,6 +115,7 @@ export function decode(raw: unknown): VikMessage | null {
       frac: Math.min(1, Math.max(0, t.frac)),
       speed: typeof t.speed === 'number' ? t.speed : 0,
       note: typeof t.note === 'string' ? t.note : undefined,
+      tag: t.tag === true,
     });
   }
   return null;

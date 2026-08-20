@@ -18,7 +18,9 @@ import {
   TICKLE_SPEAK_MS,
   type Edge,
   type VikMessage,
+  type VikMessageBody,
 } from '../../lib/companionLink';
+import type { Move } from '../../lib/companionGames/rps';
 import { companionChannel } from './companionChannel';
 
 export interface Arrival {
@@ -27,6 +29,8 @@ export interface Arrival {
   frac: number;
   note?: string;
   from: string;
+  /** He arrived carrying tag: you are it until you throw him back. */
+  tag?: boolean;
 }
 
 export interface LinkEvents {
@@ -38,15 +42,23 @@ export interface LinkEvents {
   onTickle: (speak: boolean) => void;
   /** A throw arrived while you were unreachable — it goes in the mailbox. */
   onMail: (a: Arrival) => void;
+  /** They want a game of rock paper scissors. */
+  onRpsInvite: () => void;
+  onRpsDecline: () => void;
+  /** Their move for a round. */
+  onRpsMove: (round: number, move: Move) => void;
   /** Can he be delivered right now, or should it wait in the mailbox. */
   reachable: () => boolean;
 }
 
 export interface VikLink {
-  /** Send him abroad. Returns false if there was nothing to send to. */
-  throwHim: (edge: Edge, frac: number, speed: number, note?: string) => void;
+  /** Send him abroad. `tag` passes it on if you were the one who was it. */
+  throwHim: (edge: Edge, frac: number, speed: number, note?: string, tag?: boolean) => void;
   /** Tell them you poked yours. */
   pokedMine: () => void;
+  inviteRps: () => void;
+  declineRps: () => void;
+  sendMove: (round: number, move: Move) => void;
 }
 
 export function useVikLink(events: LinkEvents): VikLink {
@@ -100,12 +112,17 @@ export function useVikLink(events: LinkEvents): VikLink {
         return;
       }
 
+      if (msg.k === 'rps-invite') return e.onRpsInvite();
+      if (msg.k === 'rps-decline') return e.onRpsDecline();
+      if (msg.k === 'rps') return e.onRpsMove(msg.round, msg.move);
+
       const arrival: Arrival = {
         key: now,
         edge: msg.edge,
         frac: msg.frac,
         note: msg.note,
         from: msg.from,
+        tag: msg.tag,
       };
       // Asleep, or heads-down in a block: he waits in the mailbox rather than
       // tumbling onto the screen at three in the morning.
@@ -116,21 +133,31 @@ export function useVikLink(events: LinkEvents): VikLink {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
 
-  const throwHim = useCallback(
-    (edge: Edge, frac: number, speed: number, note?: string) => {
+  const send = useCallback(
+    (body: VikMessageBody) => {
       const at = Date.now();
       companionChannel(store.adapter.kind, store.meId).send({
         id: messageId(store.meId, at, Math.random()),
         from: store.meId,
         at,
-        k: 'throw',
-        edge,
-        frac,
-        speed,
-        note,
-      });
+        ...body,
+      } as VikMessage);
     },
     [store],
+  );
+
+  const throwHim = useCallback(
+    (edge: Edge, frac: number, speed: number, note?: string, tag?: boolean) => {
+      send({ k: 'throw', edge, frac, speed, note, tag });
+    },
+    [send],
+  );
+
+  const inviteRps = useCallback(() => send({ k: 'rps-invite' }), [send]);
+  const declineRps = useCallback(() => send({ k: 'rps-decline' }), [send]);
+  const sendMove = useCallback(
+    (round: number, move: Move) => send({ k: 'rps', round, move }),
+    [send],
   );
 
   const pokedMine = useCallback(() => {
@@ -147,5 +174,5 @@ export function useVikLink(events: LinkEvents): VikLink {
     if (checkHighFive(at)) ref.current.onHighFive();
   }, [checkHighFive, store]);
 
-  return { throwHim, pokedMine };
+  return { throwHim, pokedMine, inviteRps, declineRps, sendMove };
 }

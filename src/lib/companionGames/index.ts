@@ -11,7 +11,7 @@
  * is ever offered in a broken state.
  */
 
-export type GameId = 'decide' | 'simon' | 'blink' | 'hide';
+export type GameId = 'decide' | 'simon' | 'blink' | 'hide' | 'rps';
 
 export interface GameSpec {
   id: GameId;
@@ -59,6 +59,15 @@ export const GAMES: Record<GameId, GameSpec> = {
     // A reaction time: lower is better, and the shelf has to know that.
     higherIsBetter: false,
   },
+  rps: {
+    id: 'rps',
+    label: 'Rock paper scissors',
+    blurb: 'Best of three, live. Settles arguments.',
+    players: 2,
+    reducedMotion: 'plays',
+    scored: false,
+    higherIsBetter: true,
+  },
   hide: {
     id: 'hide',
     label: 'Hide and seek',
@@ -72,12 +81,18 @@ export const GAMES: Record<GameId, GameSpec> = {
 
 export const GAME_IDS = Object.keys(GAMES) as GameId[];
 
-/** What the menu should offer right now. */
-export function playableGames(reduced: boolean): GameSpec[] {
+/**
+ * What the menu should offer right now. A two-player game needs someone on the
+ * other end, so it is only listed when there is one.
+ */
+export function playableGames(reduced: boolean, otherOnline = false): GameSpec[] {
   return GAME_IDS.map((id) => GAMES[id]).filter(
-    (g) => !reduced || g.reducedMotion === 'plays',
+    (g) => (!reduced || g.reducedMotion === 'plays') && (g.players === 1 || otherOnline),
   );
 }
+
+/** Games he may offer unprompted — never one that needs the other person. */
+export const SOLO_IDS = GAME_IDS.filter((id) => GAMES[id].players === 1);
 
 /** Is `next` an improvement on `best` for this game. */
 export function isBetter(id: GameId, next: number, best: number | undefined): boolean {
