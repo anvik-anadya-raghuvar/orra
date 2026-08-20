@@ -1,7 +1,180 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ── base reset ────────────────────────────────────────────────────────────
+   This project has never used a Tailwind utility class — checked directly:
+   zero `className="flex"`, zero `bg-indigo`, zero `dark:`, the single "grow"
+   className that exists is a custom rule scoped under .personal-screen with
+   higher specificity, not the Tailwind utility. The dependency was carrying
+   its own weight in the bundle for nothing, so it is gone (package.json,
+   tailwind.config.js, postcss.config.js).
 
+   What is kept is the load-bearing third of Preflight — form elements, lists,
+   media, tables — written out by hand rather than through the framework,
+   because a browser default get set here without it: form fields would revert
+   to system fonts and browser margins, lists would show bullets again, an
+   <img> without an explicit size could blow out its container. Nothing here
+   is Tailwind-specific; it is the same reset any hand-rolled design system
+   would carry. */
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: var(--line);
+}
+html {
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+  -webkit-tap-highlight-color: transparent;
+}
+hr {
+  height: 0;
+  color: inherit;
+  border-top-width: 1px;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: inherit;
+  margin: 0;
+}
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp,
+pre {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1em;
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+table {
+  text-indent: 0;
+  border-color: inherit;
+  border-collapse: collapse;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+}
+button,
+select {
+  text-transform: none;
+}
+button,
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
+  -webkit-appearance: button;
+  background-color: transparent;
+  background-image: none;
+}
+progress {
+  vertical-align: baseline;
+}
+[type='search'] {
+  -webkit-appearance: textfield;
+  outline-offset: -2px;
+}
+summary {
+  display: list-item;
+}
+blockquote,
+dl,
+dd,
+figure,
+p,
+pre {
+  margin: 0;
+}
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+legend {
+  padding: 0;
+}
+ol,
+ul,
+menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+dialog {
+  padding: 0;
+}
+textarea {
+  resize: vertical;
+}
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  color: var(--mute);
+}
+button,
+[role='button'] {
+  cursor: pointer;
+}
+:disabled {
+  cursor: default;
+}
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  vertical-align: middle;
+}
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+[hidden]:where(:not([hidden='until-found'])) {
+  display: none;
+}
+
+/* ── Anvik Ops design tokens — ported from prototype v10 ─────────────── */
 /* ── Anvik Ops design tokens — ported from prototype v10 ─────────────── */
 :root {
   --bg: #eff2f8;
@@ -228,6 +401,39 @@ button {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ── icon buttons: an icon that arms, then confirms, before it deletes ────
+   Shared across every screen with a small destructive control — a two-step
+   tap rather than a browser confirm(), because a native dialog blocks the
+   render thread and cannot be styled to match the rest of the portal. The
+   deletion itself always goes through Trash (see AppStore.remove), so
+   "armed" reads as "sure?" rather than "forever". */
+.picon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--mute);
+  transition: color 0.16s, background 0.16s;
+}
+.picon:hover:not(:disabled),
+.picon:focus-visible {
+  color: var(--ink);
+  background: var(--surf3);
+}
+.picon:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.picon.armed {
+  width: auto;
+  padding: 0 9px;
+  font-size: 10px;
+  color: var(--rose);
+  background: var(--rose-s);
 }
 
 /* ── shared component vocabulary (matches prototype markup) ──────────── */
