@@ -1,7 +1,9 @@
-import React, { useId } from 'react';
+import React, { useId, useState } from 'react';
 import type { Dataset, Project, Sprint, TaskLinkType, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { PRIORITY_LABEL } from '../../types';
 import { DictateField } from '../../ui/dictation';
+import { newId, nowIso, useData, useStore } from '../../data/store';
+import { useToast } from '../../ui/bits';
 
 /* ── vocabulary shared by the three Work tabs ─────────────────────────── */
 
@@ -11,13 +13,6 @@ export const STATUSES: { key: TaskStatus; label: string; dot: string }[] = [
   { key: 'in_progress', label: 'In progress', dot: 'var(--indigo)' },
   { key: 'in_review', label: 'In review', dot: 'var(--stamp)' },
   { key: 'done', label: 'Done', dot: 'var(--teal)' },
-];
-
-export const TYPES: { key: TaskType; label: string }[] = [
-  { key: 'code_change', label: 'Code' },
-  { key: 'ops', label: 'Ops' },
-  { key: 'finance', label: 'Finance' },
-  { key: 'research', label: 'Research' },
 ];
 
 /**
@@ -38,7 +33,16 @@ export const PRIORITIES: { key: TaskPriority; label: string; hint: string }[] = 
 ];
 
 export const statusLabel = (s: TaskStatus) => STATUSES.find((x) => x.key === s)?.label ?? s;
-export const typeLabel = (t: TaskType) => TYPES.find((x) => x.key === t)?.label ?? t;
+
+/**
+ * Task type is free text (0035_free_project_and_type.sql), so there is no
+ * lookup table to read a label from any more — this just makes a stored
+ * value ("code_change") look like something a person typed ("Code change").
+ */
+export const typeLabel = (t: TaskType) =>
+  t
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 
 /** P0–P3 badge. Display only — the stored value stays urgent/high/normal/low. */
 export const priBadge = (p: TaskPriority) => PRIORITY_LABEL[p];
@@ -224,4 +228,168 @@ export function linkExists(
 ): boolean {
   const key = canonicalLink(from, to, type);
   return links.some((l) => canonicalLink(l.from_task_id, l.to_task_id, l.type) === key);
+}
+
+/* ── open-ended pickers: project and task type ───────────────────────────
+   Projects are real rows (principle 8), never an enum, but until now the
+   only place to make one was Admin. Task type used to be a fixed 4-value
+   list (0035_free_project_and_type.sql lifted that constraint). Both
+   pickers below share one shape: a select of what already exists, plus a
+   "+ New…" option that reveals a one-line create form inline, so creating
+   either never leaves the task you're on. */
+
+const NEW_SENTINEL = '__new__';
+
+export function ProjectPicker({
+  value,
+  onChange,
+  id,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  /** Forwarded to the underlying select, so an external <label htmlFor> still
+   *  points at the right control once the create-form isn't showing. */
+  id?: string;
+}) {
+  const ds = useData((d) => d);
+  const store = useStore();
+  const toast = useToast();
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+
+  const create = () => {
+    const clean = name.trim();
+    if (!clean) return;
+    if (ds.projects.some((p) => p.name.toLowerCase() === clean.toLowerCase())) {
+      toast(`"${clean}" already exists`);
+      return;
+    }
+    const id = newId('proj');
+    const color = `var(--${WORK_TAG_COLORS[ds.projects.length % WORK_TAG_COLORS.length]})`;
+    store.insert(
+      'projects',
+      { id, name: clean, color, description: '', is_personal: false, created_at: nowIso() },
+      store.asMe({ summary: `Project created — ${clean}` }),
+    );
+    onChange(id);
+    toast(`"${clean}" created`);
+    setName('');
+    setCreating(false);
+  };
+
+  if (creating) {
+    return (
+      <div className="wk-inline-create">
+        <input
+          className="wk-in"
+          autoFocus
+          value={name}
+          placeholder="New project name"
+          aria-label="New project name"
+          maxLength={120}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); create(); }
+            if (e.key === 'Escape') { setCreating(false); setName(''); }
+          }}
+        />
+        <button type="button" className="btn sm solid" onClick={create} disabled={!name.trim()}>
+          Add
+        </button>
+        <button type="button" className="btn sm" onClick={() => { setCreating(false); setName(''); }}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      id={id}
+      className="wk-in"
+      value={value}
+      aria-label="Project"
+      onChange={(e) => (e.target.value === NEW_SENTINEL ? setCreating(true) : onChange(e.target.value))}
+    >
+      {ds.projects.length === 0 && <option value="">— no projects yet —</option>}
+      {ds.projects.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}
+        </option>
+      ))}
+      <option value={NEW_SENTINEL}>+ New project…</option>
+    </select>
+  );
+}
+
+export function TypePicker({
+  value,
+  onChange,
+  id,
+}: {
+  value: string;
+  onChange: (t: string) => void;
+  id?: string;
+}) {
+  const ds = useData((d) => d);
+  const [creating, setCreating] = useState(false);
+  const [text, setText] = useState('');
+
+  /* Every distinct type already in use, across every task the client can
+     see — task type is shared vocabulary, not per-owner like a tag, so this
+     deliberately isn't scoped to "my" tasks the way liveTags is. */
+  const known = [...new Set(ds.tasks.map((t) => t.type).filter(Boolean))].sort();
+  const options = known.includes(value) || !value ? known : [...known, value].sort();
+
+  const apply = () => {
+    const clean = text.trim();
+    if (!clean) return;
+    onChange(clean);
+    setText('');
+    setCreating(false);
+  };
+
+  if (creating) {
+    return (
+      <div className="wk-inline-create">
+        <input
+          className="wk-in"
+          autoFocus
+          value={text}
+          placeholder="New task type"
+          aria-label="New task type"
+          maxLength={60}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); apply(); }
+            if (e.key === 'Escape') { setCreating(false); setText(''); }
+          }}
+        />
+        <button type="button" className="btn sm solid" onClick={apply} disabled={!text.trim()}>
+          Add
+        </button>
+        <button type="button" className="btn sm" onClick={() => { setCreating(false); setText(''); }}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      id={id}
+      className="wk-in"
+      value={value}
+      aria-label="Task type"
+      onChange={(e) => (e.target.value === NEW_SENTINEL ? setCreating(true) : onChange(e.target.value))}
+    >
+      {!value && <option value="">{options.length === 0 ? '— no types yet —' : '— choose a type —'}</option>}
+      {options.map((t) => (
+        <option key={t} value={t}>
+          {typeLabel(t)}
+        </option>
+      ))}
+      <option value={NEW_SENTINEL}>+ New type…</option>
+    </select>
+  );
 }

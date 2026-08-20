@@ -1,7 +1,15 @@
 /** Entity model — mirrors supabase/migrations/0001_init.sql exactly. */
 
 export type UserId = string; // profile id
-export type TaskType = 'code_change' | 'ops' | 'finance' | 'research';
+/**
+ * Free text, same shape as a tag (0035_free_project_and_type.sql) — you type
+ * one, it exists, everyone who created one before shows up in the picker.
+ * Two values still mean something extra: the task page renders a checklist
+ * for 'ops' and an export panel for 'code_change' (principle 7), but neither
+ * is required or enumerated any more — an invented type just gets neither
+ * panel, not an error.
+ */
+export type TaskType = string;
 /** How much brain a task costs. Matched against the day's declared capacity. */
 export type Effort = 'light' | 'medium' | 'heavy';
 /** Declared capacity for the day — "how heavy do I want today to be". */

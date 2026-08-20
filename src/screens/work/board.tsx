@@ -22,9 +22,10 @@ import { minToLabel } from '../../lib/dayPlan';
 import {
   Field,
   PRIORITIES,
+  ProjectPicker,
   STATUSES,
   Segment,
-  TYPES,
+  TypePicker,
   WORK_TAG_COLORS,
   currentSprint,
   liveSprints,
@@ -560,6 +561,15 @@ export default function BoardTab({
     [ds.tags, mineAll],
   );
 
+  /* Task type is free text (0035_free_project_and_type.sql) — the filter row
+     can only offer what is actually in use, same as liveTags. Unlike tags,
+     type is shared vocabulary rather than per-owner, so this reads ds.tasks
+     rather than mineAll. */
+  const liveTypes = useMemo(
+    () => [...new Set(ds.tasks.map((t) => t.type).filter(Boolean))].sort(),
+    [ds.tasks],
+  );
+
   const stuck = useMemo(
     () => stuckTasks(ds).filter((s) => isMyTask(s.task, store.meId)),
     [ds, store.meId],
@@ -771,15 +781,15 @@ export default function BoardTab({
           </button>
         ))}
         <span style={{ width: 8 }} />
-        {TYPES.map((t) => (
+        {liveTypes.map((t) => (
           <button
-            key={t.key}
+            key={t}
             className="chip"
             type="button"
-            aria-pressed={types.has(t.key)}
-            onClick={() => setTypes((s) => toggle(s, t.key))}
+            aria-pressed={types.has(t)}
+            onClick={() => setTypes((s) => toggle(s, t))}
           >
-            {t.label}
+            {typeLabel(t)}
           </button>
         ))}
         <span style={{ width: 8 }} />
@@ -1208,7 +1218,10 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [projectId, setProjectId] = useState(ds.projects[0]?.id ?? '');
-  const [type, setType] = useState<TaskType>('ops');
+  /* No default type any more — 'ops' was a leftover from when type was a
+     fixed 4-value list. An empty string forces an active choice, same as
+     project. */
+  const [type, setType] = useState<TaskType>('');
   const [priority, setPriority] = useState<TaskPriority>('normal');
   const [assignee, setAssignee] = useState(store.meId);
   const [due, setDue] = useState(todayIso());
@@ -1275,6 +1288,14 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
     const clean = title.trim();
     if (!clean) {
       toast('Give the task a clear title before creating it');
+      return;
+    }
+    if (!projectId) {
+      toast('Pick a project, or create one, before creating the task');
+      return;
+    }
+    if (!type.trim()) {
+      toast('Pick a task type, or create one, before creating the task');
       return;
     }
     if (pinDraftOpen) {
@@ -1443,13 +1464,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       <div style={{ height: 11 }} />
       <div className="wk-ctl">
         <Field label="Project">
-          <select className="wk-in" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-            {ds.projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <ProjectPicker value={projectId} onChange={setProjectId} />
         </Field>
         <Field label="Assignee">
           <select className="wk-in" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
@@ -1461,7 +1476,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           </select>
         </Field>
         <Field label="Type">
-          <Segment value={type} onChange={setType} options={TYPES} label="Task type" />
+          <TypePicker value={type} onChange={setType} />
         </Field>
         <Field label="Priority">
           <Segment value={priority} onChange={setPriority} options={PRIORITIES} label="Priority" />

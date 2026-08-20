@@ -9,11 +9,11 @@ import { fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment } from '../../lib/handoff';
 import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
 import { stripInlineImageMarkers } from '../../ui/inlineImages';
-import { PRIORITIES, STATUSES, TYPES } from '../work/common';
+import { PRIORITIES, ProjectPicker, STATUSES, TypePicker } from '../work/common';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
 import Timeline from './Timeline';
-import type { Task, TaskPriority, TaskStatus, TaskType } from '../../types';
+import type { Task, TaskPriority, TaskStatus } from '../../types';
 import { DictateField } from '../../ui/dictation';
 import './task.css';
 
@@ -376,17 +376,11 @@ function TaskDetail({ task }: { task: Task }) {
               </div>
               <div>
                 <label htmlFor="tf-project">Project</label>
-                <select
+                <ProjectPicker
                   id="tf-project"
                   value={task.project_id}
-                  onChange={(e) => setField('project_id', e.target.value)}
-                >
-                  {ds.projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(id) => setField('project_id', id)}
+                />
               </div>
               <div>
                 <label htmlFor="tf-start">Start</label>
@@ -439,19 +433,8 @@ function TaskDetail({ task }: { task: Task }) {
                 </div>
               </div>
               <div className="wide">
-                <label>Type — decides what this page shows</label>
-                <div className="seg" role="group" aria-label="Task type">
-                  {TYPES.map((t) => (
-                    <button
-                      key={t.key}
-                      type="button"
-                      aria-pressed={task.type === t.key}
-                      onClick={() => setField('type', t.key as TaskType)}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+                <label htmlFor="tf-type">Type — 'ops' and 'code_change' unlock the panels below</label>
+                <TypePicker id="tf-type" value={task.type} onChange={(t) => setField('type', t)} />
               </div>
             </div>
 
