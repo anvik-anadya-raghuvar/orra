@@ -51,7 +51,13 @@ export function insertImagesAtBlockCaret(
 
   // A media block never traps the caret. Like Notion, there is always an empty
   // text block immediately below it when the paste ends the current line.
-  const paragraph: PageBlock = { id: makeId(), type: 'paragraph', text: '' };
+  const paragraph: PageBlock = {
+    id: makeId(),
+    type: 'paragraph',
+    text: '',
+    indent: block.indent ?? 0,
+    width: block.width ?? 'full',
+  };
   next.push(paragraph);
   return { blocks: next, focusId: paragraph.id, focusAtStart: true };
 }

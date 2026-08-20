@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ChevronRight, Plus, Settings2, Sparkles } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Plus, RefreshCw, Settings2, Sparkles } from 'lucide-react';
 import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
 import { packBento } from '../../lib/bento';
 import { Avatar, CountUp, InfoTip, Modal, ProgressBar, SideSheet, useToast } from '../../ui/bits';
@@ -45,6 +45,12 @@ import { WeatherTile, WorldClockTile } from './utility';
 import { arrange } from './layout';
 import { BentoTile, TILE_TITLE, TileSheetHost, useHomeArrange } from './tilechrome';
 import type { Capacity, DailyCloseout, DayPlan, DayPlanItem, Task } from '../../types';
+import {
+  describeSync,
+  googleAccounts,
+  hasLiveGoogleAccount,
+  syncLiveGoogleAccounts,
+} from '../../lib/googleSync';
 import './style.css';
 
 const CAPACITIES: Capacity[] = ['light', 'medium', 'heavy'];
@@ -965,7 +971,28 @@ function RibbonTile({
    fixed_dates, and every row links back to where it actually lives. */
 function CalendarTile() {
   const ds = useData((d) => d);
-  const meId = useData((_, s) => s.meId);
+  const store = useStore();
+  const meId = store.meId;
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [syncing, setSyncing] = useState(false);
+  const connected = googleAccounts(store).filter((account) => account.is_active !== false);
+  const live = connected.filter((account) => hasLiveGoogleAccount(account.id));
+
+  const syncCalendar = async () => {
+    if (!live.length) {
+      navigate('/admin?tab=connections');
+      return;
+    }
+    setSyncing(true);
+    try {
+      toast(describeSync(await syncLiveGoogleAccounts(store)));
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Google Calendar sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const items = useMemo(() => {
     const out: MonthItem[] = [];
@@ -997,6 +1024,12 @@ function CalendarTile() {
       <div className="bt-hd">
         <span className="eyebrow">Calendar</span>
         <span className="spacer" />
+        {connected.length > 0 && (
+          <button type="button" className="btn sm" onClick={syncCalendar} disabled={syncing}>
+            <RefreshCw size={12} strokeWidth={2} aria-hidden />
+            {syncing ? 'Syncing…' : live.length ? 'Sync now' : 'Reconnect to sync'}
+          </button>
+        )}
         <TileOpen to="/work" label="Work calendar" />
       </div>
       <div className="bt-mid">

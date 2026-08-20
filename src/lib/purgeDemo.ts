@@ -50,6 +50,7 @@ export const PURGE_ORDER: CollectionKey[] = [
   'objectives',
   'course_items',
   'courses',
+  'page_revisions',
   'page_comments',
   'pages',
   'people_interactions',

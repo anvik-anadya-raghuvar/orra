@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { entrance, micro } from '../../ui/motion';
 import TrailTab from './TrailTab';
@@ -20,7 +21,11 @@ const TABS: { key: Tab; label: string; help: string }[] = [
 ];
 
 export default function Admin() {
-  const [tab, setTab] = useState<Tab>('trail');
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => {
+    const requested = searchParams.get('tab');
+    return TABS.some((item) => item.key === requested) ? requested as Tab : 'trail';
+  });
 
   return (
     <div className="admin-screen frame">

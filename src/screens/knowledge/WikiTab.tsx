@@ -8,6 +8,7 @@ import { quoteForDate } from '../../lib/quotes';
 import { todayIso } from '../../lib/dates';
 import type { Page } from '../../types';
 import { blockText, makeBlock } from './WikiBlocks';
+import { isVerificationCurrent } from './wikiEditor';
 import WikiPage from './WikiPage';
 
 interface TreeNode {
@@ -57,6 +58,7 @@ export default function WikiTab() {
   const allPages = useMemo(() => ownRows(everyPage, meId), [everyPage, meId]);
   const [showArchived, setShowArchived] = useState(false);
   const [query, setQuery] = useState('');
+  const [view, setView] = useState<'home' | 'all' | 'owned'>('home');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [treeOpen, setTreeOpen] = useState(false);
@@ -86,8 +88,14 @@ export default function WikiTab() {
     return hit;
   }, [query, visible, allPages]);
 
-  const pool = matchIds ? visible.filter((p) => matchIds.has(p.id)) : visible;
-  const tree = useMemo(() => buildTree(pool), [pool]);
+  const viewPages = view === 'owned' ? visible.filter((page) => (page.owner_id ?? page.created_by) === meId) : visible;
+  const pool = matchIds ? viewPages.filter((page) => matchIds.has(page.id)) : viewPages;
+  const tree = useMemo(
+    () => view === 'home'
+      ? buildTree(pool)
+      : pool.slice().sort((a, b) => a.title.localeCompare(b.title)).map((page) => ({ page, children: [] })),
+    [pool, view],
+  );
 
   // Pick something sensible whenever the current selection stops existing.
   const selectedPage = visible.find((p) => p.id === selected) ?? null;
@@ -122,6 +130,10 @@ export default function WikiTab() {
       created_at: nowIso(),
       last_edited_by: store.meId,
       last_edited_at: nowIso(),
+      cover_url: null,
+      full_width: false,
+      verified_at: null,
+      verification_expires_at: null,
     };
     store.insert('pages', p, store.asMe({ summary: `Page created — ${p.title}` }));
     setSelected(p.id);
@@ -145,6 +157,10 @@ export default function WikiTab() {
       created_at: nowIso(),
       last_edited_by: store.meId,
       last_edited_at: nowIso(),
+      cover_url: null,
+      full_width: false,
+      verified_at: null,
+      verification_expires_at: null,
     };
     store.insert('pages', p, store.asMe({ summary: `Page created — ${p.title}` }));
     setCollapsed((s) => {
@@ -214,6 +230,11 @@ export default function WikiTab() {
         >
           Archived
         </button>
+        <div className="wk-view-switch" role="tablist" aria-label="Wiki views">
+          <button type="button" role="tab" aria-selected={view === 'home'} onClick={() => setView('home')}>Home</button>
+          <button type="button" role="tab" aria-selected={view === 'all'} onClick={() => setView('all')}>All pages</button>
+          <button type="button" role="tab" aria-selected={view === 'owned'} onClick={() => setView('owned')}>Pages I own</button>
+        </div>
       </div>
 
       {narrow && (
@@ -300,6 +321,7 @@ function TreeRow({
         >
           <span aria-hidden>{page.icon}</span>
           <span className="wk-treetitle">{page.title || 'Untitled'}</span>
+          {isVerificationCurrent(page) && <span className="wk-treeverified" title="Verified page">✓</span>}
           {page.is_archived && <span className="wk-arch">arch</span>}
         </button>
         <button

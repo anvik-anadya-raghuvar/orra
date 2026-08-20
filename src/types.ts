@@ -671,19 +671,41 @@ export type BlockType =
   | 'heading'
   | 'paragraph'
   | 'list'
+  | 'numbered'
   | 'todo'
+  | 'toggle'
   | 'image'
   | 'code'
   | 'callout'
   | 'divider'
-  | 'quote';
+  | 'quote'
+  | 'table'
+  | 'page_link'
+  | 'bookmark'
+  | 'file'
+  | 'pdf'
+  | 'video'
+  | 'audio'
+  | 'embed'
+  | 'equation'
+  | 'button'
+  | 'toc'
+  | 'breadcrumb';
+
+export type BlockWidth = 'full' | 'half' | 'third';
+export type MediaAlign = 'left' | 'center' | 'right';
+export type MediaMask = 'none' | 'rounded' | 'circle';
 
 /** One block of a page. Kept as a discriminated-ish shape in JSONB so the
  *  editor can add block types without a migration each time. */
 export interface PageBlock {
   id: string;
   type: BlockType;
-  /** heading/paragraph/quote/callout/code text */
+  /** A flat nesting level. Toggle blocks collapse their indented descendants. */
+  indent?: number;
+  /** Desktop layout width; every block stacks at full width on mobile. */
+  width?: BlockWidth;
+  /** heading/paragraph/quote/callout/code/toggle/equation/button text */
   text?: string;
   /** heading only, 1–3 */
   level?: number;
@@ -692,11 +714,42 @@ export interface PageBlock {
   /** image */
   src?: string;
   alt?: string;
+  caption?: string;
+  align?: MediaAlign;
+  display_width?: number;
+  mask?: MediaMask;
+  fit?: 'contain' | 'cover';
+  link_url?: string;
   /** code */
   lang?: string;
   /** callout */
   icon?: string;
   color?: string;
+  /** Toggle state. Descendants are the following blocks with greater indent. */
+  collapsed?: boolean;
+  /** Simple tables are deliberately not databases: just editable cells. */
+  rows?: string[][];
+  /** Link/media/embed blocks. */
+  url?: string;
+  title?: string;
+  page_id?: string;
+}
+
+export interface PageSnapshot {
+  title: string;
+  icon: string;
+  blocks: PageBlock[];
+  tags: string[];
+  cover_url?: string | null;
+  full_width?: boolean;
+}
+
+export interface PageRevision {
+  id: string;
+  page_id: string;
+  author_id: UserId;
+  snapshot: PageSnapshot;
+  created_at: string;
 }
 
 export interface Page {
@@ -708,6 +761,10 @@ export interface Page {
   tags: string[];
   /** Tasks this page is about; mentions like "T-45" are resolved on render. */
   linked_task_ids: string[];
+  cover_url?: string | null;
+  full_width?: boolean;
+  verified_at?: string | null;
+  verification_expires_at?: string | null;
   is_archived: boolean;
   position: number;
   created_by: UserId;
@@ -722,6 +779,12 @@ export interface PageComment {
   page_id: string;
   author_id: UserId;
   body: string;
+  block_id?: string | null;
+  anchor_text?: string | null;
+  parent_comment_id?: string | null;
+  resolved_at?: string | null;
+  resolved_by?: UserId | null;
+  reaction_user_ids?: UserId[];
   created_at: string;
 }
 
@@ -894,6 +957,7 @@ export interface Dataset {
   sprints: Sprint[];
   pages: Page[];
   page_comments: PageComment[];
+  page_revisions: PageRevision[];
   integration_grants: IntegrationGrant[];
   personal_orders: PersonalOrder[];
   personal_order_events: PersonalOrderEvent[];

@@ -148,6 +148,7 @@ export class AppStore {
       sprints: 'sprint',
       pages: 'page',
       page_comments: 'page_comment',
+      page_revisions: 'page_revision',
       integration_grants: 'integration_grant',
       personal_orders: 'personal_order',
       personal_order_events: 'personal_order_event',

@@ -425,6 +425,7 @@ function rawSeed(): Dataset {
     page_comments: [
       { id: 'pc-1', page_id: 'pg-2', author_id: RG, body: 'Added the Karnataka bench case — see T-42.', created_at: T('2026-08-17T12:00:00') },
     ],
+    page_revisions: [],
     pages: [
       {
         id: 'pg-1', title: 'Engineering handbook', icon: '📕', parent_page_id: null,

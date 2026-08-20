@@ -45,6 +45,7 @@ const TABLE: Record<CollectionKey, string> = {
   sprints: 'sprints',
   pages: 'pages',
   page_comments: 'page_comments',
+  page_revisions: 'page_revisions',
   integration_grants: 'integration_grants',
   personal_orders: 'personal_orders',
   personal_order_events: 'personal_order_events',
@@ -210,6 +211,9 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => refetch('messages'))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => refetch('tasks'))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_daily' }, () => refetch('shared_daily'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, () => refetch('pages'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'page_comments' }, () => refetch('page_comments'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'page_revisions' }, () => refetch('page_revisions'))
         .subscribe();
       const refetch = async (key: CollectionKey) => {
         const { data } = await sb.from(TABLE[key]).select('*');

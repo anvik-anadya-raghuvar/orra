@@ -30,7 +30,7 @@ describe('Notion-style wiki image insertion', () => {
   it('creates a new paragraph after an image pasted at the end', () => {
     const result = insertImagesAtBlockCaret(paragraph('before'), [image()], 6, 6, ids());
     expect(result.blocks.map((block) => block.type)).toEqual(['paragraph', 'image', 'paragraph']);
-    expect(result.blocks[2]).toMatchObject({ id: 'new-1', text: '' });
+    expect(result.blocks[2]).toMatchObject({ id: 'new-1', text: '', indent: 0, width: 'full' });
   });
 
   it('preserves the order of a multi-image paste and replaces selected text', () => {

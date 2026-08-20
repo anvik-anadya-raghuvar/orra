@@ -2,49 +2,98 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../../data/store';
 
-/** A run of page text: either plain prose or a resolved task mention. */
-export type MentionPart = { kind: 'text'; text: string } | { kind: 'task'; id: string };
+export type RichPart =
+  | { kind: 'text'; text: string }
+  | { kind: 'task'; id: string }
+  | { kind: 'page'; id: string; label: string }
+  | { kind: 'person'; id: string; label: string }
+  | { kind: 'date'; value: string }
+  | { kind: 'link'; label: string; url: string }
+  | { kind: 'mark'; mark: 'bold' | 'italic' | 'underline' | 'strike' | 'code'; text: string };
 
-const TASK_RE = /\bT-\d+\b/g;
-
-/**
- * Pure. Splits text into plain runs and task mentions.
- *
- * `exists` decides which ids are real, so an id that looks like a task but
- * isn't one in the dataset stays plain text rather than becoming a dead link.
- */
-export function parseMentions(text: string, exists: (id: string) => boolean): MentionPart[] {
-  const parts: MentionPart[] = [];
-  if (!text) return parts;
-  let last = 0;
-  for (const m of text.matchAll(TASK_RE)) {
-    const id = m[0];
-    const start = m.index ?? 0;
-    if (!exists(id)) continue;
-    if (start > last) parts.push({ kind: 'text', text: text.slice(last, start) });
-    parts.push({ kind: 'task', id });
-    last = start + id.length;
-  }
-  if (last < text.length) parts.push({ kind: 'text', text: text.slice(last) });
-  return parts;
+interface TokenSpec {
+  regex: RegExp;
+  read: (match: RegExpExecArray) => RichPart;
 }
 
-/** Renders page prose with live task mentions. React nodes only — no innerHTML. */
-export function RichText({ text }: { text: string }) {
-  const taskIds = useData((ds) => ds.tasks.map((t) => t.id));
-  const parts = parseMentions(text ?? '', (id) => taskIds.includes(id));
-  if (parts.length === 0) return null;
+const TOKENS: TokenSpec[] = [
+  { regex: /\[\[page:([^|\]]+)\|([^\]]+)\]\]/, read: (m) => ({ kind: 'page', id: m[1], label: m[2] }) },
+  { regex: /\[\[person:([^|\]]+)\|([^\]]+)\]\]/, read: (m) => ({ kind: 'person', id: m[1], label: m[2] }) },
+  { regex: /\[\[date:([^\]]+)\]\]/, read: (m) => ({ kind: 'date', value: m[1] }) },
+  { regex: /\[([^\]]+)\]\((https?:\/\/[^)]+|mailto:[^)]+)\)/, read: (m) => ({ kind: 'link', label: m[1], url: m[2] }) },
+  { regex: /\*\*([^*]+)\*\*/, read: (m) => ({ kind: 'mark', mark: 'bold', text: m[1] }) },
+  { regex: /__([^_]+)__/, read: (m) => ({ kind: 'mark', mark: 'underline', text: m[1] }) },
+  { regex: /~~([^~]+)~~/, read: (m) => ({ kind: 'mark', mark: 'strike', text: m[1] }) },
+  { regex: /`([^`]+)`/, read: (m) => ({ kind: 'mark', mark: 'code', text: m[1] }) },
+  { regex: /_([^_]+)_/, read: (m) => ({ kind: 'mark', mark: 'italic', text: m[1] }) },
+  { regex: /\bT-\d+\b/, read: (m) => ({ kind: 'task', id: m[0] }) },
+];
+
+/** Pure rich-inline parser. It deliberately emits React-safe data, never HTML. */
+export function parseRichText(text: string, taskExists: (id: string) => boolean): RichPart[] {
+  const out: RichPart[] = [];
+  let rest = text;
+  while (rest) {
+    let winner: { spec: TokenSpec; match: RegExpExecArray } | null = null;
+    for (const spec of TOKENS) {
+      const match = spec.regex.exec(rest);
+      if (!match) continue;
+      if (!winner || (match.index ?? 0) < (winner.match.index ?? 0)) winner = { spec, match };
+    }
+    if (!winner) {
+      out.push({ kind: 'text', text: rest });
+      break;
+    }
+    const index = winner.match.index ?? 0;
+    if (index > 0) out.push({ kind: 'text', text: rest.slice(0, index) });
+    const part = winner.spec.read(winner.match);
+    if (part.kind === 'task' && !taskExists(part.id)) out.push({ kind: 'text', text: winner.match[0] });
+    else out.push(part);
+    rest = rest.slice(index + winner.match[0].length);
+  }
+  return out;
+}
+
+/** Rich inline text: formatting, safe links, task/page/person/date mentions. */
+export function RichText({ text, onSelectPage }: { text: string; onSelectPage?: (id: string) => void }) {
+  const tasks = useData((ds) => ds.tasks);
+  const pages = useData((ds) => ds.pages);
+  const profiles = useData((ds) => ds.profiles);
+  const ids = new Set(tasks.map((task) => task.id));
+  const parts = parseRichText(text ?? '', (id) => ids.has(id));
   return (
     <>
-      {parts.map((p, i) =>
-        p.kind === 'task' ? (
-          <Link key={i} className="wk-mention" to={`/task/${p.id}`} onClick={(e) => e.stopPropagation()}>
-            {p.id}
-          </Link>
-        ) : (
-          <React.Fragment key={i}>{p.text}</React.Fragment>
-        ),
-      )}
+      {parts.map((part, index) => {
+        if (part.kind === 'task') {
+          return (
+            <Link key={index} className="wk-mention" to={`/task/${part.id}`} onClick={(event) => event.stopPropagation()}>
+              {part.id}
+            </Link>
+          );
+        }
+        if (part.kind === 'page') {
+          const exists = pages.some((page) => page.id === part.id);
+          return exists && onSelectPage ? (
+            <button key={index} type="button" className="wk-inline-mention" onClick={(event) => { event.stopPropagation(); onSelectPage?.(part.id); }}>
+              ↗ {part.label}
+            </button>
+          ) : <span key={index} className="wk-inline-mention">↗ {part.label}</span>;
+        }
+        if (part.kind === 'person') {
+          const profile = profiles.find((candidate) => candidate.id === part.id);
+          return <span key={index} className="wk-inline-mention">@{profile?.name ?? part.label}</span>;
+        }
+        if (part.kind === 'date') return <time key={index} className="wk-inline-mention" dateTime={part.value}>@{part.value}</time>;
+        if (part.kind === 'link') return <a key={index} className="wk-link" href={part.url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>{part.label}</a>;
+        if (part.kind === 'mark') {
+          if (part.mark === 'bold') return <strong key={index}>{part.text}</strong>;
+          if (part.mark === 'italic') return <em key={index}>{part.text}</em>;
+          if (part.mark === 'underline') return <u key={index}>{part.text}</u>;
+          if (part.mark === 'strike') return <s key={index}>{part.text}</s>;
+          return <code key={index} className="wk-inline-code">{part.text}</code>;
+        }
+        return <React.Fragment key={index}>{part.text}</React.Fragment>;
+      })}
     </>
   );
 }

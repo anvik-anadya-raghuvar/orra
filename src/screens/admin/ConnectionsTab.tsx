@@ -15,6 +15,7 @@ import {
   hasScope,
   reconnectGoogleAccount,
   syncGoogleAccount,
+  syncLiveGoogleAccounts,
 } from '../../lib/googleSync';
 import { fmtDateTime } from '../../lib/dates';
 import type { IntegrationGrant } from '../../types';
@@ -68,6 +69,9 @@ export default function ConnectionsTab() {
   const configured = googleConfigured();
   const accounts = googleAccounts(store);
   const linked = accounts.some((account) => account.is_active !== false);
+  const liveAccounts = accounts.filter(
+    (account) => account.is_active !== false && hasLiveGoogleAccount(account.id),
+  );
 
   const supabaseLive = store.adapter.kind === 'supabase';
   const me = store.me;
@@ -96,6 +100,17 @@ export default function ConnectionsTab() {
     setBusy(`sync:${account.id}`);
     try {
       toast(describeSync(await syncGoogleAccount(store, account.id)));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Google sync failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runAllSync = async () => {
+    setBusy('sync-all');
+    try {
+      toast(describeSync(await syncLiveGoogleAccounts(store)));
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Google sync failed');
     } finally {
@@ -323,6 +338,19 @@ export default function ConnectionsTab() {
           </div>
         )}
         <div className="ad-conn-acts">
+          {liveAccounts.length > 0 && (
+            <button
+              type="button"
+              className="btn sm solid"
+              onClick={runAllSync}
+              disabled={busy !== null}
+            >
+              <RefreshCw size={12} strokeWidth={2} />{' '}
+              {busy === 'sync-all'
+                ? 'Syncing all…'
+                : `Sync all now (${liveAccounts.length})`}
+            </button>
+          )}
           {configured ? (
             <button
               type="button"
