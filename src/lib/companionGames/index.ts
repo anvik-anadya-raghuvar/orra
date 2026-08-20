@@ -11,7 +11,7 @@
  * is ever offered in a broken state.
  */
 
-export type GameId = 'decide' | 'simon' | 'blink' | 'hide' | 'rps';
+export type GameId = 'decide' | 'simon' | 'blink' | 'hide' | 'rps' | 'catch';
 
 export interface GameSpec {
   id: GameId;
@@ -28,6 +28,11 @@ export interface GameSpec {
   scored: boolean;
   /** Higher is better for this game's score. */
   higherIsBetter: boolean;
+  /**
+   * Needs a real cursor to flee from — a touch screen has no "hovering
+   * nearby" to react to. Absent means it works anywhere pointer works.
+   */
+  requiresFinePointer?: boolean;
 }
 
 export const GAMES: Record<GameId, GameSpec> = {
@@ -77,6 +82,18 @@ export const GAMES: Record<GameId, GameSpec> = {
     scored: true,
     higherIsBetter: false,
   },
+  catch: {
+    id: 'catch',
+    label: 'Catch him',
+    blurb: "He runs from your cursor. Corner him in 20 seconds.",
+    players: 1,
+    // The whole game is him fleeing — with animation off it is just a robot
+    // standing still, so it is not offered rather than offered broken.
+    reducedMotion: 'hidden',
+    scored: true,
+    higherIsBetter: false,
+    requiresFinePointer: true,
+  },
 };
 
 export const GAME_IDS = Object.keys(GAMES) as GameId[];
@@ -85,14 +102,27 @@ export const GAME_IDS = Object.keys(GAMES) as GameId[];
  * What the menu should offer right now. A two-player game needs someone on the
  * other end, so it is only listed when there is one.
  */
-export function playableGames(reduced: boolean, otherOnline = false): GameSpec[] {
+export function playableGames(
+  reduced: boolean,
+  otherOnline = false,
+  finePointer = true,
+): GameSpec[] {
   return GAME_IDS.map((id) => GAMES[id]).filter(
-    (g) => (!reduced || g.reducedMotion === 'plays') && (g.players === 1 || otherOnline),
+    (g) =>
+      (!reduced || g.reducedMotion === 'plays') &&
+      (g.players === 1 || otherOnline) &&
+      (!g.requiresFinePointer || finePointer),
   );
 }
 
-/** Games he may offer unprompted — never one that needs the other person. */
-export const SOLO_IDS = GAME_IDS.filter((id) => GAMES[id].players === 1);
+/**
+ * Games he may offer unprompted — never one that needs the other person, and
+ * never one that needs equipment he cannot assume you have. Offering a chase
+ * to someone on their phone is not an invitation, it is a dead end.
+ */
+export const SOLO_IDS = GAME_IDS.filter(
+  (id) => GAMES[id].players === 1 && !GAMES[id].requiresFinePointer,
+);
 
 /** Is `next` an improvement on `best` for this game. */
 export function isBetter(id: GameId, next: number, best: number | undefined): boolean {

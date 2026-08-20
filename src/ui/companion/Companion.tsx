@@ -17,6 +17,7 @@ import { useData, useStore } from '../../data/store';
 import { quietHoursFor } from '../../lib/companion';
 import { todayIso } from '../../lib/dates';
 import { GAMES, type GameId } from '../../lib/companionGames';
+import * as catchGame from '../../lib/companionGames/catch';
 import * as hideSeek from '../../lib/companionGames/hideSeek';
 import * as rps from '../../lib/companionGames/rps';
 import {
@@ -47,6 +48,7 @@ import VikHouse from './VikHouse';
 import VikStatus from './VikStatus';
 import { useHideTarget } from './useHideTarget';
 import { useVikBounds } from './useVikBounds';
+import { useVikChase } from './useVikChase';
 import { useVikGame } from './useVikGame';
 import { useAppPresence } from './useAppPresence';
 import { useAppReactions, type Reaction } from './useAppReactions';
@@ -85,6 +87,7 @@ export default function Companion() {
   const store = useStore();
   const enabled = useData((_, s) => s.me.personalization.companion?.enabled !== false);
   const robotName = useData((_, s) => s.me.personalization.companion?.name?.trim() || 'Vik');
+  const color = useData((_, s) => s.me.personalization.companion?.color);
   const follow = useData((_, s) => s.me.personalization.companion?.follow === true);
   const playful = useData((_, s) => s.me.personalization.companion?.playful !== false);
   const myBlockUp = useData((ds, s) => ds.active_blocks.some((b) => b.user_id === s.meId));
@@ -157,6 +160,32 @@ export default function Companion() {
   const spriteW = dense ? SIZE.dense : SIZE.normal;
   const hideTarget = useHideTarget(bounds, spriteW, (spriteW * 74) / 64);
   const [hideState, setHideState] = useState<hideSeek.HideState | null>(null);
+  // Catch him: he flees the cursor across the whole safe area, not just the dock.
+  const [catchState, setCatchState] = useState<catchGame.CatchState | null>(null);
+  const chase = useVikChase({
+    active: game.active === 'catch',
+    bounds,
+    spriteW,
+    spriteH: (spriteW * 74) / 64,
+    onTimeoutMs: catchGame.ROUND_MS,
+    onTimeout: () =>
+      setCatchState((s) => {
+        if (!s || s.phase !== 'fleeing') return s;
+        const next = catchGame.timeout(s);
+        say(catchGame.verdict(next));
+        game.finish('catch', null, false);
+        return null;
+      }),
+  });
+  const handleCatch = () => {
+    setCatchState((s) => {
+      if (!s || s.phase !== 'fleeing') return s;
+      const next = catchGame.caught(s, Date.now());
+      say(catchGame.verdict(next));
+      game.finish('catch', catchGame.score(next), true);
+      return null;
+    });
+  };
   /* ── The two of you ─────────────────────────────────────────────────── */
 
   // He is in the air: hidden here, on his way there.
@@ -170,10 +199,55 @@ export default function Companion() {
   const [rpsAsked, setRpsAsked] = useState(false);
   const otherName = store.other.name;
 
+  /* ── Do not disturb ────────────────────────────────────────────────────
+     Drag him onto the Home link and he clocks off — hidden everywhere,
+     nothing running — until you next open Home, where he wakes with a line.
+     Session-scoped like his drag position: a fresh session starts awake. */
+  const restKey = `anvik:vik:resting:${store.meId}`;
+  const [resting, setResting] = useState(() => {
+    try {
+      return sessionStorage.getItem(restKey) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const setRestingPersisted = (next: boolean) => {
+    setResting(next);
+    try {
+      if (next) sessionStorage.setItem(restKey, '1');
+      else sessionStorage.removeItem(restKey);
+    } catch {}
+  };
+  // Woken by landing on Home. A route change covers the common case — you
+  // rest him from some other page, then later navigate to Home — but if you
+  // dropped him on Home while already there, the route never changes, so a
+  // click on the Home link itself is the second, independent way to wake him.
+  // React Router does not re-fire on a click to the already-current route.
+  useEffect(() => {
+    if (resting && pathname === '/') {
+      setRestingPersisted(false);
+      say(`I'm back. Recharged and ready.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!resting) return;
+    const onClick = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest('a[href="/"]');
+      if (!el) return;
+      setRestingPersisted(false);
+      say(`I'm back. Recharged and ready.`);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resting]);
+
   const link = useVikLink({
     // Asleep or heads-down: he waits in the mailbox rather than tumbling in
     // at three in the morning.
-    reachable: () => !quiet && !myBlockUp && document.visibilityState === 'visible',
+    reachable: () => !quiet && !myBlockUp && !resting && document.visibilityState === 'visible',
     onArrive: (a) => {
       setArrival(a);
       dismiss();
@@ -193,7 +267,7 @@ export default function Companion() {
       say('✋ Snap.');
       feel('secret');
     },
-    onTickle: (speak) => {
+    onGreeted: (speak) => {
       doGesture('tilt');
       if (speak) say(`${otherName} says hi 👋`);
     },
@@ -226,7 +300,8 @@ export default function Companion() {
     doGesture,
     say,
     feel,
-    onPoke: () => link.pokedMine(),
+    // Not the poke — the hold. See useVikPlay's onGreet doc.
+    onGreet: () => link.sayHi(),
     onThrow: (release, view) => {
       const vector = throwVector(release, view);
       if (!vector) return false;
@@ -242,6 +317,23 @@ export default function Companion() {
         say(`…nobody was home.`);
       }, RETURN_MS);
       return true;
+    },
+    onHomeDrop: (x, y) => {
+      // The Home link renders twice — a desktop side rail and a mobile
+      // tabbar — and only one of the two is ever actually visible. A
+      // display:none copy has a zero-size rect, so it never wins the hit
+      // test; no need to filter for visibility explicitly.
+      const links = document.querySelectorAll<HTMLElement>('a[href="/"]');
+      const pad = 10;
+      for (const el of links) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        if (x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad) {
+          setRestingPersisted(true);
+          return true;
+        }
+      }
+      return false;
     },
   });
   const celebration = useCelebrations(store, say);
@@ -266,14 +358,14 @@ export default function Companion() {
   // whatever this band has unlocked, so a sulking robot simply has nothing.
   const busyRef = useRef(false);
   const anticsRef = useRef(mood.behaviour.antics);
-  anticsRef.current = playful ? mood.behaviour.antics : [];
+  anticsRef.current = playful && !resting ? mood.behaviour.antics : [];
   useIdleAntics({ antics: () => anticsRef.current, doGesture, busy: () => busyRef.current });
 
   // What you are doing elsewhere in the portal. Small on purpose: a companion
   // that reacts to everything is a distraction, not a companion.
   const [reaction, setReaction] = useState<Reaction>(null);
   useAppReactions({
-    enabled: !dense && !quiet && playful,
+    enabled: !dense && !quiet && playful && !resting,
     doGesture,
     busy: () => busyRef.current,
     onReaction: setReaction,
@@ -282,7 +374,7 @@ export default function Companion() {
   // One check a minute is plenty for something that happens twice a day.
   useEffect(() => {
     const iv = window.setInterval(() => {
-      if (invited || game.active) return;
+      if (invited || game.active || resting) return;
       const ctx = {
         now: Date.now(),
         today: todayIso(),
@@ -346,6 +438,7 @@ export default function Companion() {
           return;
         }
       }
+      if (id === 'catch') setCatchState(catchGame.start(Date.now()));
       game.start(id);
     },
     [dismiss, game, hideTarget, say],
@@ -374,6 +467,7 @@ export default function Companion() {
     game.abandon();
     setHideState(null);
     hideTarget.clear();
+    setCatchState(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -401,7 +495,7 @@ export default function Companion() {
   // cursor chase either — two rAF loops on one sprite fight each other.
   busyRef.current = isBusy(inputs) || game.active != null;
 
-  if (!enabled || myBlockUp) return null;
+  if (!enabled || myBlockUp || resting) return null;
 
   // Dense rooms keep the old bare corner: no house, so no placement either.
   const house = houseFor({ band, quiet, mailWaiting: mail != null, animate });
@@ -420,6 +514,8 @@ export default function Companion() {
       )
     : null;
   const placed = peek ?? landed;
+  // He is fleeing across the whole safe area, tracked frame by frame.
+  const chasing = game.active === 'catch';
 
   const sleeping = isSleeping(inputs);
   // GESTURE_ANIM is a framer-free structural type by design (lib stays testable
@@ -433,7 +529,13 @@ export default function Companion() {
     spoken != null && spoken.kind !== 'status-check' && !spoken.id.startsWith('ondemand:');
 
   return (
-    <div className={`companion${dense ? ' dense' : ''}`} ref={boundsRef}>
+    <div
+      className={`companion${dense ? ' dense' : ''}`}
+      ref={boundsRef}
+      // His own accent colour, picked in Customise. Unset falls back to the
+      // theme's --indigo inside companion.css, so this is a no-op by default.
+      style={color ? ({ '--vik-accent': `var(--${color})` } as React.CSSProperties) : undefined}
+    >
       {!dense && (
         <VikHouse
           state={house}
@@ -455,8 +557,8 @@ export default function Companion() {
       )}
 
       <motion.div
-        className={`vik-wrap${peek ? ' peeking' : ''}${landed ? ' landed' : ''}`}
-        drag={!placed}
+        className={`vik-wrap${peek ? ' peeking' : ''}${landed ? ' landed' : ''}${chasing ? ' chasing' : ''}`}
+        drag={!placed && !chasing}
         dragMomentum={false}
         dragElastic={0.12}
         dragConstraints={boundsRef}
@@ -464,14 +566,16 @@ export default function Companion() {
         // The cast is only to admit the two custom properties alongside the
         // motion values, which framer's style type does not model.
         style={
-          (placed
-            ? { x: 0, y: 0, left: placed.left, top: placed.top }
-            : {
-                x: play.x,
-                y: play.y,
-                '--vik-place-left': `${spot.left}px`,
-                '--vik-place-lift': `${spot.lift}px`,
-              }) as unknown as React.ComponentProps<typeof motion.div>['style']
+          (chasing
+            ? { x: 0, y: 0, left: chase.left, top: chase.top }
+            : placed
+              ? { x: 0, y: 0, left: placed.left, top: placed.top }
+              : {
+                  x: play.x,
+                  y: play.y,
+                  '--vik-place-left': `${spot.left}px`,
+                  '--vik-place-lift': `${spot.lift}px`,
+                }) as unknown as React.ComponentProps<typeof motion.div>['style']
         }
         animate={{ opacity: inFlight ? 0 : 1, scale: inFlight ? 0.4 : 1 }}
         transition={animate ? { duration: 0.22 } : { duration: 0 }}
@@ -489,13 +593,17 @@ export default function Companion() {
                   otherName: store.other.name,
                   animate,
                   seed: seedRef.current,
+                  chaseStartedAt: catchState?.startedAt,
                   setChest: game.setChest,
                   setBlink: game.setBlink,
                   say,
                   finish: (score, won) => game.finish(game.active!, score, won),
                   quit: () => {
                     if (game.active === 'hide') endHide(false);
-                    else game.abandon();
+                    else if (game.active === 'catch') {
+                      setCatchState(null);
+                      game.abandon();
+                    } else game.abandon();
                   },
                 }}
               />
@@ -601,9 +709,11 @@ export default function Companion() {
         <motion.button
           className="vik-btn"
           aria-label={
-            peek
-              ? `Found ${robotName}!`
-              : `${robotName}, your companion — tap for what's happening`
+            chasing
+              ? `Catch ${robotName}!`
+              : peek
+                ? `Found ${robotName}!`
+                : `${robotName}, your companion — tap for what's happening`
           }
           initial={animate ? { scale: 0, y: 24 } : false}
           animate={
@@ -617,17 +727,21 @@ export default function Companion() {
           }
           whileTap={animate ? { scale: 0.9 } : undefined}
           onClick={
-            peek
-              ? () => endHide(true)
-              : () => {
-                  lastTouchRef.current = Date.now();
-                  play.handleTap();
-                }
+            chasing
+              ? handleCatch
+              : peek
+                ? () => endHide(true)
+                : () => {
+                    lastTouchRef.current = Date.now();
+                    play.handleTap();
+                  }
           }
-          onPointerDown={play.petDown}
-          onPointerUp={play.petUp}
-          onPointerCancel={play.petUp}
-          onPointerLeave={play.petUp}
+          // Holding him down while he is fleeing would start the pet/greet
+          // timer underneath the chase — a catch is a click, not a hold.
+          onPointerDown={chasing ? undefined : play.petDown}
+          onPointerUp={chasing ? undefined : play.petUp}
+          onPointerCancel={chasing ? undefined : play.petUp}
+          onPointerLeave={chasing ? undefined : play.petUp}
         >
           <motion.div animate={moving} style={{ transformOrigin: '50% 85%' }}>
             <RobotSprite
@@ -657,6 +771,7 @@ export default function Companion() {
         animate={animate}
         scores={game.scores}
         otherOnline={presence.otherOnline}
+        finePointer={typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
         onPlay={startGame}
         onPlayful={(next) =>
           store.patchPersonalization(

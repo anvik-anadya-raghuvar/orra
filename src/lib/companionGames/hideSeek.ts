@@ -31,7 +31,14 @@ export const MIN_W = 120;
 export const MIN_H = 80;
 /** Clear of the header, so his head is not behind a sticky bar. */
 export const MIN_TOP = 72;
-export const EDGE_MARGIN = 24;
+/**
+ * How close to the left/right edge a card may sit. The portal's own tile
+ * gutters run 16px on a phone-width page, so anything much bigger than that
+ * rejected every real card on the site — hide-and-seek could never find
+ * anywhere to hide, on any page. 12px leaves him a couple of pixels of
+ * breathing room without being pickier than the layout he is hiding in.
+ */
+export const EDGE_MARGIN = 12;
 
 /**
  * Is this box somewhere he could plausibly hide right now. Pure, so the hook

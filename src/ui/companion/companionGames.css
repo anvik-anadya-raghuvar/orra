@@ -157,10 +157,15 @@
    actually go behind one — clipping looks identical and stays correct on the
    translucent surfaces a mask would break on. */
 .vik-wrap.peeking,
-.vik-wrap.landed {
+.vik-wrap.landed,
+.vik-wrap.chasing {
   right: auto;
   bottom: auto;
   transition: none;
+}
+/* Fleeing needs a tight grab cursor gone — he is not draggable mid-chase. */
+.vik-wrap.chasing .vik-btn {
+  cursor: crosshair;
 }
 .vik-wrap.peeking .vik-btn {
   clip-path: inset(0 0 45% 0);

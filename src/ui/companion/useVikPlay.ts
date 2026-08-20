@@ -60,14 +60,24 @@ interface Options {
   say: (text: string) => void;
   /** Tell the friendliness meter what just happened to him. */
   feel: (action: MoodAction) => void;
-  /** A poke landed — the other screen's robot giggles along. */
-  onPoke?: () => void;
+  /**
+   * A deliberate hold — not a tap — reads as saying hi to the other person.
+   * A poke stays entirely local: it is the ladder, giggling, sulking, and
+   * none of it leaves this screen. Holding him is the one thing that does.
+   */
+  onGreet?: () => void;
   /**
    * A release that might be a throw abroad rather than a fling across the
    * desk. Returns true if it was taken, in which case he is gone and the
    * local dizziness is skipped.
    */
   onThrow?: (release: Release, view: Viewport) => boolean;
+  /**
+   * Checked first, before a throw even gets a look-in: did this drag end on
+   * top of the Home link. Returns true if it did, in which case he goes
+   * quiet for the session and nothing else about the release matters.
+   */
+  onHomeDrop?: (x: number, y: number) => boolean;
 }
 
 export function useVikPlay({
@@ -80,8 +90,9 @@ export function useVikPlay({
   doGesture,
   say,
   feel,
-  onPoke,
+  onGreet,
   onThrow,
+  onHomeDrop,
 }: Options) {
   const [playMood, setPlayMood] = useState<RobotMood | null>(null);
   const [petting, setPetting] = useState(false);
@@ -125,7 +136,6 @@ export function useVikPlay({
 
     const streak = nextStreak(streakRef.current.count, streakRef.current.at, now);
     streakRef.current = { count: streak, at: now };
-    onPoke?.();
 
     // The secret: he stops sulking and breakdances. Counted before the grump
     // gate, or the sulk would make it unreachable.
@@ -185,6 +195,9 @@ export function useVikPlay({
       feel('pet');
       // Hearts are the whole reaction; without them, he has to say it.
       if (!animate) say('♥');
+      // The hold is what tells the other person you were thinking of them —
+      // once per hold, not once per pixel of it.
+      onGreet?.();
     }, PET_HOLD_MS);
   };
   const petUp = () => {
@@ -205,6 +218,9 @@ export function useVikPlay({
     try {
       sessionStorage.setItem(POS_KEY, JSON.stringify({ x: x.get(), y: y.get() }));
     } catch {}
+    // Dropped squarely on Home: he clocks off for the session, no fling.
+    if (onHomeDrop?.(info.point.x, info.point.y)) return;
+
     // Hard, and near the edge he is heading for: that is a throw, not a fling.
     const thrown = onThrow?.(
       {

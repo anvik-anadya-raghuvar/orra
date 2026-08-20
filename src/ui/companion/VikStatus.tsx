@@ -48,6 +48,8 @@ interface Props {
   scores: Record<string, number>;
   /** Two-player games are only listed when there is a second player. */
   otherOnline: boolean;
+  /** Fine pointer available — a game needing a real cursor is only listed here. */
+  finePointer: boolean;
   onPlay: (id: GameId) => void;
 }
 
@@ -63,6 +65,7 @@ export default function VikStatus({
   animate,
   scores,
   otherOnline,
+  finePointer,
   onPlay,
 }: Props) {
   const band = bandOf(value);
@@ -180,7 +183,7 @@ export default function VikStatus({
 
         <div className="vik-status-games">
           <h4>Play</h4>
-          {playableGames(!animate, otherOnline).map((g) => {
+          {playableGames(!animate, otherOnline, finePointer).map((g) => {
             const best = scores[g.id];
             const label = best != null ? SCORE_LABEL[g.id]?.(best) : null;
             return (

@@ -10,8 +10,19 @@ describe('the registry', () => {
     for (const id of GAME_IDS) expect(GAMES[id].id).toBe(id);
   });
 
-  it('offers every solo game when motion is allowed', () => {
-    expect(playableGames(false)).toHaveLength(SOLO_IDS.length);
+  it('offers every solo game when motion is allowed and the pointer is fine', () => {
+    // SOLO_IDS is what he may offer unprompted — it deliberately excludes
+    // anything needing a fine pointer, since an invite has no way to know
+    // what device you are on. The menu, which you opened yourself, does not
+    // have that problem and may still list it.
+    expect(playableGames(false)).toHaveLength(SOLO_IDS.length + 1);
+    expect(playableGames(false).map((g) => g.id)).toContain('catch');
+  });
+
+  it('hides a game that needs a cursor from a coarse pointer', () => {
+    const ids = playableGames(false, false, false).map((g) => g.id);
+    expect(ids).not.toContain('catch');
+    expect(ids).toHaveLength(SOLO_IDS.length);
   });
 
   it('only offers a two-player game when there is a second player', () => {
@@ -237,6 +248,16 @@ describe('hide and seek', () => {
     }
   });
 
+  /**
+   * The actual bug: on this portal's real pages, tiles sit 16px from the
+   * screen edge. The margin used to be 24px, which rejected every real card
+   * on the site — hide-and-seek could never find anywhere to hide, ever.
+   */
+  it('accepts a card at the gutter the app actually uses (16px)', () => {
+    const real = box('a', { left: 16, width: 343 }); // measured on Home at 375px wide
+    expect(hide.isCandidate(real, { width: 375, height: 812, bottomInset: 49 })).toBe(true);
+  });
+
   it('reuses the only place there is rather than refusing to play', () => {
     const only = [box('a')];
     expect(hide.pickHideTarget(only, view, 3, 'a')?.key).toBe('a');
@@ -350,5 +371,90 @@ describe('rock paper scissors', () => {
     expect(s.phase).toBe('over');
     expect(rps.play(s, 'paper')).toBe(s);
     expect(rps.verdict(s, 'Raghuvar')).toMatch(/You win/);
+  });
+});
+
+/* ── Catch him ────────────────────────────────────────────────────────── */
+
+import * as catchGame from './catch';
+
+describe('catch him', () => {
+  const bounds = { width: 800, height: 600, margin: 30 };
+
+  it('does not move without a pointer', () => {
+    const pos = { x: 400, y: 300 };
+    expect(catchGame.fleeStep(pos, null, bounds, 0.1)).toEqual(pos);
+  });
+
+  it('ignores a pointer that is not close enough to matter', () => {
+    const pos = { x: 400, y: 300 };
+    const far = { x: 400, y: 300 - catchGame.TRIGGER_RADIUS - 10 };
+    expect(catchGame.fleeStep(pos, far, bounds, 0.1)).toEqual(pos);
+  });
+
+  it('moves directly away from a close pointer', () => {
+    const pos = { x: 400, y: 300 };
+    const pointer = { x: 400, y: 320 }; // 20px below
+    const next = catchGame.fleeStep(pos, pointer, bounds, 0.05);
+    expect(next.y).toBeLessThan(pos.y); // fled upward, away from the pointer
+    expect(next.x).toBe(pos.x); // no sideways component when directly below
+  });
+
+  it('moves fastest right up close and tapers to nothing at the trigger radius', () => {
+    const pos = { x: 400, y: 300 };
+    const close = { x: 400, y: 310 };
+    const edge = { x: 400, y: 300 + catchGame.TRIGGER_RADIUS };
+    const closeStep = Math.abs(catchGame.fleeStep(pos, close, bounds, 0.05).y - pos.y);
+    const edgeStep = Math.abs(catchGame.fleeStep(pos, edge, bounds, 0.05).y - pos.y);
+    expect(closeStep).toBeGreaterThan(edgeStep);
+    expect(edgeStep).toBeCloseTo(0, 1);
+  });
+
+  it('never places him outside the margin, however hard he is pressed', () => {
+    // Standing right in the corner with the pointer right on top of him.
+    const pos = { x: bounds.margin + 1, y: bounds.margin + 1 };
+    const pointer = { x: bounds.margin, y: bounds.margin };
+    const next = catchGame.fleeStep(pos, pointer, bounds, 0.2);
+    expect(next.x).toBeGreaterThanOrEqual(bounds.margin);
+    expect(next.y).toBeGreaterThanOrEqual(bounds.margin);
+  });
+
+  it('is exactly this clamping that makes cornering the whole mechanic', () => {
+    // Pinned into the corner: both axes are already at their clamp, so a
+    // pointer bearing down on him produces no further motion at all — which
+    // is the moment he becomes catchable.
+    const cornered = { x: bounds.margin, y: bounds.margin };
+    const pointer = { x: bounds.margin + 5, y: bounds.margin + 5 };
+    expect(catchGame.fleeStep(cornered, pointer, bounds, 0.2)).toEqual(cornered);
+  });
+
+  it('starts away from every edge', () => {
+    const p = catchGame.startPosition(bounds);
+    expect(p.x).toBeGreaterThan(bounds.margin);
+    expect(p.x).toBeLessThan(bounds.width - bounds.margin);
+    expect(p.y).toBeGreaterThan(bounds.margin);
+    expect(p.y).toBeLessThan(bounds.height - bounds.margin);
+  });
+
+  it('scores the seconds it took, and nothing if he was never caught', () => {
+    let s = catchGame.start(1_000);
+    s = catchGame.caught(s, 4_300);
+    expect(catchGame.score(s)).toBe(3.3);
+
+    const timedOut = catchGame.timeout(catchGame.start(1_000));
+    expect(catchGame.score(timedOut)).toBeNull();
+    expect(catchGame.verdict(timedOut)).toMatch(/empty-handed/);
+  });
+
+  it('cannot be caught twice, and a timeout cannot overwrite a catch', () => {
+    let s = catchGame.caught(catchGame.start(0), 500);
+    expect(catchGame.caught(s, 900)).toBe(s);
+    expect(catchGame.timeout(s)).toBe(s);
+  });
+
+  it('writes a verdict that actually reflects how it went', () => {
+    expect(catchGame.verdict(catchGame.caught(catchGame.start(0), 1_500))).toMatch(/barely/);
+    expect(catchGame.verdict(catchGame.caught(catchGame.start(0), 6_000))).toMatch(/Cornered/);
+    expect(catchGame.verdict(catchGame.caught(catchGame.start(0), 15_000))).toMatch(/earned/);
   });
 });

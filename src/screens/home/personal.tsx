@@ -204,6 +204,51 @@ function CompanionSettings() {
               {comp.follow === true ? 'Following your cursor' : 'Stays in the corner'}
             </button>
           )}
+          <div
+            role="group"
+            aria-label="Robot colour"
+            style={{ display: 'flex', gap: 2, alignItems: 'center' }}
+          >
+            {(['indigo', 'teal', 'rose', 'stamp', 'sky', 'violet'] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={(comp.color ?? 'indigo') === c}
+                aria-label={`${c[0].toUpperCase()}${c.slice(1)}`}
+                title={c[0].toUpperCase() + c.slice(1)}
+                onClick={() => patch({ color: c }, `Companion — ${c}`)}
+                // The hit target is 44px regardless of screen size; the visible
+                // swatch inside it is a small dot. Same "overlay, not the
+                // artwork" pattern as Simon's chest-LED buttons.
+                style={{
+                  width: 44,
+                  height: 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 0,
+                  background: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    border:
+                      (comp.color ?? 'indigo') === c
+                        ? '2px solid var(--ink)'
+                        : '1px solid var(--line)',
+                    background: `var(--${c})`,
+                    display: 'block',
+                  }}
+                />
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

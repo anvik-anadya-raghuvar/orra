@@ -57,49 +57,59 @@
 }
 
 /* ── Sprite palette — tokens, so light and Deep Field both work ────────── */
+/*
+   His own accent — outline, body, eyes, mouth, antenna — reads through
+   --vik-accent, which Companion.tsx sets on the wrapper from the "Robot
+   colour" picker in Customise. Unset, it falls straight back to --indigo,
+   today's fixed look, so a profile with no preference is pixel-identical
+   to before this existed. The chest LED, the antenna tip, and the house are
+   deliberately left on their fixed tokens: those carry other meanings
+   (a game's display, a decorative accent, a shared structure) and would
+   stop reading correctly if they moved with a personal colour choice.
+*/
 .vik-body {
   fill: var(--surf-solid, var(--surf));
-  stroke: var(--indigo);
+  stroke: var(--vik-accent, var(--indigo));
   stroke-width: 2;
 }
 .vik-face {
   fill: var(--surf-dense, var(--surf2));
 }
 .vik-eye {
-  fill: var(--indigo);
+  fill: var(--vik-accent, var(--indigo));
 }
 .vik-eye-arc path,
 .vik-brow path {
-  stroke: var(--indigo);
+  stroke: var(--vik-accent, var(--indigo));
   stroke-width: 2.2;
   fill: none;
   stroke-linecap: round;
 }
 .vik-eye-spiral path {
-  stroke: var(--indigo);
+  stroke: var(--vik-accent, var(--indigo));
   stroke-width: 1.6;
   fill: none;
   stroke-linecap: round;
 }
 .vik-mouth {
-  stroke: var(--indigo);
+  stroke: var(--vik-accent, var(--indigo));
   stroke-width: 2;
   fill: none;
   stroke-linecap: round;
 }
 .vik-mouth-open {
-  fill: var(--indigo);
+  fill: var(--vik-accent, var(--indigo));
 }
 .vik-limb {
   fill: var(--surf-dense, var(--surf2));
-  stroke: var(--indigo);
+  stroke: var(--vik-accent, var(--indigo));
   stroke-width: 1.6;
 }
 .vik-chest {
   fill: var(--teal);
 }
 .vik-antenna {
-  stroke: var(--indigo);
+  stroke: var(--vik-accent, var(--indigo));
   stroke-width: 2;
   stroke-linecap: round;
 }

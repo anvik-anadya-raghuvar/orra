@@ -19,15 +19,32 @@ export interface Bounds {
   topInset: number;
 }
 
+/**
+ * A rect, but only if the element is actually on screen.
+ *
+ * The mobile tabbar stays in the DOM at every width and is simply
+ * `display:none` above the phone breakpoint — a `display:none` element's
+ * `getBoundingClientRect()` comes back as all zeros, not "absent". Trusting
+ * that blindly turned "how much room is there at the bottom" into "none of
+ * it", on every desktop and tablet screen: the safe rect collapsed to
+ * nothing and hide-and-seek could never find anywhere to hide. Checking the
+ * rect actually has size is the fix.
+ */
+function visibleRect(el: Element | null): DOMRect | null {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 || r.height > 0 ? r : null;
+}
+
 function measure(): Bounds {
-  const tabbar = document.querySelector('.tabbar, [class*="tabbar"]');
-  const header = document.querySelector('header, .topbar, [class*="topbar"]');
+  const tabbar = visibleRect(document.querySelector('.tabbar, [class*="tabbar"]'));
+  const header = visibleRect(document.querySelector('header, .topbar, [class*="topbar"]'));
   const vh = window.innerHeight;
   return {
     width: window.innerWidth,
     height: vh,
-    bottomInset: tabbar ? Math.max(0, vh - tabbar.getBoundingClientRect().top) : 0,
-    topInset: header ? Math.max(0, header.getBoundingClientRect().bottom) : 0,
+    bottomInset: tabbar ? Math.max(0, vh - tabbar.top) : 0,
+    topInset: header ? Math.max(0, header.bottom) : 0,
   };
 }
 

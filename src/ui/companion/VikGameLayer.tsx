@@ -14,12 +14,15 @@ import type { GameId } from '../../lib/companionGames';
 import * as decide from '../../lib/companionGames/decide';
 import * as simon from '../../lib/companionGames/simon';
 import * as blink from '../../lib/companionGames/blinkTap';
+import * as catchGame from '../../lib/companionGames/catch';
 
 export interface GameHost {
   robotName: string;
   otherName: string;
   animate: boolean;
   seed: number;
+  /** When this round of Catch him started — only that game reads it. */
+  chaseStartedAt?: number;
   setChest: (c: string | null) => void;
   setBlink: (b: boolean) => void;
   say: (text: string) => void;
@@ -243,6 +246,34 @@ function BlinkTap({ host }: { host: GameHost }) {
   );
 }
 
+/* ── Catch him ────────────────────────────────────────────────────────── */
+
+/**
+ * The physics live in Companion, since only it owns the sprite's position —
+ * this is just the countdown and the way out. A once-a-second tick is plenty
+ * for a number changing at 1Hz; nothing here drives the chase itself.
+ */
+function Catch({ host, onQuit }: { host: GameHost; onQuit: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const iv = window.setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(iv);
+  }, []);
+  const elapsed = host.chaseStartedAt ? now - host.chaseStartedAt : 0;
+  const left = Math.max(0, Math.ceil((catchGame.ROUND_MS - elapsed) / 1000));
+
+  return (
+    <div className="vik-game">
+      <p className="vik-game-line" role="status" aria-live="polite">
+        {`He's running. ${left}s left — click him.`}
+      </p>
+      <button className="vik-game-quit" onClick={onQuit}>
+        Give up
+      </button>
+    </div>
+  );
+}
+
 /* ── Hide and seek ────────────────────────────────────────────────────── */
 
 /**
@@ -275,5 +306,6 @@ export default function VikGameLayer({
   if (game === 'decide') return <Decide host={host} />;
   if (game === 'simon') return <Simon host={host} />;
   if (game === 'blink') return <BlinkTap host={host} />;
+  if (game === 'catch') return <Catch host={host} onQuit={host.quit} />;
   return <Hide host={host} onGiveUp={onGiveUp} />;
 }
