@@ -20,11 +20,21 @@ export const TYPES: { key: TaskType; label: string }[] = [
   { key: 'research', label: 'Research' },
 ];
 
-export const PRIORITIES: { key: TaskPriority; label: string }[] = [
-  { key: 'urgent', label: 'Urgent' },
-  { key: 'high', label: 'High' },
-  { key: 'normal', label: 'Normal' },
-  { key: 'low', label: 'Low' },
+/**
+ * One priority vocabulary for the whole app.
+ *
+ * These used to read "Urgent / High / Normal / Low" in the forms while the
+ * board badges and filter chips read "P0–P3" off PRIORITY_LABEL — the same
+ * four stored values wearing two different names, so there was no way to tell
+ * which control set the P0 you were looking at. The label now comes from the
+ * one place that defines it; the English word survives as the hint, because
+ * "P2" alone does not tell a new reader it means "normal".
+ */
+export const PRIORITIES: { key: TaskPriority; label: string; hint: string }[] = [
+  { key: 'urgent', label: PRIORITY_LABEL.urgent, hint: 'Urgent' },
+  { key: 'high', label: PRIORITY_LABEL.high, hint: 'High' },
+  { key: 'normal', label: PRIORITY_LABEL.normal, hint: 'Normal' },
+  { key: 'low', label: PRIORITY_LABEL.low, hint: 'Low' },
 ];
 
 export const statusLabel = (s: TaskStatus) => STATUSES.find((x) => x.key === s)?.label ?? s;
@@ -111,7 +121,7 @@ export function Segment<T extends string>({
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: { key: T; label: string }[];
+  options: { key: T; label: string; hint?: string }[];
   label?: string;
 }) {
   return (
@@ -121,6 +131,10 @@ export function Segment<T extends string>({
           key={o.key}
           type="button"
           aria-pressed={value === o.key}
+          /* A code like "P2" is not a readable name on its own, so the hint
+             carries the English word to a screen reader and to a hover. */
+          aria-label={o.hint ? `${o.label} — ${o.hint}` : undefined}
+          title={o.hint}
           onClick={() => onChange(o.key)}
         >
           {o.label}

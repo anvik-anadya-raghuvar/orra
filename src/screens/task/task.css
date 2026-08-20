@@ -797,3 +797,152 @@
   color: var(--mute);
   margin-top: 2px;
 }
+
+/* ── workflow timeline ─────────────────────────────────────────────────────
+   The full history of one task, narrated from the append-only audit trail.
+   A single rail down the left with a marker per event; mobile-first, and the
+   rail stays narrow enough that the text column is never squeezed on a phone. */
+.tl-controls {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.tl-filters {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.tl-filter {
+  min-height: 44px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surf2);
+  color: var(--mute);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tl-filter[aria-pressed='true'] {
+  border-color: var(--indigo);
+  background: var(--indigo-s);
+  color: var(--indigo);
+}
+.tl-filter:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tl-filter .mono {
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+.tl {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tl-row {
+  position: relative;
+  display: flex;
+  gap: 11px;
+  padding: 0 0 14px 0;
+}
+/* The rail. Drawn on the row rather than the list so it stops cleanly at the
+   last event instead of running past it into empty space. */
+.tl-row::before {
+  content: '';
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  left: 11px;
+  width: 1px;
+  background: var(--line);
+}
+.tl-row:last-child::before {
+  display: none;
+}
+.tl-mark {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surf2-solid);
+  color: var(--mute);
+  font-size: 10px;
+  line-height: 1;
+}
+.tl-body {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+.tl-line {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.tl-line b {
+  font-weight: 600;
+}
+.tl-detail {
+  margin: 6px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+  color: var(--slate);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tl-when {
+  display: block;
+  margin-top: 4px;
+  color: var(--mute);
+  font-size: 10px;
+}
+
+/* Colour carries meaning only where meaning exists: the handoff moments and
+   anything blocked. Routine edits stay neutral so the rail does not read as a
+   christmas tree. */
+.tl-row.k-created .tl-mark {
+  border-color: var(--violet);
+  color: var(--violet);
+}
+.tl-row.k-accepted .tl-mark {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.tl-row.k-pushed_back .tl-mark,
+.tl-row.k-blocked .tl-mark {
+  border-color: var(--stamp);
+  color: var(--stamp);
+}
+.tl-row.k-assigned .tl-mark,
+.tl-row.k-priority .tl-mark {
+  border-color: var(--indigo);
+  color: var(--indigo);
+}
+.tl-row.k-decision .tl-mark {
+  border-color: var(--sky);
+  color: var(--sky);
+}
+
+@media (min-width: 1025px) {
+  .tl-filter {
+    min-height: 30px;
+  }
+}

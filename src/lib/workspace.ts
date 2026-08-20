@@ -6,7 +6,7 @@
  * rather than each inventing its own rule. Keep these pure: they are called
  * inside render paths and covered by workspace.test.ts.
  */
-import type { Task, UserId } from '../types';
+import type { HandoffState, Task, UserId } from '../types';
 
 /** Anything carrying an optional owner. NULL owner = belongs to both. */
 interface Owned {
@@ -35,6 +35,46 @@ export function inboxTasks(tasks: Task[], meId: UserId): Task[] {
   return tasks.filter(
     (t) => t.assignee_id === meId && t.created_by !== meId && !t.acknowledged_at,
   );
+}
+
+/**
+ * Where a task sits in the handoff. Derived from the columns rather than
+ * stored, so it can never disagree with them (0033_task_acceptance.sql).
+ *
+ * Work you assigned yourself is `mine` — it needs no acceptance, and treating
+ * it as "waiting" would park half of everyone's own board in an inbox.
+ */
+export function handoffState(t: Task): HandoffState {
+  if (!t.assignee_id || t.assignee_id === t.created_by) return 'mine';
+  if (t.acknowledged_at) return 'accepted';
+  if (t.pushback_reason) return 'pushed_back';
+  return 'waiting';
+}
+
+/**
+ * Tasks I pushed at the other person that they have not accepted yet — either
+ * still sitting in their inbox, or handed back to me with a reason.
+ *
+ * This is the half that did not exist before: assignment used to be
+ * write-and-forget, so work could stall in an inbox with nobody notified.
+ */
+export function awaitingThem(tasks: Task[], meId: UserId): Task[] {
+  return tasks.filter(
+    (t) =>
+      t.created_by === meId &&
+      t.assignee_id != null &&
+      t.assignee_id !== meId &&
+      !t.acknowledged_at,
+  );
+}
+
+/**
+ * True when the assignee committed to a different priority than was asked for.
+ * The disagreement is the point — it is what the card surfaces for a
+ * conversation, so it is computed in one place rather than re-derived per view.
+ */
+export function priorityDiffers(t: Task): boolean {
+  return t.accepted_priority != null && t.accepted_priority !== t.priority;
 }
 
 /** Rows I own. A NULL owner is shared, so it shows for both people. */

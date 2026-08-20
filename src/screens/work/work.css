@@ -149,11 +149,70 @@
   flex-direction: column;
   gap: 8px;
 }
+/* A row is now a summary line plus an accept/push-back panel that expands
+   under it, so the li stacks and the summary line keeps the old flex row. */
 .wk-inbox-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wk-inbox-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+.wk-inbox-acts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.wk-inbox-panel {
+  display: grid;
+  gap: 9px;
+  overflow: hidden;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+}
+.wk-inbox-panel textarea {
+  width: 100%;
+  resize: vertical;
+}
+.wk-inbox-confirm {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.wk-inbox-state {
+  color: var(--mute);
+  font-family: 'IBM Plex Mono';
+  font-size: 10px;
+}
+.wk-inbox-state.pushed {
+  color: var(--stamp);
+}
+.wk-inbox-pushed {
+  margin: 0;
+  padding-left: 9px;
+  border-left: 2px solid var(--stamp);
+  color: var(--slate);
+  font-size: 12px;
+  line-height: 1.5;
+}
+/* Waiting-on-them is information, not an arrival — it should not compete with
+   the inbox above it for attention. */
+.wk-inbox.awaiting {
+  border-left-color: var(--line);
+}
+.wk-inbox-list li.pushed .wk-inbox-task .mono:first-child {
+  color: var(--stamp);
+}
+/* The priority the assignee actually committed to, shown beside the ask when
+   the two disagree. */
+.wk-pri-taken {
+  margin-left: -3px;
 }
 .wk-inbox-task {
   display: flex;

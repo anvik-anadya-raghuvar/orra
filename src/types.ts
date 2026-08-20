@@ -173,9 +173,27 @@ export interface Task {
    *  Absent or null while it still sits in their "Assigned to you" inbox —
    *  optional so every task-creation site does not have to write it. */
   acknowledged_at?: string | null;
+  /** What the ASSIGNEE committed to, where `priority` above stays what the
+   *  ASSIGNER asked for. Two fields on purpose: "you asked P0, I can do P2" is
+   *  the useful signal, and an overwrite would discard it. Null until
+   *  accepted. See 0033_task_acceptance.sql. */
+  accepted_priority?: TaskPriority | null;
+  /** Set when the assignee hands the task back instead of accepting. It stays
+   *  assigned to them — this flags a conversation, it does not bounce the work
+   *  into limbo where neither board shows it. Cleared on accept. */
+  pushback_reason?: string | null;
+  pushed_back_at?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * Where an assigned task sits in the handoff, derived from the three columns
+ * above rather than stored — a stored enum could disagree with them.
+ *
+ * `mine` covers everything needing no acceptance: work you assigned yourself.
+ */
+export type HandoffState = 'mine' | 'waiting' | 'accepted' | 'pushed_back';
 
 /** One row per user per day: declared capacity, intention, and win conditions. */
 export interface DayPlan {
@@ -401,7 +419,14 @@ export interface PersonInteraction {
 
 /** Everything that travels between the two people rides this one table, so
  *  the bell, unread counts, realtime and read receipts work for all of it. */
-export type MessageKind = 'chat' | 'photo' | 'song' | 'task_assign';
+export type MessageKind =
+  | 'chat'
+  | 'photo'
+  | 'song'
+  | 'task_assign'
+  /** The reply half of a handoff — see 0033_task_acceptance.sql. */
+  | 'task_accept'
+  | 'task_pushback';
 
 export interface Message {
   id: string;

@@ -12,6 +12,7 @@ import { stripInlineImageMarkers } from '../../ui/inlineImages';
 import { PRIORITIES, STATUSES, TYPES } from '../work/common';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
+import Timeline from './Timeline';
 import type { Task, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { DictateField } from '../../ui/dictation';
 import './task.css';
@@ -428,6 +429,8 @@ function TaskDetail({ task }: { task: Task }) {
                       key={p.key}
                       type="button"
                       aria-pressed={task.priority === p.key}
+                      aria-label={`${p.label} — ${p.hint}`}
+                      title={p.hint}
                       onClick={() => setField('priority', p.key as TaskPriority)}
                     >
                       {p.label}
@@ -644,6 +647,8 @@ function TaskDetail({ task }: { task: Task }) {
               ))}
               {!hasConnected && <p className="none">Nothing linked yet.</p>}
             </section>
+
+            <Timeline taskId={task.id} />
 
             <div className="sideacts">
               <button type="button" className="btn solid" onClick={addToToday} disabled={onToday}>

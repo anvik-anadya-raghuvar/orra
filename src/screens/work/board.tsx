@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import type { DayEvent, Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
@@ -9,8 +9,8 @@ import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../..
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
 import { stuckTasks } from '../../lib/ranking';
-import { inboxTasks, isMyTask, myTasks } from '../../lib/workspace';
-import { notifyAssignment } from '../../lib/handoff';
+import { awaitingThem, inboxTasks, isMyTask, myTasks, priorityDiffers } from '../../lib/workspace';
+import { notifyAcceptance, notifyAssignment, notifyPushback } from '../../lib/handoff';
 import { MiniBars } from '../../ui/viz';
 import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
 import { insertInlineImages, removeInlineImage } from '../../ui/inlineImages';
@@ -89,23 +89,182 @@ const toggle = <T,>(set: Set<T>, v: T): Set<T> => {
 };
 
 /* ── work the other person pushed at me ───────────────────────────────── */
+
+/**
+ * One arrival, opened for a reply.
+ *
+ * Accepting is not a single button any more. The assignee says what priority
+ * they are actually committing to — which may not be the one that was asked
+ * for — and can attach a line about it. The alternative to accepting is
+ * pushing back with a reason, which keeps the task assigned to them and flags
+ * it to the assigner rather than dropping it into a gap neither board shows.
+ */
+function InboxRow({ task, otherName }: { task: Task; otherName: string }) {
+  const store = useStore();
+  const toast = useToast();
+  const [open, setOpen] = useState<'accept' | 'push' | null>(null);
+  /* Pre-selected to what was asked for: agreeing is the common case and should
+     cost no clicks, while disagreeing stays one tap away. */
+  const [priority, setPriority] = useState<TaskPriority>(task.priority);
+  const [note, setNote] = useState('');
+  /* The Work screen's MotionConfig reducedMotion="user" spares height, which is
+     the only thing this panel animates — so it has to be opted out by hand for
+     the panel to snap open the way the motion rules require. */
+  const still = useReducedMotion();
+
+  const accept = () => {
+    store.update(
+      'tasks',
+      task.id,
+      {
+        acknowledged_at: nowIso(),
+        accepted_priority: priority,
+        /* Accepting resolves any earlier pushback — the two must never both
+           read as live. */
+        pushback_reason: null,
+        pushed_back_at: null,
+      },
+      store.asMe({ summary: `Accepted ${task.id} from ${otherName} at ${priBadge(priority)}` }),
+    );
+    if (note.trim()) {
+      store.insert(
+        'comments',
+        {
+          id: newId('c'),
+          task_id: task.id,
+          author_id: store.meId,
+          body: note.trim(),
+          is_decision: false,
+          created_at: nowIso(),
+        },
+        store.asMe({ summary: `Comment on accepting ${task.id}` }),
+      );
+    }
+    notifyAcceptance(store, task, priority, note);
+    toast(`${task.id} is on your board at ${priBadge(priority)}.`);
+    setOpen(null);
+  };
+
+  const pushBack = () => {
+    const reason = note.trim();
+    if (!reason) return;
+    store.update(
+      'tasks',
+      task.id,
+      { pushback_reason: reason, pushed_back_at: nowIso() },
+      store.asMe({ summary: `Pushed ${task.id} back to ${otherName}` }),
+    );
+    notifyPushback(store, task, reason);
+    toast(`Sent back to ${otherName}.`);
+    setOpen(null);
+    setNote('');
+  };
+
+  const pushedBack = !!task.pushback_reason;
+
+  return (
+    <motion.li variants={staggerItem} className={pushedBack ? 'pushed' : undefined}>
+      <div className="wk-inbox-row">
+        <Link to={`/task/${task.id}`} className="wk-inbox-task">
+          <span className="mono">{task.id}</span>
+          <span className="wk-inbox-title">{task.title}</span>
+          <span className={priBadgeClass(task.priority)}>{priBadge(task.priority)}</span>
+          {task.due_date && <span className="mono planmin">due {fmtDay(task.due_date)}</span>}
+        </Link>
+        <div className="wk-inbox-acts">
+          <button
+            type="button"
+            className="btn sm solid"
+            aria-expanded={open === 'accept'}
+            onClick={() => setOpen(open === 'accept' ? null : 'accept')}
+          >
+            Accept
+          </button>
+          <button
+            type="button"
+            className="btn sm"
+            aria-expanded={open === 'push'}
+            onClick={() => setOpen(open === 'push' ? null : 'push')}
+          >
+            {pushedBack ? 'Sent back' : 'Push back'}
+          </button>
+        </div>
+      </div>
+
+      {pushedBack && open !== 'push' && (
+        <p className="wk-inbox-pushed">
+          You sent this back: “{task.pushback_reason}”
+        </p>
+      )}
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="wk-inbox-panel"
+            initial={still ? false : { opacity: 0, height: 0 }}
+            animate={
+              still
+                ? { opacity: 1, height: 'auto', transition: { duration: 0 } }
+                : { opacity: 1, height: 'auto', transition: entrance }
+            }
+            exit={still ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, height: 0, transition: micro }}
+          >
+            {open === 'accept' && (
+              <Field label={`Priority you're committing to — ${otherName} asked ${priBadge(task.priority)}`}>
+                <Segment
+                  value={priority}
+                  onChange={setPriority}
+                  options={PRIORITIES}
+                  label="Priority you are committing to"
+                />
+              </Field>
+            )}
+            <Field
+              label={open === 'push' ? 'Why are you sending it back?' : 'Add a line (optional)'}
+            >
+              <textarea
+                className="wk-in"
+                rows={2}
+                value={note}
+                placeholder={
+                  open === 'push'
+                    ? 'Not this week — the registry work lands first'
+                    : 'Starting Friday once v3.8 is frozen'
+                }
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </Field>
+            <div className="wk-inbox-confirm">
+              {open === 'accept' ? (
+                <button type="button" className="btn sm solid" onClick={accept}>
+                  Accept at {priBadge(priority)}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn sm solid"
+                  disabled={!note.trim()}
+                  onClick={pushBack}
+                >
+                  Send back
+                </button>
+              )}
+              <button type="button" className="btn sm" onClick={() => setOpen(null)}>
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.li>
+  );
+}
+
 /** Arrivals land here first rather than appearing mid-column, so a task can
  *  never turn up on the board without the owner noticing it turned up. */
 function Inbox({ tasks }: { tasks: Task[] }) {
-  const store = useStore();
   const other = useData((_, s) => s.other);
-  const toast = useToast();
   if (!tasks.length) return null;
-
-  const accept = (t: Task) => {
-    store.update(
-      'tasks',
-      t.id,
-      { acknowledged_at: new Date().toISOString() },
-      store.asMe({ summary: `Accepted ${t.id} from ${other.name}` }),
-    );
-    toast(`${t.id} is on your board.`);
-  };
 
   return (
     <motion.section
@@ -120,15 +279,52 @@ function Inbox({ tasks }: { tasks: Task[] }) {
       </div>
       <motion.ul className="wk-inbox-list" {...staggerParent()}>
         {tasks.map((t) => (
+          <InboxRow key={t.id} task={t} otherName={other.name} />
+        ))}
+      </motion.ul>
+    </motion.section>
+  );
+}
+
+/**
+ * The other half of the loop: what I pushed at them and they have not taken.
+ *
+ * Without this, assignment was write-and-forget — a task could sit unaccepted
+ * indefinitely and the person who assigned it would never know.
+ */
+function AwaitingThem({ tasks }: { tasks: Task[] }) {
+  const other = useData((_, s) => s.other);
+  if (!tasks.length) return null;
+
+  return (
+    <motion.section
+      className="wk-inbox awaiting"
+      aria-label={`Waiting on ${other.name}`}
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0, transition: entrance }}
+    >
+      <div className="wk-inbox-hd">
+        <span className="eyebrow">Waiting on {other.name}</span>
+        <span className="mono">{tasks.length}</span>
+      </div>
+      <motion.ul className="wk-inbox-list" {...staggerParent()}>
+        {tasks.map((t) => (
           <motion.li key={t.id} variants={staggerItem}>
-            <Link to={`/task/${t.id}`} className="wk-inbox-task">
-              <span className="mono">{t.id}</span>
-              <span className="wk-inbox-title">{t.title}</span>
-              {t.due_date && <span className="mono planmin">due {fmtDay(t.due_date)}</span>}
-            </Link>
-            <button type="button" className="btn sm solid" onClick={() => accept(t)}>
-              Got it
-            </button>
+            <div className="wk-inbox-row">
+              <Link to={`/task/${t.id}`} className="wk-inbox-task">
+                <span className="mono">{t.id}</span>
+                <span className="wk-inbox-title">{t.title}</span>
+                <span className={priBadgeClass(t.priority)}>{priBadge(t.priority)}</span>
+              </Link>
+              <span className={`wk-inbox-state${t.pushback_reason ? ' pushed' : ''}`}>
+                {t.pushback_reason ? 'Sent back' : 'Not opened yet'}
+              </span>
+            </div>
+            {t.pushback_reason && (
+              <p className="wk-inbox-pushed">
+                {other.name}: “{t.pushback_reason}”
+              </p>
+            )}
           </motion.li>
         ))}
       </motion.ul>
@@ -186,6 +382,17 @@ function TaskCard({
           <span className={priBadgeClass(t.priority)} title={t.priority}>
             {priBadge(t.priority)}
           </span>
+          {/* The assignee committed to something other than what was asked.
+              Showing both is the whole point of storing both — it is the
+              prompt for a conversation, not an error state. */}
+          {priorityDiffers(t) && t.accepted_priority && (
+            <span
+              className={`${priBadgeClass(t.accepted_priority)} wk-pri-taken`}
+              title={`Asked ${priBadge(t.priority)}, accepted at ${priBadge(t.accepted_priority)}`}
+            >
+              → {priBadge(t.accepted_priority)}
+            </span>
+          )}
           <span className="tagc" style={{ background: 'var(--surf3)', color: projColor(ds, t.project_id) }}>
             {projName(ds, t.project_id)}
           </span>
@@ -346,6 +553,7 @@ export default function BoardTab({
      leak into a column, a count, or the tag list. */
   const mineAll = useMemo(() => myTasks(ds.tasks, store.meId), [ds.tasks, store.meId]);
   const inbox = useMemo(() => inboxTasks(ds.tasks, store.meId), [ds.tasks, store.meId]);
+  const awaiting = useMemo(() => awaitingThem(ds.tasks, store.meId), [ds.tasks, store.meId]);
 
   const liveTags = useMemo(
     () => [...new Set([...ds.tags.map((tag) => tag.name), ...mineAll.flatMap((t) => t.tags)])].sort(),
@@ -489,6 +697,7 @@ export default function BoardTab({
   return (
     <div>
       <Inbox tasks={inbox} />
+      <AwaitingThem tasks={awaiting} />
       <ReflowBanner />
 
       {/* sprint scope — a filter on this board, never a mode for the portal */}

@@ -171,7 +171,12 @@ function rawSeed(): Dataset {
         sprint_id: 'sprint-1', board_order: 0,
         // Handed over and long since picked up — in review at 80%. T-38 is the
         // one left unacknowledged, so the inbox strip has something to show.
+        // Anadya asked for P0; Raghuvar took it at P1. The disagreement is
+        // deliberate seed content — it is what the two-priority display exists
+        // to show, so it should be visible in demo data rather than only in a
+        // test (0033_task_acceptance.sql).
         acknowledged_at: T('2026-08-10T10:00:00'),
+        accepted_priority: 'high',
         created_at: T('2026-08-10T09:00:00'), updated_at: T('2026-08-17T09:14:00'),
       },
       {
@@ -399,6 +404,27 @@ function rawSeed(): Dataset {
       { id: 'a-4', occurred_at: T('2026-08-17T07:00:00'), actor_id: null, actor_label: 'automated', entity_type: 'digest', entity_id: 'digest-2026-08-17', field_name: null, old_value: null, new_value: 'Morning brief emailed to both members', source: 'gmail' },
       { id: 'a-5', occurred_at: T('2026-08-16T18:22:00'), actor_id: AN, actor_label: 'Anadya', entity_type: 'ledger', entity_id: 'batch-0', field_name: null, old_value: null, new_value: 'Ledger import — 128 rows, 3 duplicates skipped', source: 'drive' },
       { id: 'a-6', occurred_at: T('2026-08-16T11:47:00'), actor_id: AN, actor_label: 'Anadya', entity_type: 'task', entity_id: 'T-42', field_name: null, old_value: null, new_value: 'Export generated — T-42.md, 2 pins', source: 'claude_export' },
+
+      /* The worked example for the Workflow view on a task. T-42 is the one
+         task that has been all the way round the handoff — assigned across
+         workspaces, accepted at a priority the assignee chose, then worked —
+         so it is the one whose history is written out in full. Without this,
+         the timeline renders empty in demo data and reads as broken rather
+         than as new. Real usage writes these rows automatically; these are
+         backdated by hand to match the task's own timestamps.
+         The accept pair shares one timestamp on purpose: it is a single click
+         writing two columns, and the view merges them back into one line. */
+      { id: 'a-10', occurred_at: T('2026-08-10T09:00:00'), actor_id: AN, actor_label: 'Anadya', entity_type: 'task', entity_id: 'T-42', field_name: null, old_value: null, new_value: 'Task created — eCourts collector — QA report', source: 'portal' },
+      { id: 'a-11', occurred_at: T('2026-08-10T09:02:00'), actor_id: AN, actor_label: 'Anadya', entity_type: 'task', entity_id: 'T-42', field_name: 'assignee_id', old_value: AN, new_value: RG, source: 'portal' },
+      { id: 'a-12', occurred_at: T('2026-08-10T10:00:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'task', entity_id: 'T-42', field_name: 'acknowledged_at', old_value: null, new_value: T('2026-08-10T10:00:00'), source: 'portal' },
+      { id: 'a-13', occurred_at: T('2026-08-10T10:00:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'task', entity_id: 'T-42', field_name: 'accepted_priority', old_value: null, new_value: 'high', source: 'portal' },
+      { id: 'a-14', occurred_at: T('2026-08-11T09:30:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'task', entity_id: 'T-42', field_name: 'status', old_value: 'todo', new_value: 'in_progress', source: 'portal' },
+      { id: 'a-15', occurred_at: T('2026-08-13T15:10:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'task', entity_id: 'T-42', field_name: 'progress_pct', old_value: '0', new_value: '40', source: 'portal' },
+      { id: 'a-16', occurred_at: T('2026-08-15T11:05:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'task', entity_id: 'T-42', field_name: 'blocked_reason', old_value: null, new_value: 'Waiting on the Karnataka bench fixture', source: 'portal' },
+      { id: 'a-17', occurred_at: T('2026-08-16T09:20:00'), actor_id: AN, actor_label: 'Anadya', entity_type: 'task', entity_id: 'T-42', field_name: 'blocked_reason', old_value: 'Waiting on the Karnataka bench fixture', new_value: null, source: 'portal' },
+      { id: 'a-18', occurred_at: T('2026-08-17T09:14:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'screenshot_attachment', entity_id: 'shot-1', field_name: null, old_value: null, new_value: 'Evidence attached — samadhaan_grid.png', source: 'portal' },
+      { id: 'a-19', occurred_at: T('2026-08-17T09:30:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'task', entity_id: 'T-42', field_name: 'progress_pct', old_value: '40', new_value: '80', source: 'portal' },
+      { id: 'a-20', occurred_at: T('2026-08-17T09:14:00'), actor_id: RG, actor_label: 'Raghuvar', entity_type: 'task', entity_id: 'T-42', field_name: 'status', old_value: 'in_progress', new_value: 'in_review', source: 'portal' },
     ],
     automation_rules: [
       { id: 'r-1', trigger_label: 'Mail contains a date', trigger_value: 'date-detect', action_label: 'Flag in Mail tab', action_value: 'flag', is_active: true, last_fired_at: T('2026-08-17T09:12:00') },
