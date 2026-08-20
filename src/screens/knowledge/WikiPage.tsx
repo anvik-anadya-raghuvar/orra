@@ -8,6 +8,7 @@ import { fmtDateTime } from '../../lib/dates';
 import { processImages, useImagePaste } from '../../ui/imagedrop';
 import type { Page, PageBlock } from '../../types';
 import { BlockRow, makeBlock } from './WikiBlocks';
+import { insertImagesAtBlockCaret } from './wikiImageInsert';
 
 type SaveState = 'idle' | 'saving' | 'saved';
 
@@ -32,6 +33,7 @@ export default function WikiPage({
   });
   const [activeId, setActiveId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [focusAtStartId, setFocusAtStartId] = useState<string | null>(null);
   const [save, setSave] = useState<SaveState>('idle');
 
   /* ── debounced autosave ────────────────────────────────────────────────
@@ -108,6 +110,7 @@ export default function WikiPage({
     setBlocks(next);
     setActiveId(b.id);
     setFocusId(b.id);
+    setFocusAtStartId(b.id);
   };
 
   const removeAt = (i: number, focusPrev = true) => {
@@ -117,6 +120,7 @@ export default function WikiPage({
     if (focusPrev && prev) {
       setActiveId(prev.id);
       setFocusId(prev.id);
+      setFocusAtStartId(null);
     } else {
       setActiveId(null);
     }
@@ -130,8 +134,42 @@ export default function WikiPage({
     setBlocks(next);
   };
 
-  /* Ctrl/Cmd+V with a screenshot on the clipboard drops it straight into the
-     page as an image block — after the block you are on, or at the end. The
+  const pasteIntoBlock = (
+    blockId: string,
+    files: File[],
+    selectionStart: number,
+    selectionEnd: number,
+  ) => {
+    const pasted: PageBlock[] = [];
+    void processImages(files, (image) => {
+      pasted.push({ ...makeBlock('image'), src: image.data_url, alt: '' });
+    })
+      .then(() => {
+        setDraft((current) => {
+          const at = current.blocks.findIndex((block) => block.id === blockId);
+          if (at < 0) return current;
+          const insertion = insertImagesAtBlockCaret(
+            current.blocks[at],
+            pasted,
+            selectionStart,
+            selectionEnd,
+          );
+          const next = [...current.blocks];
+          next.splice(at, 1, ...insertion.blocks);
+          queue({ blocks: next });
+          setActiveId(insertion.focusId);
+          setFocusId(insertion.focusId);
+          setFocusAtStartId(insertion.focusAtStart ? insertion.focusId : null);
+          return { ...current, blocks: next };
+        });
+        toast(`${pasted.length === 1 ? 'Image' : `${pasted.length} images`} pasted at the cursor`);
+      })
+      .catch((err: Error) => toast(err.message || 'That image could not be pasted'));
+  };
+
+  /* Ctrl/Cmd+V outside a text caret still creates a real image block — after
+     the selected block, or at the end. Text-block pastes are handled by the
+     block itself above so the current line can be split at the exact caret. The
      same compressor as everywhere else runs first, so a pasted 4K capture
      lands as a ≤300 KB JPEG, not a multi-megabyte row. Text pastes are left
      alone for whatever input has focus. */
@@ -146,13 +184,17 @@ export default function WikiPage({
       });
     })
       .then(() => {
-      setDraft((d) => {
-        const at = activeId ? d.blocks.findIndex((b) => b.id === activeId) : -1;
-        const next = [...d.blocks];
-        next.splice(at >= 0 ? at + 1 : next.length, 0, ...pasted);
-        queue({ blocks: next });
-        return { ...d, blocks: next };
-      });
+        setDraft((d) => {
+          const at = activeId ? d.blocks.findIndex((b) => b.id === activeId) : -1;
+          const paragraph = makeBlock('paragraph');
+          const next = [...d.blocks];
+          next.splice(at >= 0 ? at + 1 : next.length, 0, ...pasted, paragraph);
+          queue({ blocks: next });
+          setActiveId(paragraph.id);
+          setFocusId(paragraph.id);
+          setFocusAtStartId(paragraph.id);
+          return { ...d, blocks: next };
+        });
         toast(`${pasted.length === 1 ? 'Image' : `${pasted.length} images`} pasted into the page`);
       })
       .catch((err: Error) => toast(err.message || 'That image could not be pasted'));
@@ -298,19 +340,24 @@ export default function WikiPage({
               count={blocks.length}
               active={activeId === b.id}
               autoFocus={focusId === b.id}
+              focusAtStart={focusAtStartId === b.id}
               onActivate={() => {
                 setActiveId(b.id);
                 setFocusId(b.id);
+                setFocusAtStartId(null);
               }}
               onDeactivate={() => {
                 setActiveId((cur) => (cur === b.id ? null : cur));
                 setFocusId((cur) => (cur === b.id ? null : cur));
+                setFocusAtStartId((cur) => (cur === b.id ? null : cur));
               }}
               onChange={(next) => replaceBlock(i, next)}
               onEnter={() => insertAfter(i)}
               onRemoveEmpty={() => blocks.length > 1 && removeAt(i)}
               onMove={(dir) => moveBlock(i, dir)}
               onDelete={() => removeAt(i, false)}
+              onPasteImages={(files, start, end) => pasteIntoBlock(b.id, files, start, end)}
+              onPasteError={toast}
             />
           </motion.div>
         ))}

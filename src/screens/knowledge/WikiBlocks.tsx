@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { newId } from '../../data/store';
+import { imageFilesFrom, looksLikeUnusableImage } from '../../ui/imagedrop';
 import type { BlockType, PageBlock } from '../../types';
 import { RichText } from './wikiMentions';
 
@@ -195,6 +196,9 @@ export interface BlockRowProps {
   onRemoveEmpty: () => void;
   onMove: (dir: -1 | 1) => void;
   onDelete: () => void;
+  onPasteImages: (files: File[], selectionStart: number, selectionEnd: number) => void;
+  onPasteError: (message: string) => void;
+  focusAtStart?: boolean;
 }
 
 export function BlockRow({
@@ -210,6 +214,9 @@ export function BlockRow({
   onRemoveEmpty,
   onMove,
   onDelete,
+  onPasteImages,
+  onPasteError,
+  focusAtStart = false,
 }: BlockRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const ta = useRef<HTMLTextAreaElement | null>(null);
@@ -220,9 +227,9 @@ export function BlockRow({
     const el = ta.current;
     if (!el) return;
     el.focus();
-    const len = el.value.length;
-    el.setSelectionRange(len, len);
-  }, [autoFocus, block.type]);
+    const position = focusAtStart ? 0 : el.value.length;
+    el.setSelectionRange(position, position);
+  }, [autoFocus, block.type, focusAtStart]);
 
   const setText = (v: string) => {
     if (isListy(block.type)) {
@@ -307,23 +314,22 @@ export function BlockRow({
       }}
     >
       <div className="wk-block-tools">
-        <button type="button" className="wk-tool" aria-label="Move block up" disabled={index === 0} onClick={() => onMove(-1)}>
-          ↑
-        </button>
         <button
           type="button"
           className="wk-tool"
-          aria-label="Move block down"
-          disabled={index === count - 1}
-          onClick={() => onMove(1)}
+          aria-label="Add block below"
+          onClick={onEnter}
         >
-          ↓
+          +
         </button>
-        <button type="button" className="wk-tool" aria-label="Change block type" onClick={() => setMenuOpen((m) => !m)}>
-          ⋯
-        </button>
-        <button type="button" className="wk-tool danger" aria-label="Delete block" onClick={onDelete}>
-          ×
+        <button
+          type="button"
+          className="wk-tool wk-handle"
+          aria-label="Block actions"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((m) => !m)}
+        >
+          ⋮⋮
         </button>
       </div>
 
@@ -333,11 +339,23 @@ export function BlockRow({
             <hr className="wk-divider" />
           </button>
         ) : block.type === 'image' ? (
-          <div className="wk-image-edit">
-            {block.src && (
-              <img className="wk-img" src={block.src} alt={block.alt ?? ''} loading="lazy" decoding="async" />
+          <figure className={`wk-image-block${active ? ' active' : ''}`}>
+            {block.src ? (
+              <button
+                type="button"
+                className="wk-image-surface"
+                aria-label={block.alt ? `Image: ${block.alt}` : 'Image block'}
+                onClick={onActivate}
+              >
+                <img className="wk-img" src={block.src} alt={block.alt ?? ''} loading="lazy" decoding="async" />
+              </button>
+            ) : (
+              <button type="button" className="wk-image-empty" onClick={onActivate}>
+                <b>Image</b>
+                <span>Paste an image here, or embed one by URL.</span>
+              </button>
             )}
-            {!block.src?.startsWith('data:image/') && (
+            {active && !block.src?.startsWith('data:image/') && (
               <input
                 className="wk-input"
                 value={block.src ?? ''}
@@ -345,13 +363,18 @@ export function BlockRow({
                 onChange={(e) => onChange({ ...block, src: e.target.value })}
               />
             )}
-            <input
-              className="wk-input"
-              value={block.alt ?? ''}
-              placeholder="Alt text"
-              onChange={(e) => onChange({ ...block, alt: e.target.value })}
-            />
-          </div>
+            {active ? (
+              <input
+                className="wk-image-caption-input"
+                value={block.alt ?? ''}
+                aria-label="Image caption"
+                placeholder="Add a caption"
+                onChange={(e) => onChange({ ...block, alt: e.target.value })}
+              />
+            ) : block.alt ? (
+              <figcaption>{block.alt}</figcaption>
+            ) : null}
+          </figure>
         ) : active ? (
           <>
             {block.type === 'heading' && (
@@ -392,6 +415,20 @@ export function BlockRow({
               aria-label={`${block.type} block`}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
+              onPaste={(event) => {
+                const files = imageFilesFrom(event.clipboardData);
+                if (!files.length) {
+                  if (looksLikeUnusableImage(event.clipboardData)) {
+                    onPasteError(
+                      'That image came from a web page rather than the clipboard as a file. Save it, or use a screenshot tool, then paste again.',
+                    );
+                  }
+                  return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                onPasteImages(files, event.currentTarget.selectionStart, event.currentTarget.selectionEnd);
+              }}
             />
           </>
         ) : (
@@ -426,6 +463,17 @@ export function BlockRow({
 
         {menuOpen && (
           <div className="wk-slash" role="menu" aria-label="Block type">
+            <div className="wk-block-actions">
+              <button type="button" role="menuitem" disabled={index === 0} onClick={() => { onMove(-1); setMenuOpen(false); }}>
+                <strong>Move up</strong>
+              </button>
+              <button type="button" role="menuitem" disabled={index === count - 1} onClick={() => { onMove(1); setMenuOpen(false); }}>
+                <strong>Move down</strong>
+              </button>
+              <button type="button" role="menuitem" className="danger" onClick={onDelete}>
+                <strong>Delete</strong>
+              </button>
+            </div>
             {BLOCK_MENU.map((m) => (
               <button
                 key={m.type}

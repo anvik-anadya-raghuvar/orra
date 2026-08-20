@@ -135,6 +135,10 @@ export function useImagePaste(
   useEffect(() => {
     if (!enabled) return;
     const onPaste = (e: ClipboardEvent) => {
+      // A richer editor may already have claimed the paste at its exact caret.
+      // In that case the document-level convenience listener must not add a
+      // second copy at the end of the panel.
+      if (e.defaultPrevented) return;
       if (!ref.current) return;
       const files = imageFilesFrom(e.clipboardData);
       if (!files.length) {
