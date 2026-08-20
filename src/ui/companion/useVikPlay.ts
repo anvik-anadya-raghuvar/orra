@@ -19,6 +19,7 @@ import {
   pokeLevel,
 } from '../../lib/companionPlay';
 import type { Gesture } from '../../lib/companionPose';
+import type { MoodAction } from '../../lib/companionMood';
 
 const POS_KEY = 'anvik:companion:pos';
 /** The tap cycle resets to "status" after this much quiet. */
@@ -49,21 +50,27 @@ interface Options {
   animate: boolean;
   /** Is an announcement on screen right now. */
   hasMoment: boolean;
+  /** How many fast pokes he will take before sulking — from his current band. */
+  tolerance: number;
   dismiss: () => void;
   /** Ask the engine for step 0/1/2 of the conversation cycle. */
   demand: (step: number) => void;
   doGesture: (g: Gesture, ms?: number) => void;
   say: (text: string) => void;
+  /** Tell the friendliness meter what just happened to him. */
+  feel: (action: MoodAction) => void;
 }
 
 export function useVikPlay({
   quiet,
   animate,
   hasMoment,
+  tolerance,
   dismiss,
   demand,
   doGesture,
   say,
+  feel,
 }: Options) {
   const [playMood, setPlayMood] = useState<RobotMood | null>(null);
   const [petting, setPetting] = useState(false);
@@ -116,6 +123,7 @@ export function useVikPlay({
       grumpyUntilRef.current = 0;
       doGesture('spin');
       say('🕺');
+      feel('secret');
       return;
     }
 
@@ -125,7 +133,7 @@ export function useVikPlay({
       return;
     }
 
-    const level = pokeLevel(streak);
+    const level = pokeLevel(streak, tolerance);
 
     if (level === 'tap') {
       // Conversation: status → tip → quote → hide, resetting after quiet.
@@ -143,12 +151,15 @@ export function useVikPlay({
     if (level === 'giggle') setReaction('giggle', 900);
     if (level === 'dizzy') {
       setReaction('dizzy', 1_500);
-      if (streak === 4) say(pick(POKE_LINES.dizzy!));
+      feel('poke-dizzy');
+      if (pokeLevel(streak - 1, tolerance) !== 'dizzy') say(pick(POKE_LINES.dizzy!));
     }
     if (level === 'grumpy') {
       grumpyUntilRef.current = now + FORGIVE_MS;
       setReaction('grumpy', FORGIVE_MS);
-      if (streak === 7) say(pick(POKE_LINES.grumpy!));
+      feel('poke-grumpy');
+      // Speak only on the rung you just arrived at, whatever the tolerance.
+      if (pokeLevel(streak - 1, tolerance) !== 'grumpy') say(pick(POKE_LINES.grumpy!));
     }
   };
 
@@ -159,6 +170,7 @@ export function useVikPlay({
       if (draggingRef.current) return;
       petHitRef.current = true;
       setPetting(true);
+      feel('pet');
       // Hearts are the whole reaction; without them, he has to say it.
       if (!animate) say('♥');
     }, PET_HOLD_MS);
@@ -182,7 +194,10 @@ export function useVikPlay({
       sessionStorage.setItem(POS_KEY, JSON.stringify({ x: x.get(), y: y.get() }));
     } catch {}
     const speed = Math.hypot(info.velocity.x, info.velocity.y);
-    if (speed > FLING_SPEED) setReaction('dizzy', 1_600);
+    if (speed > FLING_SPEED) {
+      setReaction('dizzy', 1_600);
+      feel('hard-fling');
+    }
   };
 
   useEffect(

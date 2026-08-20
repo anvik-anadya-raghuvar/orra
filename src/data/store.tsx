@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
-import type { AuditSource, CollectionKey, Dataset, RankingWeights, UserId } from '../types';
+import type { AuditSource, CollectionKey, Dataset, Profile, RankingWeights, UserId } from '../types';
 import type { DataAdapter } from './adapter';
 import { pickAdapter } from './adapter';
 import { DEMO_USER_ID, showsDemo, withoutDemo, type DemoIds } from '../lib/demoScope';
@@ -497,6 +497,29 @@ export class AppStore {
   /** Meta helper for the signed-in user. */
   asMe(extra?: Partial<MutationMeta>): MutationMeta {
     return { actor: this.meId, actorLabel: this.me.name, source: 'portal', ...extra };
+  }
+
+  /**
+   * Merge a patch into the signed-in user's `personalization` blob.
+   *
+   * Always go through this rather than spreading a `me` captured by a hook.
+   * The column is a single jsonb value written whole, so two callers that each
+   * read a render-old copy and write their own key back will silently drop one
+   * of the two — setting a weather place and toggling a widget in the same tick
+   * used to lose a write. Reading `this.ds` at write time closes that window
+   * completely, because `update` mutates the snapshot synchronously.
+   */
+  patchPersonalization(patch: Partial<Profile['personalization']>, meta: MutationMeta) {
+    const live = this.ds.profiles.find((p) => p.id === this.meId);
+    // No signed-in row means nothing to patch; writing a partial blob here
+    // would clobber every key the caller did not happen to mention.
+    if (!live) return;
+    this.update(
+      'profiles',
+      this.meId,
+      { personalization: { ...live.personalization, ...patch } },
+      meta,
+    );
   }
 
   applyRemote(partial: Partial<Dataset>) {

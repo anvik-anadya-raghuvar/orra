@@ -12,7 +12,11 @@ const ANTIC_MIN_MS = 180_000;
 const ANTIC_SPREAD_MS = 180_000;
 
 interface Options {
-  antics: Gesture[];
+  /**
+   * Read at fire time, not captured: the pool is whatever his current band has
+   * unlocked, and a sulking robot has nothing at all to do.
+   */
+  antics: () => Gesture[];
   doGesture: (g: Gesture) => void;
   /** Read at fire time — true when anything else has the floor. */
   busy: () => boolean;
@@ -27,8 +31,9 @@ export function useIdleAntics({ antics, doGesture, busy }: Options) {
         () => {
           if (disposed) return;
           // A background tab starves rAF; an antic there is a wasted frame.
-          if (!busy() && document.visibilityState === 'visible' && antics.length) {
-            doGesture(antics[Math.floor(Math.random() * antics.length)]);
+          const pool = antics();
+          if (!busy() && document.visibilityState === 'visible' && pool.length) {
+            doGesture(pool[Math.floor(Math.random() * pool.length)]);
           }
           schedule();
         },

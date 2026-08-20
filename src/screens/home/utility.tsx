@@ -49,10 +49,8 @@ export function WorldClockTile() {
     const picked = CLOCK_OPTIONS.find((item) => item.time_zone === timeZone)!;
     const next = [...clocks];
     next[index] = picked;
-    store.update(
-      'profiles',
-      me.id,
-      { personalization: { ...me.personalization, world_clocks: next } },
+    store.patchPersonalization(
+      { world_clocks: next },
       store.asMe({ summary: 'Home clocks changed' }),
     );
   };
@@ -162,10 +160,8 @@ export function WeatherTile() {
       longitude: result.longitude,
       time_zone: result.timezone,
     };
-    store.update(
-      'profiles',
-      me.id,
-      { personalization: { ...me.personalization, weather_place: next } },
+    store.patchPersonalization(
+      { weather_place: next },
       store.asMe({ summary: `Weather place set to ${label}` }),
     );
     setResults([]);

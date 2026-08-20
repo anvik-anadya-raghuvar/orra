@@ -77,10 +77,8 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
   const toast = useToast();
 
   const set = (key: WidgetKey, value: boolean) => {
-    store.update(
-      'profiles',
-      me.id,
-      { personalization: { ...me.personalization, [key]: value } },
+    store.patchPersonalization(
+      { [key]: value },
       store.asMe({ summary: `Home layer — ${key} ${value ? 'on' : 'off'}` }),
     );
   };
@@ -141,12 +139,7 @@ function CompanionSettings() {
   const robotName = comp.name?.trim() || 'Vik';
 
   const patch = (p: Partial<NonNullable<typeof me.personalization.companion>>, summary: string) => {
-    store.update(
-      'profiles',
-      me.id,
-      { personalization: { ...me.personalization, companion: { ...comp, ...p } } },
-      store.asMe({ summary }),
-    );
+    store.patchPersonalization({ companion: { ...comp, ...p } }, store.asMe({ summary }));
   };
 
   return (

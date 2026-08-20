@@ -7,20 +7,25 @@
   inset: 0;
   z-index: 72;
   pointer-events: none;
+  /* The dock: where the house sits, and what everything else is measured from.
+     Vik's placement is an offset on top of this, so moving the dock on mobile
+     moves him too instead of being overridden by an inline position. */
+  --vik-dock-right: 18px;
+  --vik-dock-bottom: 18px;
 }
 
 .vik-wrap {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
+  right: calc(var(--vik-dock-right) + var(--vik-place-left, 0px));
+  bottom: calc(var(--vik-dock-bottom) + var(--vik-place-lift, 0px));
   pointer-events: auto;
 }
 
 @media (max-width: 640px) {
   /* Clears the tabbar (shell pads 90px) and the dictation pill. */
-  .vik-wrap {
-    right: 12px;
-    bottom: calc(96px + env(safe-area-inset-bottom));
+  .companion {
+    --vik-dock-right: 12px;
+    --vik-dock-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 }
 

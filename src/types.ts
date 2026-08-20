@@ -106,6 +106,20 @@ export interface Personalization {
     name?: string;
     /** Cursor-chasing, opt-in, fine pointers only. Absent = docked. */
     follow?: boolean;
+    /** Does he start things himself. Absent = yes; false is "calm down". */
+    playful?: boolean;
+    /**
+     * The friendliness meter, as at `at`. Drift toward the baseline is applied
+     * on read (see lib/companionMood.ts), so nothing has to tick and an idle
+     * tab never writes. Shape mirrors MoodState there.
+     */
+    mood?: {
+      v: 1;
+      value: number;
+      at: number;
+      last: Record<string, number>;
+      helloDay?: string;
+    };
   };
 }
 

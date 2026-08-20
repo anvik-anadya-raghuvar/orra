@@ -95,7 +95,16 @@ export default function RobotSprite({ pose, size = 58, animate, outfit = {} }: P
   const shift = face.eyeShift;
 
   return (
-    <svg viewBox="0 0 64 74" width={size} height={(size * 74) / 64} aria-hidden className="vik-svg">
+    <svg
+      viewBox="0 0 64 74"
+      width={size}
+      height={(size * 74) / 64}
+      aria-hidden
+      className="vik-svg"
+      // Which pose actually won the arbiter, for anything checking from outside.
+      data-expression={pose.expression}
+      data-body={pose.body}
+    >
       {/* ground shadow */}
       <motion.ellipse
         cx="32"

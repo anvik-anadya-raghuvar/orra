@@ -1,0 +1,230 @@
+/* Vik's house, and the status panel inside it.
+
+   The window is the friendliness meter. It is a light, not a bar: cold and dim
+   when he is sulking, warm and full when he is delighted. Colour comes from
+   tokens, so both themes work with no per-theme code. */
+
+.vik-house-btn {
+  position: absolute;
+  right: var(--vik-dock-right);
+  /* Sits a touch lower than Vik so their feet share a ground line. */
+  bottom: calc(var(--vik-dock-bottom) - 4px);
+  display: block;
+  min-width: 52px;
+  min-height: 46px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+.vik-house-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+/* Dense rooms are for work: the house does not follow you into them. */
+.companion.dense .vik-house-btn {
+  display: none;
+}
+
+.vik-house-svg {
+  display: block;
+  overflow: visible;
+}
+
+.vik-house-roof {
+  fill: var(--indigo);
+}
+.vik-house-wall {
+  fill: var(--surf-solid, var(--surf));
+  stroke: var(--indigo);
+  stroke-width: 1.6;
+}
+.vik-house-chimney {
+  fill: var(--indigo);
+}
+.vik-smoke circle {
+  fill: var(--slate);
+}
+
+/* ── The window: the meter ────────────────────────────────────────────── */
+.vik-house-glass {
+  fill: var(--surf-dense, var(--surf2));
+  stroke: var(--indigo);
+  stroke-width: 1.2;
+}
+/* Cold at the bottom of the meter, warm at the top. Opacity carries the
+   reading; the hue carries the band, so it is legible at a glance either way. */
+.vik-house-glow {
+  fill: var(--sky);
+  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vik-house-window[data-band='neutral'] .vik-house-glow {
+  fill: var(--teal);
+}
+.vik-house-window[data-band='happy'] .vik-house-glow,
+.vik-house-window[data-band='delighted'] .vik-house-glow {
+  fill: var(--stamp);
+}
+.vik-house-mullion {
+  stroke: var(--indigo);
+  stroke-width: 1;
+  fill: none;
+  opacity: 0.7;
+}
+
+/* ── Door ─────────────────────────────────────────────────────────────── */
+.vik-house-doorway {
+  fill: var(--ink);
+  opacity: 0.72;
+}
+.vik-house-leaf {
+  fill: var(--surf-dense, var(--surf2));
+  stroke: var(--indigo);
+  stroke-width: 1.2;
+}
+.vik-house-knob {
+  fill: var(--stamp);
+}
+
+/* ── Mailbox ──────────────────────────────────────────────────────────── */
+.vik-house-box {
+  fill: var(--surf-dense, var(--surf2));
+  stroke: var(--indigo);
+  stroke-width: 1.2;
+}
+.vik-house-postleg {
+  stroke: var(--indigo);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.vik-house-flag {
+  stroke: var(--rose);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+/* ── Status panel ─────────────────────────────────────────────────────── */
+.vik-status {
+  display: grid;
+  gap: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.vik-status-blurb {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+}
+.vik-status-note,
+.vik-status-toggle span {
+  margin: 0;
+  color: var(--slate);
+  font-size: 12.5px;
+}
+
+.vik-meter-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surf-dense, var(--surf2));
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.vik-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--sky);
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vik-meter[data-band='neutral'] .vik-meter-fill {
+  background: var(--teal);
+}
+.vik-meter[data-band='happy'] .vik-meter-fill,
+.vik-meter[data-band='delighted'] .vik-meter-fill {
+  background: var(--stamp);
+}
+/* Where he settles back to — the one mark that explains the whole system. */
+.vik-meter-baseline {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--ink);
+  opacity: 0.45;
+}
+.vik-meter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 6px;
+}
+.vik-meter-num {
+  color: var(--slate);
+  font-variant-numeric: tabular-nums;
+}
+
+.vik-status-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vik-status-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf-dense, var(--surf2));
+}
+.vik-status-list span {
+  color: var(--slate);
+}
+
+.vik-status-bands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.vik-band-pip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--slate);
+  font-size: 11.5px;
+}
+.vik-band-pip[data-on='1'] {
+  border-color: var(--indigo);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.vik-status-toggle {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.vik-status-toggle input {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vik-meter-fill,
+  .vik-house-glow {
+    transition: none;
+  }
+}

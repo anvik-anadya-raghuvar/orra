@@ -22,9 +22,19 @@ export function nextStreak(prevCount: number, prevAt: number, now: number): numb
   return now - prevAt <= POKE_WINDOW_MS ? prevCount + 1 : 1;
 }
 
-export function pokeLevel(streak: number): PokeLevel {
-  if (streak >= 7) return 'grumpy';
-  if (streak >= 4) return 'dizzy';
+/** How many fast pokes a robot in an ordinary mood will take before sulking. */
+export const DEFAULT_TOLERANCE = 7;
+
+/**
+ * `tolerance` comes from the friendliness meter's band: 3 while he is sulking,
+ * 12 while he is delighted. The rungs below it scale with it, so the shape of
+ * the ladder is the same at every tolerance and only its length changes. The
+ * default reproduces the original 2 / 4 / 7 exactly.
+ */
+export function pokeLevel(streak: number, tolerance: number = DEFAULT_TOLERANCE): PokeLevel {
+  const dizzyAt = Math.max(2, Math.round((tolerance * 4) / DEFAULT_TOLERANCE));
+  if (streak >= tolerance) return 'grumpy';
+  if (streak >= dizzyAt) return 'dizzy';
   if (streak >= 2) return 'giggle';
   return 'tap';
 }

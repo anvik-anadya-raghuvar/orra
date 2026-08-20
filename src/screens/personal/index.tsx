@@ -574,15 +574,8 @@ function CustomisePersonal({ open, onClose }: { open: boolean; onClose: () => vo
   const widgets = me.personalization.personal_widgets;
 
   const set = (key: string, value: boolean) =>
-    store.update(
-      'profiles',
-      me.id,
-      {
-        personalization: {
-          ...me.personalization,
-          personal_widgets: { ...(widgets ?? {}), [key]: value },
-        },
-      },
+    store.patchPersonalization(
+      { personal_widgets: { ...(widgets ?? {}), [key]: value } },
       store.asMe({ summary: `Personal widget — ${key} ${value ? 'on' : 'off'}` }),
     );
 

@@ -199,12 +199,7 @@ export function useHomeArrange(field: LayoutField = 'home_layout'): ArrangeApi {
   const commit = useCallback(
     (next: HomeLayout, summary: string) => {
       setDraft(null);
-      store.update(
-        'profiles',
-        me.id,
-        { personalization: { ...me.personalization, [field]: next } },
-        store.asMe({ summary }),
-      );
+      store.patchPersonalization({ [field]: next }, store.asMe({ summary }));
     },
     [store, me.id, me.personalization, field],
   );
@@ -433,10 +428,8 @@ export function ResetArrangement({ field = 'home_layout' }: { field?: LayoutFiel
         type="button"
         className="btn sm"
         onClick={() =>
-          store.update(
-            'profiles',
-            me.id,
-            { personalization: { ...me.personalization, [field]: { order: [], size: {} } } },
+          store.patchPersonalization(
+            { [field]: { order: [], size: {} } },
             store.asMe({
               summary: `${field === 'home_layout' ? 'Home' : 'Personal'} arrangement reset`,
             }),
