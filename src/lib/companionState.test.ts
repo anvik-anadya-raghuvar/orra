@@ -1,15 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
-  claimsFor,
-  isBusy,
-  isSleeping,
-  moodFor,
-  pickClaim,
-  poseFor,
-  PRIORITY,
-  type VikInputs,
-} from './companionState';
+import { claimsFor, isBusy, isSleeping, pickClaim, poseFor, PRIORITY, type VikInputs } from './companionState';
 import type { RobotMood } from './companionCopy';
+import { poseForMood, type VikPose } from './companionPose';
 
 const BASE: VikInputs = {
   playMood: null,
@@ -18,12 +10,24 @@ const BASE: VikInputs = {
   celebrating: false,
   dozing: false,
   momentMood: null,
+  worldPose: null,
   speaking: false,
   quiet: false,
   dense: false,
 };
 
 const at = (over: Partial<VikInputs>): VikInputs => ({ ...BASE, ...over });
+
+/** The old chain spoke in moods; the ladder speaks in poses. Bridge for tests. */
+const moodFor = (i: VikInputs): RobotMood | VikPose => {
+  const pose = poseFor(i);
+  const match = (['idle','happy','wave','excited','sleepy','point','giggle','dizzy','grumpy'] as RobotMood[])
+    .find((m) => {
+      const p = poseForMood(m);
+      return p.expression === pose.expression && p.body === pose.body;
+    });
+  return match ?? pose;
+};
 
 /**
  * The precedence chain exactly as it read inside Companion.tsx before the
@@ -56,7 +60,7 @@ describe('the ladder', () => {
   });
 
   it('always yields a claim — idle never stands down', () => {
-    expect(pickClaim(BASE)).toEqual({ kind: 'idle', mood: 'idle' });
+    expect(pickClaim(BASE)).toEqual({ kind: 'idle', pose: poseForMood('idle') });
     expect(claimsFor(BASE)).toHaveLength(1);
   });
 
@@ -92,6 +96,19 @@ describe('the ladder', () => {
 
   it('resolves to a renderable pose, not just a mood', () => {
     expect(poseFor(at({ playMood: 'wave' }))).toEqual({ expression: 'smile', body: 'wave' });
+  });
+
+  it('lets the world dress him in a face the engine has no word for', () => {
+    const worldPose: VikPose = { expression: 'proud', body: 'hips' };
+    expect(poseFor(at({ worldPose }))).toEqual(worldPose);
+    // ...but anything with an opinion outranks it.
+    expect(poseFor(at({ worldPose, momentMood: 'point' }))).toEqual(poseForMood('point'));
+    expect(poseFor(at({ worldPose, dozing: true }))).toEqual(poseForMood('sleepy'));
+  });
+
+  it('never lets the world wake him — rain at 3am is still 3am', () => {
+    const worldPose: VikPose = { expression: 'proud', body: 'hips' };
+    expect(poseFor(at({ worldPose, quiet: true }))).toEqual(poseForMood('sleepy'));
   });
 });
 

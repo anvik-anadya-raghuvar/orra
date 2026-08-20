@@ -9,9 +9,10 @@
  *   expression — mouth, eyes, brows, head-shake. What his face is doing.
  *   body       — arms, chest, antenna. What the rest of him is doing.
  *
- * MOOD_POSE maps every existing mood onto the pair, so this is a refactor and
- * not a redesign: the nine moods still render exactly as they did. Later phases
- * widen the unions rather than rewriting the mapping.
+ * MOOD_POSE maps every mood the engine can ask for onto the pair, so the nine
+ * original moods still render exactly as they did. Everything past those nine
+ * is reachable only by handing a pose directly, which is how the wardrobe and
+ * the world signals dress him without inventing new vocabulary for the engine.
  *
  * No framer-motion import, on purpose. The animation shapes below are plain
  * structural types that happen to match what motion components accept, which
@@ -47,7 +48,20 @@ export type Expression =
   | 'giggle'
   | 'sleepy'
   | 'dizzy'
-  | 'cross';
+  | 'cross'
+  // Added with the wardrobe: faces the world puts on him.
+  | 'thinking'
+  | 'proud'
+  | 'shy'
+  | 'yawn'
+  | 'sneeze'
+  | 'curious'
+  | 'smug'
+  | 'weary'
+  | 'cheer';
+
+/** Brows are three different shapes, not one boolean. */
+export type BrowStyle = 'cross' | 'raised' | 'one';
 
 export interface ExpressionSpec {
   /** SVG path for the mouth, in the 64x74 viewBox. */
@@ -57,7 +71,9 @@ export interface ExpressionSpec {
   eyes: 'rect' | 'arc' | 'spiral';
   /** Vertical squish of the open-eye rectangles. */
   eyeScale?: number;
-  brows?: boolean;
+  /** Nudges the whole eye group — a glance, without needing pupils. */
+  eyeShift?: { x: number; y: number };
+  brows?: BrowStyle;
   /** Irregular blinking — off for closed, spiral and sleeping eyes. */
   blink: boolean;
   /** One-shot head rotation keyframes. */
@@ -99,15 +115,100 @@ export const EXPRESSIONS: Record<Expression, ExpressionSpec> = {
     mouth: 'M27,29.5 Q32,26 37,29.5',
     eyes: 'rect',
     eyeScale: 0.55,
-    brows: true,
+    brows: 'cross',
     blink: true,
     headShake: [0, -2, 2, 0],
+  },
+
+  /** Chin-scratching. Eyes drift up and away, mouth pushed to one side. */
+  thinking: {
+    mouth: 'M29,28.2 q2.2,-1.6 4.6,0.2',
+    eyes: 'rect',
+    eyeScale: 0.85,
+    eyeShift: { x: -1.4, y: -1.2 },
+    brows: 'raised',
+    blink: true,
+  },
+  /** Chest out. A closed, satisfied smile — no teeth, he is not gloating. */
+  proud: {
+    mouth: 'M27.5,26.6 Q32,29.8 36.5,26.6',
+    eyes: 'rect',
+    eyeScale: 0.9,
+    blink: true,
+  },
+  /** Small mouth, eyes lowered. What three days of being ignored looks like. */
+  shy: {
+    mouth: 'M29.8,27.7 q2.2,1.1 4.4,0',
+    eyes: 'rect',
+    eyeScale: 0.7,
+    eyeShift: { x: 0, y: 1.2 },
+    blink: true,
+  },
+  yawn: {
+    mouth: 'M29,25.6 q3,7.8 6,0 q-3,2.6 -6,0',
+    mouthOpen: true,
+    eyes: 'rect',
+    eyeScale: 0.25,
+    blink: false,
+  },
+  sneeze: {
+    mouth: 'M28.4,25.4 q3.6,6.8 7.2,0 q-3.6,1.6 -7.2,0',
+    mouthOpen: true,
+    eyes: 'rect',
+    eyeScale: 0.12,
+    brows: 'raised',
+    blink: false,
+  },
+  /** Wide eyes, small round mouth. The face of "what's that then". */
+  curious: {
+    mouth: 'M32,26.9 a1.7,2.1 0 1,0 0.01,0',
+    mouthOpen: true,
+    eyes: 'rect',
+    eyeScale: 1.2,
+    brows: 'raised',
+    blink: true,
+  },
+  /** A one-sided smirk and a single raised brow. */
+  smug: {
+    mouth: 'M28.4,27.9 Q32.5,29.9 36.6,26.5',
+    eyes: 'rect',
+    eyeScale: 0.75,
+    brows: 'one',
+    blink: true,
+  },
+  /** Sagging. Overdue work, and he has noticed. */
+  weary: {
+    mouth: 'M28.4,28.6 Q32,27.1 35.6,28.6',
+    eyes: 'rect',
+    eyeScale: 0.5,
+    eyeShift: { x: 0, y: 0.8 },
+    blink: true,
+  },
+  /** Full open-mouthed delight, brows up. Reserved for genuinely good news. */
+  cheer: {
+    mouth: 'M27.8,25.8 Q32,32 36.2,25.8 Q32,28.8 27.8,25.8',
+    mouthOpen: true,
+    eyes: 'arc',
+    brows: 'raised',
+    blink: false,
   },
 };
 
 /* ── Body: everything below the face ──────────────────────────────────── */
 
-export type BodyPose = 'stand' | 'wave' | 'point' | 'flap';
+export type BodyPose =
+  | 'stand'
+  | 'wave'
+  | 'point'
+  | 'flap'
+  // Added with the wardrobe.
+  | 'think'
+  | 'hips'
+  | 'shrug'
+  | 'facepalm'
+  | 'salute'
+  | 'cheer'
+  | 'hold';
 
 export interface BodySpec {
   leftArm: LimbAnim;
@@ -118,9 +219,17 @@ export interface BodySpec {
 }
 
 const REST: PoseTransition = { duration: 0.2 };
+const SETTLE: PoseTransition = { duration: 0.35, ease: 'easeInOut' };
 const ARM_DOWN: LimbAnim = { rotate: 0, rest: 0, transition: REST };
 const FLAP: PoseTransition = { duration: 0.45, repeat: Infinity, repeatDelay: 1.4 };
 const SWING: PoseTransition = { duration: 0.5, ease: 'easeInOut' };
+
+/** A limb that moves to an angle and stays there. */
+const held = (deg: number, transition: PoseTransition = SETTLE): LimbAnim => ({
+  rotate: deg,
+  rest: deg,
+  transition,
+});
 
 export const BODIES: Record<BodyPose, BodySpec> = {
   stand: { leftArm: ARM_DOWN, rightArm: ARM_DOWN },
@@ -129,16 +238,30 @@ export const BODIES: Record<BodyPose, BodySpec> = {
     rightArm: { rotate: [0, -70, 15, -70, 0], rest: 0, transition: SWING },
     antennaBlink: true,
   },
-  point: {
-    leftArm: ARM_DOWN,
-    rightArm: { rotate: -55, rest: -55, transition: REST },
-  },
+  point: { leftArm: ARM_DOWN, rightArm: held(-55, REST) },
   flap: {
     leftArm: { rotate: [0, 30, 0], rest: 0, transition: FLAP },
     rightArm: { rotate: [0, -30, 0], rest: 0, transition: FLAP },
     chestPulse: true,
     antennaBlink: true,
   },
+
+  /** Hand up near the chin. */
+  think: { leftArm: ARM_DOWN, rightArm: held(-125), chestPulse: true },
+  /** Both hands on the hips — the proud stance. */
+  hips: { leftArm: held(38), rightArm: held(-38) },
+  /** Arms out and slightly up: search me. */
+  shrug: { leftArm: held(52), rightArm: held(-52) },
+  facepalm: { leftArm: ARM_DOWN, rightArm: held(-145) },
+  salute: { leftArm: ARM_DOWN, rightArm: held(-135) },
+  /** Both arms overhead. */
+  cheer: {
+    leftArm: { rotate: [0, 150], rest: 150, transition: SETTLE },
+    rightArm: { rotate: [0, -150], rest: -150, transition: SETTLE },
+    antennaBlink: true,
+  },
+  /** One hand out in front, carrying something — an umbrella, a magnifier. */
+  hold: { leftArm: ARM_DOWN, rightArm: held(-88) },
 };
 
 /* ── One-shot gestures ───────────────────────────────────────────────── */

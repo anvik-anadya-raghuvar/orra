@@ -4,21 +4,23 @@
  *
  * Nothing here decides what he looks like. The face comes from EXPRESSIONS and
  * the limbs from BODIES (lib/companionPose.ts); this file only knows how to
- * draw a pose it is handed. Accessories hang in slots, so a hat and a scarf
- * never have to know about each other.
+ * draw a pose it is handed. Accessories hang in slots, interleaved with the
+ * body in SLOT_ORDER, so a hat and a scarf never have to know about each other.
  *
  * `animate` gates every loop (reduced motion / hidden tab): when false the
  * sprite renders the pose's final state as a static one — the expression still
  * changes, nothing moves. Decoration over an already-correct state.
  */
 import { motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
-import type { RobotMood } from '../../lib/companionCopy';
-import { BODIES, EXPRESSIONS, poseForMood, type LimbAnim } from '../../lib/companionPose';
-import type { Outfit } from '../../lib/companionWardrobe';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { BODIES, EXPRESSIONS, type LimbAnim, type VikPose } from '../../lib/companionPose';
+import type { Outfit, Slot } from '../../lib/companionWardrobe';
+
+// Ten accessories he mostly is not wearing — not worth a byte on first paint.
+const Accessory = lazy(() => import('./Accessories'));
 
 interface Props {
-  mood: RobotMood;
+  pose: VikPose;
   size?: number;
   animate: boolean;
   /** What he is wearing, one item per slot. */
@@ -38,21 +40,25 @@ function limbProps(limb: LimbAnim, animate: boolean) {
   };
 }
 
-/* ── Accessories ──────────────────────────────────────────────────────── */
+/** Brows, three shapes: angled in is cross, out is surprise, one is a smirk. */
+const BROWS: Record<string, string[]> = {
+  cross: ['M22,14 l8,2.6', 'M42,14 l-8,2.6'],
+  raised: ['M22,14.6 l8,-1.8', 'M42,14.6 l-8,-1.8'],
+  one: ['M22,13.6 l8,1.4', 'M42,12.4 l-8,-0.6'],
+};
 
-function HeadAccessory({ id }: { id: string }) {
-  if (id === 'party')
-    return (
-      <g className="vik-hat">
-        <polygon points="37,10.5 46,9 43.5,1.5" />
-        <circle cx="43.5" cy="1.5" r="1.7" />
-      </g>
-    );
-  return null;
+function Wear({ outfit, slot }: { outfit: Outfit; slot: Slot }) {
+  const id = outfit[slot];
+  if (!id) return null;
+  // A missing accessory for one frame is invisible; a blocked first paint is not.
+  return (
+    <Suspense fallback={null}>
+      <Accessory id={id} />
+    </Suspense>
+  );
 }
 
-export default function RobotSprite({ mood, size = 58, animate, outfit = {} }: Props) {
-  const pose = poseForMood(mood);
+export default function RobotSprite({ pose, size = 58, animate, outfit = {} }: Props) {
   const face = EXPRESSIONS[pose.expression];
   const body = BODIES[pose.body];
 
@@ -83,9 +89,10 @@ export default function RobotSprite({ mood, size = 58, animate, outfit = {} }: P
       timers.current = [];
       setBlink(false);
     };
-  }, [blinks, mood]);
+  }, [blinks, pose.expression]);
 
   const eyeScaleY = blink ? 0.08 : (face.eyeScale ?? 1);
+  const shift = face.eyeShift;
 
   return (
     <svg viewBox="0 0 64 74" width={size} height={(size * 74) / 64} aria-hidden className="vik-svg">
@@ -100,6 +107,7 @@ export default function RobotSprite({ mood, size = 58, animate, outfit = {} }: P
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
       />
+      <Wear outfit={outfit} slot="ground" />
 
       {/* the whole figure bobs; asleep it breathes instead */}
       <motion.g
@@ -109,6 +117,8 @@ export default function RobotSprite({ mood, size = 58, animate, outfit = {} }: P
         transition={{ duration: face.asleep ? 4 : 3, repeat: Infinity, ease: 'easeInOut' }}
         style={{ transformBox: 'fill-box', transformOrigin: '50% 100%' }}
       >
+        <Wear outfit={outfit} slot="behind" />
+
         {/* arms — behind the body */}
         <motion.rect
           x="12"
@@ -145,6 +155,7 @@ export default function RobotSprite({ mood, size = 58, animate, outfit = {} }: P
           animate={animate && body.chestPulse ? { opacity: [1, 0.35, 1] } : undefined}
           transition={{ duration: 0.9, repeat: Infinity }}
         />
+        <Wear outfit={outfit} slot="neck" />
 
         {/* antenna */}
         <line x1="32" y1="8" x2="32" y2="3.5" className="vik-antenna" />
@@ -164,48 +175,57 @@ export default function RobotSprite({ mood, size = 58, animate, outfit = {} }: P
           style={{ transformBox: 'fill-box', transformOrigin: '50% 90%' }}
         >
           <rect x="13" y="8" width="38" height="27" rx="11" className="vik-body" />
-          {outfit.head && <HeadAccessory id={outfit.head} />}
+          <Wear outfit={outfit} slot="head" />
           <rect x="17.5" y="12" width="29" height="19" rx="8" className="vik-face" />
 
-          {/* eyes */}
-          {face.eyes === 'arc' ? (
-            <g className="vik-eye-arc">
-              <path d="M22.5,20.5 q3.5,-4 7,0" />
-              <path d="M34.5,20.5 q3.5,-4 7,0" />
-            </g>
-          ) : face.eyes === 'spiral' ? (
-            <motion.g
-              className="vik-eye-spiral"
-              animate={animate ? { rotate: 360 } : undefined}
-              transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
-              style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
-            >
-              <path d="M26,20 m-3,0 a3,3 0 1,1 6,0 a1.7,1.7 0 1,0 -3.4,0" />
-              <path d="M38,20 m-3,0 a3,3 0 1,1 6,0 a1.7,1.7 0 1,0 -3.4,0" />
-            </motion.g>
-          ) : (
-            <motion.g
-              animate={{ scaleY: eyeScaleY }}
-              transition={{ duration: 0.09 }}
-              style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
-            >
-              <rect x="23.8" y="16.5" width="4.4" height="7" rx="2.2" className="vik-eye" />
-              <rect x="35.8" y="16.5" width="4.4" height="7" rx="2.2" className="vik-eye" />
-            </motion.g>
-          )}
+          {/* eyes — the group shifts bodily for a glance, no pupils needed */}
+          <g transform={shift ? `translate(${shift.x} ${shift.y})` : undefined}>
+            {face.eyes === 'arc' ? (
+              <g className="vik-eye-arc">
+                <path d="M22.5,20.5 q3.5,-4 7,0" />
+                <path d="M34.5,20.5 q3.5,-4 7,0" />
+              </g>
+            ) : face.eyes === 'spiral' ? (
+              <motion.g
+                className="vik-eye-spiral"
+                animate={animate ? { rotate: 360 } : undefined}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+                style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
+              >
+                <path d="M26,20 m-3,0 a3,3 0 1,1 6,0 a1.7,1.7 0 1,0 -3.4,0" />
+                <path d="M38,20 m-3,0 a3,3 0 1,1 6,0 a1.7,1.7 0 1,0 -3.4,0" />
+              </motion.g>
+            ) : (
+              <motion.g
+                animate={{ scaleY: eyeScaleY }}
+                transition={{ duration: 0.09 }}
+                style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
+              >
+                <rect x="23.8" y="16.5" width="4.4" height="7" rx="2.2" className="vik-eye" />
+                <rect x="35.8" y="16.5" width="4.4" height="7" rx="2.2" className="vik-eye" />
+              </motion.g>
+            )}
+          </g>
 
-          {/* brows only when cross */}
           {face.brows && (
             <g className="vik-brow">
-              <path d="M22,14 l8,2.6" />
-              <path d="M42,14 l-8,2.6" />
+              {BROWS[face.brows].map((d) => (
+                <path key={d} d={d} />
+              ))}
             </g>
           )}
 
           {/* mouth */}
           <path d={face.mouth} className={face.mouthOpen ? 'vik-mouth-open' : 'vik-mouth'} />
+
+          {/* worn over the face — sunglasses sit on top of the eyes */}
+          <Wear outfit={outfit} slot="face" />
         </motion.g>
+
+        <Wear outfit={outfit} slot="hand" />
       </motion.g>
+
+      <Wear outfit={outfit} slot="overhead" />
     </svg>
   );
 }

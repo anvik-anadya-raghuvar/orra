@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CloudSun, Clock3, MapPin, Search } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
 import { InfoTip, useToast } from '../../ui/bits';
+import { fetchCurrent, weatherLabel, type CurrentWeather } from '../../lib/weather';
 
 type SavedClock = { label: string; time_zone: string };
 type WeatherPlace = {
@@ -102,25 +103,6 @@ interface GeoResult {
   timezone: string;
 }
 
-interface CurrentWeather {
-  temperature_2m: number;
-  apparent_temperature: number;
-  weather_code: number;
-  wind_speed_10m: number;
-}
-
-const weatherLabel = (code: number) => {
-  if (code === 0) return 'Clear';
-  if (code <= 3) return 'Partly cloudy';
-  if (code <= 48) return 'Foggy';
-  if (code <= 57) return 'Drizzle';
-  if (code <= 67) return 'Rain';
-  if (code <= 77) return 'Snow';
-  if (code <= 82) return 'Rain showers';
-  if (code <= 86) return 'Snow showers';
-  return 'Thunderstorms';
-};
-
 export function WeatherTile() {
   const store = useStore();
   const me = useData((_, s) => s.me);
@@ -140,16 +122,16 @@ export function WeatherTile() {
     }
     let alive = true;
     setError('');
-    fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`,
-    )
-      .then((response) => {
-        if (!response.ok) throw new Error('Weather unavailable');
-        return response.json();
-      })
-      .then((json) => alive && setWeather((json as { current: CurrentWeather }).current))
-      .catch(() => alive && setError('Weather is unavailable right now.'));
-    return () => { alive = false; };
+    // Shared cache: the companion reads the same place to decide whether Vik
+    // needs an umbrella, and whoever asks first pays for the request.
+    void fetchCurrent(place).then((current) => {
+      if (!alive) return;
+      if (current) setWeather(current);
+      else setError('Weather is unavailable right now.');
+    });
+    return () => {
+      alive = false;
+    };
   }, [place?.latitude, place?.longitude]);
 
   const search = async () => {

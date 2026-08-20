@@ -14,16 +14,28 @@
  *   touch       a passive contact state — mid-pet, mid-drag
  *   moment      an announcement from the pure engine
  *   antic       an idle gesture nobody asked for
+ *   world       how the day is going — overdue work, a streak, rain
  *   idle        the resting face
  *
  * `play` outranking `celebration` while `touch` sits below it is deliberate:
  * something you just did to him beats the news, but merely resting a finger on
  * him does not.
+ *
+ * Claims carry a full VikPose rather than a RobotMood. That is what lets the
+ * world dress him in faces the announcement engine has no word for, without
+ * widening the engine's vocabulary to accommodate a robot's mood.
  */
 import type { RobotMood } from './companionCopy';
 import { poseForMood, type VikPose } from './companionPose';
 
-export type ActivityKind = 'play' | 'celebration' | 'touch' | 'moment' | 'antic' | 'idle';
+export type ActivityKind =
+  | 'play'
+  | 'celebration'
+  | 'touch'
+  | 'moment'
+  | 'antic'
+  | 'world'
+  | 'idle';
 
 export const PRIORITY: Record<ActivityKind, number> = {
   play: 80,
@@ -31,12 +43,13 @@ export const PRIORITY: Record<ActivityKind, number> = {
   touch: 50,
   moment: 40,
   antic: 20,
+  world: 15,
   idle: 10,
 };
 
 export interface Claim {
   kind: ActivityKind;
-  mood: RobotMood;
+  pose: VikPose;
 }
 
 export interface VikInputs {
@@ -49,6 +62,8 @@ export interface VikInputs {
   dozing: boolean;
   /** The announcement on screen, if any. */
   momentMood: RobotMood | null;
+  /** How the day is going, if it is going in a way worth wearing. */
+  worldPose: VikPose | null;
   /** Is a bubble showing text — from an announcement or a one-off quip. */
   speaking: boolean;
   /** Quiet hours in the reader's own timezone. */
@@ -57,31 +72,30 @@ export interface VikInputs {
   dense: boolean;
 }
 
+const IDLE: VikPose = { expression: 'neutral', body: 'stand' };
+const ASLEEP: VikPose = { expression: 'sleepy', body: 'stand' };
+
 /** Every claim currently being made on his face, unsorted. */
 export function claimsFor(i: VikInputs): Claim[] {
-  const claims: Claim[] = [{ kind: 'idle', mood: i.quiet ? 'sleepy' : 'idle' }];
-  if (i.playMood) claims.push({ kind: 'play', mood: i.playMood });
-  if (i.celebrating) claims.push({ kind: 'celebration', mood: 'excited' });
-  if (i.petting) claims.push({ kind: 'touch', mood: 'happy' });
-  else if (i.dragging) claims.push({ kind: 'touch', mood: 'excited' });
-  if (i.momentMood) claims.push({ kind: 'moment', mood: i.momentMood });
-  if (i.dozing) claims.push({ kind: 'antic', mood: 'sleepy' });
+  const claims: Claim[] = [{ kind: 'idle', pose: i.quiet ? ASLEEP : IDLE }];
+  if (i.playMood) claims.push({ kind: 'play', pose: poseForMood(i.playMood) });
+  if (i.celebrating) claims.push({ kind: 'celebration', pose: poseForMood('excited') });
+  if (i.petting) claims.push({ kind: 'touch', pose: poseForMood('happy') });
+  else if (i.dragging) claims.push({ kind: 'touch', pose: poseForMood('excited') });
+  if (i.momentMood) claims.push({ kind: 'moment', pose: poseForMood(i.momentMood) });
+  if (i.dozing) claims.push({ kind: 'antic', pose: ASLEEP });
+  // The world never wakes him. Rain at 3am is still 3am.
+  if (i.worldPose && !i.quiet) claims.push({ kind: 'world', pose: i.worldPose });
   return claims;
 }
 
 /** The winning claim. There is always one: `idle` never stands down. */
 export function pickClaim(i: VikInputs): Claim {
-  return claimsFor(i).reduce((best, c) =>
-    PRIORITY[c.kind] > PRIORITY[best.kind] ? c : best,
-  );
-}
-
-export function moodFor(i: VikInputs): RobotMood {
-  return pickClaim(i).mood;
+  return claimsFor(i).reduce((best, c) => (PRIORITY[c.kind] > PRIORITY[best.kind] ? c : best));
 }
 
 export function poseFor(i: VikInputs): VikPose {
-  return poseForMood(moodFor(i));
+  return pickClaim(i).pose;
 }
 
 /**
@@ -93,17 +107,11 @@ export function poseFor(i: VikInputs): VikPose {
  */
 export function isBusy(i: VikInputs): boolean {
   return Boolean(
-    i.speaking ||
-      i.playMood ||
-      i.petting ||
-      i.dragging ||
-      i.celebrating ||
-      i.quiet ||
-      i.dense,
+    i.speaking || i.playMood || i.petting || i.dragging || i.celebrating || i.quiet || i.dense,
   );
 }
 
 /** Napping in the corner: asleep, and not mid-sentence. */
 export function isSleeping(i: VikInputs): boolean {
-  return i.quiet && moodFor(i) === 'sleepy' && !i.speaking;
+  return i.quiet && poseFor(i).expression === 'sleepy' && !i.speaking;
 }

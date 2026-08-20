@@ -14,8 +14,9 @@ import { useLocation } from 'react-router-dom';
 import { useData, useStore } from '../../data/store';
 import { quietHoursFor } from '../../lib/companion';
 import { GESTURE_ANIM, GESTURE_REST, type Gesture } from '../../lib/companionPose';
-import { isBusy, isSleeping, moodFor, type VikInputs } from '../../lib/companionState';
+import { isBusy, isSleeping, poseFor, type VikInputs } from '../../lib/companionState';
 import { resolveOutfit } from '../../lib/companionWardrobe';
+import { readWorld, restingPose } from '../../lib/companionWorld';
 import { spring, useAnimateIn } from '../motion';
 import RobotSprite from './RobotSprite';
 import VikBubble from './VikBubble';
@@ -29,6 +30,7 @@ import { useIdleAntics } from './useIdleAntics';
 import { useVikGesture } from './useVikGesture';
 import { useVikPlay } from './useVikPlay';
 import { useVikVoice } from './useVikVoice';
+import { useWeatherSignal } from './useWeatherSignal';
 import './companion.css';
 
 /** Money, Admin and People: he shrinks and stops volunteering. */
@@ -64,7 +66,22 @@ export default function Companion() {
   }, []);
   const now = new Date();
   const quiet = quietHoursFor(store.me.time_zone, now);
-  const outfit = resolveOutfit({ now });
+
+  // How the day is going: what he wears, and how he holds himself when nothing
+  // else is claiming his face.
+  const weather = useWeatherSignal();
+  // Through useData so a task closing or a song landing re-renders him; the
+  // selector runs outside the snapshot, so a fresh object each render is fine.
+  const world = useData((ds, s) =>
+    readWorld({
+      ds,
+      meId: s.meId,
+      now,
+      weather,
+      otherTimeZone: s.other.time_zone ?? null,
+    }),
+  );
+  const outfit = resolveOutfit(world);
 
   const { quip, say } = useVikVoice();
   const { gesture, doGesture } = useVikGesture();
@@ -102,6 +119,7 @@ export default function Companion() {
     celebrating: celebration != null,
     dozing: gesture === 'doze',
     momentMood: current?.mood ?? null,
+    worldPose: restingPose(world),
     speaking: bubbleText != null,
     quiet,
     dense,
@@ -166,7 +184,7 @@ export default function Companion() {
         >
           <motion.div animate={moving} style={{ transformOrigin: '50% 85%' }}>
             <RobotSprite
-              mood={moodFor(inputs)}
+              pose={poseFor(inputs)}
               animate={animate}
               size={dense ? SIZE.dense : SIZE.normal}
               outfit={outfit}

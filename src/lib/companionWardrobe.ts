@@ -5,11 +5,14 @@
  * so an umbrella, a scarf and sunglasses can coexist without any of them
  * knowing about the others. One item per slot; SLOT_ORDER is also the render
  * order, interleaved with the body so a scarf sits over the torso and a hat
- * under nothing.
+ * over the head.
  *
- * Only the Friday hat exists so far — the mechanism arrives before the
- * wardrobe does, because it is the mechanism that the rest of it needs.
+ * Everything here is reactive — it reads real weather and real task state and
+ * dresses him accordingly. None of it is earned, and none of it is ever taken
+ * away: an umbrella that only appears once you have poked him enough times is
+ * a worse umbrella. Vanity items are what the bond unlocks later.
  */
+import type { WorldSignals } from './companionWorld';
 
 export type Slot = 'ground' | 'behind' | 'neck' | 'head' | 'face' | 'hand' | 'overhead';
 
@@ -23,27 +26,91 @@ export const SLOT_ORDER: Slot[] = [
   'overhead',
 ];
 
-export type AccessoryId = 'party';
+export type AccessoryId =
+  | 'party'
+  | 'graduation'
+  | 'crown'
+  | 'hardhat'
+  | 'scarf'
+  | 'sunglasses'
+  | 'headphones'
+  | 'umbrella'
+  | 'chai'
+  | 'espresso';
+
+/** Which slot each item occupies. One place, so nothing can disagree. */
+export const ACCESSORY_SLOT: Record<AccessoryId, Slot> = {
+  party: 'head',
+  graduation: 'head',
+  crown: 'head',
+  hardhat: 'head',
+  scarf: 'neck',
+  sunglasses: 'face',
+  headphones: 'head',
+  umbrella: 'hand',
+  chai: 'hand',
+  espresso: 'hand',
+};
+
+/**
+ * Within a slot, the higher number wins. A cleared day should out-dress a
+ * study streak; a hard hat should not hide the crown you just earned.
+ */
+export const ACCESSORY_PRIORITY: Record<AccessoryId, number> = {
+  crown: 90,
+  party: 80,
+  graduation: 70,
+  headphones: 60,
+  hardhat: 50,
+  umbrella: 90,
+  chai: 20,
+  espresso: 20,
+  scarf: 10,
+  sunglasses: 10,
+};
 
 export type Outfit = Partial<Record<Slot, AccessoryId>>;
-
-/** Everything outside Vik that the wardrobe reads. Widens as the wardrobe does. */
-export interface WardrobeWorld {
-  /** The reader's own wall clock. */
-  now: Date;
-}
 
 /** Friday evening, local: he dresses for the weekend. */
 export function isPartyTime(now: Date): boolean {
   return now.getDay() === 5 && now.getHours() >= 18;
 }
 
+/** A hot drink, chosen by the hour rather than by the country. */
+function drinkFor(hour: number): AccessoryId | null {
+  if (hour >= 6 && hour < 11) return 'chai';
+  if (hour >= 15 && hour < 18) return 'espresso';
+  return null;
+}
+
 /**
  * The outfit, resolved. Pure and deterministic: the same world always dresses
  * him the same way, and never puts two things in one slot.
  */
-export function resolveOutfit(world: WardrobeWorld): Outfit {
+export function resolveOutfit(world: WorldSignals): Outfit {
+  const wanted: AccessoryId[] = [];
+
+  if (world.dayCleared) wanted.push('crown');
+  if (isPartyTime(world.now)) wanted.push('party');
+  if (world.studyStreak >= 3) wanted.push('graduation');
+  if (world.songPlaying) wanted.push('headphones');
+  if (world.stuck) wanted.push('hardhat');
+
+  if (world.raining || world.snowing) wanted.push('umbrella');
+  else {
+    const drink = drinkFor(world.now.getHours());
+    if (drink) wanted.push(drink);
+  }
+
+  if (world.cold) wanted.push('scarf');
+  if (world.hot) wanted.push('sunglasses');
+
+  // Highest priority wins its slot; everything else is simply not worn.
   const outfit: Outfit = {};
-  if (isPartyTime(world.now)) outfit.head = 'party';
+  for (const id of wanted) {
+    const slot = ACCESSORY_SLOT[id];
+    const held = outfit[slot];
+    if (!held || ACCESSORY_PRIORITY[id] > ACCESSORY_PRIORITY[held]) outfit[slot] = id;
+  }
   return outfit;
 }
