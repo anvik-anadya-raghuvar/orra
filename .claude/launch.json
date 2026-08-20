@@ -58,6 +58,18 @@
         "5188"
       ],
       "port": 5188
+    },
+    {
+      "name": "anvik-ops-mock",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "mock",
+        "--port",
+        "5185"
+      ],
+      "port": 5185
     }
   ]
 }
