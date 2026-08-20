@@ -101,6 +101,16 @@
   letter-spacing: -0.022em;
   min-height: 44px;
 }
+/* The title's -7px left margin optically aligns its text with the content
+   below. Once the field is wrapped for dictation, that offset belongs to the
+   wrapper — the wrapper is what now occupies the field's place in the layout,
+   and leaving it on the input pushed the mic 2px outside the box it sits in. */
+.tpage .tin-wrap {
+  margin: 0 0 10px -7px;
+}
+.tpage .tin-wrap > .tin {
+  margin: 0;
+}
 .tpage .tin:hover {
   background: var(--surf2);
 }

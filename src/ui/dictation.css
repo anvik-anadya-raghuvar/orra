@@ -1,0 +1,329 @@
+/* ── Dictation ─────────────────────────────────────────────────────────────
+   A mic that sits inside other people's toolbars, so it borrows the size and
+   colour of whatever it is next to rather than announcing itself — until it
+   is live, when it becomes the loudest thing on the row, because a running
+   microphone must never be subtle.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.micbtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf2);
+  color: var(--mute);
+  cursor: pointer;
+  transition:
+    color 0.16s var(--ease),
+    background 0.16s var(--ease),
+    border-color 0.16s var(--ease),
+    box-shadow 0.16s var(--ease);
+}
+
+.micbtn:hover {
+  color: var(--indigo);
+  border-color: var(--indigo);
+  background: var(--indigo-s);
+}
+
+.micbtn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+/* Live. Filled, not outlined — the state is readable at a glance across the
+   room, and the square (rather than a mic) says the next press stops it. */
+.micbtn.on {
+  color: #fff;
+  background: var(--indigo);
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+
+.micbtn.on:hover {
+  color: #fff;
+  background: var(--indigo);
+}
+
+/* A ring breathing outward from the button, drawn behind it. Decoration only:
+   the fill and the aria-pressed state already carry the meaning. */
+.micpulse {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid var(--indigo);
+  animation: mic-pulse 1.6s var(--ease) infinite;
+  pointer-events: none;
+}
+
+@keyframes mic-pulse {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* ── The status pill ───────────────────────────────────────────────────────
+   Sits above the toast on desktop and above the tab bar on a phone, so it can
+   never be the thing hidden behind something else. */
+.dictation-pill {
+  position: fixed;
+  left: 50%;
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(92vw, 460px);
+  padding: 8px 10px 8px 14px;
+  border: 1px solid var(--indigo);
+  border-radius: 999px;
+  background: var(--surf-dense);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--sh2), 0 0 0 4px var(--glow);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.dictation-word {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--indigo);
+  white-space: nowrap;
+}
+
+/* Three bars that move while the mic is open. They are not a level meter —
+   they do not read the input — so they say only "this is running", which is
+   exactly what they look like. */
+.dictation-live {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 16px;
+}
+
+.dictation-live i {
+  width: 3px;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--indigo);
+  animation: mic-bar 1s var(--ease) infinite;
+}
+
+.dictation-live i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dictation-live i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes mic-bar {
+  0%,
+  100% {
+    height: 5px;
+  }
+  50% {
+    height: 15px;
+  }
+}
+
+.dictation-pill select {
+  min-height: 32px;
+  max-width: 140px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surf2);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.dictation-pill button {
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--indigo);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dictation-pill button:focus-visible,
+.dictation-pill select:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+/* Announced, never drawn. */
+.dictation-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Touch ─────────────────────────────────────────────────────────────────
+   44×44 on mobile and tablet, per the responsive rules. The mic performs an
+   action, so it gets no exemption. */
+@media (max-width: 1024px) {
+  .micbtn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .dictation-pill {
+    bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .dictation-pill select,
+  .dictation-pill button {
+    min-height: 44px;
+  }
+
+  .dictation-pill {
+    padding: 6px 8px 6px 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .dictation-pill .dictation-word {
+    display: none;
+  }
+}
+
+/* Reduced motion turns all of it off — the colour and the label already say
+   everything the movement was repeating. */
+@media (prefers-reduced-motion: reduce) {
+  .micpulse,
+  .dictation-live i {
+    animation: none;
+  }
+
+  .dictation-live i {
+    height: 11px;
+  }
+
+  .micbtn {
+    transition: none;
+  }
+}
+
+/* ── Placement helpers ─────────────────────────────────────────────────────
+   Two shapes cover every site the mic is dropped into: beside a single-line
+   field, and above a body editor that has no toolbar of its own. */
+
+/* A field and its mic on one line, the mic keeping its own width. */
+.dictate-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dictate-field > input,
+.dictate-field > textarea {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A mic on its own row above the thing it types into, with a caption the
+   first time it appears in a form so the control is not a mystery glyph. */
+.dictate-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+}
+
+.dictate-row span {
+  font-size: 11.5px;
+  color: var(--mute);
+}
+
+@media (max-width: 400px) {
+  .dictate-row span {
+    display: none;
+  }
+}
+
+/* ── A mic inside the field ────────────────────────────────────────────────
+   Absolutely placed so a form does not grow a row per field. The field itself
+   is padded on the right by DictateField, so text never runs under the mic. */
+.dictate-wrap {
+  position: relative;
+  display: block;
+}
+
+/* The wrapper stands in for the field in the surrounding layout, so the field
+   fills it. Without this, a field narrower than its wrapper leaves the mic
+   floating outside the box it belongs to. */
+.dictate-wrap > input,
+.dictate-wrap > textarea {
+  width: 100%;
+}
+
+.dictate-wrap > .micbtn.in-field {
+  position: absolute;
+  right: 5px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.dictate-wrap > .micbtn.in-field:hover,
+.dictate-wrap > .micbtn.in-field.on {
+  border-color: var(--indigo);
+}
+
+/* On one line, centred against the field. In a textarea, tucked into the
+   bottom corner, out of the way of the first thing you write. */
+.dictate-wrap.line > .micbtn.in-field {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.dictate-wrap.area > .micbtn.in-field {
+  bottom: 6px;
+}
+
+@media (max-width: 1024px) {
+  .dictate-wrap > .micbtn.in-field {
+    width: 44px;
+    height: 44px;
+    right: 2px;
+  }
+}
+
+/* A wrapped field that was itself a flex child has to keep filling its row —
+   the wrapper takes the place the field used to hold. */
+.dictate-wrap.grow {
+  flex: 1;
+  min-width: 0;
+}

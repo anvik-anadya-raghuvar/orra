@@ -1379,6 +1379,12 @@
   .wk-breadcrumb-block button {
     min-height: 26px;
   }
+  /* The dictation mic carries its own 34px sizing for the rest of the app;
+     in this toolbar it matches the buttons standing beside it. */
+  .wk-richbar .micbtn {
+    width: 30px;
+    height: 30px;
+  }
   .wk-richbar button {
     min-width: 30px;
   }

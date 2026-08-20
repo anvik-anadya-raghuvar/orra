@@ -19,6 +19,7 @@ import { entrance, staggerItem, staggerParent } from '../../ui/motion';
 import { momentSrc, uploadMoment } from '../../lib/moments';
 import type { MoodItem } from '../../types';
 import { DeleteBtn } from '../../ui/bits';
+import { DictateField } from '../../ui/dictation';
 
 const KINDS: { key: MoodItem['kind']; label: string; Icon: typeof Quote }[] = [
   { key: 'note', label: 'Note', Icon: StickyNote },
@@ -257,14 +258,16 @@ export default function MoodBoard() {
             {kind !== 'link' && (
               <>
                 <div style={{ height: 8 }} />
-                <textarea
-                  className="pin"
-                  rows={3}
-                  value={body}
-                  placeholder={kind === 'quote' ? 'The quote…' : 'Anything…'}
-                  aria-label="Body"
-                  onChange={(e) => setBody(e.target.value)}
-                />
+                <DictateField label="Dictate the body">
+                  <textarea
+                    className="pin"
+                    rows={3}
+                    value={body}
+                    placeholder={kind === 'quote' ? 'The quote…' : 'Anything…'}
+                    aria-label="Body"
+                    onChange={(e) => setBody(e.target.value)}
+                  />
+                </DictateField>
               </>
             )}
           </>

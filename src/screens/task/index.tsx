@@ -13,6 +13,7 @@ import { PRIORITIES, STATUSES, TYPES } from '../work/common';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
 import type { Task, TaskPriority, TaskStatus, TaskType } from '../../types';
+import { DictateField } from '../../ui/dictation';
 import './task.css';
 
 /** Tags stay centrally managed — new tag names rotate through this palette
@@ -291,16 +292,18 @@ function TaskDetail({ task }: { task: Task }) {
               <Link to="/work">Work</Link> / {task.id}
             </p>
 
-            <input
-              className="tin"
-              value={title}
-              aria-label="Task title"
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              }}
-            />
+            <DictateField label="Dictate the task title" className="tin-wrap">
+              <input
+                className="tin"
+                value={title}
+                aria-label="Task title"
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                }}
+              />
+            </DictateField>
 
             <Screenshots
               task={task}
@@ -545,20 +548,22 @@ function TaskDetail({ task }: { task: Task }) {
                   None yet.
                 </p>
               )}
-              <input
-                className="addin"
-                value={noteTitle}
-                placeholder="+ Write a scribble here"
-                aria-label="New linked note title"
-                onChange={(e) => setNoteTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addNote();
-                  }
-                }}
-                onBlur={addNote}
-              />
+              <DictateField label="Dictate a scribble title">
+                <input
+                  className="addin"
+                  value={noteTitle}
+                  placeholder="+ Write a scribble here"
+                  aria-label="New linked note title"
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addNote();
+                    }
+                  }}
+                  onBlur={addNote}
+                />
+              </DictateField>
             </section>
 
             <section>
@@ -585,12 +590,14 @@ function TaskDetail({ task }: { task: Task }) {
                 </p>
               )}
               <div className="composer">
-                <textarea
-                  value={commentBody}
-                  placeholder="Write an update…"
-                  aria-label="New comment"
-                  onChange={(e) => setCommentBody(e.target.value)}
-                />
+                <DictateField label="Dictate this update">
+                  <textarea
+                    value={commentBody}
+                    placeholder="Write an update…"
+                    aria-label="New comment"
+                    onChange={(e) => setCommentBody(e.target.value)}
+                  />
+                </DictateField>
                 <label className="flagline">
                   <input
                     type="checkbox"

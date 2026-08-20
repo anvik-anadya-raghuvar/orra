@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { Avatar, useToast } from '../../ui/bits';
+import { DictateField } from '../../ui/dictation';
 import { lift, staggerItem, staggerParent } from '../../ui/motion';
 
 type Expiry = '' | '1h' | '3h' | 'eod';
@@ -57,14 +58,16 @@ function StatusCard() {
           </div>
         </div>
       </div>
-      <input
-        className="statusinput"
-        style={{ marginTop: 10 }}
-        value={text}
-        placeholder="What are you up to…"
-        onChange={(e) => setText(e.target.value)}
-        aria-label="My status"
-      />
+      <DictateField label="Dictate your status">
+        <input
+          className="statusinput"
+          style={{ marginTop: 10 }}
+          value={text}
+          placeholder="What are you up to…"
+          onChange={(e) => setText(e.target.value)}
+          aria-label="My status"
+        />
+      </DictateField>
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <select
           className="statuslike"

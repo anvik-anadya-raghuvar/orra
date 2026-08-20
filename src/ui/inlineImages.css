@@ -38,3 +38,24 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Dictation ─────────────────────────────────────────────────────────────
+   This editor is a stack of fields, so the mic cannot live inside one of them.
+   It gets a footer strip of its own inside the editor box, added only when the
+   browser can actually dictate so no dead space is reserved otherwise. */
+.inline-image-editor.has-mic {
+  position: relative;
+  padding-bottom: 38px;
+}
+
+.inline-image-editor > .micbtn.editor-mic {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+
+@media (max-width: 1024px) {
+  .inline-image-editor.has-mic {
+    padding-bottom: 50px;
+  }
+}

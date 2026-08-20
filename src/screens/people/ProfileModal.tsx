@@ -11,6 +11,7 @@ import { buildTimeline, nudgeMessage, TYPE_META } from './timeline';
 const WARMTH_PILL: Record<'teal' | 'stamp' | 'rose', string> = { teal: 'ok', stamp: 'due', rose: 'over' };
 import { EditInteractionModal } from './TouchModal';
 import { inputStyle } from './style';
+import { DictateField } from '../../ui/dictation';
 
 export default function ProfileModal({
   personId,
@@ -158,18 +159,22 @@ export default function ProfileModal({
       <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>
         Name
       </label>
-      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" style={inputStyle} />
+      <DictateField label="Dictate the name">
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" style={inputStyle} />
+      </DictateField>
 
       <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>
         Role
       </label>
-      <input
-        type="text"
-        value={role}
-        onChange={(e) => setRole(e.target.value)}
-        placeholder="Role — e.g. Vendor · packaging"
-        style={inputStyle}
-      />
+      <DictateField label="Dictate the role">
+        <input
+          type="text"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          placeholder="Role — e.g. Vendor · packaging"
+          style={inputStyle}
+        />
+      </DictateField>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 11 }}>
         <div style={{ flex: 1, minWidth: 130 }}>
@@ -235,23 +240,27 @@ export default function ProfileModal({
       <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>
         Next action
       </label>
-      <input
-        type="text"
-        value={nextAction}
-        onChange={(e) => setNextAction(e.target.value)}
-        placeholder="What happens next"
-        style={inputStyle}
-      />
+      <DictateField label="Dictate the next action">
+        <input
+          type="text"
+          value={nextAction}
+          onChange={(e) => setNextAction(e.target.value)}
+          placeholder="What happens next"
+          style={inputStyle}
+        />
+      </DictateField>
 
       <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>
         Notes
       </label>
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder="Notes"
-        style={{ ...inputStyle, minHeight: 70, resize: 'vertical' }}
-      />
+      <DictateField label="Dictate the notes">
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Notes"
+          style={{ ...inputStyle, minHeight: 70, resize: 'vertical' }}
+        />
+      </DictateField>
 
       {existing && (
         <>

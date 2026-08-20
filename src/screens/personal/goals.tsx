@@ -20,6 +20,7 @@ import { goalProgress, goalsFor, nextGoalPosition, progressLabel } from '../../l
 import type { PersonalGoal, Task } from '../../types';
 import { DeleteBtn } from '../../ui/bits';
 import { InlineText } from './widgets';
+import { DictateField } from '../../ui/dictation';
 
 const NOW_LIMIT = 3;
 const GOAL_LABEL_COLORS = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'] as const;
@@ -47,29 +48,33 @@ function BufferedField({
   };
 
   return multiline ? (
-    <textarea
-      className="pin"
-      rows={multiline ? 3 : 1}
-      maxLength={maxLength}
-      value={draft}
-      aria-label={label}
-      placeholder={placeholder}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-    />
+    <DictateField label={`Dictate ${label.toLowerCase()}`}>
+      <textarea
+        className="pin"
+        rows={multiline ? 3 : 1}
+        maxLength={maxLength}
+        value={draft}
+        aria-label={label}
+        placeholder={placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+      />
+    </DictateField>
   ) : (
-    <input
-      className="pin"
-      maxLength={maxLength}
-      value={draft}
-      aria-label={label}
-      placeholder={placeholder}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-      }}
-    />
+    <DictateField label={`Dictate ${label.toLowerCase()}`}>
+      <input
+        className="pin"
+        maxLength={maxLength}
+        value={draft}
+        aria-label={label}
+        placeholder={placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+        }}
+      />
+    </DictateField>
   );
 }
 
@@ -225,14 +230,16 @@ function GoalComposer({
       </label>
       <label>
         <span>Why now?</span>
-        <textarea
-          className="pin"
-          value={why}
-          maxLength={1000}
-          rows={2}
-          placeholder="Why does this deserve attention in this season?"
-          onChange={(e) => setWhy(e.target.value)}
-        />
+        <DictateField label="Dictate why this matters">
+          <textarea
+            className="pin"
+            value={why}
+            maxLength={1000}
+            rows={2}
+            placeholder="Why does this deserve attention in this season?"
+            onChange={(e) => setWhy(e.target.value)}
+          />
+        </DictateField>
       </label>
       <label>
         <span>First next action</span>

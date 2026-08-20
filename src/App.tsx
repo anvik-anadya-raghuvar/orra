@@ -18,6 +18,7 @@ import { ErrorBoundary } from './ui/ErrorBoundary';
 import { Gate } from './ui/gate';
 import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
+import { DictationProvider } from './ui/dictation';
 import BlockOverlay from './ui/BlockOverlay';
 import PointerLight from './ui/PointerLight';
 import ClipWatch from './ui/ClipWatch';
@@ -468,7 +469,14 @@ export default function App() {
     <ErrorBoundary>
       <StoreProvider>
         <ToastProvider>
-          <Gated />
+          {/* Dictation is mounted above every screen, not inside one: it owns a
+              single recognition engine for the whole portal and must survive
+              navigation, and its status pill has to be visible from anywhere a
+              microphone can still be running. It sits inside ToastProvider
+              because that is how it reports a blocked mic. */}
+          <DictationProvider>
+            <Gated />
+          </DictationProvider>
         </ToastProvider>
       </StoreProvider>
     </ErrorBoundary>

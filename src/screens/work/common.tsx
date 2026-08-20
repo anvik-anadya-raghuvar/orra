@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 import type { Dataset, Project, Sprint, TaskLinkType, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { PRIORITY_LABEL } from '../../types';
+import { DictateField } from '../../ui/dictation';
 
 /* ── vocabulary shared by the three Work tabs ─────────────────────────── */
 
@@ -130,6 +131,18 @@ export function Segment<T extends string>({
 }
 
 /**
+ * Field types worth speaking into. A select, a date or a number gets no mic —
+ * dictating "the fourteenth" into a date picker is not a feature.
+ */
+const SPOKEN_INPUT_TYPES = new Set(['text', 'search', 'url', 'email', 'tel', undefined]);
+
+function acceptsDictation(only: React.ReactElement): boolean {
+  if (only.type === 'textarea') return true;
+  if (only.type !== 'input') return false;
+  return SPOKEN_INPUT_TYPES.has((only.props as { type?: string }).type);
+}
+
+/**
  * A labelled form field.
  *
  * The label is associated with its control, not merely drawn above it — a
@@ -142,12 +155,20 @@ export function Field({ label, children }: { label: string; children: React.Reac
   const id = useId();
   const only = React.isValidElement(children) ? children : null;
   if (only) {
+    const withId = React.cloneElement(only as React.ReactElement<{ id?: string }>, { id });
     return (
       <div>
         <label className="wk-lbl" htmlFor={id}>
           {label}
         </label>
-        {React.cloneElement(only as React.ReactElement<{ id?: string }>, { id })}
+        {/* Every prose field in Work gets a mic from here rather than from
+            thirty call sites, and gets it consistently — same place, same
+            size, same behaviour, whether it is a task title or a decision. */}
+        {acceptsDictation(only) ? (
+          <DictateField label={`Dictate ${label.toLowerCase()}`}>{withId}</DictateField>
+        ) : (
+          withId
+        )}
       </div>
     );
   }

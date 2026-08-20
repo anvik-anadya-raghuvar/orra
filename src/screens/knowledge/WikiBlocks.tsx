@@ -12,6 +12,7 @@ import {
   serializeSimpleTable,
 } from './wikiEditor';
 import { RichText } from './wikiMentions';
+import { MicButton } from '../../ui/dictation';
 
 export const BLOCK_MENU: { type: BlockType; label: string; hint: string; group: string }[] = [
   { type: 'paragraph', label: 'Text', hint: 'Plain paragraph', group: 'Basic' },
@@ -224,6 +225,10 @@ function RichToolbar({
     <select aria-label="Mention person" defaultValue="" onMouseDown={remember} onChange={(event) => { const profile = profiles.find((candidate) => candidate.id === event.target.value); if (profile) insert(`[[person:${profile.id}|${profile.name}]]`); event.target.value = ''; }}><option value="">Person @</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select>
     <input type="date" aria-label="Mention date" onMouseDown={remember} onChange={(event) => { if (event.target.value) insert(`[[date:${event.target.value}]]`); event.target.value = ''; }} />
     <button type="button" aria-label="Comment on selection" onMouseDown={keepFocus} onClick={() => onComment(value.slice(remembered.current.start, remembered.current.end))}>💬</button>
+    {/* Dictation belongs on the formatting bar rather than inside the block:
+        a block is edited in place with no chrome of its own, and the toolbar is
+        already where you reach for anything you do TO the text. */}
+    <MicButton targetRef={textarea} label="Dictate this block" />
   </div>;
 }
 

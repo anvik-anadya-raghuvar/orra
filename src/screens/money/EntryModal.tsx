@@ -4,6 +4,7 @@ import { newId, today, useData, useStore } from '../../data/store';
 import { InfoTip, SideSheet, useToast } from '../../ui/bits';
 import { inr } from '../../lib/dates';
 import { myTasks } from '../../lib/workspace';
+import { DictateField } from '../../ui/dictation';
 
 const toCents = (value: number) => Math.round(value * 100);
 
@@ -271,24 +272,28 @@ export default function EntryModal({
           <FieldLabel tip={direction === 'in' ? 'Where the contributed money came from.' : 'The vendor or person the expense was paid to.'}>
             {direction === 'in' ? 'Contribution source' : 'Paid to'}
           </FieldLabel>
-          <input
-            className="mn-in"
-            type="text"
-            value={party}
-            autoFocus
-            placeholder={direction === 'in' ? 'e.g. Founder contribution' : 'e.g. AWS, fabric supplier'}
-            onChange={(event) => setParty(event.target.value)}
-          />
+          <DictateField label={direction === 'in' ? 'Dictate the source' : 'Dictate who this was paid to'}>
+            <input
+              className="mn-in"
+              type="text"
+              value={party}
+              autoFocus
+              placeholder={direction === 'in' ? 'e.g. Founder contribution' : 'e.g. AWS, fabric supplier'}
+              onChange={(event) => setParty(event.target.value)}
+            />
+          </DictateField>
         </label>
         <label className="mn-fld">
           <FieldLabel tip="A reporting label used by the spend breakdowns.">Category</FieldLabel>
-          <input
-            className="mn-in"
-            type="text"
-            value={category}
-            placeholder="e.g. Infrastructure, sample run"
-            onChange={(event) => setCategory(event.target.value)}
-          />
+          <DictateField label="Dictate the category">
+            <input
+              className="mn-in"
+              type="text"
+              value={category}
+              placeholder="e.g. Infrastructure, sample run"
+              onChange={(event) => setCategory(event.target.value)}
+            />
+          </DictateField>
         </label>
         <label className="mn-fld">
           <FieldLabel tip="The business project this money movement belongs to.">Project</FieldLabel>
@@ -448,13 +453,15 @@ export default function EntryModal({
         </label>
         <label className="mn-fld mn-span-2">
           <FieldLabel tip="Add any decision, payment detail, invoice context, or reason you will need later.">Comments</FieldLabel>
-          <textarea
-            className="mn-in mn-comments"
-            maxLength={2000}
-            value={comments}
-            placeholder="Optional context"
-            onChange={(event) => setComments(event.target.value)}
-          />
+          <DictateField label="Dictate the context">
+            <textarea
+              className="mn-in mn-comments"
+              maxLength={2000}
+              value={comments}
+              placeholder="Optional context"
+              onChange={(event) => setComments(event.target.value)}
+            />
+          </DictateField>
         </label>
       </div>
     </SideSheet>

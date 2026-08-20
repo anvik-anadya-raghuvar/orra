@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 import { newId, useData, useStore } from '../../data/store';
 import { ProgressBar } from '../../ui/bits';
+import { DictateField } from '../../ui/dictation';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import type { Task } from '../../types';
 
@@ -95,21 +96,23 @@ export default function Checklist({
 
       {!items.length && <p className="none" style={{ marginBottom: 9 }}>Nothing on the list yet.</p>}
 
-      <input
-        className="addin"
-        style={{ marginTop: 8 }}
-        value={draft}
-        placeholder={placeholder}
-        aria-label="Add a step"
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            add();
-          }
-        }}
-        onBlur={add}
-      />
+      <DictateField label="Dictate a step">
+        <input
+          className="addin"
+          style={{ marginTop: 8 }}
+          value={draft}
+          placeholder={placeholder}
+          aria-label="Add a step"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+          onBlur={add}
+        />
+      </DictateField>
     </div>
   );
 }

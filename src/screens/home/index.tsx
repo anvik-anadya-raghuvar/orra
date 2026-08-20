@@ -51,6 +51,7 @@ import {
   hasLiveGoogleAccount,
   syncLiveGoogleAccounts,
 } from '../../lib/googleSync';
+import { DictateField } from '../../ui/dictation';
 import './style.css';
 
 const CAPACITIES: Capacity[] = ['light', 'medium', 'heavy'];
@@ -828,21 +829,23 @@ function IntentionsTile({ date }: { date: string }) {
         })}
       </div>
 
-      <input
-        className="srch intentin"
-        value={draft}
-        placeholder="Add an intention for today…"
-        aria-label="Add an intention"
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={add}
-        // Enter adds directly. Going via blur() meant the line only landed if
-        // a blur actually followed, which is not something a keypress promises.
-        onKeyDown={(e) => {
-          if (e.key !== 'Enter') return;
-          e.preventDefault();
-          add();
-        }}
-      />
+      <DictateField label="Dictate an intention">
+        <input
+          className="srch intentin"
+          value={draft}
+          placeholder="Add an intention for today…"
+          aria-label="Add an intention"
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={add}
+          // Enter adds directly. Going via blur() meant the line only landed if
+          // a blur actually followed, which is not something a keypress promises.
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            add();
+          }}
+        />
+      </DictateField>
       {items.length > 0 && (
         <div className="rowgap">
           <button
@@ -1234,18 +1237,20 @@ function ThreadTile() {
         )}
       </div>
       <div className="threadcompose">
-        <textarea
-          value={body}
-          placeholder={`Message ${other.name}…`}
-          aria-label={`Message ${other.name}`}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
+        <DictateField label="Dictate this message">
+          <textarea
+            value={body}
+            placeholder={`Message ${other.name}…`}
+            aria-label={`Message ${other.name}`}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+          />
+        </DictateField>
         <button className="btn sm solid" type="button" onClick={send} disabled={!body.trim()}>
           Send
         </button>
@@ -1616,29 +1621,35 @@ function CloseDayTile({ openToken = 0 }: { openToken?: number }) {
       >
         <div className="rit shutdown-sheet">
           <label htmlFor="rit-shipped">What shipped</label>
-          <textarea
-            id="rit-shipped"
-            rows={3}
-            value={shipped}
-            onChange={(e) => setShipped(e.target.value)}
-            placeholder="The work, choice, or moment that moved today."
-          />
+          <DictateField label="Dictate what shipped">
+            <textarea
+              id="rit-shipped"
+              rows={3}
+              value={shipped}
+              onChange={(e) => setShipped(e.target.value)}
+              placeholder="The work, choice, or moment that moved today."
+            />
+          </DictateField>
           <label htmlFor="rit-stuck">What's stuck, honestly</label>
-          <textarea
-            id="rit-stuck"
-            rows={3}
-            value={stuck}
-            onChange={(e) => setStuck(e.target.value)}
-            placeholder="Name it clearly so it does not follow you around vaguely."
-          />
+          <DictateField label="Dictate what is stuck">
+            <textarea
+              id="rit-stuck"
+              rows={3}
+              value={stuck}
+              onChange={(e) => setStuck(e.target.value)}
+              placeholder="Name it clearly so it does not follow you around vaguely."
+            />
+          </DictateField>
           <label htmlFor="rit-tomorrow">Tomorrow's one thing</label>
-          <textarea
-            id="rit-tomorrow"
-            rows={2}
-            value={tomorrow}
-            onChange={(e) => setTomorrow(e.target.value)}
-            placeholder="The first meaningful move."
-          />
+          <DictateField label="Dictate tomorrow's one thing">
+            <textarea
+              id="rit-tomorrow"
+              rows={2}
+              value={tomorrow}
+              onChange={(e) => setTomorrow(e.target.value)}
+              placeholder="The first meaningful move."
+            />
+          </DictateField>
           <section className="rit-loose" aria-label="Close loose ends">
             <div className="rit-loose-head">
               <label>Close loose ends</label>
@@ -1795,14 +1806,16 @@ function QuickCapture() {
 
   return (
     <div className="capture">
-      <input
-        className="srch"
-        value={text}
-        aria-label="Quick capture"
-        placeholder="Empty your head — one line becomes a scribble"
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && submit()}
-      />
+      <DictateField label="Capture by voice" className="grow">
+        <input
+          className="srch"
+          value={text}
+          aria-label="Quick capture"
+          placeholder="Empty your head — one line becomes a scribble"
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+        />
+      </DictateField>
       <button className="btn solid" onClick={submit} disabled={!text.trim()}>
         Capture
       </button>
@@ -1992,15 +2005,17 @@ function CustomBlockModal({ open, onClose }: { open: boolean; onClose: () => voi
       <label className="eyebrow" htmlFor="custom-block-checklist" style={{ display: 'block', marginTop: 12 }}>
         Scratch checklist · one item per line
       </label>
-      <textarea
-        id="custom-block-checklist"
-        className="srch"
-        rows={6}
-        style={{ width: '100%', marginTop: 6, resize: 'vertical' }}
-        value={checklist}
-        placeholder={'Draft the outline\nCheck the figures\nSend it'}
-        onChange={(event) => setChecklist(event.target.value)}
-      />
+      <DictateField label="Dictate the checklist">
+        <textarea
+          id="custom-block-checklist"
+          className="srch"
+          rows={6}
+          style={{ width: '100%', marginTop: 6, resize: 'vertical' }}
+          value={checklist}
+          placeholder={'Draft the outline\nCheck the figures\nSend it'}
+          onChange={(event) => setChecklist(event.target.value)}
+        />
+      </DictateField>
       <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', marginTop: 16 }}>
         <button type="button" className="btn" onClick={onClose}>Cancel</button>
         <button type="button" className="btn solid" disabled={!label.trim() || minutes < 1} onClick={begin}>

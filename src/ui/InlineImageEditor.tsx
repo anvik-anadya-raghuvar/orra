@@ -5,6 +5,7 @@ import {
   replaceInlineTextPart,
   splitInlineImages,
 } from './inlineImages';
+import { MicButton, useDictation } from './dictation';
 import './inlineImages.css';
 
 function GrowingTextarea({
@@ -49,9 +50,15 @@ export function InlineImageEditor({
   const normalized = appendMissingInlineImages(value, imageIds);
   const parts = splitInlineImages(normalized);
   const textParts = parts.filter((part) => part.kind === 'text');
+  const { supported: canDictate } = useDictation();
 
   return (
-    <div className={`inline-image-editor ${className}`.trim()}>
+    <div className={`inline-image-editor ${canDictate ? 'has-mic ' : ''}${className}`.trim()}>
+      {/* This editor is a stack of textareas with images between them, so a mic
+          cannot sit inside one field the way DictateField puts it. It goes in
+          the editor's own footer strip instead, and dictates into whichever
+          part has the cursor — or the first one, before you have clicked. */}
+      {canDictate && <MicButton className="editor-mic" label={`Dictate — ${ariaLabel.toLowerCase()}`} />}
       {parts.map((part, index) => {
         if (part.kind === 'image') {
           return (

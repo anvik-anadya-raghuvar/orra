@@ -5,6 +5,7 @@ import type { DroppedImage } from '../../ui/imagedrop';
 import { InlineImageEditor } from '../../ui/InlineImageEditor';
 import { appendMissingInlineImages } from '../../ui/inlineImages';
 import { PIN_LABELS } from '../../types';
+import { DictateField } from '../../ui/dictation';
 
 export interface DraftShot extends DroppedImage {
   id: string;
@@ -183,16 +184,18 @@ export default function DraftEvidenceEditor({
               <div className="wk-draft-form">
                 <label>
                   <span>Pin {pins.length + 1} · requested change</span>
-                  <textarea
-                    autoFocus
-                    value={openPin.note}
-                    placeholder="What is wrong here, and what should it become?"
-                    onChange={(event) => setOpenPin({ ...openPin, note: event.target.value })}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) addPin();
-                      if (event.key === 'Escape') setOpenPin(null);
-                    }}
-                  />
+                  <DictateField label="Dictate the note">
+                    <textarea
+                      autoFocus
+                      value={openPin.note}
+                      placeholder="What is wrong here, and what should it become?"
+                      onChange={(event) => setOpenPin({ ...openPin, note: event.target.value })}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) addPin();
+                        if (event.key === 'Escape') setOpenPin(null);
+                      }}
+                    />
+                  </DictateField>
                 </label>
                 <div className="wk-draft-labels" aria-label="Type of change">
                   {PIN_LABELS.map((label) => (

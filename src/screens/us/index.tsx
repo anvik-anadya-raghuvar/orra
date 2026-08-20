@@ -12,6 +12,7 @@ import { sendPhoto, sendSong } from '../../lib/sends';
 import { isYouTubeUrl, playUrl } from '../../lib/song';
 import { PromoteModal, type PromoteKind, type PromoteTarget } from './PromoteModal';
 import { SideColumn } from './Sidebar';
+import { MicButton } from '../../ui/dictation';
 import './us.css';
 
 type Row = { kind: 'day'; label: string; date: string } | { kind: 'msg'; m: Message };
@@ -562,6 +563,7 @@ function ChatColumn({
               </option>
             ))}
           </select>
+          <MicButton targetRef={textareaRef} label="Dictate this message" />
           <SendPhotoButton />
           <SendSongButton />
         </div>

@@ -24,6 +24,7 @@ import type { PageBlock } from '../../types';
 import { HeatStrip, MiniBars } from '../../ui/viz';
 import { MAX_NOTE_IMAGES } from '../../types';
 import type { AttachedImage, ChecklistItem, Note, NoteType } from '../../types';
+import { DictateField } from '../../ui/dictation';
 
 const NOTE_TYPE_ORDER: NoteType[] = ['plain', 'checklist', 'meeting', 'voice', 'email'];
 const NOTE_LABEL_COLORS = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'] as const;
@@ -114,13 +115,15 @@ export default function NotesTab() {
         </div>
       )}
       <div className="filters">
-        <input
-          className="srch"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search scribbles, transcripts, tags…"
-          aria-label="Search scribbles"
-        />
+        <DictateField label="Search by voice" className="grow">
+          <input
+            className="srch"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search scribbles, transcripts, tags…"
+            aria-label="Search scribbles"
+          />
+        </DictateField>
         <button className="btn sm solid" onClick={() => setOpenId('new')}>
           + Scribble
         </button>
@@ -519,13 +522,15 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       }
     >
       <div ref={sheetRef}>
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Title"
-        style={inputStyle}
-      />
+      <DictateField label="Dictate the title">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+          style={inputStyle}
+        />
+      </DictateField>
       <InlineImageEditor
         value={body}
         imageIds={images.map((image) => image.id)}
