@@ -4,6 +4,7 @@
 import type { Dataset, Person } from '../../types';
 import { inr } from '../../lib/dates';
 import type { Warmth } from '../../lib/warmth';
+import { stripInlineImageMarkers } from '../../ui/inlineImages';
 
 export type TimelineType = 'interaction' | 'note' | 'task' | 'ledger' | 'mail';
 
@@ -74,7 +75,7 @@ export function buildTimeline(person: Person, ds: Dataset): TimelineEntry[] {
       id: `note-${n.id}`,
       type: 'note',
       date: n.created_at,
-      summary: n.title || n.body.slice(0, 90),
+      summary: n.title || stripInlineImageMarkers(n.body).slice(0, 90),
       meta: n.type,
       href: '/knowledge',
     });

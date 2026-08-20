@@ -1,0 +1,40 @@
+.inline-image-editor,
+.inline-image-content {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.inline-image-text {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  resize: none;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf2);
+  color: var(--ink);
+  padding: 11px 13px;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.inline-image-text:focus {
+  outline: 2px solid var(--indigo);
+  outline-offset: 1px;
+  background: var(--surf);
+}
+
+.inline-image-slot {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inline-image-editor *,
+  .inline-image-content * {
+    scroll-behavior: auto !important;
+  }
+}

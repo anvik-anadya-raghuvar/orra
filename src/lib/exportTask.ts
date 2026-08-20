@@ -1,4 +1,5 @@
 import type { Dataset, Task } from '../types';
+import { stripInlineImageMarkers } from '../ui/inlineImages';
 
 /**
  * Coding-agent export generator — a PURE FUNCTION (principle 4). No LLM, no clock,
@@ -43,7 +44,7 @@ export function generateTaskExport(ds: Dataset, taskId: string): string {
   lines.push(`Assignee: ${assignee?.name ?? '—'} · Due: ${task.due_date ?? '—'}`);
   lines.push('');
   lines.push('## Objective');
-  lines.push(task.description || '—');
+  lines.push(stripInlineImageMarkers(task.description) || '—');
 
   const shots = ds.screenshot_attachments
     .filter((s) => s.task_id === task.id)
@@ -106,7 +107,7 @@ export function generateTaskExport(ds: Dataset, taskId: string): string {
     // said it changes how a reader weighs it.
     const who = profiles.get(n.created_by);
     lines.push(
-      `- Note "${n.title}"${who ? ` (${who})` : ''}: ${(n.body || '').split('\n')[0]}`,
+      `- Note "${n.title}"${who ? ` (${who})` : ''}: ${stripInlineImageMarkers(n.body || '').split('\n')[0]}`,
     );
   }
   const linkedMail = ds.mail_items
@@ -242,7 +243,7 @@ export function generateTaskContext(ds: Dataset, taskId: string): string {
     task: {
       id: task.id,
       title: task.title,
-      objective: task.description,
+      objective: stripInlineImageMarkers(task.description),
       project: project?.name ?? null,
       type: task.type,
       priority: task.priority,

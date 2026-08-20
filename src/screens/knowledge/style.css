@@ -361,28 +361,51 @@
   background: var(--surf2);
 }
 
-/* ── images kept on a note ───────────────────────────────────────────────
-   A contact strip, not a gallery: enough to recognise which note this is,
-   with the count when there are more than fit. The full-size view is the
-   editor. Fixed aspect so a tall screenshot cannot stretch the card. */
-.note-shots {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-  margin: 9px 0 2px;
+/* Images are part of the note's reading order, not a thumbnail attachment
+   rail. Cards keep them compact; the editor gives them the available width. */
+.note-inline-content {
+  gap: 7px;
+  margin: 5px 0;
 }
-.note-shots img {
-  width: 66px;
-  height: 46px;
-  object-fit: cover;
-  border-radius: 8px;
+.note-inline-image {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  object-position: left center;
+  border-radius: 9px;
   border: 1px solid var(--line);
   background: var(--surf2);
-  display: block;
 }
-.note-shots-more {
-  font-size: 11px;
+.note-inline-editor {
+  margin-bottom: 8px;
+}
+.note-inline-figure {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf2);
+}
+.note-inline-figure img {
+  display: block;
+  width: 100%;
+  max-height: min(56vh, 520px);
+  object-fit: contain;
+  background: var(--surf3);
+}
+.note-inline-figure figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
   color: var(--mute);
-  padding: 0 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  overflow-wrap: anywhere;
+}
+.note-inline-figure figcaption .btn {
+  flex: none;
+  color: var(--rose);
 }

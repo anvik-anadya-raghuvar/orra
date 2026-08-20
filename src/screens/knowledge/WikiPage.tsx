@@ -137,21 +137,25 @@ export default function WikiPage({
      alone for whatever input has focus. */
   const pageRef = useRef<HTMLDivElement>(null);
   useImagePaste(pageRef, (files) => {
+    const pasted: PageBlock[] = [];
     void processImages(files, (img) => {
+      pasted.push({
+        ...makeBlock('image'),
+        src: img.data_url,
+        alt: img.filename,
+      });
+    })
+      .then(() => {
       setDraft((d) => {
         const at = activeId ? d.blocks.findIndex((b) => b.id === activeId) : -1;
-        const block: PageBlock = {
-          ...makeBlock('image'),
-          src: img.data_url,
-          alt: img.filename,
-        };
         const next = [...d.blocks];
-        next.splice(at >= 0 ? at + 1 : next.length, 0, block);
+        next.splice(at >= 0 ? at + 1 : next.length, 0, ...pasted);
         queue({ blocks: next });
         return { ...d, blocks: next };
       });
-      toast('Screenshot dropped into the page');
-    }).catch((err: Error) => toast(err.message || 'That image could not be pasted'));
+        toast(`${pasted.length === 1 ? 'Image' : `${pasted.length} images`} pasted into the page`);
+      })
+      .catch((err: Error) => toast(err.message || 'That image could not be pasted'));
   });
 
   /* ── page-level operations ────────────────────────────────────────────── */

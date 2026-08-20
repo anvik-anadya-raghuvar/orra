@@ -8,6 +8,7 @@ import { SideSheet, TagChip, useToast } from '../../ui/bits';
 import { micro } from '../../ui/motion';
 import { notifyAssignment } from '../../lib/handoff';
 import { wouldCycle } from '../../lib/schedule';
+import { inlineImageIds, stripInlineImageMarkers } from '../../ui/inlineImages';
 import {
   Field,
   LINK_TYPES,
@@ -57,7 +58,7 @@ export default function QuickEdit({
   if (task && seed !== task.id) {
     setSeed(task.id);
     setTitle(task.title);
-    setDescription(task.description);
+    setDescription(stripInlineImageMarkers(task.description));
     setPriority(task.priority);
     setStatus(task.status);
     setAssignee(task.assignee_id ?? '');
@@ -95,12 +96,13 @@ export default function QuickEdit({
   }, [ds.tasks, live, linkQuery]);
 
   if (!live) return null;
+  const hasInlineImages = inlineImageIds(live.description).length > 0;
 
   const save = () => {
     const clean = title.trim() || live.title;
     const patch: Partial<Task> = {};
     if (clean !== live.title) patch.title = clean;
-    if (description !== live.description) patch.description = description;
+    if (!hasInlineImages && description !== live.description) patch.description = description;
     if (priority !== live.priority) patch.priority = priority;
     if (status !== live.status) {
       patch.status = status;
@@ -248,12 +250,18 @@ export default function QuickEdit({
       </Field>
       <div style={{ height: 11 }} />
       <Field label="Description">
-        <textarea
-          className="wk-in"
-          value={description}
-          placeholder="Context, and why it matters"
-          onChange={(e) => setDescription(e.target.value)}
-        />
+        {hasInlineImages ? (
+          <p className="tip" style={{ margin: 0 }}>
+            This brief contains inline images. Open the full task to edit its text and image order.
+          </p>
+        ) : (
+          <textarea
+            className="wk-in"
+            value={description}
+            placeholder="Context, and why it matters"
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        )}
       </Field>
       <div style={{ height: 11 }} />
       <div className="wk-ctl">

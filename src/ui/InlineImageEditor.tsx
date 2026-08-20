@@ -1,0 +1,128 @@
+import React, { useLayoutEffect, useRef } from 'react';
+import { imageFilesFrom, looksLikeUnusableImage } from './imagedrop';
+import {
+  appendMissingInlineImages,
+  replaceInlineTextPart,
+  splitInlineImages,
+} from './inlineImages';
+import './inlineImages.css';
+
+function GrowingTextarea({
+  value,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(52, el.scrollHeight)}px`;
+  }, [value]);
+  return <textarea ref={ref} rows={1} value={value} {...props} />;
+}
+
+export function InlineImageEditor({
+  value,
+  imageIds,
+  onChange,
+  onPasteFiles,
+  onCaretChange,
+  onTextBlur,
+  onUnusableImage,
+  renderImage,
+  placeholder = 'Write here…',
+  ariaLabel = 'Document body',
+  className = '',
+}: {
+  value: string;
+  imageIds: string[];
+  onChange: (value: string) => void;
+  onPasteFiles: (files: File[], offset: number) => void;
+  onCaretChange?: (offset: number) => void;
+  onTextBlur?: () => void;
+  onUnusableImage?: (message: string) => void;
+  renderImage: (id: string) => React.ReactNode;
+  placeholder?: string;
+  ariaLabel?: string;
+  className?: string;
+}) {
+  const normalized = appendMissingInlineImages(value, imageIds);
+  const parts = splitInlineImages(normalized);
+  const textParts = parts.filter((part) => part.kind === 'text');
+
+  return (
+    <div className={`inline-image-editor ${className}`.trim()}>
+      {parts.map((part, index) => {
+        if (part.kind === 'image') {
+          return (
+            <div className="inline-image-slot" key={`${part.id}-${part.start}`}>
+              {renderImage(part.id)}
+            </div>
+          );
+        }
+        const reportCaret = (el: HTMLTextAreaElement) =>
+          onCaretChange?.(part.start + (el.selectionStart ?? el.value.length));
+        return (
+          <GrowingTextarea
+            key={`text-${index}`}
+            className="inline-image-text"
+            value={part.text}
+            aria-label={textParts.length === 1 ? ariaLabel : `${ariaLabel}, section ${textParts.indexOf(part) + 1}`}
+            placeholder={parts.length === 1 ? placeholder : 'Continue writing…'}
+            onChange={(event) => onChange(replaceInlineTextPart(normalized, part, event.target.value))}
+            onFocus={(event) => reportCaret(event.currentTarget)}
+            onClick={(event) => reportCaret(event.currentTarget)}
+            onKeyUp={(event) => reportCaret(event.currentTarget)}
+            onSelect={(event) => reportCaret(event.currentTarget)}
+            onBlur={onTextBlur}
+            onPaste={(event) => {
+              const files = imageFilesFrom(event.clipboardData);
+              if (!files.length) {
+                if (looksLikeUnusableImage(event.clipboardData)) {
+                  onUnusableImage?.(
+                    'That image came from a web page rather than the clipboard as a file. Save it, or use a screenshot tool, then paste again.',
+                  );
+                }
+                return;
+              }
+              event.preventDefault();
+              event.stopPropagation();
+              onPasteFiles(files, part.start + event.currentTarget.selectionStart);
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+export function InlineImageContent({
+  value,
+  imageIds,
+  renderImage,
+  renderText,
+  className = '',
+}: {
+  value: string;
+  imageIds: string[];
+  renderImage: (id: string) => React.ReactNode;
+  renderText: (text: string, index: number) => React.ReactNode;
+  className?: string;
+}) {
+  const parts = splitInlineImages(appendMissingInlineImages(value, imageIds));
+  return (
+    <div className={`inline-image-content ${className}`.trim()}>
+      {parts.map((part, index) =>
+        part.kind === 'image' ? (
+          <div className="inline-image-slot" key={`${part.id}-${part.start}`}>
+            {renderImage(part.id)}
+          </div>
+        ) : (
+          <React.Fragment key={`text-${index}`}>
+            {part.text ? renderText(part.text, index) : null}
+          </React.Fragment>
+        ),
+      )}
+    </div>
+  );
+}

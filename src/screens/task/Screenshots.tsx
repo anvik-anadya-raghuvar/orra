@@ -7,6 +7,12 @@ import { entrance, spring } from '../../ui/motion';
 import { pinNumber } from '../../lib/exportTask';
 import { prettyBytes } from '../../lib/imageCompress';
 import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
+import { InlineImageEditor } from '../../ui/InlineImageEditor';
+import {
+  appendMissingInlineImages,
+  insertInlineImages,
+  removeInlineImage,
+} from '../../ui/inlineImages';
 import { PIN_LABELS } from '../../types';
 import type { ScreenshotAttachment, Task } from '../../types';
 
@@ -60,7 +66,17 @@ interface Draft {
  * 1440px lands on the same element at 380px; the surface keeps the attachment's
  * aspect ratio so the mapping holds and nothing shifts while the image loads.
  */
-export default function Screenshots({ task }: { task: Task }) {
+export default function Screenshots({
+  task,
+  description,
+  onDescriptionChange,
+  onDescriptionCommit,
+}: {
+  task: Task;
+  description: string;
+  onDescriptionChange: (value: string) => void;
+  onDescriptionCommit: (value: string) => void;
+}) {
   const store = useStore();
   const ds = useDataset();
   const toast = useToast();
@@ -71,6 +87,10 @@ export default function Screenshots({ task }: { task: Task }) {
   const [busy, setBusy] = useState(false);
 
   const shots = ds.screenshot_attachments.filter((s) => s.task_id === task.id).sort(byCreated);
+  const placedDescription = appendMissingInlineImages(description, shots.map((shot) => shot.id));
+  const descriptionRef = useRef(placedDescription);
+  descriptionRef.current = placedDescription;
+  const caretRef = useRef(placedDescription.length);
 
   const pinsFor = (shotId: string) =>
     ds.annotation_pins.filter((p) => p.screenshot_id === shotId).sort(byCreated);
@@ -114,11 +134,11 @@ export default function Screenshots({ task }: { task: Task }) {
   };
 
   /** One place every route ends: picker, drag-drop, and paste all land here. */
-  const attach = (img: DroppedImage) => {
+  const attach = (img: DroppedImage, id: string) => {
     store.insert(
       'screenshot_attachments',
       {
-        id: newId('shot'),
+        id,
         task_id: task.id,
         storage_path: `screenshots/${task.id}/${img.filename}`,
         filename: img.filename,
@@ -131,34 +151,78 @@ export default function Screenshots({ task }: { task: Task }) {
       },
       store.asMe({ summary: `Screenshot ${img.filename} attached` }),
     );
-    toast(`${img.filename} attached · ${prettyBytes(img.bytes)} at q${img.quality}`);
+    toast(`${img.filename} inserted · ${prettyBytes(img.bytes)} at q${img.quality}`);
+  };
+
+  const changeDescription = (value: string) => {
+    descriptionRef.current = value;
+    onDescriptionChange(value);
+  };
+
+  const insertImage = (img: DroppedImage, offset = caretRef.current) => {
+    const id = newId('shot');
+    const inserted = insertInlineImages(descriptionRef.current, offset, [id]);
+    caretRef.current = inserted.caret;
+    changeDescription(inserted.value);
+    // Place first, persist second: the screenshot cannot briefly appear as a
+    // legacy unplaced image at the end while React processes the two updates.
+    attach(img, id);
+    onDescriptionCommit(inserted.value);
+  };
+
+  const insertFiles = (files: File[], offset = caretRef.current) => {
+    setBusy(true);
+    let nextOffset = offset;
+    void processImages(files, (image) => {
+      insertImage(image, nextOffset);
+      nextOffset = caretRef.current;
+    })
+      .catch((err: Error) => toast(err.message || 'That image could not be pasted'))
+      .finally(() => setBusy(false));
+  };
+
+  const removeShot = (shot: ScreenshotAttachment) => {
+    const pins = ds.annotation_pins.filter((pin) => pin.screenshot_id === shot.id);
+    if (pins.length && !window.confirm(`Remove ${shot.filename} and its ${pins.length} pin${pins.length === 1 ? '' : 's'}?`)) {
+      return;
+    }
+    pins.forEach((pin) => store.remove('annotation_pins', pin.id, store.asMe({ silent: true })));
+    store.remove(
+      'screenshot_attachments',
+      shot.id,
+      store.asMe({ summary: `Screenshot ${shot.filename} removed from ${task.id}` }),
+    );
+    const next = removeInlineImage(descriptionRef.current, shot.id);
+    changeDescription(next);
+    onDescriptionCommit(next);
   };
 
   // Ctrl/Cmd+V anywhere on the task page: take a screenshot, switch back, paste.
-  useImagePaste(sectionRef, (files) => {
-    setBusy(true);
-    void processImages(files, attach)
-      .catch((err: Error) => toast(err.message || 'That image could not be attached'))
-      .finally(() => setBusy(false));
-  });
+  useImagePaste(sectionRef, (files) => insertFiles(files));
 
   return (
-    <section aria-label="Screenshot evidence" ref={sectionRef}>
+    <section className="task-inline-brief" aria-label="Task brief" ref={sectionRef}>
       <div
         className="eyebrow"
         style={{ marginBottom: 8, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}
       >
-        <span>Evidence · tap the surface to drop a pin</span>
+        <span>Brief · paste images exactly where they belong</span>
       </div>
 
-      {shots.length === 0 && (
-        <p className="none" style={{ marginBottom: 10 }}>
-          Nothing attached yet. Pins are what make the export worth reading — and a pin needs
-          something to sit on.
-        </p>
-      )}
-
-      {shots.map((shot) => {
+      <InlineImageEditor
+        value={placedDescription}
+        imageIds={shots.map((shot) => shot.id)}
+        onChange={changeDescription}
+        onTextBlur={() => onDescriptionCommit(descriptionRef.current)}
+        onPasteFiles={insertFiles}
+        onCaretChange={(offset) => { caretRef.current = offset; }}
+        onUnusableImage={toast}
+        placeholder="What needs to happen, and why…"
+        ariaLabel="Task description"
+        className="task-brief-editor"
+        renderImage={(id) => {
+        const shot = shots.find((item) => item.id === id);
+        if (!shot) return <p className="none">Compressing image…</p>;
         const pins = pinsFor(shot.id);
         const isDrafting = draft?.shotId === shot.id;
         return (
@@ -177,6 +241,14 @@ export default function Screenshots({ task }: { task: Task }) {
                 <em>
                   {shot.filename} · {shot.width}×{shot.height}
                 </em>
+                <button
+                  type="button"
+                  className="iconbtn danger shot-remove"
+                  aria-label={`Remove ${shot.filename}`}
+                  onClick={() => removeShot(shot)}
+                >
+                  <Trash2 size={15} strokeWidth={1.8} />
+                </button>
               </div>
               <div
                 className="shotsurf"
@@ -410,18 +482,20 @@ export default function Screenshots({ task }: { task: Task }) {
             )}
           </motion.div>
         );
-      })}
+        }}
+      />
 
       <ImageDrop
-        onImage={attach}
+        onImage={(image) => insertImage(image)}
         onError={(m) => toast(m)}
         busy={busy}
         setBusy={setBusy}
-        label={shots.length ? 'Attach another screenshot' : 'Attach a screenshot'}
+        compact
+        label={shots.length ? 'Insert another image here' : 'Insert an image here'}
         hint="Paste with Ctrl+V, drop a file, or click to browse"
       />
       <p className="none" style={{ marginTop: 6 }}>
-        Compressed in the browser — capped at 1600px wide and 300 KB.
+        Images are compressed in the browser, then kept inline. Tap an image to place a numbered pin.
       </p>
     </section>
   );

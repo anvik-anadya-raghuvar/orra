@@ -126,6 +126,16 @@
 .tpage .ta:focus {
   background: var(--surf);
 }
+.tpage .task-inline-brief {
+  margin: 2px 0 12px;
+}
+.tpage .task-brief-editor {
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.tpage .task-brief-editor .inline-image-text {
+  min-height: 76px;
+}
 
 /* ── controls grid: 1 → 2 → 3 columns ─────────────────────────────────── */
 .tpage .ctl {
@@ -279,6 +289,18 @@
   margin-left: 7px;
   overflow-wrap: anywhere;
 }
+.tpage .shotbar .shot-remove {
+  flex: none;
+  margin-left: auto;
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .tpage .shotbar .shot-remove {
+    min-width: 32px;
+    min-height: 32px;
+  }
+}
 
 /* the pin coordinate space — aspect ratio is reserved from width/height so
    nothing shifts while the image loads and % coords survive every width. */
@@ -334,8 +356,8 @@
 
 .tpage .pin {
   position: absolute;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   color: #fff;
   font-family: 'IBM Plex Mono', monospace;

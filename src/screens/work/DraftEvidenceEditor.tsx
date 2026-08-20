@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { newId } from '../../data/store';
 import type { DroppedImage } from '../../ui/imagedrop';
+import { InlineImageEditor } from '../../ui/InlineImageEditor';
+import { appendMissingInlineImages } from '../../ui/inlineImages';
 import { PIN_LABELS } from '../../types';
 
 export interface DraftShot extends DroppedImage {
@@ -44,6 +46,11 @@ export default function DraftEvidenceEditor({
   onPinsChange,
   onRemoveShot,
   onDraftStateChange,
+  description,
+  onDescriptionChange,
+  onPasteFiles,
+  onCaretChange,
+  onUnusableImage,
 }: {
   shots: DraftShot[];
   pins: DraftPin[];
@@ -51,6 +58,11 @@ export default function DraftEvidenceEditor({
   onPinsChange: (pins: DraftPin[]) => void;
   onRemoveShot: (shotId: string) => void;
   onDraftStateChange?: (open: boolean) => void;
+  description: string;
+  onDescriptionChange: (value: string) => void;
+  onPasteFiles: (files: File[], offset: number) => void;
+  onCaretChange: (offset: number) => void;
+  onUnusableImage?: (message: string) => void;
 }) {
   const [openPin, setOpenPin] = useState<OpenPin | null>(null);
   const numbered = [...pins].sort(ordered);
@@ -84,19 +96,30 @@ export default function DraftEvidenceEditor({
     setOpenPin(null);
   };
 
-  if (!shots.length) return null;
-
   return (
     <div className="wk-draft-evidence">
-      <div className="wk-draft-intro">
+      {shots.length > 0 && <div className="wk-draft-intro">
         <b>Pin the change while it is still obvious.</b>
         <span>
           Click any screenshot, write what should change, and add the pin. The sequence runs across
           every image — returning to screenshot 1 later still creates the next number.
         </span>
-      </div>
+      </div>}
 
-      {shots.map((shot, shotIndex) => {
+      <InlineImageEditor
+        value={appendMissingInlineImages(description, shots.map((shot) => shot.id))}
+        imageIds={shots.map((shot) => shot.id)}
+        onChange={onDescriptionChange}
+        onPasteFiles={onPasteFiles}
+        onCaretChange={onCaretChange}
+        onUnusableImage={onUnusableImage}
+        placeholder="Context, and why it matters"
+        ariaLabel="Task description"
+        className="wk-draft-inline-editor"
+        renderImage={(id) => {
+        const shotIndex = shots.findIndex((item) => item.id === id);
+        const shot = shots[shotIndex];
+        if (!shot) return <span className="tip">Compressing image…</span>;
         const shotPins = pins.filter((pin) => pin.screenshot_id === shot.id).sort(ordered);
         const drafting = openPin?.screenshot_id === shot.id;
         return (
@@ -126,7 +149,13 @@ export default function DraftEvidenceEditor({
               aria-label={`Pin surface for screenshot ${shotIndex + 1}`}
               onClick={(event) => begin(event, shot.id)}
             >
-              <img src={shot.data_url} alt={shot.filename} draggable={false} />
+              <img
+                src={shot.data_url}
+                alt={shot.filename}
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+              />
               {shotPins.map((pin) => (
                 <button
                   type="button"
@@ -220,7 +249,8 @@ export default function DraftEvidenceEditor({
             )}
           </section>
         );
-      })}
+        }}
+      />
     </div>
   );
 }

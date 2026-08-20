@@ -8,6 +8,7 @@ import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
 import { fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment } from '../../lib/handoff';
 import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
+import { stripInlineImageMarkers } from '../../ui/inlineImages';
 import { PRIORITIES, STATUSES, TYPES } from '../work/common';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
@@ -72,12 +73,12 @@ function TaskDetail({ task }: { task: Task }) {
     }
   };
 
-  const saveDesc = () => {
-    if (desc !== task.description) {
+  const saveDesc = (value = desc) => {
+    if (value !== task.description) {
       store.update(
         'tasks',
         task.id,
-        { description: desc },
+        { description: value },
         store.asMe({ summary: `Description updated on ${task.id}` }),
       );
     }
@@ -301,13 +302,11 @@ function TaskDetail({ task }: { task: Task }) {
               }}
             />
 
-            <textarea
-              className="ta"
-              value={desc}
-              placeholder="What needs to happen, and why…"
-              aria-label="Task description"
-              onChange={(e) => setDesc(e.target.value)}
-              onBlur={saveDesc}
+            <Screenshots
+              task={task}
+              description={desc}
+              onDescriptionChange={setDesc}
+              onDescriptionCommit={saveDesc}
             />
 
             <div className="tagrow" style={{ marginTop: 12 }}>
@@ -450,13 +449,6 @@ function TaskDetail({ task }: { task: Task }) {
               </div>
             </div>
 
-            {/* Evidence is not type-specific: a research task's screenshot of a
-                competitor, or an ops task's screenshot of a broken dashboard, is
-                the same kind of proof and the export engine reads it either way.
-                What IS type-specific stays type-specific — the checklist, the
-                export box, the subtasks — so the type still decides the page. */}
-            <Screenshots task={task} />
-
             {task.type === 'ops' && (
               <section aria-label="Checklist">
                 <div className="eyebrow" style={{ marginBottom: 8 }}>
@@ -544,7 +536,7 @@ function TaskDetail({ task }: { task: Task }) {
                 <div className="lrow" key={n.id}>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <b>{n.title}</b>
-                    <span className="sn">{(n.body || '').split('\n')[0] || '—'}</span>
+                    <span className="sn">{stripInlineImageMarkers(n.body || '').split('\n')[0] || '—'}</span>
                   </span>
                 </div>
               ))}

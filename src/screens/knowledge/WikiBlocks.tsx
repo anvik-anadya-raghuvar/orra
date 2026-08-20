@@ -144,7 +144,7 @@ export function BlockView({
       );
     case 'image':
       return block.src ? (
-        <img className="wk-img" src={block.src} alt={block.alt ?? ''} loading="lazy" />
+        <img className="wk-img" src={block.src} alt={block.alt ?? ''} loading="lazy" decoding="async" />
       ) : (
         <p className="tip">Image block — add a URL to show it.</p>
       );
@@ -334,13 +334,17 @@ export function BlockRow({
           </button>
         ) : block.type === 'image' ? (
           <div className="wk-image-edit">
-            {block.src && <img className="wk-img" src={block.src} alt={block.alt ?? ''} loading="lazy" />}
-            <input
-              className="wk-input"
-              value={block.src ?? ''}
-              placeholder="Image URL"
-              onChange={(e) => onChange({ ...block, src: e.target.value })}
-            />
+            {block.src && (
+              <img className="wk-img" src={block.src} alt={block.alt ?? ''} loading="lazy" decoding="async" />
+            )}
+            {!block.src?.startsWith('data:image/') && (
+              <input
+                className="wk-input"
+                value={block.src ?? ''}
+                placeholder="Image URL"
+                onChange={(e) => onChange({ ...block, src: e.target.value })}
+              />
+            )}
             <input
               className="wk-input"
               value={block.alt ?? ''}

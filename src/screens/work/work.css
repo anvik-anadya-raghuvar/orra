@@ -941,6 +941,12 @@ tr.wk-driftrow td {
   gap: 14px;
   margin-bottom: 12px;
 }
+.panel-mask .wk-draft-inline-editor {
+  gap: 10px;
+}
+.panel-mask .wk-draft-inline-editor .inline-image-text {
+  min-height: 84px;
+}
 .panel-mask .wk-draft-intro {
   display: grid;
   gap: 3px;

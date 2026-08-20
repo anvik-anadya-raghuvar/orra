@@ -13,6 +13,7 @@ import { inboxTasks, isMyTask, myTasks } from '../../lib/workspace';
 import { notifyAssignment } from '../../lib/handoff';
 import { MiniBars } from '../../ui/viz';
 import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
+import { insertInlineImages, removeInlineImage } from '../../ui/inlineImages';
 import QuickEdit from './quickedit';
 import ReflowBanner from './reflow';
 import DraftEvidenceEditor, { type DraftPin, type DraftShot } from './DraftEvidenceEditor';
@@ -1015,6 +1016,9 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [shotBusy, setShotBusy] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const lastTimestamp = useRef(0);
+  const descriptionRef = useRef(description);
+  descriptionRef.current = description;
+  const descriptionCaret = useRef(description.length);
 
   const nextTimestamp = useCallback(() => {
     const next = Math.max(Date.now(), lastTimestamp.current + 1);
@@ -1023,23 +1027,35 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   }, []);
 
   const addShot = useCallback(
-    (img: DroppedImage) =>
+    (img: DroppedImage, offset = descriptionCaret.current) => {
+      const id = newId('shot');
+      const inserted = insertInlineImages(descriptionRef.current, offset, [id]);
+      descriptionRef.current = inserted.value;
+      descriptionCaret.current = inserted.caret;
+      setDescription(inserted.value);
       setShots((prev) => [
         ...prev,
-        { ...img, id: newId('shot'), created_at: nextTimestamp() },
-      ]),
+        { ...img, id, created_at: nextTimestamp() },
+      ]);
+    },
     [nextTimestamp],
   );
 
+  const insertDraftFiles = (files: File[], offset = descriptionCaret.current) => {
+    setShotBusy(true);
+    let nextOffset = offset;
+    void processImages(files, (image) => {
+      addShot(image, nextOffset);
+      nextOffset = descriptionCaret.current;
+    })
+      .then(() => toast('Image inserted — click it to pin the exact change'))
+      .catch((err: Error) => toast(err.message || 'That image could not be pasted'))
+      .finally(() => setShotBusy(false));
+  };
+
   useImagePaste(
     sheetRef,
-    (files) => {
-      setShotBusy(true);
-      void processImages(files, addShot)
-        .then(() => toast('Screenshot ready — click it to pin the exact change'))
-        .catch((err: Error) => toast(err.message || 'That image could not be attached'))
-        .finally(() => setShotBusy(false));
-    },
+    (files) => insertDraftFiles(files),
     open,
     toast,
   );
@@ -1183,11 +1199,36 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       </Field>
       <div style={{ height: 11 }} />
       <Field label="Description">
-        <textarea
-          className="wk-in"
-          value={description}
-          placeholder="Context, and why it matters"
-          onChange={(e) => setDescription(e.target.value)}
+        <DraftEvidenceEditor
+          description={description}
+          onDescriptionChange={(value) => {
+            descriptionRef.current = value;
+            setDescription(value);
+          }}
+          onPasteFiles={insertDraftFiles}
+          onCaretChange={(offset) => { descriptionCaret.current = offset; }}
+          onUnusableImage={toast}
+          shots={shots}
+          pins={pins}
+          nextTimestamp={nextTimestamp}
+          onPinsChange={setPins}
+          onDraftStateChange={setPinDraftOpen}
+          onRemoveShot={(shotId) => {
+            setShots((prev) => prev.filter((shot) => shot.id !== shotId));
+            setPins((prev) => prev.filter((pin) => pin.screenshot_id !== shotId));
+            const next = removeInlineImage(descriptionRef.current, shotId);
+            descriptionRef.current = next;
+            setDescription(next);
+          }}
+        />
+        <ImageDrop
+          onImage={(image) => addShot(image)}
+          onError={(m) => toast(m)}
+          busy={shotBusy}
+          setBusy={setShotBusy}
+          compact
+          label={shots.length ? 'Insert another image here' : 'Insert an image here'}
+          hint="Paste with Ctrl+V, drop a file, or click to browse — then click the image to add numbered change requests"
         />
       </Field>
       <div style={{ height: 11 }} />
@@ -1277,29 +1318,6 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
         </div>
       </Field>
 
-      <div style={{ height: 14 }} />
-      <div className="eyebrow" style={{ marginBottom: 6 }}>
-        Evidence {shots.length ? `· ${shots.length} screenshot${shots.length === 1 ? '' : 's'} · ${pins.length} pin${pins.length === 1 ? '' : 's'}` : ''}
-      </div>
-      <DraftEvidenceEditor
-        shots={shots}
-        pins={pins}
-        nextTimestamp={nextTimestamp}
-        onPinsChange={setPins}
-        onDraftStateChange={setPinDraftOpen}
-        onRemoveShot={(shotId) => {
-          setShots((prev) => prev.filter((shot) => shot.id !== shotId));
-          setPins((prev) => prev.filter((pin) => pin.screenshot_id !== shotId));
-        }}
-      />
-      <ImageDrop
-        onImage={addShot}
-        onError={(m) => toast(m)}
-        busy={shotBusy}
-        setBusy={setShotBusy}
-        label={shots.length ? 'Attach another screenshot' : 'Attach a screenshot'}
-        hint="Paste with Ctrl+V, drop a file, or click to browse — then click the image to add numbered change requests"
-      />
       </div>
     </SideSheet>
   );

@@ -4,11 +4,18 @@ import { useData, useStore, newId, nowIso } from '../../data/store';
 import { SideSheet, TagChip, useToast } from '../../ui/bits';
 import {
   ImageDrop,
-  ImageStrip,
   processImages,
   useImagePaste,
   type DroppedImage,
 } from '../../ui/imagedrop';
+import { InlineImageContent, InlineImageEditor } from '../../ui/InlineImageEditor';
+import {
+  appendMissingInlineImages,
+  insertInlineImages,
+  removeInlineImage,
+  splitInlineImages,
+  stripInlineImageMarkers,
+} from '../../ui/inlineImages';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay, localDay, todayIso } from '../../lib/dates';
 import { ownRows } from '../../lib/workspace';
@@ -40,7 +47,7 @@ const TYPE_FILTERS: { key: NoteType | 'all'; label: string }[] = [
 function noteHaystack(n: Note): string {
   return [
     n.title,
-    n.body,
+    stripInlineImageMarkers(n.body),
     ...(n.transcript ?? []).map((t) => t.text),
     ...(n.checklist ?? []).map((c) => c.text),
     ...n.tags,
@@ -182,8 +189,17 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
   const makePage = (e: React.MouseEvent) => {
     e.stopPropagation();
     const blocks: PageBlock[] = [];
-    for (const line of (note.body || '').split('\n')) {
-      if (line.trim()) blocks.push({ ...makeBlock('paragraph'), text: line.trim() });
+    const noteImages = note.images ?? [];
+    const placedBody = appendMissingInlineImages(note.body || '', noteImages.map((image) => image.id));
+    for (const part of splitInlineImages(placedBody)) {
+      if (part.kind === 'image') {
+        const image = noteImages.find((item) => item.id === part.id);
+        if (image) blocks.push({ ...makeBlock('image'), src: image.data_url, alt: image.filename });
+        continue;
+      }
+      for (const line of part.text.split('\n')) {
+        if (line.trim()) blocks.push({ ...makeBlock('paragraph'), text: line.trim() });
+      }
     }
     for (const t of note.transcript ?? []) {
       blocks.push({ ...makeBlock('paragraph'), text: `${t.at} — ${t.text}` });
@@ -193,9 +209,6 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
         ...makeBlock('todo'),
         items: note.checklist.map((c) => ({ text: c.text, done: c.done })),
       });
-    }
-    for (const im of note.images ?? []) {
-      blocks.push({ ...makeBlock('image'), src: im.data_url, alt: im.filename });
     }
     if (!blocks.length) blocks.push(makeBlock('paragraph'));
     const siblings = store.ds.pages.filter((p) => !p.parent_page_id);
@@ -254,7 +267,28 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
           ))}
         </div>
       )}
-      {note.body && <p className="body">{note.body}</p>}
+      {(note.body || note.images?.length) && (
+        <InlineImageContent
+          className="note-inline-content"
+          value={note.body}
+          imageIds={(note.images ?? []).map((image) => image.id)}
+          renderText={(text) => <p className="body">{text}</p>}
+          renderImage={(id) => {
+            const image = note.images?.find((item) => item.id === id);
+            return image ? (
+              <img
+                className="note-inline-image"
+                src={image.data_url}
+                alt={image.filename}
+                loading="lazy"
+                decoding="async"
+                width={image.width}
+                height={image.height}
+              />
+            ) : null;
+          }}
+        />
+      )}
       {note.checklist && note.checklist.length > 0 && (
         <div>
           {note.checklist.map((c, i) => (
@@ -265,24 +299,6 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
               </span>
             </div>
           ))}
-        </div>
-      )}
-      {(note.images?.length ?? 0) > 0 && (
-        <div className="note-shots">
-          {(note.images ?? []).slice(0, 4).map((im) => (
-            <img
-              key={im.id}
-              src={im.data_url}
-              alt={im.filename}
-              loading="lazy"
-              decoding="async"
-              width={im.width}
-              height={im.height}
-            />
-          ))}
-          {(note.images?.length ?? 0) > 4 && (
-            <span className="note-shots-more">+{(note.images?.length ?? 0) - 4}</span>
-          )}
         </div>
       )}
       {canPushSubtasks && (
@@ -325,7 +341,10 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   const existing = useData((ds) => ds.notes.find((n) => n.id === noteId)) ?? null;
 
   const [title, setTitle] = useState(existing?.title ?? '');
-  const [body, setBody] = useState(existing?.body ?? '');
+  const existingImages = existing?.images ?? [];
+  const [body, setBody] = useState(
+    appendMissingInlineImages(existing?.body ?? '', existingImages.map((image) => image.id)),
+  );
   const [type, setType] = useState<NoteType>(existing?.type ?? 'plain');
   const [projectId, setProjectId] = useState(existing?.project_id ?? projects[0]?.id ?? '');
   const [taskId, setTaskId] = useState(existing?.task_id ?? '');
@@ -334,46 +353,56 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   const [pinned, setPinned] = useState(existing?.is_pinned ?? false);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(existing?.checklist ?? []);
   const [itemDraft, setItemDraft] = useState('');
-  const [images, setImages] = useState<AttachedImage[]>(existing?.images ?? []);
+  const [images, setImages] = useState<AttachedImage[]>(existingImages);
   const [imgBusy, setImgBusy] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const caretRef = useRef(body.length);
+  const imagesRef = useRef(images);
 
   /** Paste, drop and picker all arrive here. The cap matches the CHECK
    *  constraint in migration 0021, so the client refuses before the database
    *  has to. */
-  const addImage = (img: DroppedImage) => {
-    setImages((prev) => {
-      if (prev.length >= MAX_NOTE_IMAGES) {
-        toast(`A scribble holds at most ${MAX_NOTE_IMAGES} images`);
-        return prev;
-      }
-      return [
-        ...prev,
-        {
-          id: newId('img'),
-          filename: img.filename,
-          mime: 'image/jpeg',
-          width: img.width,
-          height: img.height,
-          bytes: img.bytes,
-          data_url: img.data_url,
-          created_at: nowIso(),
-        },
-      ];
+  const addImage = (img: DroppedImage, offset = caretRef.current) => {
+    if (imagesRef.current.length >= MAX_NOTE_IMAGES) {
+      toast(`A scribble holds at most ${MAX_NOTE_IMAGES} images`);
+      return;
+    }
+    const image: AttachedImage = {
+      id: newId('img'),
+      filename: img.filename,
+      mime: 'image/jpeg',
+      width: img.width,
+      height: img.height,
+      bytes: img.bytes,
+      data_url: img.data_url,
+      created_at: nowIso(),
+    };
+    imagesRef.current = [...imagesRef.current, image];
+    setImages(imagesRef.current);
+    setBody((current) => {
+      const inserted = insertInlineImages(current, offset, [image.id]);
+      caretRef.current = inserted.caret;
+      return inserted.value;
     });
+  };
+
+  const pasteImages = (files: File[], offset = caretRef.current) => {
+    setImgBusy(true);
+    let nextOffset = offset;
+    void processImages(files, (image) => {
+      addImage(image, nextOffset);
+      nextOffset = caretRef.current;
+    })
+      .then(() => toast('Image pasted into the scribble'))
+      .catch((err: Error) => toast(err.message || 'That image could not be pasted'))
+      .finally(() => setImgBusy(false));
   };
 
   // Ctrl/Cmd+V while the sheet is open, wherever the caret is — except inside
   // the title or body, where a paste means text.
   useImagePaste(
     sheetRef,
-    (files) => {
-      setImgBusy(true);
-      void processImages(files, addImage)
-        .then(() => toast('Screenshot attached — it saves with the scribble'))
-        .catch((err: Error) => toast(err.message || 'That image could not be attached'))
-        .finally(() => setImgBusy(false));
-    },
+    (files) => pasteImages(files),
     true,
     toast,
   );
@@ -497,12 +526,57 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
         placeholder="Title"
         style={inputStyle}
       />
-      <textarea
+      <InlineImageEditor
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        imageIds={images.map((image) => image.id)}
+        onChange={setBody}
+        onPasteFiles={pasteImages}
+        onCaretChange={(offset) => { caretRef.current = offset; }}
+        onUnusableImage={toast}
         placeholder="Body"
-        style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
+        ariaLabel="Scribble body"
+        className="note-inline-editor"
+        renderImage={(id) => {
+          const image = images.find((item) => item.id === id);
+          if (!image) return null;
+          return (
+            <figure className="note-inline-figure">
+              <img
+                src={image.data_url}
+                alt={image.filename}
+                loading="lazy"
+                decoding="async"
+                width={image.width}
+                height={image.height}
+              />
+              <figcaption>
+                <span>{image.filename}</span>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => {
+                    imagesRef.current = imagesRef.current.filter((item) => item.id !== id);
+                    setImages(imagesRef.current);
+                    setBody((current) => removeInlineImage(current, id));
+                  }}
+                >
+                  Remove
+                </button>
+              </figcaption>
+            </figure>
+          );
+        }}
       />
+      <ImageDrop
+        onImage={(image) => addImage(image)}
+        onError={toast}
+        busy={imgBusy}
+        setBusy={setImgBusy}
+        compact
+        label={images.length ? 'Insert another image here' : 'Insert an image here'}
+        hint="Paste, drop, or choose a file"
+      />
+      <div style={{ height: 11 }} />
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 11 }}>
         <select aria-label="Note type" value={type} onChange={(e) => setType(e.target.value as NoteType)} style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 130 }}>
           {(['plain', 'checklist', 'meeting', 'voice', 'email'] as NoteType[]).map((tp) => (
@@ -542,23 +616,6 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
           Add
         </button>
       </div>
-
-      <div className="eyebrow" style={{ marginBottom: 6 }}>
-        Images {images.length ? `· ${images.length}/${MAX_NOTE_IMAGES}` : ''}
-      </div>
-      <ImageDrop
-        onImage={addImage}
-        onError={(m) => toast(m)}
-        busy={imgBusy}
-        setBusy={setImgBusy}
-        label="Add an image"
-        hint="Paste with Ctrl+V, drop a file, or click to browse"
-      />
-      <ImageStrip
-        images={images}
-        onRemove={(id) => setImages((prev) => prev.filter((im) => im.id !== id))}
-      />
-      <div style={{ height: 14 }} />
 
       <div className="eyebrow" style={{ marginBottom: 6 }}>
         Tags
