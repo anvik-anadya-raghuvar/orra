@@ -8,7 +8,7 @@
  * via useCompanionMoments; play (poking, petting, dragging) is handled here
  * and always wins over announcements — a queued moment waits its turn.
  */
-import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
+import { AnimatePresence, motion, useMotionValue, type TargetAndTransition } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useData, useStore } from '../../data/store';
@@ -25,6 +25,7 @@ import { entrance, micro, spring, useAnimateIn } from '../motion';
 import { isMyTask } from '../../lib/workspace';
 import { intentionsFor, itemDone } from '../../lib/dayPlan';
 import { todayIso } from '../../lib/dates';
+import { quietHoursFor } from '../../lib/companion';
 import RobotSprite from './RobotSprite';
 import { useAppPresence } from './useAppPresence';
 import { useCompanionMoments } from './useCompanionMoments';
@@ -34,6 +35,19 @@ const POS_KEY = 'anvik:companion:pos';
 const QUIP_MS = 2_600;
 /** The tap cycle resets to "status" after this much quiet. */
 const CYCLE_RESET_MS = 30_000;
+
+/** One-shot body gestures — each a single movement inside the motion budget.
+ *  'doze' is an expression state (the sleepy pose), not a movement. */
+type Gesture = 'stretch' | 'tilt' | 'spin' | 'doze';
+const GESTURE_ANIM: Record<Exclude<Gesture, 'doze'>, TargetAndTransition> = {
+  stretch: { scaleY: [1, 1.07, 0.97, 1], transition: { duration: 0.5 } },
+  tilt: { rotate: [0, -7, 7, 0], transition: { duration: 0.5 } },
+  spin: { rotate: [0, 360], transition: { duration: 0.5 } },
+};
+const ANTICS: Gesture[] = ['stretch', 'tilt', 'doze'];
+/** Idle antics fire every 3–6 minutes, and only when nothing else is on. */
+const ANTIC_MIN_MS = 180_000;
+const ANTIC_SPREAD_MS = 180_000;
 
 /** Confetti vectors, precomputed and deterministic — a burst, not a library.
  *  Angles fan the full circle with an upward bias; distances vary by index. */
@@ -83,6 +97,27 @@ export default function Companion() {
   const [playMood, setPlayMood] = useState<RobotMood | null>(null);
   const [petting, setPetting] = useState(false);
   const [quip, setQuip] = useState<string | null>(null);
+  const [gesture, setGesture] = useState<Gesture | null>(null);
+  const gestureTimerRef = useRef<number | null>(null);
+
+  // Re-render each minute so quiet hours and the party hat stay current.
+  const [, setMinuteBeat] = useState(0);
+  useEffect(() => {
+    const iv = window.setInterval(() => setMinuteBeat((n) => n + 1), 60_000);
+    return () => clearInterval(iv);
+  }, []);
+  const now = new Date();
+  const quietNow = quietHoursFor(store.me.time_zone, now);
+  // Friday evening, local: the robot dresses for the weekend.
+  const hat = now.getDay() === 5 && now.getHours() >= 18;
+
+  const doGesture = (g: Gesture, ms: number) => {
+    if (gestureTimerRef.current) clearTimeout(gestureTimerRef.current);
+    setGesture(g);
+    gestureTimerRef.current = window.setTimeout(() => setGesture(null), ms);
+  };
+  /** Groggy window after being woken mid-nap. */
+  const wakeUntilRef = useRef(0);
   const streakRef = useRef({ count: 0, at: 0 });
   const grumpyUntilRef = useRef(0);
   const cycleRef = useRef({ step: 0, at: 0 });
@@ -118,14 +153,33 @@ export default function Companion() {
     }
     const now = Date.now();
 
+    // Napping through quiet hours: the first poke only wakes him, groggily.
+    if (quietNow && now > wakeUntilRef.current) {
+      wakeUntilRef.current = now + 45_000;
+      setReaction('sleepy', 900);
+      say('…mm? Awake. Definitely awake.');
+      return;
+    }
+
+    const streak = nextStreak(streakRef.current.count, streakRef.current.at, now);
+    streakRef.current = { count: streak, at: now };
+
+    // The tenth fast poke is a secret: he stops sulking and breakdances.
+    // Counted before the grump gate, or the sulk would make it unreachable.
+    if (streak === 10) {
+      setPlayMood(null);
+      grumpyUntilRef.current = 0;
+      doGesture('spin', 550);
+      say('🕺');
+      return;
+    }
+
     // Poked past patience: just a huffy head-shake until forgiveness.
     if (grumpyUntilRef.current > now) {
       setReaction('grumpy', 600);
       return;
     }
 
-    const streak = nextStreak(streakRef.current.count, streakRef.current.at, now);
-    streakRef.current = { count: streak, at: now };
     const level = pokeLevel(streak);
 
     if (level === 'tap') {
@@ -198,6 +252,77 @@ export default function Companion() {
     [],
   );
 
+  /* ── Idle antics — a stretch, a head-tilt, a doze, every few minutes, and
+     only when absolutely nothing else is happening. One at a time. ──────── */
+  const busyRef = useRef(false);
+  useEffect(() => {
+    let t = 0;
+    let disposed = false;
+    const schedule = () => {
+      t = window.setTimeout(() => {
+        if (disposed) return;
+        if (!busyRef.current && document.visibilityState === 'visible') {
+          const g = ANTICS[Math.floor(Math.random() * ANTICS.length)];
+          doGesture(g, g === 'doze' ? 2_200 : 550);
+        }
+        schedule();
+      }, ANTIC_MIN_MS + Math.random() * ANTIC_SPREAD_MS);
+    };
+    schedule();
+    return () => {
+      disposed = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(
+    () => () => {
+      if (gestureTimerRef.current) clearTimeout(gestureTimerRef.current);
+    },
+    [],
+  );
+
+  /* ── Cursor-follow — opt-in, fine pointers only, never under reduced
+     motion. The robot chases with a lerp on the same motion values drag
+     uses, hanging back a little, and parks home after 3s of stillness. ──── */
+  const follow = useData((_, s) => s.me.personalization.companion?.follow === true);
+  useEffect(() => {
+    if (!follow || !animate || dense) return;
+    if (!window.matchMedia('(pointer: fine)').matches) return;
+    let raf = 0;
+    let target: { x: number; y: number } | null = null;
+    let lastMove = 0;
+    const onMove = (e: MouseEvent) => {
+      lastMove = Date.now();
+      const wrap = boundsRef.current?.querySelector('.vik-wrap');
+      if (!wrap) return;
+      const rect = wrap.getBoundingClientRect();
+      // The wrap's untransformed anchor, so offsets stay stable mid-chase.
+      const baseX = rect.x + rect.width / 2 - x.get();
+      const baseY = rect.y + rect.height / 2 - y.get();
+      const margin = 40;
+      target = {
+        x: Math.min(Math.max(e.clientX + 34 - baseX, margin - baseX), window.innerWidth - margin - baseX),
+        y: Math.min(Math.max(e.clientY + 34 - baseY, margin - baseY), window.innerHeight - margin - baseY),
+      };
+    };
+    const step = () => {
+      raf = requestAnimationFrame(step);
+      if (draggingRef.current) return;
+      const parked = Date.now() - lastMove > 3_000;
+      const dest = parked || !target ? { x: 0, y: 0 } : target;
+      x.set(x.get() + (dest.x - x.get()) * 0.07);
+      y.set(y.get() + (dest.y - y.get()) * 0.07);
+    };
+    window.addEventListener('mousemove', onMove);
+    raf = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('mousemove', onMove);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [follow, animate, dense]);
+
   /* Press-and-hold reads as a pet. Movement hands over to drag instead. */
   const petDown = () => {
     petHitRef.current = false;
@@ -238,15 +363,22 @@ export default function Companion() {
 
   const mood: RobotMood =
     playMood ??
-    (celebration
-      ? 'excited'
-      : petting
-        ? 'happy'
-        : draggingRef.current
-          ? 'excited'
-          : (current?.mood ?? 'idle'));
+    (gesture === 'doze'
+      ? 'sleepy'
+      : celebration
+        ? 'excited'
+        : petting
+          ? 'happy'
+          : draggingRef.current
+            ? 'excited'
+            : (current?.mood ?? (quietNow ? 'sleepy' : 'idle')));
 
   const bubbleText = quip ?? current?.text ?? null;
+  /** Napping in the corner — slow breathing, drifting z. */
+  const sleeping = quietNow && mood === 'sleepy' && !bubbleText;
+  busyRef.current = Boolean(
+    bubbleText || playMood || petting || celebration || draggingRef.current || quietNow || dense,
+  );
   const showControls = !quip && current != null;
   const ambient = current != null && current.kind !== 'status-check' && !current.id.startsWith('ondemand:');
 
@@ -347,7 +479,27 @@ export default function Companion() {
           onPointerCancel={petUp}
           onPointerLeave={petUp}
         >
-          <RobotSprite mood={mood} animate={animate} size={dense ? 36 : 58} />
+          <motion.div
+            animate={
+              animate && gesture && gesture !== 'doze'
+                ? GESTURE_ANIM[gesture]
+                : { rotate: 0, scaleY: 1 }
+            }
+            style={{ transformOrigin: '50% 85%' }}
+          >
+            <RobotSprite mood={mood} animate={animate} size={dense ? 36 : 58} hat={hat} />
+          </motion.div>
+          {sleeping && animate && (
+            <motion.span
+              className="vik-float zz"
+              aria-hidden
+              initial={{ opacity: 0, y: 0 }}
+              animate={{ opacity: [0, 0.9, 0], y: -26 }}
+              transition={{ duration: 2.8, repeat: Infinity }}
+            >
+              z
+            </motion.span>
+          )}
           {celebration && animate && (
             <span aria-hidden key={celebration.key}>
               {CONFETTI.map((c, i) => (

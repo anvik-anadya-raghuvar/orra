@@ -104,6 +104,8 @@ export interface Personalization {
     chattiness?: 'quiet' | 'normal' | 'chatty';
     /** What this user calls their robot. Absent = 'Vik'. */
     name?: string;
+    /** Cursor-chasing, opt-in, fine pointers only. Absent = docked. */
+    follow?: boolean;
   };
 }
 

@@ -15,6 +15,8 @@ interface Props {
   mood: RobotMood;
   size?: number;
   animate: boolean;
+  /** Friday-evening party hat. An accessory, not a mood. */
+  hat?: boolean;
 }
 
 const MOUTH: Record<RobotMood, string> = {
@@ -40,7 +42,7 @@ const EYE_SCALE: Partial<Record<RobotMood, number>> = {
   excited: 1.15,
 };
 
-export default function RobotSprite({ mood, size = 58, animate }: Props) {
+export default function RobotSprite({ mood, size = 58, animate, hat = false }: Props) {
   const [blink, setBlink] = useState(false);
   const timers = useRef<number[]>([]);
 
@@ -191,6 +193,12 @@ export default function RobotSprite({ mood, size = 58, animate }: Props) {
           style={{ transformBox: 'fill-box', transformOrigin: '50% 90%' }}
         >
           <rect x="13" y="8" width="38" height="27" rx="11" className="vik-body" />
+          {hat && (
+            <g className="vik-hat">
+              <polygon points="37,10.5 46,9 43.5,1.5" />
+              <circle cx="43.5" cy="1.5" r="1.7" />
+            </g>
+          )}
           <rect x="17.5" y="12" width="29" height="19" rx="8" className="vik-face" />
 
           {/* eyes */}

@@ -121,9 +121,13 @@ export function daypartOf(hour: number): Daypart {
 }
 
 /** Before 8 or from 22, in the reader's own timezone, the robot sleeps. */
-export function isQuietHours(ctx: CompanionContext): boolean {
-  const h = hourIn(ctx.me.time_zone, ctx.now);
+export function quietHoursFor(timeZone: string, now: Date): boolean {
+  const h = hourIn(timeZone, now);
   return h < 8 || h >= 22;
+}
+
+export function isQuietHours(ctx: CompanionContext): boolean {
+  return quietHoursFor(ctx.me.time_zone, ctx.now);
 }
 
 function startOfLocalDay(now: Date): number {

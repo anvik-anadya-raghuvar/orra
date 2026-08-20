@@ -199,6 +199,18 @@ function CompanionSettings() {
               if (name !== (comp.name ?? '')) patch({ name }, 'Companion — renamed');
             }}
           />
+          {typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches && (
+            <button
+              className="chip"
+              aria-pressed={comp.follow === true}
+              onClick={() =>
+                patch({ follow: comp.follow !== true }, `Companion — follow ${comp.follow !== true ? 'on' : 'off'}`)
+              }
+              title="He chases the cursor and parks himself when you stop moving"
+            >
+              {comp.follow === true ? 'Following your cursor' : 'Stays in the corner'}
+            </button>
+          )}
         </div>
       )}
     </div>

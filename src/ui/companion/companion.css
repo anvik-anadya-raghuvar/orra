@@ -101,6 +101,17 @@
 .vik-tip {
   fill: var(--rose);
 }
+.vik-hat polygon {
+  fill: var(--stamp);
+}
+.vik-hat circle {
+  fill: var(--rose);
+}
+.vik-float.zz {
+  color: var(--slate);
+  font-family: monospace;
+  font-style: italic;
+}
 .vik-shadow {
   fill: var(--ink);
   opacity: 0.12;
