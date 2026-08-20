@@ -6,36 +6,18 @@
  * from someone, and the exchange happens right here — replying writes a normal
  * message, so the same conversation is in Us without having to go there.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, Music, Play } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
 import { fmtTime } from '../../lib/dates';
-import { momentSrc } from '../../lib/moments';
+import { useMomentSrc } from '../../lib/useMomentSrc';
 import { latestMoment, repliesTo, replyToMoment, sendPhoto, sendSong } from '../../lib/sends';
 import { isYouTubeUrl, playUrl } from '../../lib/song';
 import { TileOpen } from './personal';
 import type { Message, SharedDaily } from '../../types';
-
-/** Resolves a stored photo to something an <img> can load. */
-function useMomentSrc(attachment: string | null | undefined): string | null | undefined {
-  const [src, setSrc] = useState<string | null | undefined>(undefined);
-  useEffect(() => {
-    let alive = true;
-    if (!attachment) {
-      setSrc(null);
-      return;
-    }
-    setSrc(undefined);
-    momentSrc(attachment).then((url) => alive && setSrc(url));
-    return () => {
-      alive = false;
-    };
-  }, [attachment]);
-  return src;
-}
 
 function Replies({ moment }: { moment: Message }) {
   const ds = useData((d) => d);

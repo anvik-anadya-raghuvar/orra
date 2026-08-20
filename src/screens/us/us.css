@@ -5,11 +5,23 @@
    else in the file had to be re-weighted. */
 /* Us screen — scoped under .us-screen so nothing leaks to other routes. */
 
+/* The room is one screen with two independent scrollers, the same shape
+   Personal uses: the conversation is a fixed frame that never moves, and
+   everything beside it — status, rituals, the photo and song shelves — scrolls
+   on its own. Before this the whole page scrolled, so adding anything to the
+   right pushed the composer off the bottom of the window and you had to scroll
+   the document to type. Now the thread stays put however much lives beside it. */
 .us-screen .uslay {
   display: grid;
   grid-template-columns: 1.5fr 1fr;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  /* One screenful minus the portal header, the room's top margin and the page's
+     bottom padding — measured, not guessed, so nothing is left for the document
+     itself to scroll. Capped so an enormous monitor does not stretch a two-line
+     chat down a whole wall. */
+  height: clamp(500px, calc(100dvh - 200px), 900px);
+  min-height: 0;
 }
 .us-screen .chatshell {
   background: var(--surf);
@@ -19,10 +31,24 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Fills the frame the layout hands it; the stream inside takes what is left
+     after the header and composer, so the composer is always on screen. */
+  height: 100%;
   min-height: 0;
-  /* Fill the space rather than hugging one message. Capped so an enormous
-     monitor does not stretch a two-line chat down a whole screen. */
-  height: clamp(500px, calc(100dvh - 176px), 820px);
+}
+/* The other column: its own scrollport, so the shelves can be as long as they
+   like. `overscroll-behavior` keeps a flick at the end of the list from
+   scrolling the room behind it. */
+.us-screen .usside {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for the scrollbar so it never sits on top of a card's edge. */
+  padding-right: 4px;
+}
+.us-screen .usside > :last-child {
+  margin-bottom: 0;
 }
 .us-screen .chathead {
   display: flex;
@@ -48,6 +74,12 @@
   min-height: 0;
   overflow-y: auto;
   scroll-behavior: smooth;
+}
+/* Where the Photos and Songs shelves land you. A ring rather than a
+   background change, so a photo bubble is framed instead of tinted. */
+.us-screen .msgrow.revealed .bubble {
+  box-shadow: 0 0 0 2px var(--indigo);
+  transition: box-shadow 0.24s var(--ease);
 }
 .us-screen .dayline {
   text-align: center;
@@ -391,13 +423,163 @@
   min-height: 44px;
 }
 
+/* ── the shelves ────────────────────────────────────────────────────────── */
+.us-screen .uscard-hd {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.us-screen .uscard-hd h3 {
+  margin-bottom: 0;
+}
+.us-screen .uscard-n {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--mute);
+}
+.us-screen .usfilter {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+/* A contact sheet, not a list: three across at this width, and every cell the
+   same square whatever shape the photo is. */
+.us-screen .usgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.us-screen .usthumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surf3);
+  padding: 0;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  transition: transform 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+.us-screen .usthumb:hover,
+.us-screen .usthumb:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--indigo);
+}
+.us-screen .usthumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.us-screen .usthumb-empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--mute);
+  font-size: 15px;
+}
+.us-screen .ussongs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.us-screen .ussongs li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf2);
+  min-width: 0;
+}
+.us-screen .ussong-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--indigo-s);
+  color: var(--indigo);
+}
+/* The title is the way back to the moment it was sent in, so it is a button,
+   not a label. Truncated on both lines — a long title must not push Play out. */
+.us-screen .ussong-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+.us-screen .ussong-t b {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.us-screen .ussong-t span {
+  font-size: 11px;
+  color: var(--mute);
+}
+.us-screen .ussong-t b,
+.us-screen .ussong-t span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.us-screen .ussongs .btn {
+  flex: none;
+}
+/* The lightbox. Portalled into a Modal, so it is scoped to `.panel-mask`. */
+.panel-mask .usviewer {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+.panel-mask .usviewer img {
+  max-width: 100%;
+  max-height: 62vh;
+  border-radius: 12px;
+  display: block;
+}
+.panel-mask .usviewer-cap {
+  margin: 0;
+  font-size: 13.5px;
+  text-align: center;
+  white-space: pre-wrap;
+}
+.panel-mask .usviewer-act {
+  display: flex;
+  gap: 8px;
+}
+
 @media (max-width: 980px) {
+  /* Stacked: two scrollports one above the other is a trap on a narrow screen,
+     so the page goes back to being the single scroller and the thread is a
+     tall card at the top of it with the shelves following underneath. */
   .us-screen .uslay {
     grid-template-columns: 1fr;
+    height: auto;
+    align-items: start;
   }
-  /* Stacked, so the card shares the viewport with the sidebar below it. */
   .us-screen .chatshell {
     height: clamp(520px, calc(100dvh - 166px), 760px);
+  }
+  .us-screen .usside {
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
   }
 }
 @media (max-width: 640px) {
@@ -418,6 +600,11 @@
   .us-screen .ctools > * {
     flex: 0 0 auto;
   }
+  /* Four across on a phone: the cells are smaller but the shelf stays one
+     glance rather than a column you have to scroll. */
+  .us-screen .usgrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 @media (max-width: 1024px) {
   /* `.btn.sm` carries its own 32px min-height at the same specificity as
@@ -430,7 +617,21 @@
   .us-screen input,
   .us-screen textarea,
   .us-screen .msgact button,
-  .us-screen .ritualb button {
+  .us-screen .ritualb button,
+  .us-screen .usfilter .chip,
+  .us-screen .ussong-t {
     min-height: 44px;
+  }
+  /* A thumbnail is a square by definition — its 1:1 cell is already well over
+     44px at every width the grid reaches, so it needs no floor of its own. */
+}
+
+/* Reduced motion: `scroll-behavior` is not a transition, so the global kill
+   switch in theme.css does not reach it. Jumping to a photo or a song from the
+   shelves must land instantly rather than gliding the thread past you. */
+@media (prefers-reduced-motion: reduce) {
+  .us-screen .stream,
+  .us-screen .usside {
+    scroll-behavior: auto;
   }
 }

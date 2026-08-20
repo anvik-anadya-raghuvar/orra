@@ -6,15 +6,44 @@ import { useData } from '../data/store';
 import { entrance, useAnimateIn } from './motion';
 
 /* ── Contextual help ─────────────────────────────────────────────────── */
+/** How much room to leave between the bubble and the edge of the screen. */
+const TIP_MARGIN = 10;
+
 /** Compact help that works with hover, keyboard focus, and a tap. */
 export function InfoTip({ text, label = 'More information' }: { text: string; label?: string }) {
   const id = useId();
+  const ref = useRef<HTMLSpanElement>(null);
+
+  /**
+   * Keep the bubble on screen.
+   *
+   * It is centred on its icon, which is fine in the middle of a header and
+   * wrong at either end of one — Money's tips hung ~50px off a 375px viewport
+   * and the sentence was cut in half. How far it overhangs depends on how long
+   * the text is and where the icon landed, so it is measured on open rather
+   * than guessed at. The bubble is laid out even while hidden (`visibility`,
+   * not `display`), so this can measure before it is ever shown.
+   */
+  const place = () => {
+    const bubble = ref.current?.querySelector<HTMLElement>('.info-tip-bubble');
+    if (!bubble) return;
+    bubble.style.setProperty('--nudge', '0px');
+    const r = bubble.getBoundingClientRect();
+    const over = r.right - (window.innerWidth - TIP_MARGIN);
+    const under = TIP_MARGIN - r.left;
+    const nudge = over > 0 ? -over : under > 0 ? under : 0;
+    if (nudge) bubble.style.setProperty('--nudge', `${Math.round(nudge)}px`);
+  };
+
   return (
     <span
+      ref={ref}
       className="info-tip"
       tabIndex={0}
       aria-label={`${label}. ${text}`}
       aria-describedby={id}
+      onPointerEnter={place}
+      onFocus={place}
     >
       <Info size={13} strokeWidth={2} aria-hidden />
       <span className="info-tip-bubble" id={id} role="tooltip">
@@ -110,7 +139,10 @@ function useIsPhone() {
  * inner one closing must not unlock the outer one.
  */
 let lockCount = 0;
-function useScrollLock(active: boolean) {
+/** Exported because Home's tile side page is an overlay too — it is not built
+ *  on Modal/SideSheet (its body has to stay inside the room's own CSS scope),
+ *  but it locks the page behind it for exactly the same reason. */
+export function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
     const root = document.documentElement;

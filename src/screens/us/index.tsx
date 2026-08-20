@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type { Dataset, Message } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Camera, Check, CornerUpLeft, MoreHorizontal, Music, Pencil, Send, Trash2, X } from 'lucide-react';
 import { Avatar, DeleteBtn, InfoTip, Modal, useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
 import { fmtDay, fmtTime, localDay, todayIso } from '../../lib/dates';
-import { momentSrc } from '../../lib/moments';
+import { useMomentSrc } from '../../lib/useMomentSrc';
 import { sendPhoto, sendSong } from '../../lib/sends';
 import { isYouTubeUrl, playUrl } from '../../lib/song';
 import { PromoteModal, type PromoteKind, type PromoteTarget } from './PromoteModal';
@@ -129,16 +129,7 @@ function SendSongButton() {
 /** A sent photo. The bucket is private, so the src is a signed URL fetched
  *  on demand rather than something stored in the row. */
 function PhotoBubble({ m }: { m: Message }) {
-  const [src, setSrc] = useState<string | null | undefined>(undefined);
-  useEffect(() => {
-    let alive = true;
-    setSrc(undefined);
-    if (m.attachment_url) momentSrc(m.attachment_url).then((u) => alive && setSrc(u));
-    else setSrc(null);
-    return () => {
-      alive = false;
-    };
-  }, [m.attachment_url]);
+  const src = useMomentSrc(m.attachment_url);
   if (src === undefined) return <div className="msgphoto msgphoto-missing">Loading photo…</div>;
   if (!src) return <div className="msgphoto msgphoto-missing">Photo unavailable</div>;
   return <img className="msgphoto" src={src} alt={m.body || 'A shared moment'} loading="lazy" />;
@@ -150,12 +141,17 @@ function Bubble({
   ds,
   onPromote,
   onReply,
+  revealed,
 }: {
   m: Message;
   mine: boolean;
   ds: Dataset;
   onPromote: (m: Message, kind: PromoteKind) => void;
   onReply: (m: Message) => void;
+  /** Briefly marked because a shelf on the right sent you here. State, not a
+   *  class poked onto the node: `motion.div` owns its own className and
+   *  rewrites it, so a DOM-level mark disappears on the next frame. */
+  revealed: boolean;
 }) {
   const store = useStore();
   const toast = useToast();
@@ -206,7 +202,8 @@ function Bubble({
 
   return (
     <motion.div
-      className={`msgrow${mine ? ' me' : ''}`}
+      data-msgid={m.id}
+      className={`msgrow${mine ? ' me' : ''}${revealed ? ' revealed' : ''}`}
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1, transition: entrance }}
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.16 } }}
@@ -405,6 +402,7 @@ function ChatColumn({
   onPromote,
   replyTo,
   setReplyTo,
+  reveal,
 }: {
   body: string;
   setBody: (v: string) => void;
@@ -415,14 +413,19 @@ function ChatColumn({
   onPromote: (m: Message, kind: PromoteKind) => void;
   replyTo: Message | null;
   setReplyTo: (m: Message | null) => void;
+  /** A message the Photos/Songs shelves asked to be shown. Changes on every
+   *  request, even for the same message, so asking twice works twice. */
+  reveal: { id: string; nonce: number } | null;
 }) {
   const ds = useData((d) => d);
   const store = useStore();
   const other = useData((_, s) => s.other);
   const streamRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
   const initialScrollDone = useRef(false);
   const nearBottom = useRef(true);
   const [newBelow, setNewBelow] = useState(0);
+  const [flash, setFlash] = useState<string | null>(null);
 
   const sorted = useMemo(
     () => [...ds.messages].sort((a, b) => a.created_at.localeCompare(b.created_at)),
@@ -435,6 +438,23 @@ function ChatColumn({
     [ds.tasks],
   );
   const attachedTask = attachedTaskId ? ds.tasks.find((t) => t.id === attachedTaskId) : undefined;
+
+  /* Reveal: scroll the thread to a message the right-hand shelves picked, and
+     mark it for a moment so the eye can find it among its neighbours. The mark
+     is a class rather than state on the row, because the row is one of
+     potentially hundreds and re-rendering the lot to highlight one is waste. */
+  useEffect(() => {
+    if (!reveal) return;
+    const el = streamRef.current?.querySelector<HTMLElement>(`[data-msgid="${reveal.id}"]`);
+    if (!el) return;
+    // The thread is no longer at the bottom, so a message arriving now should
+    // offer the "new below" jump rather than yanking you away from this one.
+    nearBottom.current = false;
+    el.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' });
+    setFlash(reveal.id);
+    const t = window.setTimeout(() => setFlash(null), 1800);
+    return () => window.clearTimeout(t);
+  }, [reveal, reducedMotion]);
 
   useEffect(() => {
     const el = streamRef.current;
@@ -486,6 +506,7 @@ function ChatColumn({
                 ds={ds}
                 onPromote={onPromote}
                 onReply={setReplyTo}
+                revealed={flash === r.m.id}
               />
             ),
           )}
@@ -578,6 +599,8 @@ export default function Us() {
   const [attachedTaskId, setAttachedTaskId] = useState<string | null>(null);
   const [promote, setPromote] = useState<PromoteTarget | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [reveal, setReveal] = useState<{ id: string; nonce: number } | null>(null);
+  const revealNonce = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messages = useData((ds) => ds.messages);
 
@@ -639,8 +662,15 @@ export default function Us() {
             setReplyTo(message);
             textareaRef.current?.focus();
           }}
+          reveal={reveal}
         />
-        <SideColumn onRitual={prefill} />
+        <SideColumn
+          onRitual={prefill}
+          onJump={(id) => {
+            revealNonce.current += 1;
+            setReveal({ id, nonce: revealNonce.current });
+          }}
+        />
       </div>
       <PromoteModal promote={promote} onClose={() => setPromote(null)} />
     </div>

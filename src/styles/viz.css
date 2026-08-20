@@ -59,7 +59,10 @@ html[data-theme='dark'] {
   top: -18px;
   font-size: 10.5px;
   color: var(--slate);
-  background: var(--surf2);
+  /* Solid: this reading sits on top of the chart it describes, and a bar
+     showing through the number it is labelled with is the one thing a tooltip
+     must never do. */
+  background: var(--surf-solid);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 1px 7px;

@@ -33,6 +33,7 @@ import {
   X,
 } from 'lucide-react';
 import { useData, useDataset, useStore } from '../../data/store';
+import { useScrollLock } from '../../ui/bits';
 import { activeBlockFor } from '../../lib/blocks';
 import { entrance, micro, spring, staggerItem } from '../../ui/motion';
 import './arrange.css';
@@ -559,6 +560,10 @@ export function BentoTile({
 
 /* ── the pop-up ────────────────────────────────────────────────────────── */
 
+/** Everything the browser will hand focus to inside the side page. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function TileSheet({
   tileKey,
   title,
@@ -577,11 +582,55 @@ export function TileSheet({
   const stored = api.layout?.size?.[tileKey];
   const other = useStore().other.name;
   const [view, setView] = useState<'feature' | 'display'>('feature');
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setView('feature'), [tileKey]);
 
+  /* The room behind an overlay must not scroll under it — without this the
+     wheel moved the grid while the page sat still on top of it, and removing
+     the page's scrollbar is also what lets a `100vw` overlay sit flush against
+     the real right edge rather than 10px shy of it. */
+  useScrollLock(true);
+
+  /* Focus goes into the page on open and back to the tile on close, and Tab
+     stays inside while it is open — the same contract Modal and SideSheet
+     honour. Without it, tabbing walked straight out into the room underneath. */
   useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    const opener = document.activeElement as HTMLElement | null;
+    const t = window.setTimeout(() => {
+      const el = sheetRef.current;
+      if (el && !el.contains(document.activeElement)) el.focus({ preventScroll: true });
+    }, 40);
+    return () => {
+      window.clearTimeout(t);
+      if (opener?.isConnected) opener.focus?.({ preventScroll: true });
+    };
+  }, [tileKey]);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const el = sheetRef.current;
+      if (!el) return;
+      const f = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+        (n) => n.offsetParent !== null || n === document.activeElement,
+      );
+      if (!f.length) return;
+      const first = f[0];
+      const last = f[f.length - 1];
+      if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (document.activeElement === first || document.activeElement === el)) {
+        e.preventDefault();
+        last.focus();
+      }
+    };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [close]);
@@ -601,6 +650,8 @@ export function TileSheet({
       aria-label={title}
     >
       <motion.div
+        ref={sheetRef}
+        tabIndex={-1}
         className="tilesheet"
         /* A side page, so it slides in from the edge it lives on rather than
            popping up in the middle of the room. Mobile covers the screen, where

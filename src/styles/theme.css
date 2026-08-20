@@ -147,6 +147,40 @@ textarea::placeholder {
   opacity: 1;
   color: var(--mute);
 }
+/* Base theming for every native form control that doesn't opt into its own
+   look. Without this, a bare <select> or <input> (no className, no inline
+   style) renders with the OS's default white background and dark text —
+   invisible against Deep Field. Low specificity (tag selectors) on purpose:
+   any component's own class or inline style still wins. */
+input:not([type='button']):not([type='reset']):not([type='submit']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+select,
+textarea {
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 11px;
+  min-height: 40px;
+  color: var(--ink);
+}
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a69ebe' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  padding-right: 30px;
+  cursor: pointer;
+}
+select option {
+  background: var(--surf2-solid);
+  color: var(--ink);
+}
+input:not([type='button']):not([type='reset']):not([type='submit']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--indigo);
+  outline-offset: 1px;
+}
 button,
 [role='button'] {
   cursor: pointer;
@@ -357,7 +391,9 @@ button {
   left: 50%;
   bottom: calc(100% + 8px);
   width: max-content;
-  max-width: min(280px, 75vw);
+  /* Never wider than the screen it has to fit inside, minus the margin the
+     nudge below keeps it clear of. */
+  max-width: min(280px, calc(100vw - 20px));
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -375,7 +411,10 @@ button {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translate(-50%, 4px);
+  /* `--nudge` is how far the bubble has to slide to stay on screen: the tip is
+     centred on its icon, and an icon near the right edge pushed the sentence
+     off the viewport and cut it in half. InfoTip measures and sets it. */
+  transform: translate(calc(-50% + var(--nudge, 0px)), 4px);
   transition: opacity 0.14s, transform 0.14s, visibility 0.14s;
 }
 .info-tip:hover .info-tip-bubble,
@@ -383,7 +422,7 @@ button {
 .info-tip:focus-within .info-tip-bubble {
   opacity: 1;
   visibility: visible;
-  transform: translate(-50%, 0);
+  transform: translate(calc(-50% + var(--nudge, 0px)), 0);
 }
 .mono {
   font-family: 'IBM Plex Mono', monospace;

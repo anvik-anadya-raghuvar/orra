@@ -157,9 +157,18 @@
    stays visible behind it, and the widget gets real vertical space instead of
    a card floating in a scrim. This is where the whole list lives; the tile
    itself never grows a scrollbar. */
+/* Sized in viewport units rather than `inset: 0`, for the reason spelled out
+   on `.panel-mask`: a fixed box resolves its insets against the initial
+   containing block, which excludes the page's classic scrollbar — so `right: 0`
+   landed ~10px shy of the real edge and the side page floated off the side
+   with a strip of the room showing through it. `100vw` includes that gutter,
+   and the page behind is scroll-locked while this is open. */
 .tilesheet-mask {
   position: fixed;
-  inset: 0;
+  inset: 0 auto auto 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   z-index: 70;
   background: rgba(10, 13, 20, 0.5);
   backdrop-filter: blur(4px);
@@ -171,10 +180,17 @@
 }
 .tilesheet {
   width: min(620px, 100%);
-  height: 100dvh;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--surf2);
+  /* Opaque, like every other overlay panel in the portal (`.side-sheet`,
+     `.modal-sheet`). It was `--surf2` — a 60%-alpha token — which let the room
+     behind read straight through the page: two sets of headings and numbers
+     stacked on top of each other, and the widget's own solid sticky bars
+     showing as darker bands against it. A page that occludes cannot be glass.
+     Same token the sticky bars use, so those bars now disappear into the
+     surface and only their hairline separates them. */
+  background: var(--surf-solid);
   border-left: 1px solid var(--line);
   box-shadow: var(--sh2);
   overflow: hidden;
@@ -195,6 +211,12 @@
 .tilesheet-hd .spacer {
   flex: 1;
 }
+/* The scrollport. It carries NO padding of its own — the padding lives on the
+   content inside it. With padding here, a widget's sticky header stuck 14px
+   below the top of the page and rows scrolled through the strip above it,
+   which is the sliver of doubled text that showed under the page header; the
+   sticky add-form had the same 14px gap under it at the foot. Padding on the
+   content means both bars sit flush against the edges they stick to. */
 .tilesheet-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -203,6 +225,13 @@
      (negative margins), which on the grid is swallowed by the tile's own
      overflow but here grew the side page a horizontal scrollbar. */
   overflow-x: hidden;
+  padding: 0;
+  /* Column flex so the widget can be told to fill the page rather than sit in
+     the top half of it with the add-form stranded in the middle. */
+  display: flex;
+  flex-direction: column;
+}
+.tilesheet-body.display-page {
   padding: 14px;
 }
 /* The widget renders its real self here — same component, same store — just
@@ -217,6 +246,12 @@
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  padding: 14px;
+  /* Grow to fill the page, never shrink below the widget's own content. A
+     short widget therefore reaches the foot of the page and its sticky
+     add-form pins to the bottom edge instead of floating mid-panel over dead
+     space; a long one simply scrolls. */
+  flex: 1 0 auto;
   min-height: min(52vh, 420px);
 }
 
@@ -235,7 +270,10 @@
   overflow: visible;
   min-height: 0;
   max-height: none;
-  flex: 0 0 auto;
+  /* Fills the tile, so a sticky bottom bar has a containing block that reaches
+     the foot of the page — `0 0 auto` left it hugging its content and the
+     add-form stopped halfway down. Never shrinks below its content. */
+  flex: 1 0 auto;
   mask-image: none;
   -webkit-mask-image: none;
   /* A widget bleeds its sticky bars outwards by the tile's own padding so they
@@ -244,6 +282,20 @@
      breakpoint rule (`.personal-screen .pbig`) would otherwise outweigh it and
      bleed 3px past the page on desktop. */
   --tp: 14px;
+}
+
+/* A widget whose add-form pins to the bottom owns the foot of the page: the
+   tile's own bottom padding is handed to the form instead, so the bar sits
+   flush on the edge it sticks to. Without this the form could not reach past
+   its container and rows scrolled through a 14px strip underneath it — the
+   same doubled-text sliver the header had at the top. `:has` is the whole
+   condition: where it is unsupported the tile simply keeps its padding and the
+   old (merely loose) spacing returns. */
+.tilesheet-tile:has(> .pbig > .pform) {
+  padding-bottom: 0;
+}
+.tilesheet .tilesheet-body .pbig > .pform {
+  padding-bottom: var(--tp);
 }
 
 /* The page header already says the widget's name — the widget saying it again
@@ -314,6 +366,17 @@
   }
   .tilesheet-tile {
     min-height: 46vh;
+  }
+  /* Full-screen on a phone, so the foot of the page is the home indicator. */
+  .tilesheet-tile,
+  .tilesheet-body.display-page {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .tilesheet-tile:has(> .pbig > .pform) {
+    padding-bottom: 0;
+  }
+  .tilesheet .tilesheet-body .pbig > .pform {
+    padding-bottom: calc(var(--tp) + env(safe-area-inset-bottom));
   }
 }
 @media (max-width: 1024px) {

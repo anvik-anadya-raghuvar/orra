@@ -461,7 +461,10 @@
   width: min(280px, calc(100vw - 56px));
   max-height: 280px;
   overflow: auto;
-  background: var(--surf);
+  /* A menu floats over the paragraph it was opened from, so it has to hide it.
+     `--surf` is a 66%-alpha token and the text underneath read straight through
+     the options. Same reason `.side-sheet` and the tile side page are solid. */
+  background: var(--surf-solid);
   border: 1px solid var(--line);
   border-radius: var(--r);
   box-shadow: var(--sh2);
@@ -693,7 +696,7 @@
 .wk-composer textarea {
   flex: 1;
   min-width: 170px;
-  min-height: 62px;
+  min-height: 120px;
   resize: vertical;
 }
 .wk-composer .btn {
