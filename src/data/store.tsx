@@ -31,10 +31,13 @@ const TRASH_EXEMPT = new Set<CollectionKey>(['audit_trail', 'trash_items']);
 
 /** Best-effort human label for a trashed row — whatever field reads like a title. */
 function trashLabel(key: string, row: Record<string, unknown>): string {
-  const candidates = ['title', 'name', 'subject', 'question', 'label', 'text', 'summary', 'item'];
+  // `body` covers messages and comments, which carry no other candidate field
+  // — without it, deleting a message showed "message msg-1" in Trash instead
+  // of any hint of what was actually said.
+  const candidates = ['title', 'name', 'subject', 'question', 'label', 'text', 'summary', 'item', 'body'];
   for (const f of candidates) {
     const v = row[f];
-    if (typeof v === 'string' && v.trim()) return v;
+    if (typeof v === 'string' && v.trim()) return v.length > 80 ? `${v.slice(0, 80)}…` : v;
   }
   return `${key.replace(/_/g, ' ').replace(/s$/, '')} ${row.id ?? ''}`.trim();
 }

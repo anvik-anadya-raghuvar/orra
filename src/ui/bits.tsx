@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Info, X } from 'lucide-react';
+import { Info, Trash2, X } from 'lucide-react';
 import { useData } from '../data/store';
 import { entrance, useAnimateIn } from './motion';
 
@@ -382,5 +382,39 @@ export function ProgressBar({ pct, grad = 'linear-gradient(90deg,var(--violet),v
         style={{ height: '100%', background: grad, borderRadius: 4 }}
       />
     </div>
+  );
+}
+
+/** Two-step delete — arms for 3s, then confirms. No browser dialog: a native
+ *  confirm() blocks the render thread and cannot be themed. The delete this
+ *  triggers always goes through AppStore.remove, which routes it to Trash, so
+ *  "armed" reads as "sure?" rather than "forever". */
+export function DeleteBtn({ onConfirm, label }: { onConfirm: () => void; label: string }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = window.setTimeout(() => setArmed(false), 3000);
+    return () => window.clearTimeout(t);
+  }, [armed]);
+
+  if (armed) {
+    return (
+      <button
+        type="button"
+        className="picon armed"
+        aria-label={`Confirm delete ${label}`}
+        onClick={() => {
+          setArmed(false);
+          onConfirm();
+        }}
+      >
+        <span className="mono">sure?</span>
+      </button>
+    );
+  }
+  return (
+    <button type="button" className="picon" aria-label={`Delete ${label}`} onClick={() => setArmed(true)}>
+      <Trash2 size={14} strokeWidth={1.8} />
+    </button>
   );
 }

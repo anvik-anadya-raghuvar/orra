@@ -18,7 +18,7 @@ import { imageFilesFrom, useImagePaste } from '../../ui/imagedrop';
 import { entrance, staggerItem, staggerParent } from '../../ui/motion';
 import { momentSrc, uploadMoment } from '../../lib/moments';
 import type { MoodItem } from '../../types';
-import { DeleteBtn } from './widgets';
+import { DeleteBtn } from '../../ui/bits';
 
 const KINDS: { key: MoodItem['kind']; label: string; Icon: typeof Quote }[] = [
   { key: 'note', label: 'Note', Icon: StickyNote },

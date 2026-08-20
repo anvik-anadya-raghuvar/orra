@@ -18,7 +18,8 @@ import { daysUntil, fmtDay, todayIso } from '../../lib/dates';
 import { myTasks, ownRows } from '../../lib/workspace';
 import { goalProgress, goalsFor, nextGoalPosition, progressLabel } from '../../lib/goals';
 import type { PersonalGoal, Task } from '../../types';
-import { DeleteBtn, InlineText } from './widgets';
+import { DeleteBtn } from '../../ui/bits';
+import { InlineText } from './widgets';
 
 const NOW_LIMIT = 3;
 const GOAL_LABEL_COLORS = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'] as const;

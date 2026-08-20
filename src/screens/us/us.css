@@ -121,6 +121,38 @@
   color: var(--mute);
   margin-bottom: 3px;
 }
+.us-screen .msgedited {
+  font-style: italic;
+  opacity: 0.8;
+}
+.us-screen .msgedit {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+.us-screen .msgeditarea {
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 9px;
+  border: 1px solid var(--indigo);
+  border-radius: 8px;
+  background: var(--surf-solid);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.4;
+  resize: vertical;
+}
+.us-screen .msgeditact {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+/* Sits beside the header text, so it needs to stay clear of it — clearchat is
+   an icon-only .picon and shares that component's sizing/hover treatment. */
+.us-screen .chathead .clearchat {
+  flex: none;
+}
 .us-screen .msgreplyquote {
   display: grid;
   gap: 1px;

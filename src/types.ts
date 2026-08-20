@@ -421,6 +421,9 @@ export interface Message {
    *  Optional so a newly-sent message is unread by omission — every creation
    *  site would otherwise have to remember to write `read_at: null`. */
   read_at?: string | null;
+  /** Set once, on the first edit, and never cleared — a display flag, not a
+   *  history. The actual before/after of every edit is in audit_trail. */
+  edited_at?: string | null;
   created_at: string;
 }
 

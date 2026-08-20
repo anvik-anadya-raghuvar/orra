@@ -3,12 +3,11 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import type { Course, CourseItem, ReadingItem } from '../../types';
 import { newId, useData, useStore } from '../../data/store';
-import { InfoTip, Modal, useToast } from '../../ui/bits';
+import { DeleteBtn, InfoTip, Modal, useToast } from '../../ui/bits';
 import { entrance, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { Donut, MiniBars, Ring, VIZ } from '../../ui/viz';
 import { myTasks, ownRows } from '../../lib/workspace';
 import {
-  DeleteBtn,
   FixedDates,
   InlineText,
   LabelEditor,

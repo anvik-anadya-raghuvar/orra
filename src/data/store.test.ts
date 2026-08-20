@@ -98,6 +98,19 @@ describe('remove() → Trash', () => {
     expect(trashed!.label).toBe(before.title);
   });
 
+  it('labels a trashed message by what it said, not just its id', () => {
+    // Messages have no title/name/subject — only `body` — so this candidate
+    // was missing until deleting a message became possible from the Us
+    // thread, and Trash showed "message msg-1" instead of any hint of it.
+    const store = makeStore();
+    const message = store.ds.messages[0];
+
+    store.remove('messages', message.id, store.asMe({ summary: 'test remove' }));
+
+    const trashed = store.ds.trash_items.find((t) => t.row_id === message.id);
+    expect(trashed!.label).toBe(message.body);
+  });
+
   it('writes exactly one audit line for the delete and none for the trash snapshot', () => {
     const store = makeStore();
     const note = store.ds.notes[0];

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronUp } from 'lucide-react';
 import type { AppStore } from '../../data/store';
 import type { FixedDate, LifeAdminItem, TimeLog } from '../../types';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
-import { CountUp, TagChip, useToast } from '../../ui/bits';
+import { CountUp, DeleteBtn, TagChip, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil, fmtDay } from '../../lib/dates';
 import { BarRows, HeatStrip, Ring, Sparkline, SplitBar as VizSplit, VIZ } from '../../ui/viz';
@@ -257,37 +257,6 @@ export function DateField({
         if (e.target.value && e.target.value !== value) onSave(e.target.value);
       }}
     />
-  );
-}
-
-/** Two-step delete — arms for 3s, then confirms. No browser dialog. */
-export function DeleteBtn({ onConfirm, label }: { onConfirm: () => void; label: string }) {
-  const [armed, setArmed] = useState(false);
-  useEffect(() => {
-    if (!armed) return;
-    const t = window.setTimeout(() => setArmed(false), 3000);
-    return () => window.clearTimeout(t);
-  }, [armed]);
-
-  if (armed) {
-    return (
-      <button
-        type="button"
-        className="picon armed"
-        aria-label={`Confirm delete ${label}`}
-        onClick={() => {
-          setArmed(false);
-          onConfirm();
-        }}
-      >
-        <span className="mono">sure?</span>
-      </button>
-    );
-  }
-  return (
-    <button type="button" className="picon" aria-label={`Delete ${label}`} onClick={() => setArmed(true)}>
-      <Trash2 size={14} strokeWidth={1.8} />
-    </button>
   );
 }
 

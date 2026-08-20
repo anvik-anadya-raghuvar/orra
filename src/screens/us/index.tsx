@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Dataset, Message } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { Camera, CornerUpLeft, MoreHorizontal, Music, Send, X } from 'lucide-react';
-import { Avatar, InfoTip, Modal, useToast } from '../../ui/bits';
+import { Camera, Check, CornerUpLeft, MoreHorizontal, Music, Pencil, Send, Trash2, X } from 'lucide-react';
+import { Avatar, DeleteBtn, InfoTip, Modal, useToast } from '../../ui/bits';
 import { entrance } from '../../ui/motion';
 import { fmtDay, fmtTime, localDay, todayIso } from '../../lib/dates';
 import { momentSrc } from '../../lib/moments';
@@ -156,22 +156,65 @@ function Bubble({
   onPromote: (m: Message, kind: PromoteKind) => void;
   onReply: (m: Message) => void;
 }) {
+  const store = useStore();
+  const toast = useToast();
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(m.body);
+  const editRef = useRef<HTMLTextAreaElement>(null);
   const sender = ds.profiles.find((p) => p.id === m.sender_id);
   const task = m.task_ref_id ? ds.tasks.find((t) => t.id === m.task_ref_id) : undefined;
   const repliedTo = m.reply_to_id ? ds.messages.find((item) => item.id === m.reply_to_id) : undefined;
   const repliedSender = repliedTo ? ds.profiles.find((p) => p.id === repliedTo.sender_id) : undefined;
+  // Editing rewrites `body`, which only means something for a plain chat
+  // message — a photo's caption and a song's title live in their own fields,
+  // and a promoted message is already someone else's record of what was said.
+  const editable = mine && (m.kind ?? 'chat') === 'chat' && !m.promoted_to_type;
+
+  useEffect(() => {
+    if (editing) editRef.current?.focus();
+  }, [editing]);
+
+  const startEdit = () => {
+    setDraft(m.body);
+    setEditing(true);
+    setActionsOpen(false);
+  };
+
+  const saveEdit = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      toast("A message needs some text.");
+      return;
+    }
+    if (trimmed !== m.body) {
+      store.update(
+        'messages',
+        m.id,
+        { body: trimmed, edited_at: nowIso() },
+        store.asMe({ summary: 'Message edited' }),
+      );
+    }
+    setEditing(false);
+  };
+
+  const deleteMessage = () => {
+    store.remove('messages', m.id, store.asMe({ summary: 'Message deleted' }));
+    toast('Message deleted — recoverable from Admin → Data → Trash');
+  };
 
   return (
     <motion.div
       className={`msgrow${mine ? ' me' : ''}`}
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1, transition: entrance }}
+      exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.16 } }}
     >
       <Avatar userId={m.sender_id} size={26} />
       <div className="bubble">
         <div className="msgmeta">
           {sender?.name ?? 'Someone'} · {fmtTime(m.created_at)}
+          {m.edited_at && <span className="msgedited"> · edited</span>}
         </div>
         {repliedTo && (
           <div className="msgreplyquote">
@@ -204,7 +247,34 @@ function Bubble({
             </a>
           </div>
         )}
-        {m.body && <p>{m.body}</p>}
+        {editing ? (
+          <div className="msgedit">
+            <textarea
+              ref={editRef}
+              className="msgeditarea"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  saveEdit();
+                } else if (e.key === 'Escape') {
+                  setEditing(false);
+                }
+              }}
+            />
+            <div className="msgeditact">
+              <button type="button" className="btn sm" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn sm solid" onClick={saveEdit} disabled={!draft.trim()}>
+                <Check size={13} strokeWidth={2.2} aria-hidden /> Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          m.body && <p>{m.body}</p>
+        )}
         {task && (
           <Link className="lk" style={{ marginTop: 7, display: 'inline-block' }} to={`/task/${task.id}`}>
             {task.id} · {task.title}
@@ -221,38 +291,106 @@ function Bubble({
             )}
           </div>
         )}
-        <div className="msgact">
-          <button
-            type="button"
-            aria-expanded={actionsOpen}
-            aria-label="Message actions"
-            onClick={() => setActionsOpen((value) => !value)}
-          >
-            <MoreHorizontal size={14} strokeWidth={2} aria-hidden /> Actions
-          </button>
-          {actionsOpen && (
-            <div className="msgmenu">
-              <button
-                type="button"
-                onClick={() => {
-                  onReply(m);
-                  setActionsOpen(false);
-                }}
-              >
-                <CornerUpLeft size={14} strokeWidth={1.9} aria-hidden /> Reply
-              </button>
-              {!m.promoted_to_type && (
-                <>
-                  <button type="button" onClick={() => onPromote(m, 'task')}>Turn into task</button>
-                  <button type="button" onClick={() => onPromote(m, 'note')}>Turn into scribble</button>
-                  <button type="button" onClick={() => onPromote(m, 'decision')}>Turn into decision</button>
-                </>
-              )}
-            </div>
-          )}
+        {!editing && (
+          <div className="msgact">
+            <button
+              type="button"
+              aria-expanded={actionsOpen}
+              aria-label="Message actions"
+              onClick={() => setActionsOpen((value) => !value)}
+            >
+              <MoreHorizontal size={14} strokeWidth={2} aria-hidden /> Actions
+            </button>
+            {mine && <DeleteBtn onConfirm={deleteMessage} label="this message" />}
+            {actionsOpen && (
+              <div className="msgmenu">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onReply(m);
+                    setActionsOpen(false);
+                  }}
+                >
+                  <CornerUpLeft size={14} strokeWidth={1.9} aria-hidden /> Reply
+                </button>
+                {editable && (
+                  <button type="button" onClick={startEdit}>
+                    <Pencil size={13} strokeWidth={1.9} aria-hidden /> Edit
+                  </button>
+                )}
+                {!m.promoted_to_type && (
+                  <>
+                    <button type="button" onClick={() => onPromote(m, 'task')}>Turn into task</button>
+                    <button type="button" onClick={() => onPromote(m, 'note')}>Turn into scribble</button>
+                    <button type="button" onClick={() => onPromote(m, 'decision')}>Turn into decision</button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+        )}
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * Clear the whole conversation.
+ *
+ * Every row still goes through `removeMany`, the same path a single delete
+ * takes, so nothing here is a special "forever" delete — it lands in Trash
+ * exactly like one message would, and Admin → Data restores the lot the same
+ * way. The confirm is a Modal rather than the two-step arm DeleteBtn uses,
+ * because "sure?" undersells wiping a whole thread; a name-the-consequence
+ * dialog is the more honest shape for something this size.
+ */
+function ClearChatButton() {
+  const store = useStore();
+  const toast = useToast();
+  const messages = useData((ds) => ds.messages);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const run = () => {
+    setBusy(true);
+    const n = store.removeMany(
+      'messages',
+      messages.map((m) => m.id),
+      store.asMe({ summary: 'Conversation cleared' }),
+    );
+    setBusy(false);
+    setOpen(false);
+    toast(n ? `Cleared ${n} message${n === 1 ? '' : 's'} — recoverable from Admin → Data → Trash` : 'Already empty');
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="picon clearchat"
+        aria-label="Clear the whole conversation"
+        title="Clear chat"
+        disabled={messages.length === 0}
+        onClick={() => setOpen(true)}
+      >
+        <Trash2 size={15} strokeWidth={1.8} aria-hidden />
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Clear this conversation?">
+        <p className="tip" style={{ margin: '-4px 0 14px' }}>
+          Every message in the Us thread — {messages.length} of them — moves to Trash. Photos and
+          songs go with them. Anything already turned into a task, scribble or decision stays
+          exactly where it landed. Recoverable from Admin → Data → Trash until it is emptied there.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" className="btn sm" onClick={() => setOpen(false)}>
+            Cancel
+          </button>
+          <button type="button" className="btn sm solid" onClick={run} disabled={busy}>
+            Clear conversation
+          </button>
+        </div>
+      </Modal>
+    </>
   );
 }
 
@@ -320,6 +458,8 @@ function ChatColumn({
           </div>
           <div className="presence">Just the two of you</div>
         </div>
+        <span className="spacer" />
+        <ClearChatButton />
       </div>
 
       <div

@@ -710,33 +710,7 @@
   transform: rotate(42deg) translate(-1px, -1px);
 }
 
-/* ── icon buttons: move + delete ───────────────────────────────────────── */
-.personal-screen .picon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  color: var(--mute);
-  transition: color 0.16s, background 0.16s;
-}
-.personal-screen .picon:hover:not(:disabled),
-.personal-screen .picon:focus-visible {
-  color: var(--ink);
-  background: var(--surf3);
-}
-.personal-screen .picon:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-.personal-screen .picon.armed {
-  width: auto;
-  padding: 0 9px;
-  font-size: 10px;
-  color: var(--rose);
-  background: var(--rose-s);
-}
+/* ── icon buttons: move ────────────────────────────────────────────────── */
 .personal-screen .pmove {
   display: flex;
   gap: 2px;
