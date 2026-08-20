@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronUp, Paperclip } from 'lucide-react';
 import type { AppStore } from '../../data/store';
 import type { FixedDate, LifeAdminItem, TimeLog } from '../../types';
 import { newId, nowIso, today, useData, useStore } from '../../data/store';
 import { personalProjectIds } from '../../data/projects';
 import { CountUp, DeleteBtn, TagChip, useToast } from '../../ui/bits';
-import { staggerItem, staggerParent } from '../../ui/motion';
+import { entrance, micro, staggerItem, staggerParent } from '../../ui/motion';
+import { Attachments } from '../../ui/attachments';
 import { daysUntil, fmtDay } from '../../lib/dates';
 import { BarRows, HeatStrip, Ring, Sparkline, SplitBar as VizSplit, VIZ } from '../../ui/viz';
 import { activeBlockFor, startBlock } from '../../lib/blocks';
@@ -799,6 +800,9 @@ export function FixedDates() {
   const [label, setLabel] = useState('');
   const [date, setDate] = useState('');
   const [category, setCategory] = useState('relocation');
+  /* One row's paperwork at a time. A permanently-open file panel on every
+     date would bury the dates themselves, which are the point of the widget. */
+  const [filesFor, setFilesFor] = useState<string | null>(null);
 
   const sorted = useMemo(() => [...ds.fixed_dates].sort((a, b) => a.date.localeCompare(b.date)), [ds.fixed_dates]);
   const upcoming = useMemo(() => sorted.filter((f) => daysUntil(f.date) >= 0), [sorted]);
@@ -809,6 +813,16 @@ export function FixedDates() {
     () => upcoming.slice(0, 6).map((f) => ({ label: f.label, value: Math.max(daysUntil(f.date), 0.4) })),
     [upcoming],
   );
+
+  /** How many files each date carries, so the paperclip can say so. */
+  const fileCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of ds.attachments) {
+      if (a.entity_type !== 'fixed_date') continue;
+      map.set(a.entity_id, (map.get(a.entity_id) ?? 0) + 1);
+    }
+    return map;
+  }, [ds.attachments]);
   const barMax = Math.max(HORIZON, ...bars.map((b) => b.value));
 
   const add = () => {
@@ -886,6 +900,16 @@ export function FixedDates() {
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                className={`btn sm${filesFor === f.id ? ' solid' : ''}`}
+                aria-expanded={filesFor === f.id}
+                aria-label={`Files for ${f.label}`}
+                onClick={() => setFilesFor((open) => (open === f.id ? null : f.id))}
+              >
+                <Paperclip size={13} strokeWidth={2} aria-hidden />
+                {fileCounts.get(f.id) ? ` ${fileCounts.get(f.id)}` : ''}
+              </button>
               <DeleteBtn
                 label={f.label}
                 onConfirm={() => {
@@ -893,6 +917,24 @@ export function FixedDates() {
                   toast('Removed');
                 }}
               />
+              {/* The appointment letter, the boarding pass, the stamped visa —
+                  attached to the date they belong to rather than to an inbox. */}
+              <AnimatePresence>
+                {filesFor === f.id && (
+                  <motion.div
+                    className="pfixed-files"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto', transition: entrance }}
+                    exit={{ opacity: 0, height: 0, transition: micro }}
+                  >
+                    <Attachments
+                      entityType="fixed_date"
+                      entityId={f.id}
+                      hint="The appointment letter, the booking, the stamped page."
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           );
         })}

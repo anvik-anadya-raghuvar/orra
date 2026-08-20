@@ -1,0 +1,218 @@
+/* ── files on anything ────────────────────────────────────────────────────
+   Mobile-first: one row per file, stacked, everything that does something at
+   44px. It widens into a three-column row — kind, body, actions — once there
+   is room for one. Container-relative, not viewport-relative, because this
+   panel sits inside a side sheet on one screen and a full task page on the
+   next and has to be right in both. */
+.att {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--rl, 14px);
+  background: var(--surf2, var(--surf));
+  transition:
+    border-color 0.16s var(--ease),
+    background 0.16s var(--ease);
+}
+/* Dragging a file over it. The whole panel is the target, not a small strip. */
+.att.att-over {
+  border-color: var(--indigo);
+  border-style: solid;
+  background: color-mix(in srgb, var(--indigo) 7%, var(--surf2, var(--surf)));
+}
+
+.att-hd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--mute);
+}
+.att-count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surf3);
+  color: var(--slate);
+  font-size: 10.5px;
+}
+.att-add {
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.att-empty {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.att-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.att-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+}
+/* The actions wrap under the name on a phone rather than squeezing the
+   filename into three characters. */
+.att-acts {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+@media (min-width: 560px) {
+  .att-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .att-acts {
+    grid-column: auto;
+    align-self: center;
+  }
+}
+
+/* The format, as a word. Colour carries a hint of what it is, but the word is
+   the reading — never colour alone. */
+.att-kind {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  padding: 4px 6px;
+  border-radius: 7px;
+  background: var(--surf3);
+  color: var(--slate);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+}
+.att-kind.k-pdf {
+  background: color-mix(in srgb, var(--rose) 16%, transparent);
+  color: var(--rose);
+}
+.att-kind.k-sheet,
+.att-kind.k-csv {
+  background: color-mix(in srgb, var(--teal) 16%, transparent);
+  color: var(--teal);
+}
+.att-kind.k-doc,
+.att-kind.k-text {
+  background: color-mix(in srgb, var(--indigo) 15%, transparent);
+  color: var(--indigo);
+}
+.att-kind.k-image,
+.att-kind.k-slides {
+  background: color-mix(in srgb, var(--violet) 16%, transparent);
+  color: var(--violet);
+}
+
+.att-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.att-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.att-meta {
+  color: var(--mute);
+  font-size: 10.5px;
+}
+.att-caption {
+  margin-top: 2px;
+  padding: 5px 7px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: var(--slate);
+  font: inherit;
+  font-size: 11.5px;
+}
+.att-caption:hover {
+  border-color: var(--line);
+}
+.att-caption:focus {
+  outline: none;
+  border-color: var(--indigo);
+  background: var(--surf);
+}
+
+.att-gone {
+  color: var(--rose);
+  font-size: 10.5px;
+}
+
+/* Loading is a skeleton in the shape of the thing, never a spinner. */
+.att-skel {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--surf3) 25%,
+    color-mix(in srgb, var(--line) 60%, var(--surf3)) 50%,
+    var(--surf3) 75%
+  );
+  background-size: 200% 100%;
+  animation: att-shimmer 1.3s linear infinite;
+}
+.att-skel.block {
+  width: 100%;
+  height: 40px;
+}
+.att-loading {
+  grid-template-columns: minmax(0, 1fr);
+}
+@keyframes att-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Touch: every control that does something is 44px on phones and tablets.
+   Scoped through `.att` rather than written flat, because the rooms this panel
+   drops into carry their own `input` sizing at these widths — the task page's
+   40px was winning on specificity and leaving the caption field a pixel short
+   of the rule. */
+@media (max-width: 1024px) {
+  .att .att-add,
+  .att .att-acts .btn,
+  .att .att-acts a.btn,
+  .att .att-caption {
+    min-height: 44px;
+  }
+  .att .att-add,
+  .att .att-acts .btn,
+  .att .att-acts a.btn {
+    min-width: 44px;
+  }
+}
+
+/* Not optional — the shimmer and the panel's own transitions both stop. */
+@media (prefers-reduced-motion: reduce) {
+  .att,
+  .att-caption {
+    transition: none;
+  }
+  .att-skel {
+    animation: none;
+  }
+}

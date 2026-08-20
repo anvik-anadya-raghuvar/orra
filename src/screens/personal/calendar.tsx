@@ -76,7 +76,7 @@ export function CalendarGlance() {
       <div className="pgl-hd">
         <h3>Calendar</h3>
       </div>
-      <MonthCalendar items={items} upcoming={2} readOnly emptyText="Nothing dated coming up." />
+      <MonthCalendar items={items} upcoming={2} readOnly fit emptyText="Nothing dated coming up." />
     </div>
   );
 }

@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { Task, TaskLinkType, TaskPriority, TaskStatus } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { SideSheet, TagChip, useToast } from '../../ui/bits';
+import { DraftRestored, SideSheet, TagChip, useToast } from '../../ui/bits';
+import { useFormDraft } from '../../ui/useFormDraft';
 import { micro } from '../../ui/motion';
 import { notifyAssignment } from '../../lib/handoff';
 import { wouldCycle } from '../../lib/schedule';
@@ -95,8 +96,37 @@ export default function QuickEdit({
       .slice(0, LINK_PICK_LIMIT);
   }, [ds.tasks, live, linkQuery]);
 
+  /* An edit you never saved is still work. Keyed on the task, so each card
+     keeps its own unsaved state, and cleared the moment Save or Delete makes
+     it real. */
+  const draft = useFormDraft(
+    task ? `work:quickedit:${task.id}` : null,
+    { title, description, priority, status, assignee, due, sprintId },
+    (d) => {
+      if (d.title !== undefined) setTitle(d.title);
+      if (d.description !== undefined) setDescription(d.description);
+      if (d.priority !== undefined) setPriority(d.priority);
+      if (d.status !== undefined) setStatus(d.status);
+      if (d.assignee !== undefined) setAssignee(d.assignee);
+      if (d.due !== undefined) setDue(d.due);
+      if (d.sprintId !== undefined) setSprintId(d.sprintId);
+    },
+  );
+
   if (!live) return null;
   const hasInlineImages = inlineImageIds(live.description).length > 0;
+
+  /* Back to the row as it actually stands, forgetting the unsaved edit. */
+  const startBlank = () => {
+    setTitle(live.title);
+    setDescription(stripInlineImageMarkers(live.description));
+    setPriority(live.priority);
+    setStatus(live.status);
+    setAssignee(live.assignee_id ?? '');
+    setDue(live.due_date ?? '');
+    setSprintId(live.sprint_id ?? '');
+    draft.clear();
+  };
 
   const save = () => {
     const clean = title.trim() || live.title;
@@ -111,6 +141,7 @@ export default function QuickEdit({
     if ((assignee || null) !== live.assignee_id) patch.assignee_id = assignee || null;
     if ((due || null) !== live.due_date) patch.due_date = due || null;
     if ((sprintId || null) !== live.sprint_id) patch.sprint_id = sprintId || null;
+    draft.clear();
     if (Object.keys(patch).length === 0) {
       onClose();
       return;
@@ -212,6 +243,7 @@ export default function QuickEdit({
     if (!window.confirm(`Delete ${live.id} — "${live.title}"? It moves to Trash and can be restored from Admin → Data.`))
       return;
     store.remove('tasks', live.id, store.asMe({ summary: `Task deleted — ${live.title}` }));
+    draft.clear();
     toast(`${live.id} deleted`);
     onClose();
   };
@@ -240,6 +272,7 @@ export default function QuickEdit({
         </>
       }
     >
+      {draft.restored && <DraftRestored onDiscard={startBlank} />}
       <Field label="Title">
         <input
           className="wk-in"

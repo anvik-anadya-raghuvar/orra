@@ -4,7 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import type { DayEvent, Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
-import { Avatar, SideSheet, TagChip, useToast } from '../../ui/bits';
+import { Avatar, DraftRestored, SideSheet, TagChip, useToast } from '../../ui/bits';
+import { useFormDraft } from '../../ui/useFormDraft';
 import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
@@ -1283,6 +1284,35 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [effort, setEffort] = useState<Effort>('medium');
   const [estimate, setEstimate] = useState(45);
 
+  /* Everything typed here survives closing the sheet and reloading the tab.
+     Screenshots and pins are deliberately left out: they are megabytes of
+     base64 apiece and would blow the localStorage quota on the second one. */
+  const draft = useFormDraft(
+    open ? 'work:new-task' : null,
+    { title, description, projectId, type, priority, assignee, due, tagText, effort, estimate },
+    (d) => {
+      if (d.title !== undefined) setTitle(d.title);
+      if (d.description !== undefined) setDescription(d.description);
+      if (d.projectId !== undefined) setProjectId(d.projectId);
+      if (d.type !== undefined) setType(d.type);
+      if (d.priority !== undefined) setPriority(d.priority);
+      if (d.assignee !== undefined) setAssignee(d.assignee);
+      if (d.due !== undefined) setDue(d.due);
+      if (d.tagText !== undefined) setTagText(d.tagText);
+      if (d.effort !== undefined) setEffort(d.effort);
+      if (d.estimate !== undefined) setEstimate(d.estimate);
+    },
+  );
+
+  const startBlank = () => {
+    setTitle('');
+    setDescription('');
+    setType('');
+    setTagText('');
+    setDecisionIds([]);
+    draft.clear();
+  };
+
   const submit = () => {
     const clean = title.trim();
     if (!clean) {
@@ -1387,6 +1417,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
         ? `${id} created with ${shots.length} screenshot${shots.length === 1 ? '' : 's'} and ${pins.length} pin${pins.length === 1 ? '' : 's'}`
         : `${id} created`,
     );
+    draft.clear();
     setTitle('');
     setDescription('');
     setTagText('');
@@ -1417,6 +1448,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       }
     >
       <div ref={sheetRef}>
+      {draft.restored && <DraftRestored onDiscard={startBlank} />}
       <Field label="Title">
         <input
           className="wk-in"

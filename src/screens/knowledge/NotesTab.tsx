@@ -1,7 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
-import { SideSheet, TagChip, useToast } from '../../ui/bits';
+import { DraftRestored, SideSheet, TagChip, useToast } from '../../ui/bits';
+import { Attachments } from '../../ui/attachments';
+import { useFormDraft } from '../../ui/useFormDraft';
 import { ProjectCombo } from '../../ui/pickers';
 import {
   ImageDrop,
@@ -358,6 +360,20 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   const [checklist, setChecklist] = useState<ChecklistItem[]>(existing?.checklist ?? []);
   const [itemDraft, setItemDraft] = useState('');
   const [images, setImages] = useState<AttachedImage[]>(existingImages);
+  /**
+   * The id this scribble will have, decided before it exists.
+   *
+   * A file has to attach to something, and "save the note first, then come
+   * back for the PDF" is exactly the round trip that stopped documents ever
+   * being kept here. So the id is minted up front and the attachment rows
+   * point at it immediately; `save` then uses the same one. If files were
+   * attached and the sheet is closed without saving, the note is written
+   * anyway (see `close` below) rather than leaving them pointing at nothing.
+   */
+  const [draftId] = useState(() => noteId ?? newId('n'));
+  const fileCount = useData(
+    (ds) => ds.attachments.filter((a) => a.entity_type === 'note' && a.entity_id === draftId).length,
+  );
   const [imgBusy, setImgBusy] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const caretRef = useRef(body.length);
@@ -440,6 +456,35 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     setChecklist(checklist.map((c, idx) => (idx === i ? { ...c, done: !c.done } : c)));
   };
 
+  /* Images stay out of the draft on purpose — they are compressed base64 and
+     would fill the storage quota; everything written stays. */
+  const draft = useFormDraft(
+    `knowledge:note:${noteId ?? 'new'}`,
+    { title, body, type, projectId, taskId, tags, pinned, checklist },
+    (d) => {
+      if (d.title !== undefined) setTitle(d.title);
+      if (d.body !== undefined) setBody(d.body);
+      if (d.type !== undefined) setType(d.type);
+      if (d.projectId !== undefined) setProjectId(d.projectId);
+      if (d.taskId !== undefined) setTaskId(d.taskId);
+      if (d.tags !== undefined) setTags(d.tags);
+      if (d.pinned !== undefined) setPinned(d.pinned);
+      if (d.checklist !== undefined) setChecklist(d.checklist);
+    },
+  );
+
+  const startBlank = () => {
+    setTitle(existing?.title ?? '');
+    setBody(appendMissingInlineImages(existing?.body ?? '', existingImages.map((i) => i.id)));
+    setType(existing?.type ?? 'plain');
+    setProjectId(existing?.project_id ?? projects[0]?.id ?? '');
+    setTaskId(existing?.task_id ?? '');
+    setTags(existing?.tags ?? []);
+    setPinned(existing?.is_pinned ?? false);
+    setChecklist(existing?.checklist ?? []);
+    draft.clear();
+  };
+
   const save = () => {
     const t = title.trim() || 'Untitled';
     /* notes.project_id is NOT NULL — with no projects yet, the field starts
@@ -470,7 +515,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       store.insert(
         'notes',
         {
-          id: newId('n'),
+          id: draftId,
           title: t,
           body,
           type,
@@ -490,13 +535,28 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       );
       toast('Note created');
     }
+    draft.clear();
     onClose();
+  };
+
+  /**
+   * Closing without saving.
+   *
+   * A file attached to a scribble that was never written would be a row
+   * pointing at nothing — invisible, undeletable, and exactly the "I put it
+   * somewhere and it's gone" this whole change is against. So if anything was
+   * attached, the scribble is written on the way out.
+   */
+  const close = () => {
+    if (!existing && fileCount > 0 && projectId) save();
+    else onClose();
   };
 
   const remove = () => {
     if (!existing) return;
     if (!window.confirm(`Delete "${existing.title || 'this scribble'}"? This cannot be undone.`)) return;
     store.remove('notes', existing.id, store.asMe({ summary: `Scribble deleted — ${existing.title}` }));
+    draft.clear();
     toast('Scribble deleted');
     onClose();
   };
@@ -504,7 +564,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   return (
     <SideSheet
       open
-      onClose={onClose}
+      onClose={close}
       title={existing ? 'Edit scribble' : 'New scribble'}
       subtitle="Paste a screenshot straight in with Ctrl+V — it is compressed in the browser."
       footer={
@@ -529,6 +589,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       }
     >
       <div ref={sheetRef}>
+      {draft.restored && <DraftRestored onDiscard={startBlank} />}
       <DictateField label="Dictate the title">
         <input
           type="text"
@@ -671,6 +732,15 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       >
         {pinned ? 'Pinned' : 'Pin this scribble'}
       </button>
+
+      {/* Pasted screenshots go inline above, because they are part of what the
+          scribble says. This is for the things it merely refers to — the PDF
+          that was emailed, the spreadsheet the figures came from. */}
+      <Attachments
+        entityType="note"
+        entityId={draftId}
+        hint="The PDF, the spreadsheet, the scan this scribble is about."
+      />
 
       </div>
     </SideSheet>

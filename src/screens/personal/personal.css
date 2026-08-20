@@ -1530,3 +1530,16 @@
     scroll-behavior: auto;
   }
 }
+
+/* A fixed date's paperwork, revealed under its row. Full width of the row, so
+   the file list is not squeezed into the last grid column. */
+.personal-screen .pfixed-files {
+  /* The row is a wrapping flexbox, so "the whole next line" is a 100% basis
+     rather than a grid span. */
+  flex: 1 0 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.personal-screen .pfixed-files > .att {
+  margin-top: 8px;
+}

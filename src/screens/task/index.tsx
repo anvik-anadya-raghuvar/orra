@@ -13,6 +13,7 @@ import { PRIORITIES, STATUSES } from '../work/common';
 import { ProjectCombo, TypeCombo } from '../../ui/pickers';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
+import { Attachments } from '../../ui/attachments';
 import Timeline from './Timeline';
 import type { Task, TaskPriority, TaskStatus } from '../../types';
 import { DictateField } from '../../ui/dictation';
@@ -520,6 +521,19 @@ function TaskDetail({ task }: { task: Task }) {
                   </div>
                 </div>
               )}
+
+              {/* Screenshots above are evidence inside the brief and carry
+                  pins; this is the general case — the spec PDF, the client's
+                  spreadsheet, the signed scope. Attaching one saves it there
+                  and then, with no separate Save. */}
+              <section aria-label="Files on this task">
+                <h3>Files</h3>
+                <Attachments
+                  entityType="task"
+                  entityId={task.id}
+                  hint="The brief, the spreadsheet, the signed scope — anything this task needs to be worked from."
+                />
+              </section>
 
               {task.type !== 'ops' && (
                 <section>

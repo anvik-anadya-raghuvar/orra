@@ -13,6 +13,7 @@ const TABLE: Record<CollectionKey, string> = {
   subtasks: 'subtasks',
   comments: 'comments',
   screenshot_attachments: 'screenshot_attachments',
+  attachments: 'attachments',
   annotation_pins: 'annotation_pins',
   decisions: 'decisions',
   notes: 'notes',

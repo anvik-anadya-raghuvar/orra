@@ -106,6 +106,13 @@ export interface Personalization {
     name?: string;
     /** Cursor-chasing, opt-in, fine pointers only. Absent = docked. */
     follow?: boolean;
+    /**
+     * His own accent color — outline, body, face — as one of the app's six
+     * token names. Absent means the default (indigo, whatever that resolves
+     * to in the current theme). Deliberately just his identity color: the
+     * house and the mood window stay neutral, since those are not "him".
+     */
+    color?: 'indigo' | 'teal' | 'rose' | 'stamp' | 'sky' | 'violet';
     /** Does he start things himself. Absent = yes; false is "calm down". */
     playful?: boolean;
     /**
@@ -326,6 +333,49 @@ export interface ScreenshotAttachment {
   created_at: string;
   /** mock adapter only: data URL for local preview */
   data_url?: string;
+}
+
+/**
+ * What a file can hang off.
+ *
+ * Polymorphic rather than a column per parent, because "where can I attach a
+ * document" has to answer "wherever you are" — a visa letter on a fixed date,
+ * a signed contract on a decision, a fee statement on a ledger entry, the
+ * spreadsheet a number came out of on the task that used it.
+ */
+export type AttachmentParent =
+  | 'task'
+  | 'note'
+  | 'page'
+  | 'decision'
+  | 'person'
+  | 'ledger_entry'
+  | 'personal_order'
+  | 'document'
+  | 'course'
+  | 'fixed_date'
+  | 'life_admin_item';
+
+/**
+ * A file kept against something — a PDF, a spreadsheet, a document, a zip.
+ *
+ * Distinct from ScreenshotAttachment on purpose. A screenshot is evidence
+ * inside a code-change task, is compressed in the browser, and carries pins.
+ * This is the general case: arbitrary bytes in the private `files` bucket,
+ * with only the reference in Postgres.
+ */
+export interface Attachment {
+  id: string;
+  entity_type: AttachmentParent;
+  entity_id: string;
+  filename: string;
+  mime: string;
+  bytes: number;
+  /** Path inside the private `files` bucket — or, in mock mode, a data URL. */
+  storage_path: string;
+  caption: string | null;
+  uploaded_by: UserId;
+  created_at: string;
 }
 
 /** What kind of change a pin is asking for. Free-form on purpose — these are
@@ -1000,6 +1050,7 @@ export interface Dataset {
   subtasks: Subtask[];
   comments: Comment[];
   screenshot_attachments: ScreenshotAttachment[];
+  attachments: Attachment[];
   annotation_pins: AnnotationPin[];
   decisions: Decision[];
   notes: Note[];

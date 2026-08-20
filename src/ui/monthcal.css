@@ -211,3 +211,44 @@ a.mcal-row:focus-visible {
     align-items: center;
   }
 }
+
+/* ── fit mode: the month fills its box instead of asking for a square ──────
+   A day cell is `aspect-ratio: 1 / 1` by default, which is right in a narrow
+   tile and catastrophic in a wide one: at four columns across, a cell is
+   ~250px wide and therefore ~250px tall, six week rows come to over 1500px,
+   and the tile — which clips on purpose, so that a glance can never scroll —
+   showed the first two weeks and swallowed the rest of August.
+
+   In fit mode the calendar becomes a three-track column that is exactly as
+   tall as the box it was handed: the bar and the upcoming list take what they
+   need, the month takes everything left over, and its six week rows divide
+   that between them. `minmax(0, 1fr)` on both axes is what lets a row shrink
+   below its content instead of overflowing, and dropping the aspect ratio is
+   what stops a wide cell demanding to be tall. The result is a wide, short
+   cell on a wide tile and a near-square one on a phone — a real month either
+   way, and never a clipped one. */
+.mcal.fit {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  /* Both hosts are column flexboxes (Personal's `.pgl`, Home's `.bt-mid`), so
+     claiming the leftover space has to be said in flex terms as well as in
+     `height` — otherwise the calendar sizes to its content and the `1fr` row
+     it just asked for has nothing to divide. */
+  flex: 1 1 auto;
+}
+.mcal.fit .mcal-grid {
+  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+  min-height: 0;
+  align-content: stretch;
+}
+.mcal.fit .mcal-day {
+  aspect-ratio: auto;
+  min-height: 0;
+  /* The number is the reading; the dots are the extra. When a row gets tight
+     the dots are what gives, rather than the day disappearing entirely. */
+  overflow: hidden;
+}
+.mcal.fit .mcal-dots {
+  min-height: 0;
+}

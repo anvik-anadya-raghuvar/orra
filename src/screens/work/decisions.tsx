@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import type { Decision } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Avatar, Modal, SideSheet, useToast } from '../../ui/bits';
+import { Attachments } from '../../ui/attachments';
 import { ProjectCombo } from '../../ui/pickers';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysSinceTs, fmtDateTime } from '../../lib/dates';
@@ -326,6 +327,11 @@ function DecisionTaskLinks({ decision, onManage }: { decision: Decision; onManag
   const tasks = (decision.task_ids ?? [])
     .map((id) => ds.tasks.find((task) => task.id === id))
     .filter(Boolean);
+  /* Surfaced on the card, not just inside the sheet: a decision with the
+     contract attached to it should say so where the decision is read. */
+  const files = ds.attachments.filter(
+    (a) => a.entity_type === 'decision' && a.entity_id === decision.id,
+  ).length;
   return (
     <div className="wk-decision-links">
       {tasks.map((task) => task && (
@@ -334,7 +340,8 @@ function DecisionTaskLinks({ decision, onManage }: { decision: Decision; onManag
         </Link>
       ))}
       <button type="button" className="btn sm" onClick={onManage}>
-        {tasks.length ? 'Change linked tasks' : 'Link tasks'}
+        {tasks.length || files ? 'Tasks and files' : 'Link tasks or files'}
+        {files ? ` · ${files}` : ''}
       </button>
     </div>
   );
@@ -366,7 +373,7 @@ function DecisionTasksSheet({ decision, onClose }: { decision: Decision | null; 
     <SideSheet
       open
       onClose={onClose}
-      title="Linked tasks"
+      title="Tasks and files"
       subtitle={live.question}
       footer={<button type="button" className="btn solid" onClick={onClose}>Done</button>}
     >
@@ -384,6 +391,15 @@ function DecisionTasksSheet({ decision, onClose }: { decision: Decision | null; 
             <span><b className="mono">{task.id}</b> {task.title}</span>
           </label>
         ))}
+      </div>
+      {/* The evidence the ruling rests on — the quote, the contract, the
+          comparison sheet — kept with the decision rather than in an inbox. */}
+      <div style={{ marginTop: 14 }}>
+        <Attachments
+          entityType="decision"
+          entityId={live.id}
+          hint="The quote, the contract, the comparison this was decided on."
+        />
       </div>
     </SideSheet>
   );

@@ -8,6 +8,7 @@ import { fmtDateTime } from '../../lib/dates';
 import { processImages, useImagePaste } from '../../ui/imagedrop';
 import type { Page, PageBlock, PageRevision, PageSnapshot } from '../../types';
 import { BlockRow, blockText, isListy, isTexty, makeBlock } from './WikiBlocks';
+import { Attachments } from '../../ui/attachments';
 import {
   duplicateBlocks,
   isBlockHidden,
@@ -400,6 +401,12 @@ export default function WikiPage({
 
     <button type="button" className="wk-addblock" onClick={() => insertAfter(blocks.length - 1, undefined, undefined, true)}>+ Add a block</button>
     {headings.length >= 2 && <nav className="wk-floating-toc" aria-label="Page contents">{headings.map((heading) => <a key={heading.id} href={`#wk-heading-${heading.id}`}>{heading.text}</a>)}</nav>}
+    {/* Blocks hold what the page says; this holds what it is built on — the
+        contract, the spec, the export someone sent. Attaching one writes the
+        row immediately, like every other change on this page. */}
+    <section className="wk-files" aria-label="Files on this page">
+      <Attachments entityType="page" entityId={page.id} hint="Source documents this page is written from." />
+    </section>
     <PageComments pageId={page.id} target={commentTarget} onClearTarget={() => setCommentTarget(null)} />
   </div>;
 }

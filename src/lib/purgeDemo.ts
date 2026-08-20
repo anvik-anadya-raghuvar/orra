@@ -39,6 +39,10 @@ import type { CollectionKey, Dataset } from '../types';
 export const PURGE_ORDER: CollectionKey[] = [
   'annotation_pins',
   'screenshot_attachments',
+  /* Before every parent it can hang off — the row references a task, a note,
+     a page and so on by id, so it has to go first or it is left pointing at
+     something deleted. */
+  'attachments',
   'comments',
   'subtasks',
   'task_links',

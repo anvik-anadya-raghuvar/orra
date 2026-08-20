@@ -1040,6 +1040,7 @@ function CalendarTile() {
         <MonthCalendar
           items={items}
           upcoming={3}
+          fit
           openTo="/work"
           openLabel="Open the full calendar"
           emptyText="Nothing dated yet. Due dates, blocks and fixed dates all land here."

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId } from '../../data/store';
 import { ProgressBar, SideSheet, useToast } from '../../ui/bits';
+import { Attachments } from '../../ui/attachments';
 import { ProjectCombo } from '../../ui/pickers';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil } from '../../lib/dates';
@@ -470,6 +471,15 @@ function EditDocumentModal({ doc, onClose }: { doc: DocumentRef; onClose: () => 
         <span className="kn-lbl">Drive link</span>
         <input className="kn-in" value={url} onChange={(e) => setUrl(e.target.value)} />
       </label>
+      {/* A Drive link is a pointer at someone else's server. This is the copy
+          that is actually here — the scan of the permesso, the stamped lease —
+          and it survives the Drive account being disconnected. */}
+      <Attachments
+        entityType="document"
+        entityId={doc.id}
+        label="The document itself"
+        hint="The scan or PDF, kept here rather than only linked."
+      />
     </SideSheet>
   );
 }

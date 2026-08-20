@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LedgerEntry, LedgerPayerAllocation, Subscription } from '../../types';
 import { newId, today, useData, useStore } from '../../data/store';
 import { InfoTip, SideSheet, useToast } from '../../ui/bits';
+import { Attachments } from '../../ui/attachments';
 import { inr } from '../../lib/dates';
 import { myTasks } from '../../lib/workspace';
 import { DictateField } from '../../ui/dictation';
@@ -471,6 +472,23 @@ export default function EntryModal({
           </DictateField>
         </label>
       </div>
+      {/* The receipt itself. Only once the entry exists — a file has to hang
+          off a row, and inventing the row here would put an unsaved ledger
+          line in the books. */}
+      {entry ? (
+        <div style={{ marginTop: 14 }}>
+          <Attachments
+            entityType="ledger_entry"
+            entityId={entry.id}
+            label="Receipt"
+            hint="The invoice, the bank confirmation, the receipt PDF."
+          />
+        </div>
+      ) : (
+        <p className="tip" style={{ marginTop: 14 }}>
+          Save this entry, then reopen it to attach the invoice or receipt.
+        </p>
+      )}
     </SideSheet>
   );
 }

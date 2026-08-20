@@ -1410,3 +1410,9 @@
     border-left: 1px solid var(--line);
   }
 }
+
+/* Files on a page sit between the body and the comments — after what the page
+   says, before what people said about it. */
+.wk-files {
+  margin: 22px 0 6px;
+}

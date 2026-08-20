@@ -150,9 +150,27 @@ textarea::placeholder {
 /* Base theming for every native form control that doesn't opt into its own
    look. Without this, a bare <select> or <input> (no className, no inline
    style) renders with the OS's default white background and dark text —
-   invisible against Deep Field. Low specificity (tag selectors) on purpose:
-   any component's own class or inline style still wins. */
-input:not([type='button']):not([type='reset']):not([type='submit']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+   invisible against Deep Field. Low specificity on purpose: any component's
+   own class or inline style still wins.
+
+   The `:where()` is what makes that sentence true. Written as a bare chain of
+   `:not([type=…])` this selector counts as seven attribute selectors, which
+   beats any one- or two-class component rule — so a component that set its own
+   padding, background or min-height on an input silently lost to this, and the
+   44px mobile touch-target rule further down (`.frame input:not(…)`) never
+   applied to a single input in the app. `:where()` contributes no specificity,
+   leaving this at one tag selector, which is what it was always meant to be. */
+input:not(
+    :where(
+      [type='button'],
+      [type='reset'],
+      [type='submit'],
+      [type='checkbox'],
+      [type='radio'],
+      [type='range'],
+      [type='file']
+    )
+  ),
 select,
 textarea {
   background: var(--surf2);
@@ -175,7 +193,17 @@ select option {
   background: var(--surf2-solid);
   color: var(--ink);
 }
-input:not([type='button']):not([type='reset']):not([type='submit']):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+input:not(
+    :where(
+      [type='button'],
+      [type='reset'],
+      [type='submit'],
+      [type='checkbox'],
+      [type='radio'],
+      [type='range'],
+      [type='file']
+    )
+  ):focus,
 select:focus,
 textarea:focus {
   outline: 2px solid var(--indigo);
@@ -381,18 +409,25 @@ button {
   letter-spacing: normal;
 }
 .info-tip:hover,
-.info-tip:focus-visible {
+.info-tip:focus-visible,
+.info-tip.on {
   color: var(--indigo);
   border-color: color-mix(in srgb, var(--indigo) 45%, var(--line));
 }
+/* The bubble lives in `<body>`, not inside the icon — see InfoTip. `fixed`
+   with coordinates written by JS, because nothing in the layout it is anchored
+   to can be trusted not to clip it: tiles hide their overflow so a glance can
+   never scroll, and the sticky header creates its own stacking context. The
+   z-index is above every overlay mask for the same reason — a tip inside an
+   open side sheet still has to be readable. */
 .info-tip-bubble {
-  position: absolute;
-  z-index: 200;
-  left: 50%;
-  bottom: calc(100% + 8px);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1200;
   width: max-content;
   /* Never wider than the screen it has to fit inside, minus the margin the
-     nudge below keeps it clear of. */
+     placement keeps it clear of. */
   max-width: min(280px, calc(100vw - 20px));
   padding: 8px 10px;
   border: 1px solid var(--line);
@@ -408,21 +443,26 @@ button {
   white-space: normal;
   text-transform: none;
   letter-spacing: normal;
-  opacity: 0;
-  visibility: hidden;
   pointer-events: none;
-  /* `--nudge` is how far the bubble has to slide to stay on screen: the tip is
-     centred on its icon, and an icon near the right edge pushed the sentence
-     off the viewport and cut it in half. InfoTip measures and sets it. */
-  transform: translate(calc(-50% + var(--nudge, 0px)), 4px);
-  transition: opacity 0.14s, transform 0.14s, visibility 0.14s;
+  /* Laid out but invisible for the one frame it takes to measure it — the
+     placement needs a real width and height before it can centre or flip. */
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.14s var(--ease), transform 0.14s var(--ease);
 }
-.info-tip:hover .info-tip-bubble,
-.info-tip:focus .info-tip-bubble,
-.info-tip:focus-within .info-tip-bubble {
+.info-tip-bubble.placed {
   opacity: 1;
-  visibility: visible;
-  transform: translate(calc(-50% + var(--nudge, 0px)), 0);
+  transform: translateY(0);
+}
+/* Flipped below its icon, so the little rise comes from the other direction. */
+.info-tip-bubble.below:not(.placed) {
+  transform: translateY(-4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .info-tip-bubble {
+    transition: none;
+    transform: none;
+  }
 }
 .mono {
   font-family: 'IBM Plex Mono', monospace;
@@ -1399,4 +1439,34 @@ html[data-theme='dark'] {
    screen and a tall one does not shift the whole layout sideways. */
 html {
   scrollbar-gutter: stable;
+}
+
+/* ── restored-draft notice ─────────────────────────────────────────────────
+   Quiet, not alarming: nothing has gone wrong, something was saved. Sits at
+   the top of a composer, above the first field. */
+.draft-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -2px 0 12px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--indigo) 32%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--indigo) 8%, transparent);
+  color: var(--slate);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.draft-note span {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.draft-note .btn {
+  flex: 0 0 auto;
+}
+@media (max-width: 640px) {
+  .draft-note .btn {
+    min-height: 44px;
+  }
 }

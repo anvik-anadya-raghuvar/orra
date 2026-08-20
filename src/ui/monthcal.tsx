@@ -74,6 +74,7 @@ export function MonthCalendar({
   upcoming = 3,
   emptyText = 'Nothing on the calendar yet.',
   readOnly = false,
+  fit = false,
 }: {
   items: MonthItem[];
   /** Where "all of it" lives — the room this is a glance of. */
@@ -91,6 +92,18 @@ export function MonthCalendar({
    * the working version is one tap away.
    */
   readOnly?: boolean;
+  /**
+   * Make the month fill exactly the box it is given, however tall that is.
+   *
+   * A day cell used to be square, which is right in a narrow tile and wrong in
+   * a wide one: at four columns across a cell was ~250px tall, six of those
+   * rows came to well over a thousand pixels, and the tile — which clips, by
+   * design, so a glance can never scroll — simply cut the month off after the
+   * second week. In fit mode the six week rows share whatever height is left
+   * over instead of asking for a square, so the whole month is on screen at
+   * every tile size and nothing is ever hidden below the fold.
+   */
+  fit?: boolean;
 }) {
   const [offset, setOffset] = useState(0);
   const m = useMonthGrid(offset);
@@ -126,7 +139,7 @@ export function MonthCalendar({
   );
 
   return (
-    <div className="mcal">
+    <div className={`mcal${fit ? ' fit' : ''}`}>
       <div className={`mcal-bar${readOnly ? ' flat' : ''}`}>
         {!readOnly && (
           <button

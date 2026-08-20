@@ -1,4 +1,13 @@
-import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Info, Trash2, X } from 'lucide-react';
@@ -8,48 +17,141 @@ import { entrance, useAnimateIn } from './motion';
 /* ── Contextual help ─────────────────────────────────────────────────── */
 /** How much room to leave between the bubble and the edge of the screen. */
 const TIP_MARGIN = 10;
+/** Gap between the icon and the bubble. */
+const TIP_GAP = 8;
 
-/** Compact help that works with hover, keyboard focus, and a tap. */
+/**
+ * Compact help that works with hover, keyboard focus, and a tap.
+ *
+ * The bubble is portalled to `<body>` and positioned `fixed`, rather than
+ * being an absolutely-positioned child of the icon. It has to be: these tips
+ * sit inside tiles and headers that clip their overflow on purpose — a glance
+ * must never scroll — so a bubble drawn inside one was cut off at the tile's
+ * edge and, for a tip near the top of the page, cut off by the viewport too.
+ * That is the "message box is hidden" bug: the sentence was rendering, in a
+ * box nobody could see.
+ *
+ * Out in the body it cannot be clipped by anything, so the only remaining job
+ * is arithmetic: centre on the icon, flip below it when there is no room
+ * above, and clamp both edges into the viewport. Measured on open and re-run
+ * on scroll and resize, because the anchor moves.
+ */
 export function InfoTip({ text, label = 'More information' }: { text: string; label?: string }) {
   const id = useId();
-  const ref = useRef<HTMLSpanElement>(null);
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const bubbleRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; below: boolean } | null>(null);
 
-  /**
-   * Keep the bubble on screen.
-   *
-   * It is centred on its icon, which is fine in the middle of a header and
-   * wrong at either end of one — Money's tips hung ~50px off a 375px viewport
-   * and the sentence was cut in half. How far it overhangs depends on how long
-   * the text is and where the icon landed, so it is measured on open rather
-   * than guessed at. The bubble is laid out even while hidden (`visibility`,
-   * not `display`), so this can measure before it is ever shown.
-   */
-  const place = () => {
-    const bubble = ref.current?.querySelector<HTMLElement>('.info-tip-bubble');
-    if (!bubble) return;
-    bubble.style.setProperty('--nudge', '0px');
-    const r = bubble.getBoundingClientRect();
-    const over = r.right - (window.innerWidth - TIP_MARGIN);
-    const under = TIP_MARGIN - r.left;
-    const nudge = over > 0 ? -over : under > 0 ? under : 0;
-    if (nudge) bubble.style.setProperty('--nudge', `${Math.round(nudge)}px`);
-  };
+  const place = useCallback(() => {
+    const anchor = anchorRef.current;
+    const bubble = bubbleRef.current;
+    if (!anchor || !bubble) return;
+    const a = anchor.getBoundingClientRect();
+    const b = bubble.getBoundingClientRect();
+    // Above by default — it is what a tip beside a heading reads as — but only
+    // when the sentence genuinely fits there.
+    const below = a.top - TIP_GAP - b.height < TIP_MARGIN;
+    const top = below ? a.bottom + TIP_GAP : a.top - TIP_GAP - b.height;
+    const centred = a.left + a.width / 2 - b.width / 2;
+    const left = Math.max(
+      TIP_MARGIN,
+      Math.min(centred, window.innerWidth - TIP_MARGIN - b.width),
+    );
+    setPos({ top, left, below });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    place();
+  }, [open, place]);
+
+  useEffect(() => {
+    if (!open) return;
+    const on = () => place();
+    // Capture phase: the page scrolls the document element, but a tip can also
+    // sit inside a scrollable panel, and only a capturing listener hears both.
+    window.addEventListener('scroll', on, true);
+    window.addEventListener('resize', on);
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('scroll', on, true);
+      window.removeEventListener('resize', on);
+      window.removeEventListener('keydown', key);
+    };
+  }, [open, place]);
 
   return (
-    <span
-      ref={ref}
-      className="info-tip"
-      tabIndex={0}
-      aria-label={`${label}. ${text}`}
-      aria-describedby={id}
-      onPointerEnter={place}
-      onFocus={place}
-    >
-      <Info size={13} strokeWidth={2} aria-hidden />
-      <span className="info-tip-bubble" id={id} role="tooltip">
-        {text}
+    <>
+      <span
+        ref={anchorRef}
+        className={`info-tip${open ? ' on' : ''}`}
+        /* Focusable but deliberately not `role="button"`: these tips sit
+           inside headers and, on Personal, inside a tile that is itself one
+           big button, and a button inside a button is invalid. It announces
+           its whole sentence through `aria-label`, so a screen reader never
+           depends on opening it at all. */
+        tabIndex={0}
+        aria-label={`${label}. ${text}`}
+        aria-describedby={open ? id : undefined}
+        onPointerEnter={() => setOpen(true)}
+        onPointerLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        /* Tap toggles. A touch screen has no hover, and the pointerenter above
+           fires once on tap and then never leaves — so without this the bubble
+           would open and stick. */
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
+      >
+        <Info size={13} strokeWidth={2} aria-hidden />
       </span>
-    </span>
+      {open &&
+        createPortal(
+          <span
+            ref={bubbleRef}
+            className={`info-tip-bubble${pos ? ' placed' : ''}${pos?.below ? ' below' : ''}`}
+            id={id}
+            role="tooltip"
+            style={pos ? { top: pos.top, left: pos.left } : undefined}
+          >
+            {text}
+          </span>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+/* ── Restored draft notice ───────────────────────────────────────────────
+   Shown at the top of a composer that just put back what you had typed. It
+   says so out loud rather than silently refilling the fields, because a form
+   that fills itself in with no explanation reads as a bug — and it offers the
+   way out, since sometimes the answer is "no, I was starting again". */
+export function DraftRestored({ onDiscard }: { onDiscard: () => void }) {
+  return (
+    <div className="draft-note" role="status">
+      <span>
+        Picked up where you left off — this was still unsaved from last time.
+      </span>
+      <button type="button" className="btn sm" onClick={onDiscard}>
+        Start blank
+      </button>
+    </div>
   );
 }
 
