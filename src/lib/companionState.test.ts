@@ -11,6 +11,7 @@ const BASE: VikInputs = {
   dozing: false,
   momentMood: null,
   worldPose: null,
+  reactionPose: null,
   bandPose: null,
   speaking: false,
   quiet: false,
@@ -110,6 +111,17 @@ describe('the ladder', () => {
   it('never lets the world wake him — rain at 3am is still 3am', () => {
     const worldPose: VikPose = { expression: 'proud', body: 'hips' };
     expect(poseFor(at({ worldPose, quiet: true }))).toEqual(poseForMood('sleepy'));
+  });
+
+  it('lets what you are doing outrank both the day and his mood', () => {
+    const reactionPose: VikPose = { expression: 'thinking', body: 'think' };
+    const worldPose: VikPose = { expression: 'proud', body: 'hips' };
+    const bandPose: VikPose = { expression: 'cross', body: 'stand' };
+    expect(poseFor(at({ reactionPose, worldPose, bandPose }))).toEqual(reactionPose);
+    // But an announcement still beats it: he has something to tell you.
+    expect(poseFor(at({ reactionPose, momentMood: 'point' }))).toEqual(poseForMood('point'));
+    // And it does not wake him either.
+    expect(poseFor(at({ reactionPose, quiet: true }))).toEqual(poseForMood('sleepy'));
   });
 
   it('shows his mood only when the day has nothing to say', () => {

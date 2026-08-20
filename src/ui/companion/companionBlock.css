@@ -1,0 +1,23 @@
+/* Vik inside the focus overlay.
+
+   Non-interactive by construction, not by convention: pointer-events are off
+   on the whole layer, so nothing here can ever become a way to poke him during
+   a block. */
+.vik-block {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.vik-block-figure {
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .vik-block {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+}

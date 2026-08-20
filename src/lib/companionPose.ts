@@ -272,18 +272,63 @@ export const BODIES: Record<BodyPose, BodySpec> = {
  * compositor. `doze` is the odd one out: it is a held expression, not a
  * movement, so it has a duration but no keyframes.
  */
-export type Gesture = 'stretch' | 'tilt' | 'spin' | 'doze';
+export type Gesture =
+  | 'stretch'
+  | 'tilt'
+  | 'spin'
+  | 'doze'
+  // Earned: the top of the friendliness meter is the only place these exist.
+  | 'cartwheel'
+  | 'moonwalk'
+  // Everyday pottering.
+  | 'dust'
+  | 'pushup'
+  | 'trip'
+  | 'bounce';
 
 export interface GestureAnim {
   scaleY?: number[];
+  scale?: number[];
   rotate?: number[];
+  x?: number[];
+  y?: number[];
   transition: PoseTransition;
 }
 
+/**
+ * Every one of these is a transform on the wrapper rather than anything inside
+ * the SVG, so even the big ones stay on the compositor. All inside the 500ms
+ * budget, which the pose test enforces rather than trusting to review.
+ */
 export const GESTURE_ANIM: Record<Exclude<Gesture, 'doze'>, GestureAnim> = {
   stretch: { scaleY: [1, 1.07, 0.97, 1], transition: { duration: 0.5 } },
   tilt: { rotate: [0, -7, 7, 0], transition: { duration: 0.5 } },
   spin: { rotate: [0, 360], transition: { duration: 0.5 } },
+  /** Over and back, travelling as he goes. */
+  cartwheel: {
+    rotate: [0, -180, -360],
+    x: [0, -26, 0],
+    y: [0, -10, 0],
+    transition: { duration: 0.5, ease: 'easeInOut' },
+  },
+  /** Sliding backwards while leaning the wrong way, as one does. */
+  moonwalk: {
+    x: [0, -14, -30, -16, 0],
+    rotate: [0, 6, 8, 4, 0],
+    transition: { duration: 0.5, ease: 'easeInOut' },
+  },
+  /** Two quick dips. */
+  pushup: { y: [0, 7, 0, 7, 0], transition: { duration: 0.5 } },
+  /** A brisk shake, like brushing something off. */
+  dust: { rotate: [0, -5, 5, -3, 0], x: [0, 2, -2, 0], transition: { duration: 0.42 } },
+  /** Stumble and recover. */
+  trip: {
+    rotate: [0, -18, 6, 0],
+    y: [0, 5, -2, 0],
+    transition: { duration: 0.48, ease: 'easeOut' },
+  },
+  /** The smallest one: a nudge, for reacting to something you did elsewhere. */
+  bounce: { y: [0, -4, 0], transition: { duration: 0.22 } },
 };
 
 /** How long each gesture holds the slot before Vik is free again. */
@@ -292,10 +337,16 @@ export const GESTURE_MS: Record<Gesture, number> = {
   tilt: 550,
   spin: 550,
   doze: 2_200,
+  cartwheel: 560,
+  moonwalk: 560,
+  pushup: 560,
+  dust: 470,
+  trip: 530,
+  bounce: 260,
 };
 
 /** The gesture rests flat — reduced motion snaps here instead of animating. */
-export const GESTURE_REST = { rotate: 0, scaleY: 1 } as const;
+export const GESTURE_REST = { rotate: 0, scaleY: 1, x: 0, y: 0 } as const;
 
 /* ── The pair ─────────────────────────────────────────────────────────── */
 

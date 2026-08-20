@@ -13,6 +13,7 @@
  *   celebration a task crossing into done
  *   touch       a passive contact state — mid-pet, mid-drag
  *   moment      an announcement from the pure engine
+ *   reaction    something you are doing elsewhere in the portal
  *   antic       an idle gesture nobody asked for
  *   world       how the day is going — overdue work, a streak, rain
  *   band        how he feels about you — the friendliness meter's demeanour
@@ -34,6 +35,7 @@ export type ActivityKind =
   | 'celebration'
   | 'touch'
   | 'moment'
+  | 'reaction'
   | 'antic'
   | 'world'
   | 'band'
@@ -44,6 +46,7 @@ export const PRIORITY: Record<ActivityKind, number> = {
   celebration: 60,
   touch: 50,
   moment: 40,
+  reaction: 30,
   antic: 20,
   world: 15,
   band: 12,
@@ -67,6 +70,8 @@ export interface VikInputs {
   momentMood: RobotMood | null;
   /** How the day is going, if it is going in a way worth wearing. */
   worldPose: VikPose | null;
+  /** What you are doing elsewhere — typing, searching, dragging a card. */
+  reactionPose: VikPose | null;
   /**
    * How he feels about you. Sits below the world on purpose: what is happening
    * today is more use to you than his opinion of you, and his opinion is
@@ -93,6 +98,7 @@ export function claimsFor(i: VikInputs): Claim[] {
   else if (i.dragging) claims.push({ kind: 'touch', pose: poseForMood('excited') });
   if (i.momentMood) claims.push({ kind: 'moment', pose: poseForMood(i.momentMood) });
   if (i.dozing) claims.push({ kind: 'antic', pose: ASLEEP });
+  if (i.reactionPose && !i.quiet) claims.push({ kind: 'reaction', pose: i.reactionPose });
   // Neither the world nor his mood wakes him. Rain at 3am is still 3am.
   if (i.worldPose && !i.quiet) claims.push({ kind: 'world', pose: i.worldPose });
   if (i.bandPose && !i.quiet) claims.push({ kind: 'band', pose: i.bandPose });

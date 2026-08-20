@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { newId, useData, useStore } from '../data/store';
 import { useToast } from './bits';
+import BlockCompanion from './companion/BlockCompanion';
 import { entrance, micro } from './motion';
 import { todayIso } from '../lib/dates';
 import {
@@ -289,6 +290,15 @@ export default function BlockOverlay() {
             </button>
           </div>
         </div>
+
+        {/*
+          Vik stays unmounted from the normal companion layer during your own
+          block — a draggable, pokeable toy on top of a focus session would
+          breach the one rule he is built around. This is a second, silent one
+          instead: no pointer events, no bubble, no poke, no games, no xp. He
+          marches, and he tires.
+        */}
+        <BlockCompanion minutes={Math.floor(seconds / 60)} />
       </motion.div>
     </AnimatePresence>
   );

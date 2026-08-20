@@ -26,7 +26,7 @@ import {
   throwVector,
 } from '../../lib/companionLink';
 import { bandOf, glowFor } from '../../lib/companionMood';
-import { GESTURE_ANIM, GESTURE_REST } from '../../lib/companionPose';
+import { GESTURE_ANIM, GESTURE_REST, type VikPose } from '../../lib/companionPose';
 import { isBusy, isSleeping, poseFor, type VikInputs } from '../../lib/companionState';
 import { resolveOutfit } from '../../lib/companionWardrobe';
 import { readWorld, restingPose } from '../../lib/companionWorld';
@@ -40,6 +40,7 @@ import { useHideTarget } from './useHideTarget';
 import { useVikBounds } from './useVikBounds';
 import { useVikGame } from './useVikGame';
 import { useAppPresence } from './useAppPresence';
+import { useAppReactions, type Reaction } from './useAppReactions';
 import { useBubbleLife } from './useBubbleLife';
 import { useCelebrations } from './useCelebrations';
 import { useCompanionMoments } from './useCompanionMoments';
@@ -61,6 +62,14 @@ const VikGameLayer = lazy(() => import('./VikGameLayer'));
 /** Money, Admin and People: he shrinks, stops volunteering, and leaves the house behind. */
 const DENSE = ['/money', '/admin', '/people'];
 const SIZE = { normal: 58, dense: 36 };
+
+/** How he looks while you are busy with something else. */
+const REACTION_POSE: Record<string, VikPose | null> = {
+  none: null,
+  typing: { expression: 'soft', body: 'stand' },
+  searching: { expression: 'thinking', body: 'think' },
+  dragging: { expression: 'curious', body: 'point' },
+};
 
 export default function Companion() {
   const store = useStore();
@@ -219,6 +228,16 @@ export default function Companion() {
   anticsRef.current = playful ? mood.behaviour.antics : [];
   useIdleAntics({ antics: () => anticsRef.current, doGesture, busy: () => busyRef.current });
 
+  // What you are doing elsewhere in the portal. Small on purpose: a companion
+  // that reacts to everything is a distraction, not a companion.
+  const [reaction, setReaction] = useState<Reaction>(null);
+  useAppReactions({
+    enabled: !dense && !quiet && playful,
+    doGesture,
+    busy: () => busyRef.current,
+    onReaction: setReaction,
+  });
+
   const bubbleText = quip ?? current?.text ?? null;
   const { hoverProps } = useBubbleLife({ ttlMs: current?.ttlMs ?? null, onExpire: dismiss });
 
@@ -291,6 +310,7 @@ export default function Companion() {
     dozing: gesture === 'doze',
     momentMood: current?.mood ?? null,
     worldPose: restingPose(world),
+    reactionPose: REACTION_POSE[reaction ?? 'none'] ?? null,
     bandPose: mood.behaviour.pose,
     speaking: bubbleText != null,
     quiet,

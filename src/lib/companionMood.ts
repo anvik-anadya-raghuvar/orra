@@ -226,7 +226,7 @@ export const BAND_BEHAVIOUR: Record<Band, BandBehaviour> = {
   neutral: {
     pose: null,
     invites: true,
-    antics: ['stretch', 'tilt', 'doze'],
+    antics: ['stretch', 'tilt', 'doze', 'dust'],
     pokeTolerance: 7,
     place: 'beside',
     blurb: 'Pottering about near his house.',
@@ -234,7 +234,7 @@ export const BAND_BEHAVIOUR: Record<Band, BandBehaviour> = {
   happy: {
     pose: { expression: 'smile', body: 'stand' },
     invites: true,
-    antics: ['stretch', 'tilt', 'doze'],
+    antics: ['stretch', 'tilt', 'doze', 'dust', 'pushup', 'trip'],
     pokeTolerance: 9,
     place: 'roaming',
     blurb: 'In good spirits and wandering a bit further.',
@@ -242,8 +242,9 @@ export const BAND_BEHAVIOUR: Record<Band, BandBehaviour> = {
   delighted: {
     pose: { expression: 'happy', body: 'stand' },
     invites: true,
-    // The breakdance stops being a secret and becomes something he just does.
-    antics: ['stretch', 'tilt', 'spin', 'doze'],
+    // The breakdance stops being a secret and becomes something he just does,
+    // and he finally has the run of the place.
+    antics: ['stretch', 'tilt', 'spin', 'doze', 'dust', 'pushup', 'trip', 'cartwheel', 'moonwalk'],
     pokeTolerance: 12,
     place: 'roof',
     blurb: 'Sitting on the roof, thoroughly pleased with you.',
