@@ -96,6 +96,15 @@ export interface Personalization {
   personal_widgets?: Record<string, boolean>;
   /** How this user has arranged their own Personal grid. */
   personal_layout?: HomeLayout;
+  /** The companion robot. Absent means on at 'normal' chattiness — opt-out,
+   *  like the Home utilities, so existing profiles get it without a migration.
+   *  A preference, never a permission: each person's robot is their own. */
+  companion?: {
+    enabled?: boolean;
+    chattiness?: 'quiet' | 'normal' | 'chatty';
+    /** What this user calls their robot. Absent = 'Vik'. */
+    name?: string;
+  };
 }
 
 export interface HomeLayout {

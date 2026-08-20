@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Music, Image as ImageIcon, Sparkles, Radar, Wallet, LayoutGrid, CloudSun, Clock3, CalendarDays } from 'lucide-react';
+import { Music, Image as ImageIcon, Sparkles, Radar, Wallet, LayoutGrid, CloudSun, Clock3, CalendarDays, Bot } from 'lucide-react';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { CountUp, InfoTip, Modal, useToast } from '../../ui/bits';
 import { spring } from '../../ui/motion';
@@ -117,6 +117,7 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
           </div>
         );
       })}
+      <CompanionSettings />
       <ResetArrangement />
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
         <button className="btn solid" onClick={onClose}>
@@ -124,6 +125,83 @@ export function CustomiseModal({ open, onClose }: { open: boolean; onClose: () =
         </button>
       </div>
     </Modal>
+  );
+}
+
+/* ── The companion robot — a per-user preference like everything above.
+   Not a PERSONAL_KEY: those drive the Home grid, and the robot is not a
+   tile — it floats over every room. ─────────────────────────────────────── */
+function CompanionSettings() {
+  const store = useStore();
+  const me = useData((_, s) => s.me);
+  const toast = useToast();
+
+  const comp = me.personalization.companion ?? {};
+  const on = comp.enabled !== false;
+  const robotName = comp.name?.trim() || 'Vik';
+
+  const patch = (p: Partial<NonNullable<typeof me.personalization.companion>>, summary: string) => {
+    store.update(
+      'profiles',
+      me.id,
+      { personalization: { ...me.personalization, companion: { ...comp, ...p } } },
+      store.asMe({ summary }),
+    );
+  };
+
+  return (
+    <div style={{ borderTop: '1px solid var(--line)', marginTop: 10, paddingTop: 6 }}>
+      <div className="swrow">
+        <Bot size={17} strokeWidth={1.7} color="var(--slate)" aria-hidden />
+        <span className="txt">
+          {robotName}, the companion
+          <small>
+            Greetings, tips and a heads-up about {store.other.name} — plus a robot you can poke,
+            pet and fling about
+          </small>
+        </span>
+        <button
+          className="sw"
+          role="switch"
+          aria-checked={on}
+          aria-label={`${robotName}, the companion`}
+          onClick={() => {
+            patch({ enabled: !on }, `Companion — ${!on ? 'on' : 'off'}`);
+            toast(!on ? `${robotName} is back in the corner` : `${robotName} has gone home`);
+          }}
+        >
+          <motion.span className="knob" layout transition={spring} />
+        </button>
+      </div>
+      {on && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '2px 0 6px 27px' }}>
+          <div className="seg" role="group" aria-label="Chattiness">
+            {(['quiet', 'normal', 'chatty'] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={(comp.chattiness ?? 'normal') === c}
+                onClick={() => patch({ chattiness: c }, `Companion — ${c}`)}
+              >
+                {c[0].toUpperCase() + c.slice(1)}
+              </button>
+            ))}
+          </div>
+          <input
+            className="srch"
+            style={{ maxWidth: 140 }}
+            defaultValue={comp.name ?? ''}
+            placeholder="Vik"
+            maxLength={20}
+            aria-label="Rename the robot"
+            onBlur={(e) => {
+              const name = e.target.value.trim();
+              if (name !== (comp.name ?? '')) patch({ name }, 'Companion — renamed');
+            }}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -20,6 +20,7 @@ import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
 import { DictationProvider } from './ui/dictation';
 import BlockOverlay from './ui/BlockOverlay';
+import Companion from './ui/companion/Companion';
 import PointerLight from './ui/PointerLight';
 import ClipWatch from './ui/ClipWatch';
 import { useAutoSync } from './lib/useAutoSync';
@@ -437,6 +438,12 @@ function Gated() {
               <AnimatedRoutes />
             </ErrorBoundary>
           </main>
+          {/* The companion lives on the portal, not on a screen, for the same
+              reason as the block overlay below. Its own boundary: a robot
+              crash must never take the portal down with it. */}
+          <ErrorBoundary>
+            <Companion />
+          </ErrorBoundary>
           {/* A running block covers the whole portal, so it is mounted here
               rather than inside a screen — navigating cannot escape it, and a
               reload restores it because the block lives in the database. */}

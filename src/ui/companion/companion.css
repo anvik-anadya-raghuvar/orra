@@ -1,0 +1,178 @@
+/* Vik, the companion. Colocated per src/ui convention; theme tokens only.
+   z-index 72: above the tile side page (70), below toast (80), notifications
+   (85–90) and the block overlay (100 — under which Vik unmounts anyway). */
+
+.companion {
+  position: fixed;
+  inset: 0;
+  z-index: 72;
+  pointer-events: none;
+}
+
+.vik-wrap {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  pointer-events: auto;
+}
+
+@media (max-width: 640px) {
+  /* Clears the tabbar (shell pads 90px) and the dictation pill. */
+  .vik-wrap {
+    right: 12px;
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
+.vik-btn {
+  display: block;
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: grab;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.vik-btn:active {
+  cursor: grabbing;
+}
+.vik-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+/* Dense rooms (Money, Admin, People): smaller, quieter, events only. */
+.companion.dense .vik-wrap {
+  opacity: 0.6;
+}
+
+/* ── Sprite palette — tokens, so light and Deep Field both work ────────── */
+.vik-body {
+  fill: var(--surf-solid, var(--surf));
+  stroke: var(--indigo);
+  stroke-width: 2;
+}
+.vik-face {
+  fill: var(--surf-dense, var(--surf2));
+}
+.vik-eye {
+  fill: var(--indigo);
+}
+.vik-eye-arc path,
+.vik-brow path {
+  stroke: var(--indigo);
+  stroke-width: 2.2;
+  fill: none;
+  stroke-linecap: round;
+}
+.vik-eye-spiral path {
+  stroke: var(--indigo);
+  stroke-width: 1.6;
+  fill: none;
+  stroke-linecap: round;
+}
+.vik-mouth {
+  stroke: var(--indigo);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+}
+.vik-mouth-open {
+  fill: var(--indigo);
+}
+.vik-limb {
+  fill: var(--surf-dense, var(--surf2));
+  stroke: var(--indigo);
+  stroke-width: 1.6;
+}
+.vik-chest {
+  fill: var(--teal);
+}
+.vik-antenna {
+  stroke: var(--indigo);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.vik-tip {
+  fill: var(--rose);
+}
+.vik-shadow {
+  fill: var(--ink);
+  opacity: 0.12;
+}
+
+/* ── Speech bubble ─────────────────────────────────────────────────────── */
+.vik-bubble {
+  position: absolute;
+  right: 4px;
+  bottom: calc(100% + 12px);
+  width: max-content;
+  max-width: min(262px, calc(100vw - 32px));
+  background: var(--surf-solid, var(--surf));
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--sh1);
+  padding: 10px 12px 6px;
+  color: var(--ink);
+  font-size: 13.5px;
+  line-height: 1.45;
+  pointer-events: auto;
+}
+.vik-bubble::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transform: rotate(45deg);
+}
+
+.vik-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-top: 4px;
+}
+.vik-actions .go {
+  margin-right: auto;
+}
+
+/* 44px targets without 44px-looking chrome. */
+.vik-iconbtn {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mute);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--r);
+}
+.vik-iconbtn:hover,
+.vik-iconbtn:focus-visible {
+  color: var(--ink);
+  background: var(--surf2);
+}
+
+/* Hearts and huffs floating off the robot. */
+.vik-float {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  pointer-events: none;
+  font-size: 14px;
+  color: var(--rose);
+}
