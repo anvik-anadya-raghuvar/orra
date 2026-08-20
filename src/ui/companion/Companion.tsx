@@ -23,6 +23,7 @@ import {
 } from '../../lib/companionPlay';
 import { entrance, micro, spring, useAnimateIn } from '../motion';
 import RobotSprite from './RobotSprite';
+import { useAppPresence } from './useAppPresence';
 import { useCompanionMoments } from './useCompanionMoments';
 import './companion.css';
 
@@ -53,10 +54,14 @@ export default function Companion() {
   const dense =
     pathname.startsWith('/money') || pathname.startsWith('/admin') || pathname.startsWith('/people');
 
+  const presence = useAppPresence(pathname);
+
   const { current, dismiss, snooze, demand } = useCompanionMoments({
     active: enabled && !myBlockUp,
     route: pathname,
     dense,
+    otherOnline: presence.otherOnline,
+    otherBlock: presence.otherPayload?.block ?? null,
   });
 
   /* ── Play state ──────────────────────────────────────────────────────── */
