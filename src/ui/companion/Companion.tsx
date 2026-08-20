@@ -10,11 +10,13 @@
  * lib/companionPose.ts, and how he is feeling is lib/companionMood.ts. Nothing
  * below picks a face.
  */
-import { motion, type TargetAndTransition } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, type TargetAndTransition } from 'framer-motion';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useData, useStore } from '../../data/store';
 import { quietHoursFor } from '../../lib/companion';
+import type { GameId } from '../../lib/companionGames';
+import * as hideSeek from '../../lib/companionGames/hideSeek';
 import { houseFor, PLACEMENT } from '../../lib/companionHouse';
 import { bandOf, glowFor } from '../../lib/companionMood';
 import { GESTURE_ANIM, GESTURE_REST } from '../../lib/companionPose';
@@ -27,6 +29,9 @@ import VikBubble from './VikBubble';
 import { Confetti, Hearts, Zzz } from './VikEffects';
 import VikHouse from './VikHouse';
 import VikStatus from './VikStatus';
+import { useHideTarget } from './useHideTarget';
+import { useVikBounds } from './useVikBounds';
+import { useVikGame } from './useVikGame';
 import { useAppPresence } from './useAppPresence';
 import { useBubbleLife } from './useBubbleLife';
 import { useCelebrations } from './useCelebrations';
@@ -40,6 +45,9 @@ import { useVikVoice } from './useVikVoice';
 import { useWeatherSignal } from './useWeatherSignal';
 import './companion.css';
 import './companionHouse.css';
+
+// The games and their timers are never needed to render a robot in a corner.
+const VikGameLayer = lazy(() => import('./VikGameLayer'));
 
 /** Money, Admin and People: he shrinks, stops volunteering, and leaves the house behind. */
 const DENSE = ['/money', '/admin', '/people'];
@@ -90,6 +98,16 @@ export default function Companion() {
 
   const { quip, say } = useVikVoice();
   const { gesture, doGesture } = useVikGesture();
+  const game = useVikGame(mood.feel);
+  // Fixed when a round starts, not on every render — otherwise the machines
+  // would be re-seeded underneath themselves and nothing could be replayed.
+  const seedRef = useRef(1);
+
+  // Hide and seek plays against the real page, so it needs the real geometry.
+  const bounds = useVikBounds();
+  const spriteW = dense ? SIZE.dense : SIZE.normal;
+  const hideTarget = useHideTarget(bounds, spriteW, (spriteW * 74) / 64);
+  const [hideState, setHideState] = useState<hideSeek.HideState | null>(null);
   const play = useVikPlay({
     quiet,
     animate,
@@ -113,7 +131,7 @@ export default function Companion() {
 
   const boundsRef = useRef<HTMLDivElement>(null);
   useCursorFollow({
-    enabled: follow && animate && !dense,
+    enabled: follow && animate && !dense && game.active == null,
     boundsRef,
     x: play.x,
     y: play.y,
@@ -130,6 +148,65 @@ export default function Companion() {
   const bubbleText = quip ?? current?.text ?? null;
   const { hoverProps } = useBubbleLife({ ttlMs: current?.ttlMs ?? null, onExpire: dismiss });
 
+  const endHide = useCallback(
+    (found: boolean) => {
+      setHideState((h) => {
+        if (!h) return null;
+        const next = found ? hideSeek.found(h, Date.now()) : hideSeek.giveUp(h);
+        say(hideSeek.verdict(next));
+        game.finish('hide', hideSeek.score(next), found);
+        return null;
+      });
+      hideTarget.clear();
+    },
+    [game, hideTarget, say],
+  );
+
+  const startGame = useCallback(
+    (id: GameId) => {
+      setStatusOpen(false);
+      dismiss();
+      seedRef.current = Date.now() % 100000;
+      if (id === 'hide') {
+        const key = hideTarget.choose(Date.now() % 9973);
+        const started = hideSeek.hidden(hideSeek.start(key, Date.now()));
+        setHideState(started);
+        if (!key) {
+          say(hideSeek.verdict(started));
+          return;
+        }
+      }
+      game.start(id);
+    },
+    [dismiss, game, hideTarget, say],
+  );
+
+  // His hiding place scrolled away or was re-rendered out from under him.
+  const seeking = hideState?.phase === 'seeking';
+  useEffect(() => {
+    if (!seeking || hideTarget.spot) return;
+    setHideState((h) => {
+      if (!h) return h;
+      const next = hideSeek.rehide(h, hideTarget.choose(Date.now() % 7919, h.key ?? undefined));
+      if (next.phase === 'nowhere') {
+        say(hideSeek.verdict(next));
+        game.finish('hide', null, false);
+        return null;
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seeking, hideTarget.spot]);
+
+  // Leaving the room abandons whatever was running — he does not follow you.
+  useEffect(() => {
+    if (!game.active) return;
+    game.abandon();
+    setHideState(null);
+    hideTarget.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   const [statusOpen, setStatusOpen] = useState(false);
 
   const inputs: VikInputs = {
@@ -145,7 +222,9 @@ export default function Companion() {
     quiet,
     dense,
   };
-  busyRef.current = isBusy(inputs);
+  // A running game holds the floor: no antics over the top of it, and no
+  // cursor chase either — two rAF loops on one sprite fight each other.
+  busyRef.current = isBusy(inputs) || game.active != null;
 
   if (!enabled || myBlockUp) return null;
 
@@ -153,6 +232,8 @@ export default function Companion() {
   const house = houseFor({ band, quiet, mailWaiting: false, animate });
   // Dense rooms keep the bare corner: no house to stand beside, so no offset.
   const spot = dense ? { left: 0, lift: 0 } : PLACEMENT[house.place];
+  // Hiding puts him against a card instead of the dock, clipped to his top half.
+  const peek = hideState?.phase === 'seeking' ? hideTarget.spot : null;
 
   const sleeping = isSleeping(inputs);
   // GESTURE_ANIM is a framer-free structural type by design (lib stays testable
@@ -179,8 +260,8 @@ export default function Companion() {
       )}
 
       <motion.div
-        className="vik-wrap"
-        drag
+        className={`vik-wrap${peek ? ' peeking' : ''}`}
+        drag={!peek}
         dragMomentum={false}
         dragElastic={0.12}
         dragConstraints={boundsRef}
@@ -188,18 +269,45 @@ export default function Companion() {
         // The cast is only to admit the two custom properties alongside the
         // motion values, which framer's style type does not model.
         style={
-          {
-            x: play.x,
-            y: play.y,
-            '--vik-place-left': `${spot.left}px`,
-            '--vik-place-lift': `${spot.lift}px`,
-          } as unknown as React.ComponentProps<typeof motion.div>['style']
+          (peek
+            ? { x: 0, y: 0, left: peek.left, top: peek.top }
+            : {
+                x: play.x,
+                y: play.y,
+                '--vik-place-left': `${spot.left}px`,
+                '--vik-place-lift': `${spot.lift}px`,
+              }) as unknown as React.ComponentProps<typeof motion.div>['style']
         }
         onDragStart={play.onDragStart}
         onDragEnd={play.onDragEnd}
       >
+        <AnimatePresence>
+          {game.active && (
+            <Suspense fallback={null}>
+              <VikGameLayer
+                game={game.active}
+                onGiveUp={() => endHide(false)}
+                host={{
+                  robotName,
+                  otherName: store.other.name,
+                  animate,
+                  seed: seedRef.current,
+                  setChest: game.setChest,
+                  setBlink: game.setBlink,
+                  say,
+                  finish: (score, won) => game.finish(game.active!, score, won),
+                  quit: () => {
+                    if (game.active === 'hide') endHide(false);
+                    else game.abandon();
+                  },
+                }}
+              />
+            </Suspense>
+          )}
+        </AnimatePresence>
+
         <VikBubble
-          text={bubbleText}
+          text={game.active ? null : bubbleText}
           moment={spoken}
           snoozable={snoozable}
           robotName={robotName}
@@ -211,7 +319,11 @@ export default function Companion() {
 
         <motion.button
           className="vik-btn"
-          aria-label={`${robotName}, your companion — tap for what's happening`}
+          aria-label={
+            peek
+              ? `Found ${robotName}!`
+              : `${robotName}, your companion — tap for what's happening`
+          }
           initial={animate ? { scale: 0, y: 24 } : false}
           animate={
             celebration && animate
@@ -223,7 +335,7 @@ export default function Companion() {
               : { scale: 1, y: 0, transition: spring }
           }
           whileTap={animate ? { scale: 0.9 } : undefined}
-          onClick={play.handleTap}
+          onClick={peek ? () => endHide(true) : play.handleTap}
           onPointerDown={play.petDown}
           onPointerUp={play.petUp}
           onPointerCancel={play.petUp}
@@ -233,8 +345,10 @@ export default function Companion() {
             <RobotSprite
               pose={poseFor(inputs)}
               animate={animate}
-              size={dense ? SIZE.dense : SIZE.normal}
+              size={spriteW}
               outfit={outfit}
+              chestLight={game.override.chest}
+              forceBlink={game.override.blink}
             />
           </motion.div>
 
@@ -251,6 +365,9 @@ export default function Companion() {
         value={mood.value}
         bondLevel={bondLevel}
         playful={playful}
+        animate={animate}
+        scores={game.scores}
+        onPlay={startGame}
         onPlayful={(next) =>
           store.patchPersonalization(
             { companion: { ...store.me.personalization.companion, playful: next } },

@@ -1,0 +1,166 @@
+/* The games. Ships with the lazy game chunk, not on first paint.
+
+   Every control is at least 44px. Two of these games are played by tapping
+   something that renders about five pixels across, so the hit target is always
+   an overlay rather than the artwork. */
+
+.vik-game,
+.vik-menu {
+  position: absolute;
+  right: 4px;
+  bottom: calc(100% + 12px);
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  background: var(--surf-solid, var(--surf));
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--sh1);
+  padding: 12px;
+  color: var(--ink);
+  font-size: 13.5px;
+  line-height: 1.45;
+  pointer-events: auto;
+  display: grid;
+  gap: 10px;
+}
+
+.vik-game-line {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.vik-game-row {
+  display: grid;
+  gap: 6px;
+}
+
+.vik-game-btn,
+.vik-game-tap {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf-dense, var(--surf2));
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.vik-game-btn:hover,
+.vik-game-tap:hover {
+  border-color: var(--indigo);
+}
+.vik-game-btn:focus-visible,
+.vik-game-tap:focus-visible,
+.vik-game-quit:focus-visible,
+.vik-light:focus-visible,
+.vik-menu-item:focus-visible,
+.vik-menu-close:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+.vik-game-tap {
+  text-align: center;
+  font-weight: 600;
+}
+
+.vik-game-quit,
+.vik-menu-close {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--slate);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+.vik-game-quit:hover,
+.vik-menu-close:hover {
+  color: var(--ink);
+}
+
+/* Simon's four pads. The chest LED is the display; these are the input, and
+   they are sized for a thumb rather than for the artwork. */
+.vik-game-lights {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.vik-light {
+  min-width: 44px;
+  min-height: 52px;
+  border: 2px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.vik-light:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.vik-light.teal {
+  background: var(--teal);
+}
+.vik-light.rose {
+  background: var(--rose);
+}
+.vik-light.stamp {
+  background: var(--stamp);
+}
+.vik-light.sky {
+  background: var(--sky);
+}
+
+/* ── Menu ─────────────────────────────────────────────────────────────── */
+.vik-menu-item {
+  display: grid;
+  gap: 2px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf-dense, var(--surf2));
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.vik-menu-item:hover {
+  border-color: var(--indigo);
+}
+.vik-menu-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 600;
+}
+.vik-menu-label em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--slate);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.vik-menu-blurb {
+  color: var(--slate);
+  font-size: 12px;
+}
+.vik-menu-note {
+  margin: 0;
+  color: var(--slate);
+  font-size: 11.5px;
+}
+
+/* Hide and seek: he is placed above a card's top edge and clipped to his top
+   half. The companion layer is fixed and the cards are in flow, so he cannot
+   actually go behind one — clipping looks identical and stays correct on the
+   translucent surfaces a mask would break on. */
+.vik-wrap.peeking {
+  right: auto;
+  bottom: auto;
+  transition: none;
+}
+.vik-wrap.peeking .vik-btn {
+  clip-path: inset(0 0 45% 0);
+}

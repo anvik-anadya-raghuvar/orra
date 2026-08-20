@@ -120,6 +120,10 @@ export interface Personalization {
       last: Record<string, number>;
       helloDay?: string;
     };
+    /** Best result per game. Which way "best" runs is in companionGames. */
+    scores?: Record<string, number>;
+    /** Games switched off individually, for anything that stops being fun. */
+    games?: Record<string, boolean>;
   };
 }
 

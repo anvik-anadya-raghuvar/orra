@@ -25,6 +25,14 @@ interface Props {
   animate: boolean;
   /** What he is wearing, one item per slot. */
   outfit?: Outfit;
+  /**
+   * A game driving his chest LED — a CSS custom property name. Simon is played
+   * entirely on the light he has had since the first version, which is why it
+   * needed no new art.
+   */
+  chestLight?: string | null;
+  /** A game driving his eyes shut. Overrides the idle blink while set. */
+  forceBlink?: boolean;
 }
 
 const armStyle = {
@@ -58,15 +66,23 @@ function Wear({ outfit, slot }: { outfit: Outfit; slot: Slot }) {
   );
 }
 
-export default function RobotSprite({ pose, size = 58, animate, outfit = {} }: Props) {
+export default function RobotSprite({
+  pose,
+  size = 58,
+  animate,
+  outfit = {},
+  chestLight = null,
+  forceBlink = false,
+}: Props) {
   const face = EXPRESSIONS[pose.expression];
   const body = BODIES[pose.body];
 
   const [blink, setBlink] = useState(false);
   const timers = useRef<number[]>([]);
 
-  // Irregular blinking — a metronome reads robotic in the bad way.
-  const blinks = animate && face.blink;
+  // Irregular blinking — a metronome reads robotic in the bad way. A game
+  // driving the eyes takes the wheel entirely; two blink sources would fight.
+  const blinks = animate && face.blink && !forceBlink;
   useEffect(() => {
     if (!blinks) return;
     let alive = true;
@@ -91,7 +107,7 @@ export default function RobotSprite({ pose, size = 58, animate, outfit = {} }: P
     };
   }, [blinks, pose.expression]);
 
-  const eyeScaleY = blink ? 0.08 : (face.eyeScale ?? 1);
+  const eyeScaleY = blink || forceBlink ? 0.08 : (face.eyeScale ?? 1);
   const shift = face.eyeShift;
 
   return (
@@ -161,7 +177,16 @@ export default function RobotSprite({ pose, size = 58, animate, outfit = {} }: P
           cy="47.5"
           r="3"
           className="vik-chest"
-          animate={animate && body.chestPulse ? { opacity: [1, 0.35, 1] } : undefined}
+          // A lit game colour replaces the pulse: you cannot read a pattern off
+          // a light that is also breathing.
+          //
+          // Always an explicit value, never undefined. A motion component
+          // applies style imperatively and does not clear a key that simply
+          // stops being passed, so dropping the prop left the last colour of
+          // the sequence stuck on his chest. An empty string hands it back to
+          // the stylesheet.
+          style={{ fill: chestLight ? `var(--${chestLight})` : '' }}
+          animate={animate && body.chestPulse && !chestLight ? { opacity: [1, 0.35, 1] } : undefined}
           transition={{ duration: 0.9, repeat: Infinity }}
         />
         <Wear outfit={outfit} slot="neck" />
@@ -206,9 +231,18 @@ export default function RobotSprite({ pose, size = 58, animate, outfit = {} }: P
               </motion.g>
             ) : (
               <motion.g
-                animate={{ scaleY: eyeScaleY }}
+                // With animation on, framer eases the lids. With it off it
+                // applies nothing at all, which would leave the eyes open —
+                // and blink-tap is meant to be playable under reduced motion,
+                // where a blink is simply an instant state change. So the
+                // still case sets the transform outright.
+                animate={animate ? { scaleY: eyeScaleY } : undefined}
                 transition={{ duration: 0.09 }}
-                style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
+                style={{
+                  transformBox: 'fill-box',
+                  transformOrigin: '50% 50%',
+                  transform: animate ? undefined : `scaleY(${eyeScaleY})`,
+                }}
               >
                 <rect x="23.8" y="16.5" width="4.4" height="7" rx="2.2" className="vik-eye" />
                 <rect x="35.8" y="16.5" width="4.4" height="7" rx="2.2" className="vik-eye" />

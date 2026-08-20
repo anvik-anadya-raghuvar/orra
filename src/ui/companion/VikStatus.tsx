@@ -9,6 +9,7 @@
  * The trophy shelf lands here too once there is a bond to put on it.
  */
 import { Modal } from '../bits';
+import { playableGames, type GameId } from '../../lib/companionGames';
 import {
   BAND_BEHAVIOUR,
   BANDS,
@@ -25,6 +26,13 @@ const BAND_LABEL: Record<Band, string> = {
   delighted: 'Delighted',
 };
 
+/** How each game's best reads. A reaction time is not a round count. */
+const SCORE_LABEL: Partial<Record<GameId, (n: number) => string>> = {
+  simon: (n) => `best ${n}`,
+  blink: (n) => `best ${n}ms`,
+  hide: (n) => `best ${n}s`,
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -33,6 +41,10 @@ interface Props {
   bondLevel: number;
   playful: boolean;
   onPlayful: (next: boolean) => void;
+  /** Animation is allowed — games that need it are hidden when it is not. */
+  animate: boolean;
+  scores: Record<string, number>;
+  onPlay: (id: GameId) => void;
 }
 
 export default function VikStatus({
@@ -43,6 +55,9 @@ export default function VikStatus({
   bondLevel,
   playful,
   onPlayful,
+  animate,
+  scores,
+  onPlay,
 }: Props) {
   const band = bandOf(value);
   const b = BAND_BEHAVIOUR[band];
@@ -88,6 +103,29 @@ export default function VikStatus({
             <strong>{b.antics.length || 'Nothing'}</strong>
           </li>
         </ul>
+
+        <div className="vik-status-games">
+          <h4>Play</h4>
+          {playableGames(!animate).map((g) => {
+            const best = scores[g.id];
+            const label = best != null ? SCORE_LABEL[g.id]?.(best) : null;
+            return (
+              <button key={g.id} className="vik-play-item" onClick={() => onPlay(g.id)}>
+                <span className="vik-play-label">
+                  {g.label}
+                  {label && <em>{label}</em>}
+                </span>
+                <span className="vik-play-blurb">{g.blurb}</span>
+              </button>
+            );
+          })}
+          {!animate && (
+            <p className="vik-status-note">
+              Some of his games need movement, so they are not listed while animation is
+              off.
+            </p>
+          )}
+        </div>
 
         <div className="vik-status-bands">
           {BANDS.map((x) => (
