@@ -127,7 +127,7 @@ export async function connectGoogleAccount(
       initial_mail_scan_at: null,
       last_sync_error: null,
     };
-    store.insert(
+    await store.insertConfirmed(
       'integration_grants',
       account,
       store.asMe({ summary: `Google account connected — ${connected.identity.email}` }),
@@ -255,7 +255,7 @@ async function processOrderMessages(
     const message = orderMessage(raw, account);
     const detection = detectPersonalOrder(message);
     if (!detection) continue;
-    const recorded = recordOrderDetection(store, account, message, detection);
+    const recorded = await recordOrderDetection(store, account, message, detection);
     if (recorded.created) orderReviewsNew += 1;
     else orderUpdates += 1;
   }

@@ -349,12 +349,12 @@ function mergeDetection(order: PersonalOrder, detection: OrderDetection, eventAt
 
 /** Store a parsed candidate/event idempotently. Returns whether a new review
  * row was created; exact updates attach to the existing order. */
-export function recordOrderDetection(
+export async function recordOrderDetection(
   store: AppStore,
   grant: IntegrationGrant,
   message: OrderMessageInput,
   detection: OrderDetection,
-): { created: boolean; orderId: string } {
+): Promise<{ created: boolean; orderId: string }> {
   const priorEvent = store.ds.personal_order_events.find(
     (event) => event.integration_grant_id === grant.id && event.gmail_message_id === message.id,
   );
@@ -387,7 +387,7 @@ export function recordOrderDetection(
       created_at: nowIso(),
       updated_at: nowIso(),
     };
-    store.insert(
+    await store.insertConfirmed(
       'personal_orders',
       order,
       { actor: null, actorLabel: 'automated', source: 'gmail', summary: `Order review detected — ${order.summary}` },
@@ -429,6 +429,10 @@ export function recordOrderDetection(
     },
     created_at: nowIso(),
   };
-  store.insert('personal_order_events', event, { actor: null, actorLabel: 'automated', source: 'gmail', silent: true });
+  await store.insertConfirmed(
+    'personal_order_events',
+    event,
+    { actor: null, actorLabel: 'automated', source: 'gmail', silent: true },
+  );
   return { created, orderId: order.id };
 }

@@ -45,12 +45,12 @@ const message = (patch: Partial<OrderMessageInput> = {}): OrderMessageInput => (
   ...patch,
 });
 
-const makeStore = () => {
+const makeStore = (dataAdapter: DataAdapter = adapter) => {
   const ds = seedDataset();
   ds.personal_orders = [];
   ds.personal_order_events = [];
   ds.integration_grants = [grant];
-  return new AppStore(ds, adapter, 'u-anadya');
+  return new AppStore(ds, dataAdapter, 'u-anadya');
 };
 
 describe('deterministic personal order detection', () => {
@@ -111,36 +111,73 @@ describe('deterministic personal order detection', () => {
 });
 
 describe('review and lifecycle rules', () => {
-  it('creates one pending review and one immutable event per Gmail message', () => {
+  it('waits for the parent order before inserting its immutable evidence', async () => {
+    const writes: string[] = [];
+    let parentConfirmed = false;
+    const confirmedAdapter: DataAdapter = {
+      ...adapter,
+      async saveCollectionConfirmed(key) {
+        writes.push(key);
+        if (key === 'personal_orders') parentConfirmed = true;
+        if (key === 'personal_order_events' && !parentConfirmed) return 'parent order is missing';
+        return null;
+      },
+    };
+    const store = makeStore(confirmedAdapter);
+
+    await recordOrderDetection(store, grant, message(), detectPersonalOrder(message())!);
+
+    expect(writes).toEqual(['personal_orders', 'personal_order_events']);
+    expect(store.ds.personal_orders).toHaveLength(1);
+    expect(store.ds.personal_order_events).toHaveLength(1);
+  });
+
+  it('does not leave unsaved evidence in memory when a confirmed insert fails', async () => {
+    const confirmedAdapter: DataAdapter = {
+      ...adapter,
+      async saveCollectionConfirmed(key) {
+        return key === 'personal_order_events' ? 'RLS rejected evidence' : null;
+      },
+    };
+    const store = makeStore(confirmedAdapter);
+
+    await expect(
+      recordOrderDetection(store, grant, message(), detectPersonalOrder(message())!),
+    ).rejects.toThrow('RLS rejected evidence');
+    expect(store.ds.personal_orders).toHaveLength(1);
+    expect(store.ds.personal_order_events).toHaveLength(0);
+  });
+
+  it('creates one pending review and one immutable event per Gmail message', async () => {
     const store = makeStore();
     const detection = detectPersonalOrder(message())!;
-    recordOrderDetection(store, grant, message(), detection);
-    recordOrderDetection(store, grant, message(), detection);
+    await recordOrderDetection(store, grant, message(), detection);
+    await recordOrderDetection(store, grant, message(), detection);
     expect(store.ds.personal_orders).toHaveLength(1);
     expect(store.ds.personal_orders[0].review_status).toBe('pending');
     expect(store.ds.personal_order_events).toHaveLength(1);
   });
 
-  it('suppresses dismissed references and leaves ambiguous updates in Review', () => {
+  it('suppresses dismissed references and leaves ambiguous updates in Review', async () => {
     const store = makeStore();
     const first = detectPersonalOrder(message())!;
-    recordOrderDetection(store, grant, message(), first);
+    await recordOrderDetection(store, grant, message(), first);
     store.update('personal_orders', store.ds.personal_orders[0].id, { review_status: 'dismissed' }, store.asMe());
 
     const sameReference = message({ id: 'message-2', receivedAt: '2026-08-19T10:00:00.000Z', subject: 'Order shipped', text: 'Order number ABC-1234 shipped. Tracking number TRACK-123456.' });
-    recordOrderDetection(store, grant, sameReference, detectPersonalOrder(sameReference)!);
+    await recordOrderDetection(store, grant, sameReference, detectPersonalOrder(sameReference)!);
     expect(store.ds.personal_orders).toHaveLength(1);
     expect(store.ds.personal_orders[0].review_status).toBe('dismissed');
 
     const ambiguous = message({ id: 'message-3', threadId: 'thread-3', receivedAt: '2026-08-20T10:00:00.000Z', snippet: 'Order number NEW-9999', text: 'Order number NEW-9999 shipped. Tracking number TRACK-999999.' });
-    recordOrderDetection(store, grant, ambiguous, detectPersonalOrder(ambiguous)!);
+    await recordOrderDetection(store, grant, ambiguous, detectPersonalOrder(ambiguous)!);
     expect(store.ds.personal_orders).toHaveLength(2);
     expect(store.ds.personal_orders[1].review_status).toBe('pending');
   });
 
-  it('updates exact confirmed matches, protects manual fields, and ignores older lifecycle mail', () => {
+  it('updates exact confirmed matches, protects manual fields, and ignores older lifecycle mail', async () => {
     const store = makeStore();
-    recordOrderDetection(store, grant, message(), detectPersonalOrder(message())!);
+    await recordOrderDetection(store, grant, message(), detectPersonalOrder(message())!);
     const order = store.ds.personal_orders[0];
     store.update(
       'personal_orders',
@@ -150,19 +187,19 @@ describe('review and lifecycle rules', () => {
     );
 
     const delivered = message({ id: 'message-4', receivedAt: '2026-08-21T10:00:00.000Z', subject: 'Order delivered', text: 'Order number ABC-1234 delivered.' });
-    recordOrderDetection(store, grant, delivered, detectPersonalOrder(delivered)!);
+    await recordOrderDetection(store, grant, delivered, detectPersonalOrder(delivered)!);
     expect(store.ds.personal_orders[0].lifecycle_status).toBe('shipped');
 
     store.update('personal_orders', order.id, { manual_fields: [] }, store.asMe());
     const older = message({ id: 'message-5', receivedAt: '2026-08-10T10:00:00.000Z', subject: 'Order processing', text: 'Order number ABC-1234 is processing.' });
-    recordOrderDetection(store, grant, older, detectPersonalOrder(older)!);
+    await recordOrderDetection(store, grant, older, detectPersonalOrder(older)!);
     expect(store.ds.personal_orders[0].last_event_at).toBe('2026-08-21T10:00:00.000Z');
     expect(store.ds.personal_orders[0].lifecycle_status).toBe('shipped');
   });
 
-  it('keeps a same-thread update in Review when a confirmed order has no exact reference', () => {
+  it('keeps a same-thread update in Review when a confirmed order has no exact reference', async () => {
     const store = makeStore();
-    recordOrderDetection(store, grant, message(), detectPersonalOrder(message())!);
+    await recordOrderDetection(store, grant, message(), detectPersonalOrder(message())!);
     store.update('personal_orders', store.ds.personal_orders[0].id, { review_status: 'confirmed' }, store.asMe());
     const ambiguous = message({
       id: 'message-no-ref',
@@ -171,7 +208,7 @@ describe('review and lifecycle rules', () => {
       text: 'Your package shipped and is on its way.',
       receivedAt: '2026-08-22T10:00:00.000Z',
     });
-    recordOrderDetection(store, grant, ambiguous, detectPersonalOrder(ambiguous)!);
+    await recordOrderDetection(store, grant, ambiguous, detectPersonalOrder(ambiguous)!);
     expect(store.ds.personal_orders).toHaveLength(2);
     expect(store.ds.personal_orders[1].review_status).toBe('pending');
   });

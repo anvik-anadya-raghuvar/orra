@@ -199,6 +199,47 @@ export class AppStore {
     return row;
   }
 
+  /**
+   * Insert a row only after the backend confirms it. Most portal mutations are
+   * intentionally optimistic, but parent/child sync rows must be ordered: the
+   * child's RLS policy is allowed to require that the parent already exists.
+   */
+  async insertConfirmed<K extends CollectionKey>(
+    key: K,
+    row: Dataset[K][number],
+    meta: MutationMeta,
+  ): Promise<Dataset[K][number]> {
+    if (!this.adapter.saveCollectionConfirmed) return this.insert(key, row, meta);
+    const rows = [...(this.ds[key] as Row[]), row] as Dataset[K];
+    const error = await this.adapter.saveCollectionConfirmed(key, rows, [row]);
+    if (error) {
+      const message = `Couldn't save to ${key.replace(/_/g, ' ')} — ${error}`;
+      this.reportSyncError(message);
+      throw new Error(message);
+    }
+    // The network wait must not overwrite another local mutation that happened
+    // while this row was being confirmed.
+    const current = this.ds[key] as Row[];
+    const confirmedRows = current.some((candidate) => candidate.id === (row as Row).id)
+      ? current
+      : [...current, row as Row];
+    this.ds = { ...this.ds, [key]: confirmedRows as Dataset[K] };
+    if (!meta.silent) {
+      this.audit({
+        actor_id: meta.actor,
+        actor_label: meta.actorLabel,
+        entity_type: this.entityType(key),
+        entity_id: (row as Row).id,
+        field_name: null,
+        old_value: null,
+        new_value: meta.summary ?? `${key.replace(/_/g, ' ').replace(/s$/, '')} created`,
+        source: meta.source ?? 'portal',
+      });
+    }
+    this.emit();
+    return row;
+  }
+
   update<K extends CollectionKey>(
     key: K,
     id: string,

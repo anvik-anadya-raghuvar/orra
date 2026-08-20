@@ -10,6 +10,20 @@ export interface DataAdapter {
   load(): Promise<Dataset>;
   /** Persist one changed collection (mock: whole-set debounce; supabase: row upserts). */
   saveCollection<K extends CollectionKey>(key: K, rows: Dataset[K], changed?: unknown[]): void;
+  /**
+   * Persist changed rows and wait for the backend to confirm them. This is for
+   * dependency-ordered writes where a later row has an RLS/foreign-key check
+   * against an earlier row (for example personal order -> order evidence).
+   * Returns the backend error message, or null on success.
+   *
+   * The mock adapter may omit this because it has no network boundary; callers
+   * then use the normal synchronous optimistic path.
+   */
+  saveCollectionConfirmed?<K extends CollectionKey>(
+    key: K,
+    rows: Dataset[K],
+    changed: unknown[],
+  ): Promise<string | null>;
   saveWeights(w: Dataset['ranking_weights']): void;
   /** Called with a callback to receive externally-originated changes (realtime). */
   onRemoteChange?(cb: (partial: Partial<Dataset>) => void): () => void;

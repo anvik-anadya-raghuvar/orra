@@ -157,6 +157,23 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
         }
       }
     },
+    async saveCollectionConfirmed(key, _rows, changed) {
+      if (!changed.length) return null;
+      const table = TABLE[key];
+      if (key === 'profiles') {
+        changed = (changed as Record<string, unknown>[]).map(({ password: _pw, ...rest }) => rest);
+      }
+      const write =
+        key === 'audit_trail' || key === 'personal_order_events'
+          ? sb.from(table).insert(changed as never[])
+          : sb.from(table).upsert(changed as never[]);
+      const { error } = await write;
+      if (error) return error.message;
+      const known = knownIds.get(key) ?? new Set<string>();
+      for (const row of changed as { id: string }[]) known.add(row.id);
+      knownIds.set(key, known);
+      return null;
+    },
     saveWeights(w) {
       void sb
         .from('ranking_weights')
