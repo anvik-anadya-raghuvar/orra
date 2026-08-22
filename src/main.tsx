@@ -22,3 +22,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>,
 );
+
+/**
+ * Register the worker that makes the portal installable (see public/sw.js).
+ *
+ * Production only, and after load: in dev a caching worker between Vite and
+ * the browser is a source of "why is my change not showing" and nothing else.
+ * Failure is deliberately silent — an unregistered worker costs the install
+ * prompt and a warm start, never the app.
+ */
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
