@@ -801,6 +801,11 @@ tbody tr:hover {
   .btn.sm,
   .sub2 button,
   .pillbtn,
+  /* `.picon` is a 30px icon square by default. The blanket icon rule below
+     gave it 44px of width but nothing gave it height, so controls like the
+     Us composer's Clear conversation sat at 44×30 — wide enough and short
+     enough to still be a miss. */
+  .picon,
   [role='tab'],
   .nav-pills a,
   .srch,
@@ -823,7 +828,12 @@ tbody tr:hover {
   }
 
   /* Interactive variants of otherwise-decorative classes. Static badges
-     (span.pill, span.lk) are untouched — only the clickable ones grow. */
+     (span.pill, span.lk) are untouched — only the clickable ones grow.
+     Width as well as height: a status pill reading "due" or a task link
+     reading "T-47" is short enough to land at 34–42px across, which is a
+     miss on a thumb even when it is tall enough. The blanket icon rule below
+     only catches controls with an aria-label, and these carry visible text
+     instead. */
   button.pill,
   a.pill,
   button.lk,
@@ -831,8 +841,10 @@ tbody tr:hover {
   .tagadd,
   .statuslike {
     min-height: 44px;
+    min-width: 44px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
   }
 
   input[type='checkbox'],
