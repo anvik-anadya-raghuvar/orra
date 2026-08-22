@@ -644,7 +644,7 @@ export default function Us() {
       title: store.me.name,
       body: trimmed.slice(0, 140),
       url: '/us',
-      tag: 'anvik-message',
+      tag: 'orra-message',
       kind: 'message',
     });
     setBody('');

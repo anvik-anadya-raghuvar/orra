@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Anvik Ops</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>ORRA</title>
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <meta name="theme-color" content="#05030C" />
     <!-- Installable to a home screen. iOS reads apple-touch-icon rather than
          the manifest's icons, and needs both lines to open without Safari's
@@ -13,7 +14,7 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Anvik" />
+    <meta name="apple-mobile-web-app-title" content="ORRA" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -22,8 +23,37 @@
     />
     <script>
       (function () {
+        // ── Carry the old keys over ────────────────────────────────────────
+        // Everything the browser remembers used to be namespaced `anvik:`.
+        // Renaming the app must not sign either of us out, drop a half-typed
+        // scribble, or forget the theme, so the old keys are moved across
+        // once, here — before any other script runs and reads them.
         try {
-          var t = localStorage.getItem('anvik:theme');
+          // One key never followed the `anvik:` convention, so it needs
+          // naming: without this line the dictation language would silently
+          // reset to default.
+          var ODD = { 'anvik.dictation.lang': 'orra:dictation-lang' };
+          ['localStorage', 'sessionStorage'].forEach(function (which) {
+            var store = window[which];
+            // Snapshot the key list before touching anything. Storage is a
+            // live indexed collection: writing the new key and deleting the
+            // old one mid-loop reshuffles the indices underneath the cursor,
+            // which silently skips entries — it dropped the signed-in user id
+            // and an unsaved draft when this walked the store directly.
+            var keys = [];
+            for (var i = 0; i < store.length; i += 1) keys.push(store.key(i));
+            keys.forEach(function (key) {
+              if (!key) return;
+              var moved = ODD[key] || (key.indexOf('anvik:') === 0 ? 'orra:' + key.slice(6) : null);
+              if (!moved) return;
+              if (store.getItem(moved) === null) store.setItem(moved, store.getItem(key));
+              store.removeItem(key);
+            });
+          });
+        } catch (e) {}
+
+        try {
+          var t = localStorage.getItem('orra:theme');
           // Deep Field is the portal's identity, so an unset preference lands on
           // dark rather than following the OS into the weaker theme.
           if (!t) t = 'dark';

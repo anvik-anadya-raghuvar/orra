@@ -25,7 +25,7 @@ export interface CurrentWeather {
 
 /** A reading is good for half an hour; weather does not turn on a sixpence. */
 const TTL_MS = 30 * 60_000;
-const STORAGE_PREFIX = 'anvik:weather:';
+const STORAGE_PREFIX = 'orra:weather:';
 
 interface Entry {
   at: number;

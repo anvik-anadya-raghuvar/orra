@@ -19,7 +19,7 @@
  * draft goes stale, what a corrupt entry does — are testable without a DOM.
  */
 
-export const DRAFT_PREFIX = 'anvik:draft:';
+export const DRAFT_PREFIX = 'orra:draft:';
 
 /** How long an untouched draft is worth restoring. Past this it is far more
  *  likely to be a forgotten false start than something you still want. */

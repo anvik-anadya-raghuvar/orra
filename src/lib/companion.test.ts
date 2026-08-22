@@ -18,7 +18,7 @@ const OTHER = 'u-raghuvar';
 
 const profile = (id: string, name: string, tz: string): Profile => ({
   id,
-  email: `${name.toLowerCase()}@anvik.dev`,
+  email: `${name.toLowerCase()}@orra.dev`,
   name,
   avatar_url: null,
   time_zone: tz,

@@ -2,10 +2,10 @@ import type { Dataset } from '../types';
 import type { DataAdapter } from './adapter';
 import { seedDataset, seedTestDataset, TEST } from './seed';
 
-const MAIN_LS_KEY = 'anvik:dataset:v1';
+const MAIN_LS_KEY = 'orra:dataset:v1';
 // Bump only when the disposable fixture schema changes. Main-account storage
 // deliberately keeps its original key and is never reset by test work.
-const TEST_LS_KEY = 'anvik:dataset:test:v2';
+const TEST_LS_KEY = 'orra:dataset:test:v2';
 const LEGACY_TEST_ID = 'u-test';
 
 /**
@@ -16,7 +16,7 @@ const LEGACY_TEST_ID = 'u-test';
 export function createMockAdapter(): DataAdapter {
   const selectedId = (() => {
     try {
-      return localStorage.getItem('anvik:me');
+      return localStorage.getItem('orra:me');
     } catch {
       return null;
     }
@@ -24,7 +24,7 @@ export function createMockAdapter(): DataAdapter {
   const testWorkspace = selectedId === TEST || selectedId === LEGACY_TEST_ID;
   const storageKey = testWorkspace ? TEST_LS_KEY : MAIN_LS_KEY;
   let pending: number | undefined;
-  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('anvik-mock') : null;
+  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('orra-mock') : null;
   let current: Dataset | null = null;
 
   const persist = () => {

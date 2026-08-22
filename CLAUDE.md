@@ -1,4 +1,4 @@
-# CLAUDE.md — Anvik Ops
+# CLAUDE.md — ORRA
 
 Standing rules for every session in this repository.
 

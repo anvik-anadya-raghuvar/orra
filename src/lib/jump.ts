@@ -10,7 +10,7 @@
  * sessionStorage rather than a module variable so it survives the navigation
  * even if the destination route is lazily loaded and mounts a tick later.
  */
-const KEY = 'anvik:jump';
+const KEY = 'orra:jump';
 
 export interface Jump {
   /** Which tab the Notebook should open on. Keys match the room's own. */

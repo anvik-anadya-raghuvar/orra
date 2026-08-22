@@ -68,10 +68,10 @@ export function CommandPalette() {
     };
     window.addEventListener('keydown', onKey);
     const onOpenRequest = () => setOpen(true);
-    window.addEventListener('anvik:open-palette', onOpenRequest);
+    window.addEventListener('orra:open-palette', onOpenRequest);
     return () => {
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('anvik:open-palette', onOpenRequest);
+      window.removeEventListener('orra:open-palette', onOpenRequest);
     };
   }, []);
 
@@ -334,7 +334,7 @@ export function CommandPaletteButton() {
       className="chip cp-open"
       aria-label="Search everything"
       title="Search everything (Ctrl+K)"
-      onClick={() => window.dispatchEvent(new Event('anvik:open-palette'))}
+      onClick={() => window.dispatchEvent(new Event('orra:open-palette'))}
     >
       <Search size={15} strokeWidth={2} aria-hidden />
     </button>

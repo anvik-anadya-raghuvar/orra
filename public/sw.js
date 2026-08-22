@@ -25,7 +25,7 @@
  * long as the browser's default lifetime, since everything it caches is
  * fingerprinted but the worker is not.
  */
-const CACHE = 'anvik-v1';
+const CACHE = 'orra-v1';
 
 self.addEventListener('install', (event) => {
   // The new worker should take over on the next navigation, not the next
@@ -102,9 +102,9 @@ self.addEventListener('push', (event) => {
   } catch {
     // A payload that will not parse still deserves to surface: silence here
     // reads as "push is broken" from the outside.
-    data = { title: 'Anvik Ops', body: event.data ? event.data.text() : '' };
+    data = { title: 'ORRA', body: event.data ? event.data.text() : '' };
   }
-  const title = data.title || 'Anvik Ops';
+  const title = data.title || 'ORRA';
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || '',
@@ -112,7 +112,7 @@ self.addEventListener('push', (event) => {
       badge: '/icons/icon-192.png',
       // Same tag replaces rather than stacks, so five due-date pushes in a
       // morning are one line on the lock screen instead of five.
-      tag: data.tag || 'anvik',
+      tag: data.tag || 'orra',
       renotify: Boolean(data.renotify),
       data: { url: data.url || '/' },
       timestamp: Date.now(),

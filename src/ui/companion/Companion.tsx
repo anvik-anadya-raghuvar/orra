@@ -203,7 +203,7 @@ export default function Companion() {
      Drag him onto the Home link and he clocks off — hidden everywhere,
      nothing running — until you next open Home, where he wakes with a line.
      Session-scoped like his drag position: a fresh session starts awake. */
-  const restKey = `anvik:vik:resting:${store.meId}`;
+  const restKey = `orra:vik:resting:${store.meId}`;
   const [resting, setResting] = useState(() => {
     try {
       return sessionStorage.getItem(restKey) === '1';

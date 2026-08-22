@@ -49,10 +49,10 @@ Deno.serve(async (req: Request) => {
   }
 
   const userId: string | undefined = payload.user_id;
-  const title = String(payload.title ?? 'Anvik Ops').slice(0, 200);
+  const title = String(payload.title ?? 'ORRA').slice(0, 200);
   const body = String(payload.body ?? '').slice(0, 500);
   const url = String(payload.url ?? '/').slice(0, 300);
-  const tag = String(payload.tag ?? 'anvik').slice(0, 60);
+  const tag = String(payload.tag ?? 'orra').slice(0, 60);
   const kind = String(payload.kind ?? 'message').slice(0, 40);
   if (!userId) return json({ error: 'user_id is required' }, 400);
 

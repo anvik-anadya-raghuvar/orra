@@ -32,7 +32,7 @@ const JOIN_GRACE_MS = 10_000;
 /** An event nobody managed to announce goes stale rather than queuing up. */
 const EVENT_TTL_MS = 5 * 60_000;
 
-const memKey = (meId: string) => `anvik:companion:${meId}`;
+const memKey = (meId: string) => `orra:companion:${meId}`;
 
 function loadMemory(meId: string): CompanionMemory {
   try {

@@ -106,7 +106,7 @@ export const DICTATION_LANGUAGES: DictationLanguage[] = [
   { code: 'hi-IN', label: 'Hindi' },
 ];
 
-const LANGUAGE_KEY = 'anvik.dictation.lang';
+const LANGUAGE_KEY = 'orra:dictation-lang';
 
 /** The best default for a browser we know nothing else about. */
 export function defaultDictationLanguage(navigatorLanguage?: string): string {

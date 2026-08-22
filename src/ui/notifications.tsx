@@ -64,7 +64,7 @@ function useDesktopNotifications() {
       // Only when the tab isn't in front — otherwise the in-app card is enough.
       if (document.visibilityState === 'visible') return;
       try {
-        new Notification(title, { body, tag: 'anvik-message' });
+        new Notification(title, { body, tag: 'orra-message' });
       } catch {
         /* some browsers block construction outside a service worker */
       }
@@ -83,7 +83,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [panelOpen, setPanelOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try {
-      return new Set(JSON.parse(sessionStorage.getItem('anvik:dismissed-notifications') ?? '[]'));
+      return new Set(JSON.parse(sessionStorage.getItem('orra:dismissed-notifications') ?? '[]'));
     } catch {
       return new Set();
     }
@@ -107,7 +107,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
    *  "not today" simply stops matching tomorrow — nothing has to clear it. */
   const [snoozed, setSnoozed] = useState<Set<string>>(() => {
     try {
-      return new Set(JSON.parse(sessionStorage.getItem('anvik:dismissed-attention') ?? '[]'));
+      return new Set(JSON.parse(sessionStorage.getItem('orra:dismissed-attention') ?? '[]'));
     } catch {
       return new Set();
     }
@@ -122,7 +122,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setSnoozed((current) => {
       const next = new Set(current).add(id);
       try {
-        sessionStorage.setItem('anvik:dismissed-attention', JSON.stringify([...next]));
+        sessionStorage.setItem('orra:dismissed-attention', JSON.stringify([...next]));
       } catch {}
       return next;
     });
@@ -154,7 +154,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const fresh = unread.filter((message) => !seen.current.has(message.id));
     for (const m of fresh) {
       seen.current.add(m.id);
-      notify(`${other.name} · Anvik Ops`, notificationBody(m));
+      notify(`${other.name} · ORRA`, notificationBody(m));
     }
     const latest = fresh.filter((message) => !dismissed.has(message.id)).slice(-1)[0];
     if (latest) setPopupId(latest.id);
@@ -164,7 +164,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setDismissed((current) => {
       const next = new Set(current).add(id);
       try {
-        sessionStorage.setItem('anvik:dismissed-notifications', JSON.stringify([...next]));
+        sessionStorage.setItem('orra:dismissed-notifications', JSON.stringify([...next]));
       } catch {}
       return next;
     });
@@ -216,14 +216,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
    */
   useEffect(() => {
     if (!attention.length) return;
-    const key = `anvik:attention-notified:${today}`;
+    const key = `orra:attention-notified:${today}`;
     try {
       if (sessionStorage.getItem(key)) return;
       sessionStorage.setItem(key, '1');
     } catch {
       return;
     }
-    notify('Anvik Ops · today', attentionSummary(attention));
+    notify('ORRA · today', attentionSummary(attention));
   }, [attention, notify, today]);
 
   const value = useMemo(

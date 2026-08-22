@@ -209,7 +209,7 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
     onRemoteChange(cb) {
       // Realtime on the chat-critical tables; other screens refetch on focus.
       const channel = sb
-        .channel('anvik-realtime')
+        .channel('orra-realtime')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => refetch('messages'))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => refetch('tasks'))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_daily' }, () => refetch('shared_daily'))

@@ -218,7 +218,7 @@ describe('handoff bundle honesty', () => {
 
   it('exports a deterministic machine-readable hierarchy with global pin numbers', () => {
     const context = JSON.parse(generateTaskContext(seedDataset(), 'T-42'));
-    expect(context.schema).toBe('anvik-task-context/v1');
+    expect(context.schema).toBe('orra-task-context/v1');
     expect(context.screenshots[0].pins.map((pin: { number: number }) => pin.number)).toEqual([1, 2]);
   });
 

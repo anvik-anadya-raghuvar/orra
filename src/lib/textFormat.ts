@@ -100,7 +100,7 @@ export function isSafeExternalUrl(value: string | undefined): boolean {
   if (!value) return false;
   if (!/^(https?:\/\/|mailto:)/i.test(value.trim())) return false;
   try {
-    const url = new URL(value, 'https://anvik.local');
+    const url = new URL(value, 'https://orra.local');
     return ['http:', 'https:', 'mailto:'].includes(url.protocol);
   } catch {
     return false;

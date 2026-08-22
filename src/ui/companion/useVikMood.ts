@@ -29,7 +29,7 @@ import {
 
 /** Long enough that a flurry of pokes is one write, short enough to survive. */
 const FLUSH_MS = 5_000;
-const KEY = (meId: string) => `anvik:vik:mood:${meId}`;
+const KEY = (meId: string) => `orra:vik:mood:${meId}`;
 
 function readMirror(meId: string): MoodState | null {
   try {

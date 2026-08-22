@@ -115,7 +115,7 @@ export class AppStore {
   setMe(id: UserId) {
     this.meId = id;
     try {
-      localStorage.setItem('anvik:me', id);
+      localStorage.setItem('orra:me', id);
     } catch {}
     this.emit();
   }
@@ -571,15 +571,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           // where signing in again gets a token that actually works.
           if (adapter.kind === 'supabase') {
             try {
-              localStorage.removeItem('anvik:signedin');
+              localStorage.removeItem('orra:signedin');
             } catch {}
           }
           try {
-            const saved = localStorage.getItem('anvik:me');
+            const saved = localStorage.getItem('orra:me');
             const migrated = saved === 'u-test' ? DEMO_USER_ID : saved;
             if (migrated && ds.profiles.some((p) => p.id === migrated)) {
               me = migrated;
-              if (saved !== migrated) localStorage.setItem('anvik:me', migrated);
+              if (saved !== migrated) localStorage.setItem('orra:me', migrated);
             }
           } catch {}
         }

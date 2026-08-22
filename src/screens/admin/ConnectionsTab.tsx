@@ -88,7 +88,7 @@ export default function ConnectionsTab() {
     const open = ds.tasks.filter((t) => t.status !== 'done').length;
     const decisions = ds.decisions.filter((d) => d.status === 'open').length;
     return [
-      `Anvik Ops — where things stand`,
+      `ORRA — where things stand`,
       ``,
       `Open tasks: ${open}`,
       `Open decisions: ${decisions}`,
@@ -193,10 +193,10 @@ export default function ConnectionsTab() {
           : 'Compose opens prefilled in your own mailbox. Reading the inbox into the Mail tab needs the client id.',
       needs: configured ? undefined : clientIdNeeded,
       actions: [
-        { label: `Email ${other.name}`, href: gmailCompose(other.email, 'Anvik Ops', '') },
+        { label: `Email ${other.name}`, href: gmailCompose(other.email, 'ORRA', '') },
         {
           label: 'Send the digest',
-          href: gmailCompose(`${me.email},${other.email}`, 'Anvik Ops — digest', digest),
+          href: gmailCompose(`${me.email},${other.email}`, 'ORRA — digest', digest),
         },
       ],
     },

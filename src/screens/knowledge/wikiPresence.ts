@@ -39,7 +39,7 @@ export function useWikiPresence(pageId: string) {
     }
 
     if (typeof BroadcastChannel === 'undefined') return;
-    const room = new BroadcastChannel(`anvik:wiki-presence:${pageId}`);
+    const room = new BroadcastChannel(`orra:wiki-presence:${pageId}`);
     const seen = new Map<string, number>([[store.meId, Date.now()]]);
     const publish = (type: 'join' | 'ping' | 'leave') => room.postMessage({ type, userId: store.meId, at: Date.now() });
     const sync = () => {

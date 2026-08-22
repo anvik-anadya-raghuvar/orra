@@ -129,7 +129,7 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
       // Clear the recovery fragment so a refresh doesn't re-enter this mode.
       window.history.replaceState({}, '', window.location.pathname);
       try {
-        localStorage.setItem('anvik:signedin', '1');
+        localStorage.setItem('orra:signedin', '1');
       } catch {}
       window.location.reload();
     } finally {
@@ -154,7 +154,7 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
         // The store booted with the anonymous (empty) dataset. Reload so the
         // adapter refetches everything as the authenticated member.
         try {
-          localStorage.setItem('anvik:signedin', '1');
+          localStorage.setItem('orra:signedin', '1');
         } catch {}
         window.location.reload();
         return;
@@ -163,7 +163,7 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
         if (!res.ok) {
           setError(
             res.reason === 'unknown_email'
-              ? 'This address is not on the Anvik Ops member list.'
+              ? 'This address is not on the ORRA member list.'
               : res.reason === 'no_local_credentials'
                 ? 'This build has no local credentials. Connect Supabase (VITE_SUPABASE_URL) to sign in.'
                 : 'Wrong password for this account.',
@@ -174,13 +174,13 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
         // Mock workspaces use separate localStorage datasets. Reload after the
         // identity is saved so the selected account gets its own adapter key.
         try {
-          localStorage.setItem('anvik:signedin', '1');
+          localStorage.setItem('orra:signedin', '1');
         } catch {}
         window.location.reload();
         return;
       }
       try {
-        localStorage.setItem('anvik:signedin', '1');
+        localStorage.setItem('orra:signedin', '1');
       } catch {}
       onEnter();
     } finally {
@@ -291,7 +291,7 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@anvik"
+                placeholder="you@orra"
                 required
               />
               {error && (
@@ -325,7 +325,7 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@anvik"
+                placeholder="you@orra"
                 required
               />
               <label className="glab" htmlFor="gate-pw">

@@ -24,7 +24,7 @@ import {
 const EXPLAIN: Record<PushSupport, string> = {
   ready: 'Get a notification when a message arrives or something is due — even with the portal closed.',
   unsupported: 'This browser cannot receive push notifications.',
-  'needs-install': 'On iPhone and iPad this works only once Anvik is added to the home screen — Safari does not allow notifications to an ordinary tab. Add it, open it from the icon, then come back here.',
+  'needs-install': 'On iPhone and iPad this works only once ORRA is added to the home screen — Safari does not allow notifications to an ordinary tab. Add it, open it from the icon, then come back here.',
   'not-configured': 'Push is not configured on this deployment yet: it needs a VAPID key pair set on Vercel and Supabase.',
   blocked: 'Notifications are blocked for this site in your browser settings. Allow them there, then reload this page.',
 };
@@ -87,10 +87,10 @@ export default function PushCard() {
             disabled={busy}
             onClick={() => {
               void sendPush(store.meId, {
-                title: 'Anvik Ops',
+                title: 'ORRA',
                 body: 'This is a test — notifications are working.',
                 url: '/',
-                tag: 'anvik-test',
+                tag: 'orra-test',
                 kind: 'test',
               });
               toast('Test sent — it should arrive in a moment.');
@@ -103,7 +103,7 @@ export default function PushCard() {
 
       {!isInstalled() && support === 'ready' && (
         <p className="tip">
-          Tip: install Anvik to your home screen as well — notifications are more reliable from the
+          Tip: install ORRA to your home screen as well — notifications are more reliable from the
           installed app, and on iPhone they only work that way.
         </p>
       )}

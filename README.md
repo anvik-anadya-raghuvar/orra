@@ -1,4 +1,4 @@
-# Anvik Ops
+# ORRA
 
 Internal operations portal for exactly two people — Anadya and Raghuvar — running a startup across India and Italy. Replaces Notion, Slack, Trello, and a notes app. See [IMPLEMENTATION-PLAN-v2.md](IMPLEMENTATION-PLAN-v2.md) for the full spec and [CLAUDE.md](CLAUDE.md) for standing rules.
 

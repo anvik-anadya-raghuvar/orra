@@ -239,7 +239,7 @@ export function generateTaskContext(ds: Dataset, taskId: string): string {
     .sort(byCreatedAt);
   const numbers = taskPinNumbers(ds, taskId);
   const context = {
-    schema: 'anvik-task-context/v1',
+    schema: 'orra-task-context/v1',
     task: {
       id: task.id,
       title: task.title,

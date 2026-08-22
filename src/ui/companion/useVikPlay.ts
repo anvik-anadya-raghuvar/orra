@@ -22,7 +22,7 @@ import type { Gesture } from '../../lib/companionPose';
 import type { MoodAction } from '../../lib/companionMood';
 import type { Release, Viewport } from '../../lib/companionLink';
 
-const POS_KEY = 'anvik:companion:pos';
+const POS_KEY = 'orra:companion:pos';
 /** The tap cycle resets to "status" after this much quiet. */
 const CYCLE_RESET_MS = 30_000;
 /** A click lands right after a real drag ends — that release is not a poke. */

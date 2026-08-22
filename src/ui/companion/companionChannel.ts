@@ -32,7 +32,7 @@ export interface PresencePayload {
   block?: PresenceBlock | null;
 }
 
-const CHANNEL = 'anvik-presence';
+const CHANNEL = 'orra-presence';
 const BROADCAST_EVENT = 'vik';
 /** Enough to survive a component remount; small enough to stay free. */
 const SEEN_LIMIT = 50;
@@ -138,8 +138,8 @@ function createSupabase(meId: string): Live {
   return state;
 }
 
-const MOCK_PRESENCE = 'anvik:presence';
-const MOCK_LINK = 'anvik:vik-link';
+const MOCK_PRESENCE = 'orra:presence';
+const MOCK_LINK = 'orra:vik-link';
 const HEARTBEAT_MS = 15_000;
 const CUTOFF_MS = 45_000;
 

@@ -26,7 +26,7 @@ import type { MoodAction } from '../../lib/companionMood';
 import type { AccessoryId } from '../../lib/companionWardrobe';
 
 const FLUSH_MS = 5_000;
-const KEY = (meId: string) => `anvik:vik:bond:${meId}`;
+const KEY = (meId: string) => `orra:vik:bond:${meId}`;
 
 /** Which of the things the mood notices are also worth xp. */
 const BOND_FOR: Partial<Record<MoodAction, BondAction>> = {

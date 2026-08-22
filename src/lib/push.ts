@@ -122,7 +122,7 @@ export async function currentSubscription(): Promise<PushSubscription | null> {
 export async function enablePush(userId: string): Promise<{ ok: boolean; message: string }> {
   const support = pushSupport();
   if (support === 'needs-install') {
-    return { ok: false, message: 'On iPhone and iPad, add Anvik to your home screen first — Safari only allows notifications to an installed app.' };
+    return { ok: false, message: 'On iPhone and iPad, add ORRA to your home screen first — Safari only allows notifications to an installed app.' };
   }
   if (support === 'unsupported') return { ok: false, message: 'This browser cannot receive push notifications.' };
   if (support === 'not-configured') return { ok: false, message: 'Push is not configured on this deployment yet.' };

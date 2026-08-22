@@ -63,7 +63,7 @@ function useTheme() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     try {
-      localStorage.setItem('anvik:theme', JSON.stringify(theme));
+      localStorage.setItem('orra:theme', JSON.stringify(theme));
     } catch {}
   }, [theme]);
   return { theme, toggle: () => setTheme((t) => (t === 'dark' ? 'light' : 'dark')) };
@@ -113,7 +113,7 @@ function AccountMenu() {
 
   const signOut = async () => {
     try {
-      localStorage.removeItem('anvik:signedin');
+      localStorage.removeItem('orra:signedin');
     } catch {}
     if (store.adapter.kind === 'supabase') {
       // Revoke the real session too, not just the UI flag.
@@ -237,25 +237,18 @@ function Header() {
   }, []);
   return (
     <div className="bar" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-      <div
-        style={{
-          width: 33,
-          height: 33,
-          borderRadius: 11,
-          display: 'grid',
-          placeItems: 'center',
-          color: '#fff',
-          fontFamily: '"Space Grotesk"',
-          fontWeight: 700,
-          background: 'linear-gradient(145deg,var(--violet),var(--indigo))',
-          boxShadow: '0 6px 16px var(--glow)',
-          transform: 'rotate(-4deg)',
-        }}
-      >
-        A
-      </div>
-      <span className="disp" style={{ fontSize: 17 }}>
-        Anvik Ops
+      {/* The real mark rather than a letter drawn in CSS, so the header, the
+          installed app icon and the notification badge are the same artwork
+          and cannot drift apart. */}
+      <img
+        src="/icons/icon-192.png"
+        alt=""
+        width={33}
+        height={33}
+        style={{ width: 33, height: 33, borderRadius: 9, display: 'block' }}
+      />
+      <span className="disp" style={{ fontSize: 17, letterSpacing: '0.02em' }}>
+        ORRA
       </span>
       <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{clock}</span>
       <RunningBlockBadge />
@@ -420,7 +413,7 @@ function AutoSync() {
 function Gated() {
   const [signedIn, setSignedIn] = useState(() => {
     try {
-      return localStorage.getItem('anvik:signedin') === '1';
+      return localStorage.getItem('orra:signedin') === '1';
     } catch {
       return false;
     }
