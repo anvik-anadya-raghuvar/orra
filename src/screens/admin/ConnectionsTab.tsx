@@ -6,6 +6,7 @@ import { Modal, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { googleConfigured } from '../../lib/google';
 import { youtubeConfigured } from '../../lib/youtube';
+import PushCard from './PushCard';
 import {
   connectGoogleAccount,
   describeSync,
@@ -267,6 +268,9 @@ export default function ConnectionsTab() {
 
   return (
     <div>
+      {/* First, because it is the only connection that reaches you when the
+          portal is closed — and the one most worth knowing the state of. */}
+      <PushCard />
       <div className="ad-goog">
         <div className="ad-conn-head">
           <h4>Google accounts</h4>

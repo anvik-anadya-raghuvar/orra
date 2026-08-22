@@ -705,6 +705,25 @@ export interface MoodItem {
   pinned_at: string;
 }
 
+/**
+ * One browser on one machine that has opted into push.
+ *
+ * Per device, not per person: turning notifications off on the laptop must
+ * not silence the phone. See lib/push.ts and migration 0039.
+ */
+export interface PushSubscriptionRow {
+  id: string;
+  user_id: UserId;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  label: string;
+  /** Set when a push service reports the subscription gone (404/410). */
+  expired_at?: string | null;
+  created_at: string;
+  last_used_at?: string | null;
+}
+
 export interface FixedDate {
   id: string;
   label: string;
@@ -1092,6 +1111,7 @@ export interface Dataset {
   time_logs: TimeLog[];
   life_admin: LifeAdminItem[];
   fixed_dates: FixedDate[];
+  push_subscriptions: PushSubscriptionRow[];
   ledger: LedgerEntry[];
   import_batches: ImportBatch[];
   audit_trail: AuditEntry[];

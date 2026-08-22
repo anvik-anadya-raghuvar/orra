@@ -29,6 +29,7 @@ const TABLE: Record<CollectionKey, string> = {
   time_logs: 'time_logs',
   life_admin: 'life_admin',
   fixed_dates: 'fixed_dates',
+  push_subscriptions: 'push_subscriptions',
   ledger: 'ledger',
   import_batches: 'import_batches',
   audit_trail: 'audit_trail',

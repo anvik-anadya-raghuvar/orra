@@ -9,6 +9,7 @@ import { entrance } from '../../ui/motion';
 import { fmtDay, fmtTime, localDay, todayIso } from '../../lib/dates';
 import { useMomentSrc } from '../../lib/useMomentSrc';
 import { sendPhoto, sendSong } from '../../lib/sends';
+import { sendPush } from '../../lib/push';
 import { isYouTubeUrl, playUrl } from '../../lib/song';
 import { PromoteModal, type PromoteKind, type PromoteTarget } from './PromoteModal';
 import { SideColumn } from './Sidebar';
@@ -636,6 +637,16 @@ export default function Us() {
       },
       store.asMe(),
     );
+    // Reach them even with the app closed — the one case the in-app bell
+    // cannot cover. Fire-and-forget: a failed push must never cost a message
+    // that has already been sent.
+    void sendPush(store.other.id, {
+      title: store.me.name,
+      body: trimmed.slice(0, 140),
+      url: '/us',
+      tag: 'anvik-message',
+      kind: 'message',
+    });
     setBody('');
     setAttachedTaskId(null);
     setReplyTo(null);

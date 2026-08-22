@@ -387,6 +387,9 @@ function rawSeed(): Dataset {
       { id: 'fd-3', label: 'NIC case-number cutover', date: D('2026-09-01'), category: 'business' },
       { id: 'fd-4', label: 'Enrolment letter upload', date: D('2026-08-25'), category: 'university' },
     ],
+    // Devices opt in from Settings at runtime; there is nothing sensible to
+    // pretend about here, so the worked example ships with none.
+    push_subscriptions: [],
     ledger: [
       { id: 'lg-1', date: D('2026-08-17'), party: 'Founder contribution', category: 'Founder capital', project_id: 'anvik', direction: 'in', amount: 86000, status: 'paid', paid_by: RG, payer_allocations: [{ user_id: RG, amount: 86000 }], comments: 'Money put into the business; not revenue.', ends_on: null, subscription_id: null, receipt_url: null, linked_task_id: null, import_batch_id: null },
       { id: 'lg-2', date: D('2026-08-16'), party: 'AWS India', category: 'Infra', project_id: 'reg', direction: 'out', amount: 34200, status: 'paid', paid_by: null, payer_allocations: [{ user_id: RG, amount: 17100 }, { user_id: AN, amount: 17100 }], comments: 'Split equally between both founders.', ends_on: null, subscription_id: null, receipt_url: null, linked_task_id: null, import_batch_id: null },
