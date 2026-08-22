@@ -2,6 +2,15 @@
 
 Internal operations portal for exactly two people — Anadya and Raghuvar — running a startup across India and Italy. Replaces Notion, Slack, Trello, and a notes app. See [IMPLEMENTATION-PLAN-v2.md](IMPLEMENTATION-PLAN-v2.md) for the full spec and [CLAUDE.md](CLAUDE.md) for standing rules.
 
+**Live:** <https://teamorra.vercel.app>
+
+`anvik-ops.vercel.app` still serves the same deployment — Vercel keeps the original domain when a
+project is renamed. Prefer the ORRA address: a browser scopes sign-in, saved drafts and push
+subscriptions to the origin, so using one address consistently avoids setting all three up twice.
+
+Repo `anvik-anadya-raghuvar/orra` · Vercel project `teamorra` · Supabase project `anvik-ops`
+(unrenamed — renaming it would change the API URL every client is configured with).
+
 ## Stack
 
 Vite · React 18 · TypeScript · Tailwind (+ ported prototype design system) · Framer Motion · Supabase (Postgres/Auth/Storage/Realtime) · Vercel. ₹0 recurring.
@@ -47,19 +56,25 @@ never in Postgres, never in localStorage. What the database stores is only *whic
 granted* and account/sync metadata (`integration_grants`), so the Connections screen can be honest.
 This does not require a paid API, subscription, server, or billing upgrade.
 
-1. [console.cloud.google.com](https://console.cloud.google.com) → new project, e.g. `anvik-ops`.
+1. [console.cloud.google.com](https://console.cloud.google.com) → new project, e.g. `orra`.
 2. **APIs & Services → Library** → enable **Gmail API**, **Google Calendar API**, **Google Drive API**.
 3. **APIs & Services → OAuth consent screen** → **External** → app name + support email →
    **Audience → Test users**: add every Google address that will be connected.
    Leave it in **Testing**. Testing supports up to 100 Test users, but Google may require each
    address to consent again every seven days; the app exposes Reconnect on every account row.
 4. **Credentials → Create credentials → OAuth client ID → Web application**. Under
-   **Authorised JavaScript origins** add both:
+   **Authorised JavaScript origins** add all three:
    ```
+   https://teamorra.vercel.app
    https://anvik-ops.vercel.app
    http://localhost:5180
    ```
    No redirect URIs — the token flow doesn't use them.
+
+   Both deployed origins are listed on purpose. Google matches the origin
+   exactly, so an address that is not on this list fails the connect with a
+   mismatch rather than a message anyone can act on — and the project kept its
+   original `anvik-ops` domain when it was renamed, so both still serve.
 5. Copy the client id (`….apps.googleusercontent.com`) into `.env` as `VITE_GOOGLE_CLIENT_ID`,
    and add the same variable in Vercel → Settings → Environment Variables. Restart dev / redeploy.
 6. Apply `0026_multi_google_personal_orders.sql` before deploying this client. In the app, open
@@ -93,7 +108,8 @@ search data and touches nobody's account, which is why there's no consent dialog
 1. Same Cloud project → **APIs & Services → Library** → enable **YouTube Data API v3**.
 2. **Credentials → Create credentials → API key**.
 3. **Restrict it before use** — this key ships inside the JS bundle:
-   - **Application restrictions → Websites**: `https://anvik-ops.vercel.app/*` and `http://localhost:5180/*`
+   - **Application restrictions → Websites**: `https://teamorra.vercel.app/*`,
+     `https://anvik-ops.vercel.app/*` and `http://localhost:5180/*`
    - **API restrictions → Restrict key**: YouTube Data API v3 only
 4. Set it as `VITE_YOUTUBE_API_KEY` in `.env` and in Vercel.
 

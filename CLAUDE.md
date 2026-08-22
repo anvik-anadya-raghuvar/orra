@@ -8,7 +8,7 @@ An internal operations portal for exactly two people — Anadya and Raghuvar —
 
 ## Stack
 
-Vite + React 18 + TypeScript + Tailwind + Framer Motion. Supabase for Postgres, Auth, Storage, Realtime. Vercel for hosting (linked via `.vercel/project.json`, deployed from the `anvik-anadya-raghuvar/anvik-ops` GitHub repo — not Cloudflare Pages, despite earlier plans). Everything on free tiers. Target cost: ₹0 recurring — flag anything that risks leaving a free tier rather than silently accepting it.
+Vite + React 18 + TypeScript + Tailwind + Framer Motion. Supabase for Postgres, Auth, Storage, Realtime. Vercel for hosting (linked via `.vercel/project.json`, deployed from the `anvik-anadya-raghuvar/orra` GitHub repo as Vercel project `teamorra`, live at teamorra.vercel.app — not Cloudflare Pages, despite earlier plans). Everything on free tiers. Target cost: ₹0 recurring — flag anything that risks leaving a free tier rather than silently accepting it.
 
 ## Non-negotiable principles
 
