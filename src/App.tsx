@@ -18,6 +18,7 @@ import { ErrorBoundary } from './ui/ErrorBoundary';
 import { Gate } from './ui/gate';
 import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
+import { CommandPalette, CommandPaletteButton } from './ui/CommandPalette';
 import { DictationProvider } from './ui/dictation';
 import BlockOverlay from './ui/BlockOverlay';
 import Companion from './ui/companion/Companion';
@@ -259,6 +260,7 @@ function Header() {
       <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{clock}</span>
       <RunningBlockBadge />
       <div className="spacer" />
+      <CommandPaletteButton />
       <NotificationBell />
       <AccountMenu />
       <button className="chip" onClick={toggle} aria-label="Toggle theme">
@@ -448,6 +450,9 @@ function Gated() {
               rather than inside a screen — navigating cannot escape it, and a
               reload restores it because the block lives in the database. */}
           <BlockOverlay />
+          {/* Mounted on the portal for the same reason: Ctrl+K has to work
+              from whichever room you happen to be standing in. */}
+          <CommandPalette />
           <AutoSync />
         </div>
       </NotificationProvider>

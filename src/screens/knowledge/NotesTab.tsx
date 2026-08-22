@@ -60,12 +60,13 @@ function noteHaystack(n: Note): string {
     .toLowerCase();
 }
 
-export default function NotesTab() {
+export default function NotesTab({ initialQuery }: { initialQuery?: string } = {}) {
   const allNotes = useData((ds) => ds.notes);
   const meId = useData((_, s) => s.meId);
   // My notes plus anything still unclaimed (principle 1).
   const notes = useMemo(() => ownRows(allNotes, meId), [allNotes, meId]);
-  const [query, setQuery] = useState('');
+  /** Prefilled when the command palette sent you here for a specific one. */
+  const [query, setQuery] = useState(initialQuery ?? '');
   const [typeFilter, setTypeFilter] = useState<NoteType | 'all'>('all');
   const [openId, setOpenId] = useState<string | 'new' | null>(null);
 

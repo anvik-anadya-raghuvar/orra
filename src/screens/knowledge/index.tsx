@@ -5,6 +5,7 @@ import MailTab from './MailTab';
 import DocumentsTab from './DocumentsTab';
 import WikiTab from './WikiTab';
 import { InfoTip } from '../../ui/bits';
+import { takeJump } from '../../lib/jump';
 
 type KTab = 'notes' | 'wiki' | 'mail' | 'docs';
 
@@ -26,7 +27,14 @@ const TABS: { key: KTab; label: string; help: string }[] = [
  * changing it would break every link already written into a task or a page.
  */
 export default function Knowledge() {
-  const [tab, setTab] = useState<KTab>('notes');
+  /**
+   * The palette can send you straight to a page or a scribble, and this room
+   * keeps its tab in local state with no URL of its own. Read once, in the
+   * initialiser rather than an effect, so the right tab is what first paints
+   * instead of Scribbles flashing before the switch.
+   */
+  const [jump] = useState(takeJump);
+  const [tab, setTab] = useState<KTab>(jump?.knowledgeTab ?? 'notes');
 
   return (
     <div className="frame">
@@ -45,8 +53,8 @@ export default function Knowledge() {
         <div className="spacer" />
       </div>
       <div className="wrap">
-        {tab === 'notes' && <NotesTab />}
-        {tab === 'wiki' && <WikiTab />}
+        {tab === 'notes' && <NotesTab initialQuery={jump?.query} />}
+        {tab === 'wiki' && <WikiTab initialPageId={jump?.pageId} />}
         {tab === 'mail' && <MailTab />}
         {tab === 'docs' && <DocumentsTab />}
       </div>

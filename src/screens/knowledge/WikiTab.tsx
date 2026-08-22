@@ -49,7 +49,7 @@ function useIsNarrow(): boolean {
   return narrow;
 }
 
-export default function WikiTab() {
+export default function WikiTab({ initialPageId }: { initialPageId?: string } = {}) {
   const store = useStore();
   const everyPage = useData((ds) => ds.pages);
   const meId = useData((_, s) => s.meId);
@@ -60,7 +60,8 @@ export default function WikiTab() {
   const [query, setQuery] = useState('');
   const [view, setView] = useState<'home' | 'all' | 'owned'>('home');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
-  const [selected, setSelected] = useState<string | null>(null);
+  /** Preselected when the command palette sent you to a specific page. */
+  const [selected, setSelected] = useState<string | null>(initialPageId ?? null);
   const [treeOpen, setTreeOpen] = useState(false);
   const narrow = useIsNarrow();
 

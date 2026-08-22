@@ -523,6 +523,10 @@ export default function BoardTab({
   const [priorities, setPriorities] = useState<Set<TaskPriority>>(new Set());
   const [monthOffset, setMonthOffset] = useState(0);
   const [stuckOnly, setStuckOnly] = useState(false);
+  /** The board is the busiest surface here and had chips but no text search,
+   *  so finding a task by name meant reading columns. */
+  const [text, setText] = useState('');
+  const needle = text.trim().toLowerCase();
   /** 'all' | 'current' | 'none' | 'archive' | a sprint id. */
   const [sprintSel, setSprintSel] = useState('all');
   const [quick, setQuick] = useState<Task | null>(null);
@@ -593,6 +597,7 @@ export default function BoardTab({
         if (tags.size && !t.tags.some((x) => tags.has(x))) return false;
         if (stuckOnly && !stuckReasons.has(t.id)) return false;
         if (!inSprintScope(t)) return false;
+        if (needle && !`${t.id} ${t.title} ${t.description}`.toLowerCase().includes(needle)) return false;
         return true;
       }),
     [
@@ -607,6 +612,7 @@ export default function BoardTab({
       sprintSel,
       current,
       archived,
+      needle,
     ],
   );
 
@@ -702,7 +708,7 @@ export default function BoardTab({
   };
 
   const anyFilter =
-    projects.size > 0 || types.size > 0 || tags.size > 0 || stuckOnly || priorities.size > 0;
+    projects.size > 0 || types.size > 0 || tags.size > 0 || stuckOnly || priorities.size > 0 || needle.length > 0;
 
   return (
     <div>
@@ -712,6 +718,18 @@ export default function BoardTab({
 
       {/* sprint scope — a filter on this board, never a mode for the portal */}
       <div className="wk-bar">
+        <label className="wk-lbl" htmlFor="wk-find" style={{ marginBottom: 0 }}>
+          Find
+        </label>
+        <input
+          id="wk-find"
+          className="wk-in"
+          type="search"
+          style={{ flex: '1 1 200px', minWidth: 140 }}
+          value={text}
+          placeholder="Title, id, or description…"
+          onChange={(e) => setText(e.target.value)}
+        />
         <label className="wk-lbl" htmlFor="wk-sprint" style={{ marginBottom: 0 }}>
           Sprint
         </label>
@@ -815,6 +833,7 @@ export default function BoardTab({
               setTags(new Set());
               setStuckOnly(false);
               setPriorities(new Set());
+              setText('');
             }}
           >
             Clear filters
