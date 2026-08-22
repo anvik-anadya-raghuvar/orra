@@ -6,26 +6,42 @@ import { newId, nowIso, useData, useStore } from '../data/store';
 import type { Message } from '../types';
 import { Avatar } from './bits';
 import { entrance, micro, spring } from './motion';
-import { fmtTime } from '../lib/dates';
+import { fmtTime, todayIso } from '../lib/dates';
+import { attentionItems, attentionSummary, type AttentionItem, type AttentionSection } from '../lib/attention';
 
 /**
- * Message notifications for the two-person thread.
+ * The bell: messages, and what needs you today.
  *
  * A message from the other person pops a card the moment it lands (Supabase
  * realtime in production, BroadcastChannel across tabs in local mock mode),
  * with reply-in-place and mark-as-read. Anything that arrived while you were
  * away is waiting in the bell, so nothing is missed just because the popup
  * was never seen.
+ *
+ * Alongside that sits everything the portal used to only *show*: a task due
+ * today, a fixed date this week, money owed, a renewal about to bite. Those
+ * were visible on the room that held them and nowhere else, which meant
+ * noticing depended on going to look. See lib/attention.ts — the same
+ * function builds the morning push digest, so there is one definition of
+ * "needs you" rather than two that drift.
  */
+
+const SECTION_LABEL: Record<AttentionSection, string> = {
+  tasks: 'Work due',
+  dates: 'Coming up',
+  money: 'Money',
+};
 
 interface NotifCtx {
   unread: Message[];
+  attention: AttentionItem[];
   markRead: (id: string) => void;
   markAllRead: () => void;
   openPanel: () => void;
 }
 const Ctx = createContext<NotifCtx>({
   unread: [],
+  attention: [],
   markRead: () => {},
   markAllRead: () => {},
   openPanel: () => {},
@@ -60,7 +76,8 @@ function useDesktopNotifications() {
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const store = useStore();
-  const messages = useData((ds) => ds.messages);
+  const ds = useData((data) => data);
+  const messages = ds.messages;
   const me = useData((_, s) => s.me);
   const other = useData((_, s) => s.other);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -85,6 +102,31 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .sort((a, b) => a.created_at.localeCompare(b.created_at)),
     [messages, me.id],
   );
+
+  /** Dismissals live in their own set. Their ids carry today's date, so a
+   *  "not today" simply stops matching tomorrow — nothing has to clear it. */
+  const [snoozed, setSnoozed] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(sessionStorage.getItem('anvik:dismissed-attention') ?? '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+  const today = todayIso();
+  const attention = useMemo(
+    () => attentionItems(ds, me.id, today).filter((item) => !snoozed.has(item.id)),
+    [ds, me.id, today, snoozed],
+  );
+
+  const snooze = (id: string) => {
+    setSnoozed((current) => {
+      const next = new Set(current).add(id);
+      try {
+        sessionStorage.setItem('anvik:dismissed-attention', JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
 
   // Only a message that arrives while this session is open drives the popup.
   // Older unread belongs in the bell; replaying it on every reload is what
@@ -167,9 +209,26 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setReplyTo(null);
   };
 
+  /**
+   * One summary a day, and only when the tab is not in front — the panel is
+   * the right surface while you are looking at the portal. Part 6's push
+   * covers the case this cannot: the app closed entirely.
+   */
+  useEffect(() => {
+    if (!attention.length) return;
+    const key = `anvik:attention-notified:${today}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      return;
+    }
+    notify('Anvik Ops · today', attentionSummary(attention));
+  }, [attention, notify, today]);
+
   const value = useMemo(
-    () => ({ unread, markRead, markAllRead, openPanel: () => setPanelOpen(true) }),
-    [unread, markRead, markAllRead],
+    () => ({ unread, attention, markRead, markAllRead, openPanel: () => setPanelOpen(true) }),
+    [unread, attention, markRead, markAllRead],
   );
 
   return (
@@ -272,7 +331,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               </div>
               {unread.length === 0 ? (
                 <p className="tip" style={{ margin: 0 }}>
-                  Nothing waiting. {other.name} hasn't sent anything unread.
+                  {attention.length
+                    ? `No unread messages from ${other.name}.`
+                    : `Nothing waiting, and nothing due. ${other.name} hasn't sent anything unread.`}
                 </p>
               ) : (
                 unread
@@ -296,6 +357,42 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     </div>
                   ))
               )}
+              {/* Everything the portal used to only show on the room that
+                  held it. One row, one tap to the thing itself. */}
+              {attention.length > 0 && (
+                <div className="notif-attention">
+                  {(['tasks', 'dates', 'money'] as AttentionSection[]).map((section) => {
+                    const rows = attention.filter((item) => item.section === section);
+                    if (!rows.length) return null;
+                    return (
+                      <div key={section}>
+                        <span className="eyebrow">{SECTION_LABEL[section]}</span>
+                        {rows.map((item) => (
+                          <div className={`notif-att-row${item.urgent ? ' urgent' : ''}`} key={item.id}>
+                            <Link
+                              className="notif-att-body"
+                              to={item.route}
+                              onClick={() => setPanelOpen(false)}
+                            >
+                              <p>{item.label}</p>
+                              <span className="mono">{item.sub}</span>
+                            </Link>
+                            <button
+                              type="button"
+                              className="btn sm"
+                              aria-label={`Not today — ${item.label}`}
+                              title="Not today"
+                              onClick={() => snooze(item.id)}
+                            >
+                              <X size={14} strokeWidth={1.9} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               {permission === 'default' && (
                 <button type="button" className="btn sm" style={{ marginTop: 10 }} onClick={request}>
                   Also notify me when I'm away
@@ -315,17 +412,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   );
 }
 
-/** The header bell + unread count. */
+/** The header bell. The count is messages plus whatever needs you today —
+ *  one number, because two badges on one bell is a puzzle, not information. */
 export function NotificationBell() {
-  const { unread, openPanel } = useNotifications();
+  const { unread, attention, openPanel } = useNotifications();
+  const count = unread.length + attention.length;
+  const label = count
+    ? [
+        unread.length ? `${unread.length} unread message${unread.length === 1 ? '' : 's'}` : '',
+        attention.length ? `${attention.length} thing${attention.length === 1 ? '' : 's'} needing attention` : '',
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : 'Notifications';
   return (
-    <button
-      className="chip notif-bell"
-      onClick={openPanel}
-      aria-label={unread.length ? `${unread.length} unread messages` : 'Notifications'}
-    >
+    <button className="chip notif-bell" onClick={openPanel} aria-label={label}>
       <Bell size={15} strokeWidth={1.9} />
-      {unread.length > 0 && <span className="notif-dot">{unread.length}</span>}
+      {count > 0 && <span className="notif-dot">{count}</span>}
     </button>
   );
 }
