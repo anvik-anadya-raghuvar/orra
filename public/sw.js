@@ -18,6 +18,12 @@
  * asset (`index-BAdIwwjG.js`), so a new build asks for new filenames and the
  * old entries simply stop being requested; CACHE is bumped only when the
  * logic in this file changes, and activate then clears anything older.
+ *
+ * This file itself is served no-cache (see the headers block in vercel.json —
+ * which takes no comments of its own, JSON being JSON and Vercel rejecting
+ * unknown keys). Without that a fix to this worker could sit unseen for as
+ * long as the browser's default lifetime, since everything it caches is
+ * fingerprinted but the worker is not.
  */
 const CACHE = 'anvik-v1';
 
