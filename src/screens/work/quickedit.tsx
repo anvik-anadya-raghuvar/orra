@@ -2,12 +2,15 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import type { Task, TaskLinkType, TaskPriority, TaskStatus } from '../../types';
+import type { Task, TaskLinkType, TaskPriority, TaskRepeat, TaskStatus } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { DraftRestored, SideSheet, TagChip, useToast } from '../../ui/bits';
 import { useFormDraft } from '../../ui/useFormDraft';
 import { micro } from '../../ui/motion';
+import { fmtDay } from '../../lib/dates';
 import { notifyAssignment } from '../../lib/handoff';
+import { MAX_REPEAT_EVERY, REPEAT_UNITS, normalizeRepeat } from '../../lib/repeat';
+import { spawnNextOccurrence } from '../../lib/repeatActions';
 import { wouldCycle } from '../../lib/schedule';
 import { inlineImageIds, stripInlineImageMarkers } from '../../ui/inlineImages';
 import {
@@ -51,6 +54,9 @@ export default function QuickEdit({
   const [assignee, setAssignee] = useState<string>('');
   const [due, setDue] = useState('');
   const [sprintId, setSprintId] = useState<string>('');
+  /** 0 = does not repeat, which is nearly every task. */
+  const [repeatEvery, setRepeatEvery] = useState(0);
+  const [repeatUnit, setRepeatUnit] = useState<TaskRepeat['unit']>('week');
   const [tagDraft, setTagDraft] = useState('');
   const [linkType, setLinkType] = useState<TaskLinkType>('blocks');
   const [linkQuery, setLinkQuery] = useState('');
@@ -65,6 +71,8 @@ export default function QuickEdit({
     setAssignee(task.assignee_id ?? '');
     setDue(task.due_date ?? '');
     setSprintId(task.sprint_id ?? '');
+    setRepeatEvery(task.repeat?.every ?? 0);
+    setRepeatUnit(task.repeat?.unit ?? 'week');
     setTagDraft('');
     setLinkQuery('');
     setLinkTarget('');
@@ -141,6 +149,8 @@ export default function QuickEdit({
     if ((assignee || null) !== live.assignee_id) patch.assignee_id = assignee || null;
     if ((due || null) !== live.due_date) patch.due_date = due || null;
     if ((sprintId || null) !== live.sprint_id) patch.sprint_id = sprintId || null;
+    const nextRepeat = repeatEvery ? normalizeRepeat({ every: repeatEvery, unit: repeatUnit }) : null;
+    if (JSON.stringify(nextRepeat) !== JSON.stringify(live.repeat ?? null)) patch.repeat = nextRepeat;
     draft.clear();
     if (Object.keys(patch).length === 0) {
       onClose();
@@ -153,6 +163,13 @@ export default function QuickEdit({
       notifyAssignment(store, { ...live, ...patch }, patch.assignee_id);
     }
     toast(`${live.id} updated`);
+    // Completing a repeating task mints its successor — a new row, announced,
+    // never a date moved on this one (principle 3). Guarded on the transition
+    // so re-saving an already-done task spawns nothing.
+    if (patch.status === 'done' && live.status !== 'done') {
+      const next = spawnNextOccurrence(store, { ...live, ...patch });
+      if (next) toast(`Next one created — ${next.id}, due ${fmtDay(next.due_date!)}`);
+    }
     onClose();
   };
 
@@ -343,6 +360,40 @@ export default function QuickEdit({
                 </option>
               ))}
           </select>
+        </Field>
+        {/* Completing a repeating task creates the next one as a new row and
+            says so — it never quietly moves this task's date. */}
+        <Field label="Repeats">
+          <div style={{ display: 'flex', gap: 6 }}>
+            <select
+              className="wk-in"
+              aria-label="Repeat interval"
+              value={repeatEvery}
+              onChange={(e) => setRepeatEvery(Number(e.target.value))}
+              style={{ flex: '1 1 90px' }}
+            >
+              <option value={0}>Never</option>
+              {Array.from({ length: MAX_REPEAT_EVERY }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  Every {n === 1 ? '' : `${n} `}
+                </option>
+              ))}
+            </select>
+            <select
+              className="wk-in"
+              aria-label="Repeat unit"
+              value={repeatUnit}
+              disabled={!repeatEvery}
+              onChange={(e) => setRepeatUnit(e.target.value as TaskRepeat['unit'])}
+              style={{ flex: '1 1 90px' }}
+            >
+              {REPEAT_UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {repeatEvery === 1 ? unit : `${unit}s`}
+                </option>
+              ))}
+            </select>
+          </div>
         </Field>
       </div>
 

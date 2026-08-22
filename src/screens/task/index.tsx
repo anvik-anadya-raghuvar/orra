@@ -5,8 +5,10 @@ import { newId, nowIso, useData, useDataset, useStore } from '../../data/store';
 import { Avatar, TagChip, useToast } from '../../ui/bits';
 import { entrance, micro } from '../../ui/motion';
 import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
-import { fmtTime, inr, todayIso } from '../../lib/dates';
+import { fmtDay, fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment } from '../../lib/handoff';
+import { MAX_REPEAT_EVERY, REPEAT_UNITS, describeRepeat, normalizeRepeat } from '../../lib/repeat';
+import { spawnNextOccurrence } from '../../lib/repeatActions';
 import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
 import { stripInlineImageMarkers } from '../../ui/inlineImages';
 import { PRIORITIES, STATUSES } from '../work/common';
@@ -106,6 +108,13 @@ function TaskDetail({ task }: { task: Task }) {
     // Reassignment moves this task to the other workspace — announce it.
     if (field === 'assignee_id') {
       notifyAssignment(store, task, value as Task['assignee_id']);
+    }
+    // Finishing a repeating task creates the next one as a new row, named and
+    // dated in a toast. Guarded on the transition so re-picking 'done' on an
+    // already-done task cannot mint a second successor.
+    if (field === 'status' && value === 'done' && task.status !== 'done') {
+      const next = spawnNextOccurrence(store, task);
+      if (next) toast(`Next one created — ${next.id}, due ${fmtDay(next.due_date!)}`);
     }
   };
 
@@ -446,6 +455,42 @@ function TaskDetail({ task }: { task: Task }) {
                     value={task.due_date ?? ''}
                     onChange={(e) => setField('due_date', e.target.value || null)}
                   />
+                </div>
+                <div>
+                  {/* Marking this done creates the next one as a new row and
+                      names it — this task's dates never move (principle 3). */}
+                  <label htmlFor="tf-repeat">Repeats — {describeRepeat(task.repeat).toLowerCase()}</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <select
+                      id="tf-repeat"
+                      value={task.repeat?.every ?? 0}
+                      onChange={(e) => {
+                        const every = Number(e.target.value);
+                        setField('repeat', every ? normalizeRepeat({ every, unit: task.repeat?.unit ?? 'week' }) : null);
+                      }}
+                    >
+                      <option value={0}>Never</option>
+                      {Array.from({ length: MAX_REPEAT_EVERY }, (_, i) => i + 1).map((n) => (
+                        <option key={n} value={n}>
+                          Every {n === 1 ? '' : `${n} `}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Repeat unit"
+                      value={task.repeat?.unit ?? 'week'}
+                      disabled={!task.repeat}
+                      onChange={(e) =>
+                        setField('repeat', normalizeRepeat({ every: task.repeat?.every ?? 1, unit: e.target.value as 'day' | 'week' | 'month' }))
+                      }
+                    >
+                      {REPEAT_UNITS.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {task.repeat?.every === 1 ? unit : `${unit}s`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label htmlFor="tf-okr">Objective</label>

@@ -31,6 +31,18 @@ export const PRIORITY_LABEL: Record<TaskPriority, string> = {
   low: 'P3',
 };
 
+/**
+ * A rhythm a task comes back on.
+ *
+ * Completing a repeating task creates the NEXT one as a separate row rather
+ * than moving this one's dates — see lib/repeat.ts and principle 3.
+ */
+export interface TaskRepeat {
+  /** How many units between occurrences. 1–30. */
+  every: number;
+  unit: 'day' | 'week' | 'month';
+}
+
 /** How one task relates to another. Parent/child gives real subtasks. */
 export type TaskLinkType = 'blocks' | 'blocked_by' | 'related' | 'child_of';
 export interface TaskLink {
@@ -231,6 +243,8 @@ export interface Task {
   impact: number; // 1–5, leverage
   is_stuck: boolean;
   blocked_reason: string | null;
+  /** Null for a one-off, which is nearly everything. See 0038. */
+  repeat?: TaskRepeat | null;
   /** Set when the assignee accepts work the other person pushed at them.
    *  Absent or null while it still sits in their "Assigned to you" inbox —
    *  optional so every task-creation site does not have to write it. */

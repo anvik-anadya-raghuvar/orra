@@ -12,6 +12,7 @@ import { makeTask } from '../../lib/taskFactory';
 import { stuckTasks } from '../../lib/ranking';
 import { awaitingThem, inboxTasks, isMyTask, myTasks, priorityDiffers } from '../../lib/workspace';
 import { notifyAcceptance, notifyAssignment, notifyPushback } from '../../lib/handoff';
+import { spawnNextOccurrence } from '../../lib/repeatActions';
 import { MiniBars } from '../../ui/viz';
 import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
 import { insertInlineImages, removeInlineImage } from '../../ui/inlineImages';
@@ -634,6 +635,16 @@ export default function BoardTab({
   }, [list, ds]);
 
   /**
+   * A repeating task that just became done mints its successor — a new row,
+   * announced by date. Nothing about the finished task moves (principle 3).
+   * Called from every place this board can complete something.
+   */
+  const carryRepeat = (t: Task) => {
+    const next = spawnNextOccurrence(store, t);
+    if (next) toast(`Next one created — ${next.id}, due ${fmtDay(next.due_date!)}`);
+  };
+
+  /**
    * Land `taskId` in `dest`, immediately before `anchorId` (null = append).
    * Both the status and a contiguous board_order for every affected column are
    * written, so the position survives a reload rather than living in state.
@@ -675,7 +686,10 @@ export default function BoardTab({
       if (dest === 'done') patch.progress_pct = 100;
     }
     store.update('tasks', taskId, patch, store.asMe());
-    if (src !== dest) toast(`${taskId} → ${statusLabel(dest)}`);
+    if (src !== dest) {
+      toast(`${taskId} → ${statusLabel(dest)}`);
+      if (dest === 'done') carryRepeat(t);
+    }
   };
 
   /** Keyboard/touch equivalent of a drag: step one column, land at the end. */
@@ -705,6 +719,7 @@ export default function BoardTab({
       store.asMe(),
     );
     toast(`${t.id} → ${statusLabel(status)}`);
+    if (status === 'done') carryRepeat(t);
   };
 
   const anyFilter =
