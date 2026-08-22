@@ -178,7 +178,7 @@ export default function ConnectionsTab() {
       actions: [
         {
           label: 'View workflow',
-          href: 'https://github.com/anvik-anadya-raghuvar/anvik-ops/actions',
+          href: 'https://github.com/anvik-anadya-raghuvar/orra/actions',
         },
       ],
     },
