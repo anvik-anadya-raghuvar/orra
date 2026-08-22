@@ -82,6 +82,9 @@
 .note-card.type-email::before {
   background: linear-gradient(180deg, #f58ba6, var(--rose));
 }
+.note-card.type-sketch::before {
+  background: linear-gradient(180deg, #9d8bff, var(--violet));
+}
 .note-card h4 {
   font-size: 15px;
   margin: 0 0 6px;

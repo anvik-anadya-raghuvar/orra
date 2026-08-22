@@ -648,6 +648,34 @@
   border-top: 1px solid var(--line);
   margin: 10px 0;
 }
+
+/* ── sketch block ─────────────────────────────────────────────────────── */
+.wk-sketch-view {
+  margin: 6px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf-solid);
+  overflow: hidden;
+}
+.wk-sketch-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf-solid);
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+}
+.wk-sketch-open:hover,
+.wk-sketch-open:focus-visible {
+  border-color: var(--indigo);
+}
+/* An empty sketch still needs somewhere to tap. */
+.wk-sketch-open .wk-image-empty {
+  min-height: 132px;
+}
 /* .wk-mention lives in ../../ui/richText.css — shared with notes and task
    descriptions, which render the same rich text outside this route. */
 

@@ -1,4 +1,7 @@
 /** Entity model — mirrors supabase/migrations/0001_init.sql exactly. */
+import type { SketchData } from './lib/sketch';
+
+export type { SketchData, SketchStroke } from './lib/sketch';
 
 export type UserId = string; // profile id
 /**
@@ -49,7 +52,9 @@ export interface Sprint {
   position: number;
 }
 export type RelationshipType = 'customer' | 'vendor' | 'investor' | 'university' | 'personal';
-export type NoteType = 'plain' | 'checklist' | 'meeting' | 'voice' | 'email';
+/** 'sketch' is handwriting kept as handwriting — see migration 0037, which
+ *  had to widen the CHECK constraint this union mirrors. */
+export type NoteType = 'plain' | 'checklist' | 'meeting' | 'voice' | 'email' | 'sketch';
 export type AuditSource = 'portal' | 'gmail' | 'plaud' | 'drive' | 'claude_export' | 'rule';
 
 export interface Profile {
@@ -448,6 +453,9 @@ export interface Note {
   checklist: ChecklistItem[] | null;
   /** Absent on rows written before migration 0021 — always read through `?? []`. */
   images?: AttachedImage[] | null;
+  /** Freehand ink for a 'sketch' scribble. Its own column rather than the
+   *  body, so it never leaks into search, the export, or a text diff. */
+  sketch?: SketchData | null;
   source_ref: string | null;
   created_by: UserId;
   /** Whose workspace this sits in. Null = shared, shows for both. */
@@ -815,7 +823,8 @@ export type BlockType =
   | 'equation'
   | 'button'
   | 'toc'
-  | 'breadcrumb';
+  | 'breadcrumb'
+  | 'sketch';
 
 export type BlockWidth = 'full' | 'half' | 'third';
 export type MediaAlign = 'left' | 'center' | 'right';
@@ -858,6 +867,9 @@ export interface PageBlock {
   url?: string;
   title?: string;
   page_id?: string;
+  /** Freehand ink. Vectors, not a picture — see lib/sketch.ts. Blocks live in
+   *  JSONB with no shape constraint, so this needed no migration. */
+  sketch?: SketchData;
 }
 
 export interface PageSnapshot {

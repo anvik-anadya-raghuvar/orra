@@ -13,6 +13,8 @@ import {
 } from '../../ui/imagedrop';
 import { InlineImageContent, InlineImageEditor } from '../../ui/InlineImageEditor';
 import { FormattedText } from '../../ui/richText';
+import { SketchCanvas, SketchSvg } from '../../ui/SketchCanvas';
+import { makeSketch, sketchIsEmpty, type SketchData } from '../../lib/sketch';
 import {
   appendMissingInlineImages,
   insertInlineImages,
@@ -30,7 +32,7 @@ import { MAX_NOTE_IMAGES } from '../../types';
 import type { AttachedImage, ChecklistItem, Note, NoteType } from '../../types';
 import { DictateField } from '../../ui/dictation';
 
-const NOTE_TYPE_ORDER: NoteType[] = ['plain', 'checklist', 'meeting', 'voice', 'email'];
+const NOTE_TYPE_ORDER: NoteType[] = ['plain', 'checklist', 'meeting', 'voice', 'email', 'sketch'];
 const NOTE_LABEL_COLORS = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'] as const;
 const NOTE_TYPE_LABEL: Record<NoteType, string> = {
   plain: 'Plain',
@@ -38,15 +40,12 @@ const NOTE_TYPE_LABEL: Record<NoteType, string> = {
   meeting: 'Meeting',
   voice: 'Voice',
   email: 'Email',
+  sketch: 'Sketch',
 };
 
 const TYPE_FILTERS: { key: NoteType | 'all'; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'plain', label: 'Plain' },
-  { key: 'checklist', label: 'Checklist' },
-  { key: 'meeting', label: 'Meeting' },
-  { key: 'voice', label: 'Voice' },
-  { key: 'email', label: 'Email' },
+  ...NOTE_TYPE_ORDER.map((key) => ({ key, label: NOTE_TYPE_LABEL[key] })),
 ];
 
 function noteHaystack(n: Note): string {
@@ -274,6 +273,9 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
           ))}
         </div>
       )}
+      {note.type === 'sketch' && !sketchIsEmpty(note.sketch) && (
+        <SketchSvg data={note.sketch} className="sk-thumb" label={`Sketch — ${note.title || 'Untitled'}`} />
+      )}
       {(note.body || note.images?.length) && (
         <InlineImageContent
           className="note-inline-content"
@@ -361,6 +363,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
   const [checklist, setChecklist] = useState<ChecklistItem[]>(existing?.checklist ?? []);
   const [itemDraft, setItemDraft] = useState('');
   const [images, setImages] = useState<AttachedImage[]>(existingImages);
+  const [sketch, setSketch] = useState<SketchData | null>(existing?.sketch ?? null);
   /**
    * The id this scribble will have, decided before it exists.
    *
@@ -457,8 +460,8 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     setChecklist(checklist.map((c, idx) => (idx === i ? { ...c, done: !c.done } : c)));
   };
 
-  /* Images stay out of the draft on purpose — they are compressed base64 and
-     would fill the storage quota; everything written stays. */
+  /* Images and ink stay out of the draft on purpose — both are large binary-ish
+     payloads that would fill the storage quota; everything written stays. */
   const draft = useFormDraft(
     `knowledge:note:${noteId ?? 'new'}`,
     { title, body, type, projectId, taskId, tags, pinned, checklist },
@@ -483,6 +486,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     setTags(existing?.tags ?? []);
     setPinned(existing?.is_pinned ?? false);
     setChecklist(existing?.checklist ?? []);
+    setSketch(existing?.sketch ?? null);
     draft.clear();
   };
 
@@ -508,6 +512,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
           is_pinned: pinned,
           checklist: checklist.length ? checklist : null,
           images,
+          sketch: sketchIsEmpty(sketch) ? null : sketch,
         },
         store.asMe(),
       );
@@ -527,6 +532,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
           transcript: null,
           checklist: checklist.length ? checklist : null,
           images,
+          sketch: sketchIsEmpty(sketch) ? null : sketch,
           source_ref: null,
           created_by: store.meId,
           owner_id: store.meId,
@@ -600,6 +606,19 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
           style={inputStyle}
         />
       </DictateField>
+      {/* The page for a sketch scribble: ink on top, with the body kept below
+          it for a typed caption — a drawing usually wants a line saying what
+          it was. Ink is never turned into that text. */}
+      {type === 'sketch' && (
+        <div style={{ marginBottom: 11 }}>
+          <SketchCanvas
+            value={sketch ?? makeSketch()}
+            onChange={setSketch}
+            expandable
+            ariaLabel="Scribble sketch"
+          />
+        </div>
+      )}
       <InlineImageEditor
         value={body}
         imageIds={images.map((image) => image.id)}
@@ -607,7 +626,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
         onPasteFiles={pasteImages}
         onCaretChange={(offset) => { caretRef.current = offset; }}
         onUnusableImage={toast}
-        placeholder="Body"
+        placeholder={type === 'sketch' ? 'A line about this sketch (optional)' : 'Body'}
         ariaLabel="Scribble body"
         className="note-inline-editor"
         renderImage={(id) => {
@@ -653,9 +672,12 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       <div style={{ height: 11 }} />
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 11 }}>
         <select aria-label="Note type" value={type} onChange={(e) => setType(e.target.value as NoteType)} style={{ ...inputStyle, marginBottom: 0, flex: 1, minWidth: 130 }}>
-          {(['plain', 'checklist', 'meeting', 'voice', 'email'] as NoteType[]).map((tp) => (
+          {/* Read from NOTE_TYPE_ORDER rather than a second literal list: the
+              cast that used to be here meant a new type compiled fine and was
+              simply missing from the picker. */}
+          {NOTE_TYPE_ORDER.map((tp) => (
             <option key={tp} value={tp}>
-              {tp}
+              {NOTE_TYPE_LABEL[tp]}
             </option>
           ))}
         </select>

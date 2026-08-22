@@ -5,6 +5,8 @@ import { imageFilesFrom, looksLikeUnusableImage } from '../../ui/imagedrop';
 import type { BlockType, Page, PageBlock, Profile } from '../../types';
 import { pageBreadcrumbs, parseSimpleTable, serializeSimpleTable } from './wikiEditor';
 import { isSafeExternalUrl } from '../../lib/textFormat';
+import { makeSketch, sketchIsEmpty } from '../../lib/sketch';
+import { SketchCanvas, SketchSvg } from '../../ui/SketchCanvas';
 import { RichText } from '../../ui/richText';
 import { FormatToolbar, applyFormatShortcut } from '../../ui/FormatToolbar';
 import { createTextFormatting } from '../../ui/textFormatting';
@@ -28,6 +30,7 @@ export const BLOCK_MENU: { type: BlockType; label: string; hint: string; group: 
   { type: 'breadcrumb', label: 'Breadcrumb', hint: 'This page’s location', group: 'Advanced' },
   { type: 'page_link', label: 'Link to page', hint: 'A wiki page block', group: 'Links' },
   { type: 'bookmark', label: 'Web bookmark', hint: 'A rich external link', group: 'Links' },
+  { type: 'sketch', label: 'Sketch', hint: 'Write or draw — pen, finger, or mouse', group: 'Media' },
   { type: 'image', label: 'Image', hint: 'Paste, upload, or URL', group: 'Media' },
   { type: 'file', label: 'File', hint: 'Downloadable file link', group: 'Media' },
   { type: 'pdf', label: 'PDF', hint: 'Embedded PDF', group: 'Media' },
@@ -51,6 +54,7 @@ export function makeBlock(type: BlockType = 'paragraph'): PageBlock {
   if (type === 'callout') block.icon = '💡';
   if (type === 'toggle') block.collapsed = false;
   if (isListy(type)) block.items = [{ text: '', ...(type === 'todo' ? { done: false } : {}) }];
+  if (type === 'sketch') block.sketch = makeSketch();
   if (type === 'image') Object.assign(block, { src: '', alt: '', caption: '', align: 'center', display_width: 100, mask: 'rounded', fit: 'contain' });
   if (type === 'table') block.rows = [['', ''], ['', '']];
   if (URL_TYPES.includes(type)) Object.assign(block, { title: '', url: '' });
@@ -78,6 +82,9 @@ export function convertBlock(block: PageBlock, type: BlockType): PageBlock {
 }
 
 export function blockText(block: PageBlock): string {
+  // Ink has no text, and must not pretend to: returning something here would
+  // put it in page search and let a type conversion silently swallow it.
+  if (block.type === 'sketch') return '';
   if (isListy(block.type)) return (block.items ?? []).map((item) => item.text).join('\n');
   if (block.type === 'table') return serializeSimpleTable(block.rows);
   if (block.type === 'image') return [block.alt, block.caption].filter(Boolean).join(' ');
@@ -152,6 +159,7 @@ export function BlockView({
       return <nav className="wk-toc" aria-label="Table of contents">{headings.length ? headings.map((heading) => <a key={heading.id} href={`#wk-heading-${heading.id}`} className={`depth-${heading.level ?? 2}`} onClick={(event) => event.stopPropagation()}>{heading.text}</a>) : <span className="tip">Add headings to build this table of contents.</span>}</nav>;
     }
     case 'breadcrumb': return <nav className="wk-breadcrumb-block" aria-label="Breadcrumb">{pageBreadcrumbs(currentPage, pages).map((candidate, index, trail) => <React.Fragment key={candidate.id}><button type="button" onClick={(event) => { event.stopPropagation(); onSelectPage(candidate.id); }}>{candidate.icon} {candidate.title}</button>{index < trail.length - 1 && <span>/</span>}</React.Fragment>)}</nav>;
+    case 'sketch': return sketchIsEmpty(block.sketch) ? <span className="wk-media-missing">Sketch — tap to write or draw</span> : <figure className="wk-sketch-view"><SketchSvg data={block.sketch} /></figure>;
     case 'divider': return <hr className="wk-divider" />;
     default: return null;
   }
@@ -436,6 +444,14 @@ export function BlockRow(props: BlockRowProps) {
     </div>
     <div className="wk-block-body" onBlur={(event) => { if (menuOpen || event.currentTarget.contains(event.relatedTarget as Node | null)) return; if (active) onDeactivate(); }}>
       {block.type === 'divider' ? <button type="button" className="wk-divider-btn" aria-label="Divider block" onClick={() => onActivate()}><hr className="wk-divider" /></button>
+        /* Ink gets its own surface, like an image does — never the textarea
+           path, which would try to edit a stroke list as a string. The canvas
+           commits on pen-lift, so this composes with the 600ms page debounce. */
+        : block.type === 'sketch' ? (active
+          ? <SketchCanvas expandable value={block.sketch} onChange={(sketch) => onChange({ ...block, sketch })} ariaLabel="Sketch block" />
+          : <button type="button" className="wk-sketch-open" aria-label={sketchIsEmpty(block.sketch) ? 'Empty sketch — tap to draw' : 'Sketch — tap to edit'} onClick={() => onActivate()}>
+              {sketchIsEmpty(block.sketch) ? <span className="wk-image-empty"><b>Sketch</b><span>Write or draw — pen, finger, or mouse.</span></span> : <SketchSvg data={block.sketch} />}
+            </button>)
         : block.type === 'image' ? <figure className={`wk-image-block${active ? ' active' : ''}`}>
           <button type="button" className={`wk-image-surface align-${block.align ?? 'center'}`} style={{ width: `${block.display_width ?? 100}%` }} aria-label={block.alt ? `Image: ${block.alt}` : 'Image block'} onClick={() => onActivate()}>{block.src ? <img className={`wk-img mask-${block.mask ?? 'rounded'} fit-${block.fit ?? 'contain'}`} src={block.src} alt={block.alt ?? ''} loading="lazy" decoding="async" /> : <span className="wk-image-empty"><b>Image</b><span>Paste, upload, or embed by URL.</span></span>}</button>
           {block.caption && !active && <figcaption><RichText text={block.caption} onSelectPage={onSelectPage} /></figcaption>}
