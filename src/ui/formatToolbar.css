@@ -1,0 +1,48 @@
+.fmt-bar {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surf2);
+}
+.fmt-bar button,
+.fmt-bar select {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fmt-bar button {
+  cursor: pointer;
+}
+.fmt-bar button:hover,
+.fmt-bar select:hover {
+  background: var(--surf3);
+}
+.fmt-bar select {
+  max-width: 96px;
+  cursor: pointer;
+}
+
+@media (min-width: 1025px) {
+  .fmt-bar button,
+  .fmt-bar select {
+    min-height: 30px;
+    min-width: 30px;
+  }
+  .fmt-bar .micbtn {
+    width: 30px;
+    height: 30px;
+  }
+}

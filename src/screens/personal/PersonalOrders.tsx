@@ -11,6 +11,7 @@ import type {
   TravelOrderDetails,
 } from '../../types';
 import { SideSheet, useToast } from '../../ui/bits';
+import { Attachments } from '../../ui/attachments';
 
 type OrderView = 'review' | 'active' | 'history';
 
@@ -268,6 +269,16 @@ function OrderEditor({ order, onClose }: { order: PersonalOrder | null; onClose:
           </div>
         )}
       </div>
+
+      {order && (
+        <div style={{ marginTop: 14 }}>
+          <Attachments
+            entityType="personal_order"
+            entityId={order.id}
+            hint="The confirmation email, the ticket, the customs form."
+          />
+        </div>
+      )}
     </SideSheet>
   );
 }

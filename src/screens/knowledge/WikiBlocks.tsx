@@ -3,15 +3,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { newId } from '../../data/store';
 import { imageFilesFrom, looksLikeUnusableImage } from '../../ui/imagedrop';
 import type { BlockType, Page, PageBlock, Profile } from '../../types';
-import {
-  applyInlineFormat,
-  insertInlineToken,
-  isSafeExternalUrl,
-  pageBreadcrumbs,
-  parseSimpleTable,
-  serializeSimpleTable,
-} from './wikiEditor';
-import { RichText } from './wikiMentions';
+import { pageBreadcrumbs, parseSimpleTable, serializeSimpleTable } from './wikiEditor';
+import { isSafeExternalUrl } from '../../lib/textFormat';
+import { RichText } from '../../ui/richText';
+import { FormatToolbar, applyFormatShortcut } from '../../ui/FormatToolbar';
+import { createTextFormatting } from '../../ui/textFormatting';
 import { MicButton } from '../../ui/dictation';
 
 export const BLOCK_MENU: { type: BlockType; label: string; hint: string; group: string }[] = [
@@ -199,37 +195,61 @@ function RichToolbar({
   onValue: (value: string, selectionStart: number, selectionEnd: number) => void;
   onComment: (anchor: string) => void;
 }) {
-  const remembered = useRef({ start: value.length, end: value.length });
-  const remember = () => {
+  const insertAtCursor = (token: string) => createTextFormatting(textarea, value, onValue).insert(token);
+  const selectionText = () => {
     const element = textarea.current;
-    if (element) remembered.current = { start: element.selectionStart, end: element.selectionEnd };
+    return element ? value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0) : '';
   };
-  const apply = (before: string, after = before, placeholder = 'text') => {
-    remember();
-    const result = applyInlineFormat(value, remembered.current.start, remembered.current.end, before, after, placeholder);
-    onValue(result.value, result.selectionStart, result.selectionEnd);
-  };
-  const insert = (token: string) => {
-    const result = insertInlineToken(value, remembered.current.start, remembered.current.end, token);
-    onValue(result.value, result.selectionStart, result.selectionEnd);
-  };
-  const keepFocus = (event: React.MouseEvent) => { remember(); event.preventDefault(); };
-  return <div className="wk-richbar" role="toolbar" aria-label="Text formatting">
-    <button type="button" aria-label="Bold" onMouseDown={keepFocus} onClick={() => apply('**')}><b>B</b></button>
-    <button type="button" aria-label="Italic" onMouseDown={keepFocus} onClick={() => apply('_')}><i>I</i></button>
-    <button type="button" aria-label="Underline" onMouseDown={keepFocus} onClick={() => apply('__')}><u>U</u></button>
-    <button type="button" aria-label="Strikethrough" onMouseDown={keepFocus} onClick={() => apply('~~')}><s>S</s></button>
-    <button type="button" aria-label="Inline code" onMouseDown={keepFocus} onClick={() => apply('`')}><code>&lt;/&gt;</code></button>
-    <button type="button" aria-label="Add link" onMouseDown={keepFocus} onClick={() => { const url = window.prompt('Link URL (https:// or mailto:)'); if (url && isSafeExternalUrl(url)) apply('[', `](${url})`, 'link'); }}>↗</button>
-    <select aria-label="Mention page" defaultValue="" onMouseDown={remember} onChange={(event) => { const page = pages.find((candidate) => candidate.id === event.target.value); if (page) insert(`[[page:${page.id}|${page.title}]]`); event.target.value = ''; }}><option value="">Page @</option>{pages.map((page) => <option key={page.id} value={page.id}>{page.title}</option>)}</select>
-    <select aria-label="Mention person" defaultValue="" onMouseDown={remember} onChange={(event) => { const profile = profiles.find((candidate) => candidate.id === event.target.value); if (profile) insert(`[[person:${profile.id}|${profile.name}]]`); event.target.value = ''; }}><option value="">Person @</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select>
-    <input type="date" aria-label="Mention date" onMouseDown={remember} onChange={(event) => { if (event.target.value) insert(`[[date:${event.target.value}]]`); event.target.value = ''; }} />
-    <button type="button" aria-label="Comment on selection" onMouseDown={keepFocus} onClick={() => onComment(value.slice(remembered.current.start, remembered.current.end))}>💬</button>
-    {/* Dictation belongs on the formatting bar rather than inside the block:
-        a block is edited in place with no chrome of its own, and the toolbar is
-        already where you reach for anything you do TO the text. */}
-    <MicButton targetRef={textarea} label="Dictate this block" />
-  </div>;
+  return (
+    <FormatToolbar
+      textarea={textarea}
+      value={value}
+      onValue={onValue}
+      extra={
+        <>
+          <select
+            className="wk-mention-select"
+            aria-label="Mention page"
+            defaultValue=""
+            onChange={(event) => {
+              const page = pages.find((candidate) => candidate.id === event.target.value);
+              if (page) insertAtCursor(`[[page:${page.id}|${page.title}]]`);
+              event.target.value = '';
+            }}
+          >
+            <option value="">Page @</option>
+            {pages.map((page) => <option key={page.id} value={page.id}>{page.title}</option>)}
+          </select>
+          <select
+            className="wk-mention-select"
+            aria-label="Mention person"
+            defaultValue=""
+            onChange={(event) => {
+              const profile = profiles.find((candidate) => candidate.id === event.target.value);
+              if (profile) insertAtCursor(`[[person:${profile.id}|${profile.name}]]`);
+              event.target.value = '';
+            }}
+          >
+            <option value="">Person @</option>
+            {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+          </select>
+          <input
+            type="date"
+            aria-label="Mention date"
+            onChange={(event) => {
+              if (event.target.value) insertAtCursor(`[[date:${event.target.value}]]`);
+              event.target.value = '';
+            }}
+          />
+          <button type="button" aria-label="Comment on selection" onMouseDown={(event) => event.preventDefault()} onClick={() => onComment(selectionText())}>💬</button>
+          {/* Dictation belongs on the formatting bar rather than inside the block:
+              a block is edited in place with no chrome of its own, and the toolbar is
+              already where you reach for anything you do TO the text. */}
+          <MicButton targetRef={textarea} label="Dictate this block" />
+        </>
+      }
+    />
+  );
 }
 
 export interface BlockRowProps {
@@ -339,6 +359,9 @@ export function BlockRow(props: BlockRowProps) {
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const element = event.currentTarget;
+    if (block.type !== 'code' && applyFormatShortcut(event, createTextFormatting(textarea, value, setTextAndSelection))) {
+      return;
+    }
     if (menuOpen && value.startsWith('/')) {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();

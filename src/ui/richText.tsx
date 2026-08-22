@@ -1,6 +1,18 @@
+/**
+ * Rich inline text: the small markdown-like syntax that every free-text
+ * surface renders — wiki blocks, notes, task descriptions. One parser and
+ * one set of components, so a color or a mention behaves identically no
+ * matter where it was typed.
+ *
+ * `parseRichText` is a pure, linear scan (first token wins, no nesting) —
+ * deliberately simple over deliberately complete, matching everywhere else
+ * in this app that a lightweight custom format beats pulling in a markdown
+ * library for two people's notes.
+ */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useData } from '../../data/store';
+import { useData } from '../data/store';
+import './richText.css';
 
 export type RichPart =
   | { kind: 'text'; text: string }
@@ -9,7 +21,9 @@ export type RichPart =
   | { kind: 'person'; id: string; label: string }
   | { kind: 'date'; value: string }
   | { kind: 'link'; label: string; url: string }
-  | { kind: 'mark'; mark: 'bold' | 'italic' | 'underline' | 'strike' | 'code'; text: string };
+  | { kind: 'mark'; mark: 'bold' | 'italic' | 'underline' | 'strike' | 'code'; text: string }
+  | { kind: 'color'; color: string; text: string }
+  | { kind: 'size'; size: string; text: string };
 
 interface TokenSpec {
   regex: RegExp;
@@ -20,6 +34,8 @@ const TOKENS: TokenSpec[] = [
   { regex: /\[\[page:([^|\]]+)\|([^\]]+)\]\]/, read: (m) => ({ kind: 'page', id: m[1], label: m[2] }) },
   { regex: /\[\[person:([^|\]]+)\|([^\]]+)\]\]/, read: (m) => ({ kind: 'person', id: m[1], label: m[2] }) },
   { regex: /\[\[date:([^\]]+)\]\]/, read: (m) => ({ kind: 'date', value: m[1] }) },
+  { regex: /\{\{color:([a-z]+)\|([^{}]+)\}\}/, read: (m) => ({ kind: 'color', color: m[1], text: m[2] }) },
+  { regex: /\{\{size:([a-z]+)\|([^{}]+)\}\}/, read: (m) => ({ kind: 'size', size: m[1], text: m[2] }) },
   { regex: /\[([^\]]+)\]\((https?:\/\/[^)]+|mailto:[^)]+)\)/, read: (m) => ({ kind: 'link', label: m[1], url: m[2] }) },
   { regex: /\*\*([^*]+)\*\*/, read: (m) => ({ kind: 'mark', mark: 'bold', text: m[1] }) },
   { regex: /__([^_]+)__/, read: (m) => ({ kind: 'mark', mark: 'underline', text: m[1] }) },
@@ -85,6 +101,8 @@ export function RichText({ text, onSelectPage }: { text: string; onSelectPage?: 
         }
         if (part.kind === 'date') return <time key={index} className="wk-inline-mention" dateTime={part.value}>@{part.value}</time>;
         if (part.kind === 'link') return <a key={index} className="wk-link" href={part.url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>{part.label}</a>;
+        if (part.kind === 'color') return <span key={index} className={`rt-color-${part.color}`}>{part.text}</span>;
+        if (part.kind === 'size') return <span key={index} className={`rt-size-${part.size}`}>{part.text}</span>;
         if (part.kind === 'mark') {
           if (part.mark === 'bold') return <strong key={index}>{part.text}</strong>;
           if (part.mark === 'italic') return <em key={index}>{part.text}</em>;
@@ -94,6 +112,54 @@ export function RichText({ text, onSelectPage }: { text: string; onSelectPage?: 
         }
         return <React.Fragment key={index}>{part.text}</React.Fragment>;
       })}
+    </>
+  );
+}
+
+/**
+ * A block of free-typed text — notes, task descriptions — rendered with the
+ * same inline formatting as the wiki, plus one thing a flat textarea needs
+ * that a wiki block gets for free from its block type: lines starting with
+ * `- ` render as an actual bulleted list instead of a line of dashes.
+ */
+export function FormattedText({
+  text,
+  className,
+  onSelectPage,
+}: {
+  text: string;
+  className?: string;
+  onSelectPage?: (id: string) => void;
+}) {
+  const lines = (text ?? '').split('\n');
+  const blocks: { bullet: boolean; lines: string[] }[] = [];
+  for (const line of lines) {
+    const bullet = line.startsWith('- ') || line.startsWith('• ');
+    const content = bullet ? line.slice(2) : line;
+    const last = blocks[blocks.length - 1];
+    if (last && last.bullet === bullet) last.lines.push(content);
+    else blocks.push({ bullet, lines: [content] });
+  }
+  return (
+    <>
+      {blocks.map((block, index) =>
+        block.bullet ? (
+          <ul className="rt-bullets" key={index}>
+            {block.lines.map((line, lineIndex) => (
+              <li key={lineIndex}><RichText text={line} onSelectPage={onSelectPage} /></li>
+            ))}
+          </ul>
+        ) : (
+          <p className={className} key={index}>
+            {block.lines.map((line, lineIndex) => (
+              <React.Fragment key={lineIndex}>
+                {lineIndex > 0 && <br />}
+                <RichText text={line} onSelectPage={onSelectPage} />
+              </React.Fragment>
+            ))}
+          </p>
+        ),
+      )}
     </>
   );
 }

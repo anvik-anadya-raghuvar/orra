@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Page, PageBlock } from '../../types';
 import {
-  applyInlineFormat,
   descendantEnd,
   duplicateBlocks,
-  insertInlineToken,
   isBlockHidden,
   isVerificationCurrent,
   pageBacklinks,
@@ -36,18 +34,6 @@ const page = (id: string, parent_page_id: string | null = null, blocks: PageBloc
 });
 
 describe('wiki editor operations', () => {
-  it('wraps a selection and places the selection inside the markers', () => {
-    expect(applyInlineFormat('hello world', 6, 11, '**')).toEqual({
-      value: 'hello **world**',
-      selectionStart: 8,
-      selectionEnd: 13,
-    });
-  });
-
-  it('inserts mention tokens at the exact selection', () => {
-    expect(insertInlineToken('hello there', 6, 11, '[[page:p|Plan]]').value).toBe('hello [[page:p|Plan]]');
-  });
-
   it('hides all indented descendants of a collapsed toggle', () => {
     const blocks = [{ ...block('toggle', 0, 'toggle'), collapsed: true }, block('child', 1), block('grandchild', 2), block('next', 0)];
     expect(isBlockHidden(blocks, 1)).toBe(true);

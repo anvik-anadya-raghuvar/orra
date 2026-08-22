@@ -648,16 +648,8 @@
   border-top: 1px solid var(--line);
   margin: 10px 0;
 }
-.wk-mention {
-  font-family: 'IBM Plex Mono';
-  font-size: 0.9em;
-  color: var(--indigo);
-  background: var(--indigo-s);
-  border-radius: 5px;
-  padding: 1px 5px;
-  text-decoration: none;
-  white-space: nowrap;
-}
+/* .wk-mention lives in ../../ui/richText.css — shared with notes and task
+   descriptions, which render the same rich text outside this route. */
 
 /* ── comments ─────────────────────────────────────────────────────────── */
 .wk-comments {
@@ -952,20 +944,11 @@
   cursor: pointer;
 }
 
-.wk-richbar {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 3px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surf2);
-}
-.wk-richbar button,
-.wk-richbar select,
-.wk-richbar input {
+/* The formatting bar itself is .fmt-bar, in ../../ui/formatToolbar.css —
+   shared with notes and task descriptions. Only the wiki-only controls that
+   ride inside it (page/person/date mentions) are styled here. */
+.fmt-bar input[type='date'] {
+  width: 132px;
   min-width: 44px;
   min-height: 44px;
   border: 0;
@@ -975,38 +958,11 @@
   font: inherit;
   font-size: 11px;
 }
-.wk-richbar button {
-  cursor: pointer;
-}
-.wk-richbar select {
+.fmt-bar select.wk-mention-select {
   max-width: 112px;
 }
-.wk-richbar input[type='date'] {
-  width: 132px;
-}
-.wk-inline-mention {
-  display: inline;
-  margin: 0 2px;
-  padding: 1px 5px;
-  border: 0;
-  border-radius: 5px;
-  background: var(--indigo-s);
-  color: var(--indigo);
-  font: inherit;
-  cursor: pointer;
-}
-.wk-inline-code {
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: var(--surf3);
-  font-family: 'IBM Plex Mono';
-  font-size: 0.9em;
-}
-.wk-link {
-  color: var(--indigo);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
+/* .wk-inline-mention, .wk-inline-code, .wk-link live in
+   ../../ui/richText.css — shared with notes and task descriptions. */
 
 .wk-outline-actions {
   display: flex;
@@ -1370,9 +1326,6 @@
 
 @media (min-width: 1025px) {
   .wk-pageactions .btn,
-  .wk-richbar button,
-  .wk-richbar select,
-  .wk-richbar input,
   .wk-selectionbar button,
   .wk-comment-actions button,
   .wk-backlinks button {
@@ -1382,14 +1335,8 @@
   .wk-breadcrumb-block button {
     min-height: 26px;
   }
-  /* The dictation mic carries its own 34px sizing for the rest of the app;
-     in this toolbar it matches the buttons standing beside it. */
-  .wk-richbar .micbtn {
-    width: 30px;
-    height: 30px;
-  }
-  .wk-richbar button {
-    min-width: 30px;
+  .fmt-bar input[type='date'] {
+    min-height: 30px;
   }
   .wk-block-actions {
     grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -18,7 +18,7 @@ import {
   withIndent,
 } from './wikiEditor';
 import { insertImagesAtBlockCaret } from './wikiImageInsert';
-import { RichText } from './wikiMentions';
+import { RichText } from '../../ui/richText';
 import { useWikiPresence } from './wikiPresence';
 import { DictateField } from '../../ui/dictation';
 

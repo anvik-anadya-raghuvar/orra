@@ -12,6 +12,7 @@ import {
   type DroppedImage,
 } from '../../ui/imagedrop';
 import { InlineImageContent, InlineImageEditor } from '../../ui/InlineImageEditor';
+import { FormattedText } from '../../ui/richText';
 import {
   appendMissingInlineImages,
   insertInlineImages,
@@ -278,7 +279,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
           className="note-inline-content"
           value={note.body}
           imageIds={(note.images ?? []).map((image) => image.id)}
-          renderText={(text) => <p className="body">{text}</p>}
+          renderText={(text) => <FormattedText text={text} className="body" />}
           renderImage={(id) => {
             const image = note.images?.find((item) => item.id === id);
             return image ? (

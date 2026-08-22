@@ -2,44 +2,6 @@ import type { Page, PageBlock } from '../../types';
 
 export const MAX_BLOCK_INDENT = 6;
 
-export interface SelectionEdit {
-  value: string;
-  selectionStart: number;
-  selectionEnd: number;
-}
-
-export function applyInlineFormat(
-  value: string,
-  selectionStart: number,
-  selectionEnd: number,
-  before: string,
-  after = before,
-  placeholder = 'text',
-): SelectionEdit {
-  const start = Math.max(0, Math.min(selectionStart, value.length));
-  const end = Math.max(start, Math.min(selectionEnd, value.length));
-  const selected = value.slice(start, end) || placeholder;
-  const inserted = `${before}${selected}${after}`;
-  return {
-    value: `${value.slice(0, start)}${inserted}${value.slice(end)}`,
-    selectionStart: start + before.length,
-    selectionEnd: start + before.length + selected.length,
-  };
-}
-
-export function insertInlineToken(
-  value: string,
-  selectionStart: number,
-  selectionEnd: number,
-  token: string,
-): SelectionEdit {
-  const start = Math.max(0, Math.min(selectionStart, value.length));
-  const end = Math.max(start, Math.min(selectionEnd, value.length));
-  const next = `${value.slice(0, start)}${token}${value.slice(end)}`;
-  const caret = start + token.length;
-  return { value: next, selectionStart: caret, selectionEnd: caret };
-}
-
 export function clampIndent(indent: number | undefined): number {
   return Math.max(0, Math.min(MAX_BLOCK_INDENT, indent ?? 0));
 }
@@ -124,15 +86,4 @@ export function isVerificationCurrent(page: Page, now = Date.now()): boolean {
   if (!page.verified_at) return false;
   if (!page.verification_expires_at) return true;
   return new Date(page.verification_expires_at).getTime() > now;
-}
-
-export function isSafeExternalUrl(value: string | undefined): boolean {
-  if (!value) return false;
-  if (!/^(https?:\/\/|mailto:)/i.test(value.trim())) return false;
-  try {
-    const url = new URL(value, 'https://anvik.local');
-    return ['http:', 'https:', 'mailto:'].includes(url.protocol);
-  } catch {
-    return false;
-  }
 }

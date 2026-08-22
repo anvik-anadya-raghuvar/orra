@@ -6,21 +6,34 @@ import {
   splitInlineImages,
 } from './inlineImages';
 import { MicButton, useDictation } from './dictation';
+import { FormatToolbar, applyFormatShortcut } from './FormatToolbar';
+import { createTextFormatting } from './textFormatting';
 import './inlineImages.css';
 
-function GrowingTextarea({
-  value,
-  ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
+const GrowingTextarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }
+>(function GrowingTextarea({ value, ...props }, ref) {
+  const inner = useRef<HTMLTextAreaElement | null>(null);
   useLayoutEffect(() => {
-    const el = ref.current;
+    const el = inner.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.max(52, el.scrollHeight)}px`;
   }, [value]);
-  return <textarea ref={ref} rows={1} value={value} {...props} />;
-}
+  return (
+    <textarea
+      rows={1}
+      value={value}
+      {...props}
+      ref={(element) => {
+        inner.current = element;
+        if (typeof ref === 'function') ref(element);
+        else if (ref) (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = element;
+      }}
+    />
+  );
+});
 
 export function InlineImageEditor({
   value,
@@ -69,34 +82,40 @@ export function InlineImageEditor({
         }
         const reportCaret = (el: HTMLTextAreaElement) =>
           onCaretChange?.(part.start + (el.selectionStart ?? el.value.length));
+        const partRef = React.createRef<HTMLTextAreaElement>();
+        const setPartText = (text: string) => onChange(replaceInlineTextPart(normalized, part, text));
         return (
-          <GrowingTextarea
-            key={`text-${index}`}
-            className="inline-image-text"
-            value={part.text}
-            aria-label={textParts.length === 1 ? ariaLabel : `${ariaLabel}, section ${textParts.indexOf(part) + 1}`}
-            placeholder={parts.length === 1 ? placeholder : 'Continue writing…'}
-            onChange={(event) => onChange(replaceInlineTextPart(normalized, part, event.target.value))}
-            onFocus={(event) => reportCaret(event.currentTarget)}
-            onClick={(event) => reportCaret(event.currentTarget)}
-            onKeyUp={(event) => reportCaret(event.currentTarget)}
-            onSelect={(event) => reportCaret(event.currentTarget)}
-            onBlur={onTextBlur}
-            onPaste={(event) => {
-              const files = imageFilesFrom(event.clipboardData);
-              if (!files.length) {
-                if (looksLikeUnusableImage(event.clipboardData)) {
-                  onUnusableImage?.(
-                    'That image came from a web page rather than the clipboard as a file. Save it, or use a screenshot tool, then paste again.',
-                  );
+          <React.Fragment key={`text-${index}`}>
+            <FormatToolbar textarea={partRef} value={part.text} onValue={(text) => setPartText(text)} />
+            <GrowingTextarea
+              ref={partRef}
+              className="inline-image-text"
+              value={part.text}
+              aria-label={textParts.length === 1 ? ariaLabel : `${ariaLabel}, section ${textParts.indexOf(part) + 1}`}
+              placeholder={parts.length === 1 ? placeholder : 'Continue writing…'}
+              onChange={(event) => setPartText(event.target.value)}
+              onFocus={(event) => reportCaret(event.currentTarget)}
+              onClick={(event) => reportCaret(event.currentTarget)}
+              onKeyUp={(event) => reportCaret(event.currentTarget)}
+              onSelect={(event) => reportCaret(event.currentTarget)}
+              onKeyDown={(event) => applyFormatShortcut(event, createTextFormatting(partRef, part.text, (text) => setPartText(text)))}
+              onBlur={onTextBlur}
+              onPaste={(event) => {
+                const files = imageFilesFrom(event.clipboardData);
+                if (!files.length) {
+                  if (looksLikeUnusableImage(event.clipboardData)) {
+                    onUnusableImage?.(
+                      'That image came from a web page rather than the clipboard as a file. Save it, or use a screenshot tool, then paste again.',
+                    );
+                  }
+                  return;
                 }
-                return;
-              }
-              event.preventDefault();
-              event.stopPropagation();
-              onPasteFiles(files, part.start + event.currentTarget.selectionStart);
-            }}
-          />
+                event.preventDefault();
+                event.stopPropagation();
+                onPasteFiles(files, part.start + event.currentTarget.selectionStart);
+              }}
+            />
+          </React.Fragment>
         );
       })}
     </div>

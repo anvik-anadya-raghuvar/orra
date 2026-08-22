@@ -13,6 +13,7 @@ const WARMTH_PILL: Record<'teal' | 'stamp' | 'rose', string> = { teal: 'ok', sta
 import { EditInteractionModal } from './TouchModal';
 import { inputStyle } from './style';
 import { DictateField } from '../../ui/dictation';
+import { Attachments } from '../../ui/attachments';
 
 export default function ProfileModal({
   personId,
@@ -321,6 +322,15 @@ export default function ProfileModal({
         </>
       )}
 
+      {existing && (
+        <div style={{ marginTop: 14 }}>
+          <Attachments
+            entityType="person"
+            entityId={existing.id}
+            hint="A signed agreement, a passport scan, anything on file for this person."
+          />
+        </div>
+      )}
 
       {existing && editingInteraction && (
         <EditInteractionModal
