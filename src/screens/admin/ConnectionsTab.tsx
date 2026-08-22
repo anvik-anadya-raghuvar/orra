@@ -213,7 +213,7 @@ export default function ConnectionsTab() {
       actions: [
         {
           label: 'New event',
-          href: 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=Anvik%20Ops',
+          href: 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=ORRA',
         },
       ],
     },
@@ -245,9 +245,9 @@ export default function ConnectionsTab() {
       key: 'plaud',
       name: 'Plaud',
       state: 'planned',
-      desc: 'Plaud now provides an official MCP server and CLI, but the deployed Anvik website is not connected to either one yet.',
+      desc: 'Plaud now provides an official MCP server and CLI, but the deployed ORRA website is not connected to either one yet.',
       needs:
-        'Anvik still needs a small server-side adapter before Plaud records can import automatically; MCP or CLI credentials must never ship in the browser bundle.',
+        'ORRA still needs a small server-side adapter before Plaud records can import automatically; MCP or CLI credentials must never ship in the browser bundle.',
       actions: [
         {
           label: 'Plaud MCP & CLI',

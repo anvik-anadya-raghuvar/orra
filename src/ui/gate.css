@@ -62,21 +62,11 @@
   letter-spacing: 0.34em;
   color: var(--g-slate);
 }
-.gate-brand i {
-  font-style: normal;
-  display: grid;
-  place-items: center;
+.gate-brand img {
+  display: block;
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0;
-  color: #fff;
-  background: linear-gradient(145deg, var(--g-red-hot), var(--g-red-deep));
-  box-shadow: 0 6px 18px -6px var(--g-glow);
-  transform: rotate(-4deg);
 }
 
 /* The wordmark. Three horizontal slices of the same text, offset against each

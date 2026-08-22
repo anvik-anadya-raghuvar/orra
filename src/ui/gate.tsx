@@ -199,7 +199,8 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
       <div className="gate-stage">
         <div className="gate-hero">
           <motion.div className="gate-brand" {...rise(0)}>
-            <i aria-hidden>A</i> ANVIK&nbsp;OPS
+            <img src="/icons/icon-192.png" alt="" width={30} height={30} />
+            ORRA
           </motion.div>
           <div className="now-mark" aria-hidden>
             <span className="now-size">N:OW</span>

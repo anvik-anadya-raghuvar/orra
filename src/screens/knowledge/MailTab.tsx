@@ -144,7 +144,7 @@ export default function MailTab() {
         </div>
       ))}
       <p className="tip">
-        Read-only and limited to this signed-in Anvik profile: the latest 20 inbox messages from each connected account. Conversions keep the source message reference, so a task,
+        Read-only and limited to this signed-in ORRA profile: the latest 20 inbox messages from each connected account. Conversions keep the source message reference, so a task,
         note, or decision traces back to its email.
       </p>
     </div>
