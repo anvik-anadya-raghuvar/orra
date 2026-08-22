@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "anvik-ops",
+      "name": "orra",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
@@ -11,7 +11,7 @@
       "port": 5180
     },
     {
-      "name": "anvik-ops-audit",
+      "name": "orra-audit",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "vite",
@@ -23,7 +23,7 @@
       "port": 5181
     },
     {
-      "name": "anvik-ops-verify",
+      "name": "orra-verify",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "vite",
@@ -35,7 +35,7 @@
       "port": 5182
     },
     {
-      "name": "anvik-ops-dist",
+      "name": "orra-dist",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "vite",
@@ -48,7 +48,7 @@
       "port": 5183
     },
     {
-      "name": "anvik-ops-preview",
+      "name": "orra-preview",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "vite",
@@ -60,7 +60,7 @@
       "port": 5188
     },
     {
-      "name": "anvik-ops-mock",
+      "name": "orra-mock",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "vite",
