@@ -1543,3 +1543,48 @@
 .personal-screen .pfixed-files > .att {
   margin-top: 8px;
 }
+
+/* ── writing a personal task ──────────────────────────────────────────────
+   Mobile-first: title, date and button stack full-width on a phone and go to
+   one row from 641px. Every control is 44px. */
+.personal-screen .pcompose {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.personal-screen .pcompose > .grow {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.personal-screen .pcompose-in {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+}
+.personal-screen .pcompose-in:focus {
+  outline: 2px solid var(--indigo);
+  outline-offset: -1px;
+}
+.personal-screen .pcompose-date {
+  flex: 1 1 auto;
+  width: auto;
+}
+.personal-screen .pcompose .btn {
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+@media (min-width: 641px) {
+  .personal-screen .pcompose > .grow {
+    flex: 1 1 auto;
+  }
+  .personal-screen .pcompose-date {
+    flex: 0 0 auto;
+  }
+}

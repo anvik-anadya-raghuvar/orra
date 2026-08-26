@@ -21,15 +21,27 @@ const PROJECT_COLORS = ['indigo', 'teal', 'stamp', 'rose', 'sky', 'violet', 'sla
 /**
  * Create a project and return its id.
  *
- * `is_personal: false` on purpose: a project typed into a task, a ledger
- * entry or a note is shared work by definition. The Personal room's own
- * projects are made there, where that flag means something.
+ * `isPersonal` defaults to false because a project typed into a task, a
+ * ledger entry or a note is shared work by definition — that is what every
+ * picker means. The Personal room passes true.
+ *
+ * That parameter is not decoration. Until it existed this function hard-coded
+ * `is_personal: false` and was the ONLY thing in the app that ever wrote a
+ * projects row, so no personal project could be created at all — which meant
+ * every `is_personal` filter in the app (Personal's task list, its calendar,
+ * the study-vs-founder split in lib/blocks.ts, the ranking fence) was reading
+ * against a permanently empty set.
  *
  * Callers are expected to have already ruled out a same-name duplicate —
  * `resolveCommit` in ui/pickerLogic.ts does that, case-insensitively, and is
  * the only path the pickers use.
  */
-export function createProject(store: AppStore, projects: Project[], name: string): string {
+export function createProject(
+  store: AppStore,
+  projects: Project[],
+  name: string,
+  isPersonal = false,
+): string {
   const clean = name.trim();
   const id = newId('proj');
   store.insert(
@@ -39,10 +51,10 @@ export function createProject(store: AppStore, projects: Project[], name: string
       name: clean,
       color: `var(--${PROJECT_COLORS[projects.length % PROJECT_COLORS.length]})`,
       description: '',
-      is_personal: false,
+      is_personal: isPersonal,
       created_at: nowIso(),
     },
-    store.asMe({ summary: `Project created — ${clean}` }),
+    store.asMe({ summary: `${isPersonal ? 'Personal project' : 'Project'} created — ${clean}` }),
   );
   return id;
 }
@@ -70,6 +82,24 @@ export function defaultProjectId(projects: Project[]): string | null {
  */
 export function ensureProjectId(store: AppStore, projects: Project[]): string {
   return defaultProjectId(projects) ?? createProject(store, projects, 'General');
+}
+
+/**
+ * The project a personal row belongs in, creating one if there is none.
+ *
+ * Unlike `ensureProjectId` this makes no choice: "the personal side" has one
+ * meaning, so there is nothing for a picker to disambiguate — which is why
+ * this is allowed to auto-create where the business pickers are not. The
+ * caller still says out loud where the row landed.
+ *
+ * Only the FIRST personal project is auto-named. After that the oldest one
+ * wins, so someone who renames it to "Life" or "Milan" keeps their name.
+ */
+export function ensurePersonalProjectId(store: AppStore, projects: Project[]): string {
+  const existing = projects
+    .filter((p) => p.is_personal)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
+  return existing?.id ?? createProject(store, projects, 'Personal', true);
 }
 
 /** True when `id` still points at a project that exists. */

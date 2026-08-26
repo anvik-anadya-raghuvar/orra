@@ -17,6 +17,8 @@ import { rise, staggerItem, staggerParent } from '../../ui/motion';
 import { Ring, VIZ } from '../../ui/viz';
 import { daysUntil, fmtDay, todayIso } from '../../lib/dates';
 import { myTasks, ownRows } from '../../lib/workspace';
+import { ensurePersonalProjectId } from '../../data/projects';
+import { makeTask } from '../../lib/taskFactory';
 import { goalProgress, goalsFor, nextGoalPosition, progressLabel } from '../../lib/goals';
 import type { PersonalGoal, Task } from '../../types';
 import { DeleteBtn } from '../../ui/bits';
@@ -119,6 +121,7 @@ export function PersonalTasks() {
       <p className="tip" style={{ marginTop: 0 }}>
         Personal-project tasks from Work. Tick one here and the same row closes there.
       </p>
+      <PersonalTaskComposer />
       <motion.div {...staggerParent()}>
         {rows.map((t) => (
           <motion.div className="prow" key={t.id} variants={staggerItem}>
@@ -627,6 +630,82 @@ export function PersonalGoals({ openComposerToken = 0 }: { openComposerToken?: n
           />
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Write a personal task without leaving the Personal room.
+ *
+ * This room could read personal tasks and tick them, but there was no way to
+ * make one — and no way to make the personal project one would have to live
+ * in either, since createProject wrote `is_personal: false` unconditionally.
+ * So the list above was permanently empty on any workspace that had not been
+ * seeded, along with everything else fenced on that flag.
+ *
+ * It is the same `tasks` row the Work board shows (principle 10) — filed into
+ * a personal project, assigned to you, and openable from either room. The
+ * toast names the project, because auto-choosing quietly is the thing being
+ * fixed everywhere else.
+ */
+function PersonalTaskComposer() {
+  const store = useStore();
+  const projects = useData((ds) => ds.projects);
+  const toast = useToast();
+  const [title, setTitle] = useState('');
+  const [due, setDue] = useState('');
+
+  const add = () => {
+    const clean = title.trim();
+    if (!clean) return;
+    const projectId = ensurePersonalProjectId(store, projects);
+    const id = store.nextTaskId();
+    store.insert(
+      'tasks',
+      makeTask({
+        id,
+        title: clean,
+        project_id: projectId,
+        assignee_id: store.meId,
+        created_by: store.meId,
+        start_date: todayIso(),
+        due_date: due || null,
+      }),
+      store.asMe({ summary: `Personal task ${id} created — ${clean}` }),
+    );
+    const name = projects.find((p) => p.id === projectId)?.name ?? 'Personal';
+    toast(`${id} added under ${name}`);
+    setTitle('');
+    setDue('');
+  };
+
+  return (
+    <div className="pcompose">
+      <DictateField label="Dictate a personal task" className="grow">
+        <input
+          className="pcompose-in"
+          value={title}
+          placeholder="Something personal that needs doing"
+          aria-label="New personal task"
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+      </DictateField>
+      <input
+        className="pcompose-in pcompose-date"
+        type="date"
+        value={due}
+        aria-label="Due date for the new personal task"
+        onChange={(e) => setDue(e.target.value)}
+      />
+      <button className="btn sm solid" type="button" onClick={add} disabled={!title.trim()}>
+        Add
+      </button>
     </div>
   );
 }
