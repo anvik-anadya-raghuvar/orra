@@ -18,7 +18,7 @@ const UUID = {
   [RG]: '78e2346f-632f-4928-aeb7-857ec7b751bf',
 } as const;
 const TEST_UUID = '00000000-0000-4000-8000-000000000001';
-const TEST_EMAIL = 'test@anvik.ops';
+const TEST_EMAIL = 'test@orra.ops';
 
 const lit = (v: unknown): string => {
   if (v === null || v === undefined) return 'NULL';

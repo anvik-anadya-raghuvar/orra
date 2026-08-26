@@ -12,7 +12,7 @@ describe('member sign-in (mock mode)', () => {
     const r = checkCredentials(profiles, 'RAGHUVAR.ANVIK@GMAIL.COM ', 'Raghuvar@2026');
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.profile.name).toBe('Raghuvar');
-    const test = checkCredentials(profiles, 'test@anvik.ops', 'Test@2026');
+    const test = checkCredentials(profiles, 'test@orra.ops', 'Test@2026');
     expect(test.ok).toBe(true);
     if (test.ok) expect(test.profile.name).toBe('Test');
   });

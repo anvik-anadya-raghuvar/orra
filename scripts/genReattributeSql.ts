@@ -4,7 +4,7 @@
  *
  * Why this is needed at all. 0004 created the worked example attributed to
  * the two real profiles. 0011 was written to fix that, and generates the same
- * rows attributed to test@anvik.ops — but every statement in it is
+ * rows attributed to test@orra.ops — but every statement in it is
  * `ON CONFLICT (id) DO NOTHING`, and 0004 had already inserted those exact
  * ids. So against a database that had run 0004, 0011 was a no-op: the rows
  * kept their real-profile attribution. `withoutDemo()` hides them from the
@@ -32,7 +32,7 @@ import type { Dataset } from '../src/types';
 const AN_UUID = '6929a827-f871-4c9a-b6bb-367b823b16b3';
 const RG_UUID = '78e2346f-632f-4928-aeb7-857ec7b751bf';
 const TEST_UUID = '00000000-0000-4000-8000-000000000001';
-const TEST_EMAIL = 'test@anvik.ops';
+const TEST_EMAIL = 'test@orra.ops';
 
 /**
  * Every column that names a person, per table, derived from the schema's
@@ -104,7 +104,7 @@ parts.push(`-- Move the worked example off the two real profiles.
 -- rather than absent.
 --
 -- This re-points only the columns that name a person. Row ids and content are
--- untouched, so the demo stays whole under test@anvik.ops and the existing
+-- untouched, so the demo stays whole under test@orra.ops and the existing
 -- "Remove demo content" purge still matches it by id.
 --
 -- Scope: the ids below come from seedDataset(), the same manifest purgeDemo.ts

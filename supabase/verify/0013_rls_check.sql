@@ -7,7 +7,7 @@
 -- The first version of this file only counted the other member's existing rows
 -- and asserted zero. That passed even with RLS disabled, because both real
 -- accounts happen to own no personal rows at all — every seeded day plan and
--- time log belongs to the test@anvik.ops demo profile. A check that cannot
+-- time log belongs to the test@orra.ops demo profile. A check that cannot
 -- fail is not a check.
 --
 -- So this plants probe rows owned by the *other* member first, using the

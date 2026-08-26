@@ -45,7 +45,7 @@ describe('who "the other one" is', () => {
       ...ds,
       profiles: [
         // deliberately before the real partner, which is what broke it
-        { ...ds.profiles[0], id: DEMO_USER_ID, email: 'test@anvik.ops', name: 'Test' },
+        { ...ds.profiles[0], id: DEMO_USER_ID, email: 'test@orra.ops', name: 'Test' },
         ...ds.profiles,
       ],
     };
@@ -69,7 +69,7 @@ describe('who "the other one" is', () => {
       ...ds,
       profiles: [
         ds.profiles[0],
-        { ...ds.profiles[0], id: DEMO_USER_ID, email: 'test@anvik.ops', name: 'Test' },
+        { ...ds.profiles[0], id: DEMO_USER_ID, email: 'test@orra.ops', name: 'Test' },
       ],
     };
     const store = new AppStore(onlyMeAndDemo, fakeAdapter(), 'u-anadya');

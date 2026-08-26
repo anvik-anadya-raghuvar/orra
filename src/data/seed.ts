@@ -78,7 +78,7 @@ function rawSeed(): Dataset {
         ? [
             {
               id: TEST,
-              email: 'test@anvik.ops',
+              email: 'test@orra.ops',
               password: devPassword('Test@2026'),
               name: 'Test',
               avatar_url: null,
@@ -584,7 +584,7 @@ const localDate = (offsetDays = 0) => {
 };
 
 /**
- * A complete, isolated mock workspace for test@anvik.ops.
+ * A complete, isolated mock workspace for test@orra.ops.
  *
  * It starts from the worked example so every shared room is populated, then
  * remaps all user-owned rows to the test identity. The two founder profiles
@@ -606,12 +606,12 @@ export function seedTestDataset(): Dataset {
   out.mail_items = out.mail_items.map((item) => ({
     ...item,
     owner_id: TEST,
-    account_email: 'test@anvik.ops',
+    account_email: 'test@orra.ops',
   }));
   out.documents = out.documents.map((item) => ({
     ...item,
     owner_id: TEST,
-    account_email: 'test@anvik.ops',
+    account_email: 'test@orra.ops',
   }));
   out.courses = out.courses.map((item) => ({ ...item, owner_id: TEST }));
   out.reading_queue = out.reading_queue.map((item) => ({ ...item, owner_id: TEST }));
@@ -717,14 +717,14 @@ export function seedTestDataset(): Dataset {
 
   out.personal_orders = [
     {
-      id: 'test-order-physical', user_id: TEST, integration_grant_id: null, account_email: 'test@anvik.ops',
+      id: 'test-order-physical', user_id: TEST, integration_grant_id: null, account_email: 'test@orra.ops',
       kind: 'physical', review_status: 'pending', lifecycle_status: 'out_for_delivery', merchant: 'Field Notes',
       external_reference: 'FN-2048', summary: 'Notebook set · three pack', amount: 1890, currency: 'INR',
       next_event_at: at(-90), details: { items: ['Pitch black notebook set'], carrier: 'Blue Dart', tracking_number: 'TEST2048', tracking_url: null },
       manual_fields: [], reviewed_at: null, reviewed_by: null, last_event_at: at(35), created_at: at(3 * 24 * 60), updated_at: at(35),
     },
     {
-      id: 'test-order-travel', user_id: TEST, integration_grant_id: null, account_email: 'test@anvik.ops',
+      id: 'test-order-travel', user_id: TEST, integration_grant_id: null, account_email: 'test@orra.ops',
       kind: 'travel', review_status: 'confirmed', lifecycle_status: 'booked', merchant: 'IndiGo',
       external_reference: 'TESTPNR', summary: 'Bengaluru → Delhi', amount: 6840, currency: 'INR',
       next_event_at: at(-2 * 24 * 60), details: { booking_reference: 'TESTPNR', origin: 'BLR', destination: 'DEL', departure_at: at(-2 * 24 * 60), arrival_at: at(-2 * 24 * 60 - 165), stay_end_at: null },

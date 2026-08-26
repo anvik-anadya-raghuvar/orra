@@ -1,7 +1,7 @@
 /**
  * Keeping the worked example inside the test workspace.
  *
- * The demo content (migration 0011) is attributed to test@anvik.ops, but it
+ * The demo content (migration 0011) is attributed to test@orra.ops, but it
  * lives in the same tables as everything else — so the shared rooms showed it
  * to everyone: Ludhiana Steel sat in People, a ledger you never posted sat in
  * Money, and a conversation you never had sat in the Us thread.
