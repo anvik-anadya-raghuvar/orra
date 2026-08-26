@@ -467,7 +467,7 @@ export class AppStore {
     this.ds = { ...this.ds, ranking_weights: after };
     this.adapter.saveWeights(after);
     if (!meta.silent) {
-      for (const f of ['objective_fit', 'unblocks', 'deadline'] as const) {
+      for (const f of ['priority', 'unblocks', 'deadline'] as const) {
         if (before[f] !== after[f]) {
           this.audit({
             actor_id: meta.actor,

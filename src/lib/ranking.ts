@@ -1,10 +1,12 @@
-import type { Capacity, Dataset, Effort, Task, UserId } from '../types';
+import type { Capacity, Dataset, Effort, Task, TaskPriority, UserId } from '../types';
+import { PRIORITY_LABEL } from '../types';
 import { isMyTask } from './workspace';
 import { taskProjects } from './taskFacets';
+import { blockedTaskIds } from './blocking';
 
 export interface RankedTask {
   task: Task;
-  objectiveFit: number; // 0–100 before weighting
+  priority: number; // 0–100 before weighting
   unblocks: number;
   deadline: number;
   /** Capacity match is a modifier, not a weighted factor — it never lets a
@@ -15,6 +17,16 @@ export interface RankedTask {
 }
 
 const DAY_MS = 86_400_000;
+
+/** P0–P3 as a 0–100 factor. The gaps are deliberately uneven: the distance
+ *  from P0 to P1 should matter more than P2 to P3, or everything drifts to
+ *  the middle and the ranking says nothing. */
+const PRIORITY_SCORE: Record<TaskPriority, number> = {
+  urgent: 100,
+  high: 70,
+  normal: 40,
+  low: 15,
+};
 
 /** How well a task's effort matches the declared capacity for the day. */
 export function capacityFit(effort: Effort, capacity: Capacity): number {
@@ -27,13 +39,45 @@ export function capacityFit(effort: Effort, capacity: Capacity): number {
 }
 
 /**
+ * How many still-open tasks each task is holding up, from `task_links`.
+ *
+ * Both link directions describe the same fact from opposite ends, so both are
+ * counted: A "blocks" B and B "blocked_by" A mean A is the blocker. Only open
+ * dependents count — unblocking something already done frees nobody.
+ */
+function blockerCounts(ds: Dataset): Map<string, number> {
+  const open = new Set(ds.tasks.filter((t) => t.status !== 'done').map((t) => t.id));
+  const counts = new Map<string, number>();
+  for (const link of ds.task_links) {
+    let blocker: string | null = null;
+    let dependent: string | null = null;
+    if (link.type === 'blocks') {
+      blocker = link.from_task_id;
+      dependent = link.to_task_id;
+    } else if (link.type === 'blocked_by') {
+      blocker = link.to_task_id;
+      dependent = link.from_task_id;
+    }
+    if (blocker && dependent && open.has(dependent)) {
+      counts.set(blocker, (counts.get(blocker) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
  * Business task ranking — pure. Weights come from ranking_weights (never
  * constants), capacity comes from the day plan. Personal-project tasks are
  * excluded entirely (principle 6: personal life never feeds business ranking).
  *
+ * Every factor reads something the two of them actually set. The previous
+ * version's largest weight scored an OKR link that nothing in the app could
+ * create, and part of "unblocks" keyed off three hard-coded tag names —
+ * `urgent-path`, `needs-raghuvar`, `blocked` — which contradicted principle 8
+ * outright and silently rewarded knowing the magic words. Both are gone.
+ *
  * `ownerId` scopes the ranking to one workspace (principle 1). Omit it and
- * every open business task is ranked, which is what the shared Goals view
- * still wants.
+ * every open business task is ranked.
  */
 export function rankTasks(
   ds: Dataset,
@@ -42,9 +86,11 @@ export function rankTasks(
   ownerId?: UserId,
 ): RankedTask[] {
   const w = ds.ranking_weights;
-  const total = w.objective_fit + w.unblocks + w.deadline || 1;
+  const total = w.priority + w.unblocks + w.deadline || 1;
   const personal = new Set(ds.projects.filter((p) => p.is_personal).map((p) => p.id));
   const today = new Date(todayIso + 'T00:00:00Z').getTime();
+  const blockers = blockerCounts(ds);
+  const awaitingDecision = blockedTaskIds(ds.decisions);
 
   const open = ds.tasks.filter(
     (t) =>
@@ -61,35 +107,26 @@ export function rankTasks(
     .map((task) => {
       const why: string[] = [];
 
-      // Objective fit: linked objective scaled by how far its KRs still have to go.
-      let objectiveFit = 0;
-      if (task.objective_id) {
-        const krs = ds.key_results.filter((k) => k.objective_id === task.objective_id);
-        const avg = krs.length ? krs.reduce((a, k) => a + k.progress_pct, 0) / krs.length : 0;
-        objectiveFit = 60 + (100 - avg) * 0.4;
-        const obj = ds.objectives.find((o) => o.id === task.objective_id);
-        if (obj) why.push(`Advances "${obj.title}" (${Math.round(avg)}% done)`);
-      } else {
-        why.push('No linked objective — sinks in rank');
+      // ── Priority: what you already said this is worth ──────────────────
+      const priority = PRIORITY_SCORE[task.priority];
+      if (task.priority === 'urgent' || task.priority === 'high') {
+        why.push(`${PRIORITY_LABEL[task.priority]} — you marked it that`);
       }
-      // Leverage nudges fit: a high-impact task on the same objective wins.
-      objectiveFit = Math.min(100, objectiveFit + (task.impact - 3) * 6);
-      if (task.impact >= 5) why.push('High leverage');
 
-      // Unblocks: coupling signals, review state, priority.
+      // ── Unblocks: does finishing this free somebody ────────────────────
       let unblocks = 0;
-      if (task.tags.includes('blocked')) unblocks += 10;
-      if (task.tags.includes('urgent-path')) unblocks += 45;
-      if (task.tags.includes('needs-raghuvar')) unblocks += 25;
+      const frees = blockers.get(task.id) ?? 0;
+      if (frees > 0) {
+        unblocks += Math.min(90, frees * 30);
+        why.push(`Finishing it frees ${frees} other task${frees === 1 ? '' : 's'}`);
+      }
       if (task.status === 'in_review') {
-        unblocks += 35;
+        unblocks += 40;
         why.push('In review — closing it unblocks the other person');
       }
-      if (task.priority === 'urgent') unblocks += 25;
-      else if (task.priority === 'high') unblocks += 15;
       unblocks = Math.min(100, unblocks);
 
-      // Deadline proximity: ≤0 days → 100, 14+ days → 0.
+      // ── Deadline proximity: ≤0 days → 100, 14+ days → 0 ────────────────
       let deadline = 0;
       if (task.due_date) {
         const due = new Date(task.due_date + 'T00:00:00Z').getTime();
@@ -97,24 +134,29 @@ export function rankTasks(
         deadline = Math.max(0, Math.min(100, Math.round(100 - (days / 14) * 100)));
         if (days <= 0) why.push(`Due ${days === 0 ? 'today' : `${-days}d ago`}`);
         else if (days <= 3) why.push(`Due in ${days}d`);
+      } else {
+        why.push('No due date — scores nothing on deadline');
       }
 
       const weighted =
-        (objectiveFit * w.objective_fit + unblocks * w.unblocks + deadline * w.deadline) / total;
+        (priority * w.priority + unblocks * w.unblocks + deadline * w.deadline) / total;
 
-      // A stuck task should be surfaced in the stuck zone, not pushed as "start here".
+      // A task that cannot be started should be surfaced, not pushed as
+      // "start here" — whether a person said so or a decision is holding it.
       const stuckPenalty = task.is_stuck || task.blocked_reason ? -30 : 0;
       if (stuckPenalty) why.push('Stuck — needs unblocking first');
+      const decisionPenalty = awaitingDecision.has(task.id) ? -30 : 0;
+      if (decisionPenalty) why.push('Waiting on a decision to be ruled');
 
       const fit = capacityFit(task.effort, capacity);
       if (fit >= 10) why.push(`Fits a ${capacity} day`);
       else if (fit <= -10) why.push(`Heavy for a ${capacity} day`);
 
-      const score = Math.max(0, weighted + fit + stuckPenalty);
+      const score = Math.max(0, weighted + fit + stuckPenalty + decisionPenalty);
 
       return {
         task,
-        objectiveFit: Math.round(objectiveFit),
+        priority,
         unblocks,
         deadline,
         capacityFit: fit,

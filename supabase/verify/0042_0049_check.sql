@@ -1,6 +1,6 @@
--- Sanity gate for 0042–0045.
+-- Sanity gate for 0042–0049.
 --
---   npx supabase db query --linked --file supabase/verify/0042_0045_check.sql
+--   npx supabase db query --linked --file supabase/verify/0042_0049_check.sql
 --
 -- Every row of the result must read PASS. Read-only: this file plants nothing
 -- and deletes nothing, unlike 0013_rls_check.sql, because everything it needs
@@ -70,6 +70,43 @@ WITH checks AS (
     (SELECT count(*)::text FROM pg_policies
       WHERE schemaname = 'public' AND tablename = 'audit_trail'
         AND policyname IN ('audit_no_update','audit_no_delete'))
+  -- ── 0046: one spelling per task type ─────────────────────────────────
+  UNION ALL SELECT '0046.1', 'no task type has two spellings', '0',
+    (SELECT count(*)::text FROM (
+       SELECT 1 FROM public.tasks WHERE coalesce(btrim(type), '') <> ''
+        GROUP BY lower(btrim(type)) HAVING count(DISTINCT type) > 1) s)
+
+  UNION ALL SELECT '0046.2', 'every task''s primary type leads its own list', '0',
+    (SELECT count(*)::text FROM public.tasks
+      WHERE coalesce(btrim(type), '') <> '' AND coalesce(types->>0, '') <> type)
+
+  -- ── 0047: General folded away ────────────────────────────────────────
+  UNION ALL SELECT '0047.1', 'no project named General', '0',
+    (SELECT count(*)::text FROM public.projects WHERE lower(btrim(name)) = 'general')
+
+  UNION ALL SELECT '0047.2', 'no project_ids entry points at a missing project', '0',
+    (SELECT count(*)::text FROM public.tasks t, jsonb_array_elements_text(t.project_ids) v
+      WHERE NOT EXISTS (SELECT 1 FROM public.projects p WHERE p.id = v))
+
+  UNION ALL SELECT '0047.3', 'no assignee_ids entry points at a missing profile', '0',
+    (SELECT count(*)::text FROM public.tasks t, jsonb_array_elements_text(t.assignee_ids) v
+      WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id::text = v))
+
+  -- ── 0049: the ranking's first weight is priority ─────────────────────
+  UNION ALL SELECT '0049.1', 'ranking_weights.priority exists', '1',
+    (SELECT count(*)::text FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'ranking_weights' AND column_name = 'priority')
+
+  UNION ALL SELECT '0049.2', 'ranking_weights.objective_fit is gone', '0',
+    (SELECT count(*)::text FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'ranking_weights' AND column_name = 'objective_fit')
+
+  UNION ALL SELECT '0049.3', 'the tuned weight survived the rename', 'true',
+    -- Read through to_jsonb rather than naming the column: this file has to
+    -- parse on a database that has NOT been migrated yet, and a static
+    -- reference to a missing column errors the whole query instead of
+    -- failing one row.
+    (SELECT (((to_jsonb(rw)->>'priority')::int) > 0)::text FROM public.ranking_weights rw WHERE rw.id = 1)
 )
 SELECT ord, what, want, got,
        CASE WHEN got IS NOT DISTINCT FROM want THEN 'PASS' ELSE 'FAIL' END AS result

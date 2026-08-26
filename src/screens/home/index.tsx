@@ -696,7 +696,7 @@ function HeroTile({ top, onFocus }: { top?: RankedTask; onFocus: (id: string) =>
         <BarRows
           max={100}
           rows={[
-            { label: `Objective fit ×${w.objective_fit}`, value: top.objectiveFit },
+            { label: `Priority ×${w.priority}`, value: top.priority },
             { label: `Unblocks ×${w.unblocks}`, value: top.unblocks },
             { label: `Deadline ×${w.deadline}`, value: top.deadline },
           ]}

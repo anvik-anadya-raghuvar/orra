@@ -593,21 +593,6 @@ function TaskDetail({ task }: { task: Task }) {
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label htmlFor="tf-okr">Objective</label>
-                  <select
-                    id="tf-okr"
-                    value={task.objective_id ?? ''}
-                    onChange={(e) => setField('objective_id', e.target.value || null)}
-                  >
-                    <option value="">— none —</option>
-                    {ds.objectives.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <div className="wide">
                   <label>Priority</label>
                   <div className="seg" role="group" aria-label="Priority">

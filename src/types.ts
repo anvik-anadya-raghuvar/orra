@@ -187,7 +187,9 @@ export interface Project {
 
 export interface RankingWeights {
   id: number;
-  objective_fit: number;
+  /** P0–P3 as a factor. Was `objective_fit` until 0049, which scored an OKR
+   *  link nothing in the app could create — the tuned number carried over. */
+  priority: number;
   unblocks: number;
   deadline: number;
   updated_at: string;
@@ -570,6 +572,35 @@ export interface DocumentRef {
   account_email?: string | null;
 }
 
+/** One photographed side of a business card.
+ *
+ *  An AttachedImage — the same shape a pasted screenshot has, so it goes
+ *  through the same compressor and renders through the same components — plus
+ *  which side it is and whatever the OCR read off it. The text is kept beside
+ *  the picture rather than thrown away after the fields are filled: it makes
+ *  the scan re-parseable without re-running the engine, and it is what a
+ *  search across people can look through. */
+export interface PersonCard extends AttachedImage {
+  side: 'front' | 'back';
+  /** Raw OCR output. Empty when the image was added without scanning. */
+  scanned_text: string;
+}
+
+/** A link on someone's card or profile. Free-form on purpose — the label is
+ *  whatever the person writing it types, never a fixed platform list, for the
+ *  same reason tags are free-form. `src/lib/socialLinks.ts` guesses an icon
+ *  from the URL; guessing wrong costs an icon, not the link. */
+export interface SocialLink {
+  id: string;
+  label: string;
+  url: string;
+}
+
+/** Mirrored by the CHECK constraints in migration 0048. */
+export const MAX_PERSON_CARDS = 4;
+export const MAX_PERSON_SOCIAL_LINKS = 12;
+export const MAX_PERSON_NOTE_IMAGES = 12;
+
 export interface Person {
   id: string;
   name: string;
@@ -580,7 +611,17 @@ export interface Person {
   cadence_days: number;
   last_contact_date: string | null; // YYYY-MM-DD
   next_action: string;
+  /** A scribble, not a text field: the words plus `{{anvik-image:ID}}`
+   *  placement markers for anything in `note_images`. */
   notes: string;
+  email: string;
+  phone: string;
+  company: string;
+  social_links?: SocialLink[] | null;
+  cards?: PersonCard[] | null;
+  /** Images pasted into `notes`, exactly as `notes.images` works for a
+   *  scribble in Knowledge. */
+  note_images?: AttachedImage[] | null;
   created_at: string;
 }
 

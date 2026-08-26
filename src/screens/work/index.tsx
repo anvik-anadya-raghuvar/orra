@@ -3,16 +3,16 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { entrance, micro } from '../../ui/motion';
 import { InfoTip } from '../../ui/bits';
 import BoardTab from './board';
-import GoalsTab from './goals';
+import NextTab from './next';
 import DecisionsTab from './decisions';
 import QueriesTab from './queries';
 import './work.css';
 
-type Tab = 'board' | 'goals' | 'decisions' | 'queries';
+type Tab = 'board' | 'next' | 'decisions' | 'queries';
 
 const TABS: { key: Tab; label: string; help: string }[] = [
   { key: 'board', label: 'To dos', help: 'Create, filter, schedule and edit the real task rows.' },
-  { key: 'goals', label: 'Priorities', help: 'Shows why business tasks rank where they do. Every task opens its synced quick editor.' },
+  { key: 'next', label: "What's next", help: 'Your open business work in the order the ranking would start it — by priority, by what finishing it unblocks, and by how close the due date is. Every row says why, and every task opens its synced quick editor.' },
   { key: 'decisions', label: 'Decisions', help: 'Questions that hold work up. Each one is assigned to one of you, and every task linked to it reads as blocked until it is ruled.' },
   { key: 'queries', label: 'Queries', help: 'Questions that just want an answer. They block nothing, and each one is pinged into the Us thread the moment it is asked.' },
 ];
@@ -72,7 +72,7 @@ export default function Work() {
               exit={{ opacity: 0, y: 6, transition: micro }}
             >
               {tab === 'board' && <BoardTab newOpen={newTask} setNewOpen={setNewTask} />}
-              {tab === 'goals' && <GoalsTab />}
+              {tab === 'next' && <NextTab />}
               {tab === 'decisions' && (
                 <DecisionsTab newOpen={newDecision} setNewOpen={setNewDecision} />
               )}

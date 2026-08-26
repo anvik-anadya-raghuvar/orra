@@ -1346,3 +1346,22 @@ tr.wk-driftrow td {
   align-items: center;
   gap: 5px;
 }
+
+/* Why a task ranks where it does. rankTasks has always returned these and
+   nothing ever showed them, which is most of why a column of scores read as
+   noise. Wraps freely — a task can have four reasons at once. */
+.wk-why {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.wk-whychip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--slate);
+  background: var(--surf3);
+  border-radius: 999px;
+  padding: 3px 8px;
+}

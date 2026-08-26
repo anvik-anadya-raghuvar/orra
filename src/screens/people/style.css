@@ -277,3 +277,273 @@ a.tl-summary {
     min-height: 44px;
   }
 }
+
+
+/* ── Business-card scanner (profile sheet) ────────────────────────────────
+   Mobile-first: one slot per row on a phone, front and back side by side from
+   641px up. The review list below it is a stack of checkbox rows at every
+   width — a table of suggestions would have to scroll sideways on a phone,
+   and a suggestion you cannot read is one you cannot judge. */
+.cardscan {
+  margin: 4px 0 14px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surf2);
+}
+.cs-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.cs-head .btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+}
+.cs-tip {
+  margin: 0 0 11px;
+}
+
+.cs-slots {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 641px) {
+  .cs-slots {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.cs-slot {
+  min-width: 0;
+}
+.cs-slot-label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 5px;
+}
+.cs-thumb {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf3);
+}
+.cs-thumb img {
+  display: block;
+  width: 100%;
+  /* A card is a wide, short rectangle; letting it grow to its natural height
+     would push the review list below the fold on a phone. */
+  max-height: 190px;
+  object-fit: contain;
+  background: var(--surf3);
+}
+.cs-thumb figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 4px 9px;
+  font-size: 10.5px;
+  color: var(--mute);
+  background: var(--surf);
+}
+.cs-remove {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--mute);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.cs-remove:hover,
+.cs-remove:focus-visible {
+  background: var(--surf3);
+  color: var(--rose);
+}
+
+.cs-progress {
+  margin-top: 12px;
+}
+.cs-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--mute);
+  margin-bottom: 7px;
+}
+
+.cs-review {
+  margin-top: 13px;
+  border-top: 1px solid var(--line);
+  padding-top: 11px;
+}
+.cs-warn {
+  font-size: 12.5px;
+  color: var(--stamp);
+  background: var(--stamp-s);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+}
+.cs-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  cursor: pointer;
+}
+/* The whole row is a label, so the tap target is the row and not the 16px box
+   inside it — which is what makes this usable with a thumb. */
+.cs-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 12px;
+  accent-color: var(--indigo);
+  cursor: pointer;
+}
+.cs-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cs-row-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.cs-row-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surf);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  min-height: 44px;
+}
+.cs-row-static {
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.cs-row-warn {
+  font-size: 11.5px;
+  color: var(--stamp);
+}
+.cs-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.cs-actions .btn {
+  min-height: 44px;
+}
+
+/* ── Links ────────────────────────────────────────────────────────────────
+   On a phone the icon sits above a full-width label and address; from 641px
+   the row is icon · label · address · remove on one line. */
+.sociallinks {
+  margin: 0 0 14px;
+}
+.sl-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+.sl-tip {
+  margin: 0;
+}
+.sl-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.sl-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'icon label remove'
+    'url  url   url';
+  align-items: center;
+  gap: 7px;
+}
+@media (min-width: 641px) {
+  .sl-row {
+    grid-template-columns: auto minmax(0, 0.7fr) minmax(0, 1.3fr) auto;
+    grid-template-areas: 'icon label url remove';
+  }
+}
+.sl-icon {
+  grid-area: icon;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 8px;
+  background: var(--surf3);
+  color: var(--mute);
+}
+.sl-label {
+  grid-area: label;
+  min-width: 0;
+}
+.sl-url {
+  grid-area: url;
+  min-width: 0;
+}
+.sl-remove {
+  grid-area: remove;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--mute);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.sl-remove:hover,
+.sl-remove:focus-visible {
+  background: var(--surf3);
+  color: var(--rose);
+}
+.sl-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+}

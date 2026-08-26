@@ -140,7 +140,7 @@ describe('ranking', () => {
   it('changes when ranking_weights changes, no redeploy', () => {
     const ds = seedDataset();
     const before = rankTasks(ds, '2026-08-18');
-    ds.ranking_weights = { ...ds.ranking_weights, objective_fit: 0, unblocks: 0, deadline: 100 };
+    ds.ranking_weights = { ...ds.ranking_weights, priority: 0, unblocks: 0, deadline: 100 };
     const after = rankTasks(ds, '2026-08-18');
     expect(before.map((r) => r.score)).not.toEqual(after.map((r) => r.score));
   });

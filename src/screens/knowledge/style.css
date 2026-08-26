@@ -380,35 +380,8 @@
   border: 1px solid var(--line);
   background: var(--surf2);
 }
-.note-inline-editor {
-  margin-bottom: 8px;
-}
-.note-inline-figure {
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--surf2);
-}
-.note-inline-figure img {
-  display: block;
-  width: 100%;
-  max-height: min(56vh, 520px);
-  object-fit: contain;
-  background: var(--surf3);
-}
-.note-inline-figure figcaption {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 9px;
-  color: var(--mute);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10.5px;
-  overflow-wrap: anywhere;
-}
-.note-inline-figure figcaption .btn {
-  flex: none;
-  color: var(--rose);
-}
+/* .note-inline-editor / .note-inline-figure moved to src/ui/inlineImages.css.
+   The People room's notes field is the same editor, and a scribble's inline
+   image should not look different depending on which screen loaded its CSS —
+   which is exactly what happened while these rules lived here and People
+   rendered them unstyled. */

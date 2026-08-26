@@ -98,13 +98,24 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
          is the same query with no negotiation and no error status. */
       const weights = await sb.from('ranking_weights').select('*').limit(1);
       const ds = Object.fromEntries(results) as unknown as Dataset;
-      ds.ranking_weights = (weights.data?.[0] as Dataset['ranking_weights']) ?? {
-        id: 1,
-        objective_fit: 40,
-        unblocks: 30,
-        deadline: 30,
-        updated_at: new Date().toISOString(),
-      };
+      /* Accept either column name across the 0049 rename. A rename cannot be
+         atomic with a deploy — whichever lands first, the other side spends a
+         minute reading a column that is not there, and one undefined weight
+         makes `total` NaN and every score with it. Reading both means the
+         code is safe to ship before the migration and safe after it. Drop the
+         fallback once 0049 is applied. */
+      const stored = weights.data?.[0] as
+        | (Dataset['ranking_weights'] & { objective_fit?: number })
+        | undefined;
+      ds.ranking_weights = stored
+        ? { ...stored, priority: stored.priority ?? stored.objective_fit ?? 40 }
+        : {
+            id: 1,
+            priority: 40,
+            unblocks: 30,
+            deadline: 30,
+            updated_at: new Date().toISOString(),
+          };
       for (const [k, rows] of results) {
         knownIds.set(k, new Set((rows as { id: string }[]).map((r) => r.id)));
       }
@@ -179,15 +190,24 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
       return null;
     },
     saveWeights(w) {
-      void sb
-        .from('ranking_weights')
-        .upsert(w)
-        .then(({ error }) => {
-          if (error) {
-            console.error('[supabaseAdapter] failed to save ranking_weights:', error.message);
-            onError?.(`Couldn't save ranking weights — ${error.message}`);
-          }
-        });
+      /* `priority` only exists after 0049, and PostgREST rejects an unknown
+         column outright rather than ignoring it. So: write the new shape, and
+         if the server has not been migrated yet, write the old one. The
+         fallback is one request on one failure, only in the window between
+         this code deploying and 0049 landing. Delete it once that is done. */
+      const { priority, ...rest } = w;
+      const legacy = { ...rest, objective_fit: priority };
+      const fail = (message: string) => {
+        console.error('[supabaseAdapter] failed to save ranking_weights:', message);
+        onError?.(`Couldn't save ranking weights — ${message}`);
+      };
+      void (async () => {
+        const { error } = await sb.from('ranking_weights').upsert(w);
+        if (!error) return;
+        if (!/priority/i.test(error.message)) return fail(error.message);
+        const { error: retry } = await sb.from('ranking_weights').upsert(legacy);
+        if (retry) fail(retry.message);
+      })();
     },
     async authedEmail() {
       const { data } = await sb.auth.getUser();
