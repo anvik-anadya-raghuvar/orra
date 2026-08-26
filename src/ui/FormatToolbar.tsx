@@ -12,6 +12,7 @@ import type { MouseEvent, ReactNode, RefObject } from 'react';
 import { Bold, Italic, Underline, Strikethrough, Code2, Link2, List, ListChecks } from 'lucide-react';
 import { FORMAT_COLORS, FORMAT_SIZES, isSafeExternalUrl } from '../lib/textFormat';
 import { applyFormatShortcut, createTextFormatting } from './textFormatting';
+import { MentionPicker } from './MentionPicker';
 import './formatToolbar.css';
 
 export { applyFormatShortcut };
@@ -54,6 +55,11 @@ export function FormatToolbar({
       <button type="button" aria-label="Checklist" title="Checklist '- [ ]'" onMouseDown={keepFocus} onClick={() => formatting.checkbox()}>
         <ListChecks size={14} strokeWidth={2} aria-hidden />
       </button>
+      {/* Tagging lives in the toolbar rather than beside one composer, so it
+          is available in every surface that already has formatting — the task
+          brief, wiki blocks, notes, the inline-image editor — instead of only
+          the two threads it started in. */}
+      <MentionPicker textarea={textarea} value={value} onValue={onValue} />
       <button
         type="button"
         aria-label="Add link"

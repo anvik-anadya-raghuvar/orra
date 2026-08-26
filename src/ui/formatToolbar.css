@@ -46,3 +46,17 @@
     height: 30px;
   }
 }
+
+/* The @ tag control sits in the toolbar. It is a select rather than an icon
+   button, so it gets the toolbar's height instead of the 44px it carries when
+   it stands alone in a composer. */
+.fmt-bar .mention-pick {
+  min-height: 30px;
+  padding: 0 6px;
+  font-size: 11.5px;
+}
+@media (max-width: 1024px) {
+  .fmt-bar .mention-pick {
+    min-height: 44px;
+  }
+}
