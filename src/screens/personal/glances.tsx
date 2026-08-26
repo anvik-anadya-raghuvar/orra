@@ -17,6 +17,7 @@ import { useData, useStore } from '../../data/store';
 import { personalProjectIds } from '../../data/projects';
 import { daysUntil, fmtDay, todayIso } from '../../lib/dates';
 import { myTasks, ownRows } from '../../lib/workspace';
+import { inAnyProject } from '../../lib/taskFacets';
 import { SCOPE_COPY, activeBlockFor, clockLabel, elapsedSec } from '../../lib/blocks';
 import { isTerminalOrder } from '../../lib/personalOrders';
 
@@ -85,7 +86,7 @@ export function TasksGlance() {
   const meId = useData((_, s) => s.meId);
   const personal = new Set(ds.projects.filter((p) => p.is_personal).map((p) => p.id));
   const rows = myTasks(ds.tasks, meId)
-    .filter((t) => personal.has(t.project_id) && t.status !== 'done')
+    .filter((t) => inAnyProject(t, personal) && t.status !== 'done')
     .sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999'));
   return (
     <Shell title="Personal tasks" stat={rows.length} statLabel="open">

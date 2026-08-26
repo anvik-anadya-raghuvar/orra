@@ -16,6 +16,7 @@
  */
 import type { Dataset, UserId } from '../types';
 import { daysUntil } from './dates';
+import { isAssignedTo } from './taskFacets';
 
 export type AttentionSection = 'tasks' | 'dates' | 'money';
 
@@ -51,7 +52,7 @@ export function attentionItems(ds: Dataset, meId: UserId, today: string): Attent
 
   // ── Work assigned to me that is due ──────────────────────────────────
   for (const task of ds.tasks) {
-    if (task.assignee_id !== meId) continue;
+    if (!isAssignedTo(task, meId)) continue;
     if (task.status === 'done') continue;
     if (!task.due_date) continue;
     const days = daysUntil(task.due_date, today);

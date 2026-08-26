@@ -7,6 +7,7 @@ import { DeleteBtn, InfoTip, Modal, useToast } from '../../ui/bits';
 import { entrance, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { Donut, MiniBars, Ring, VIZ } from '../../ui/viz';
 import { myTasks, ownRows } from '../../lib/workspace';
+import { inAnyProject } from '../../lib/taskFacets';
 import {
   FixedDates,
   InlineText,
@@ -726,7 +727,7 @@ function PersonalToday({
   const actions = useMemo(
     () =>
       myTasks(ds.tasks, meId).filter(
-        (task) => personalProjects.has(task.project_id) && task.status !== 'done',
+        (task) => inAnyProject(task, personalProjects) && task.status !== 'done',
       ),
     [ds.tasks, meId, personalProjects],
   );

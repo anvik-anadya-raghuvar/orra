@@ -14,6 +14,7 @@
  *      principle 10, one row and many views.
  */
 import type { AppStore } from '../data/store';
+import { inAnyProject, taskProjects } from './taskFacets';
 import type { ActiveBlock, BlockScope, Dataset, Task, TimeLog, UserId } from '../types';
 import { intentionsFor, itemDone } from './dayPlan';
 import { myTasks } from './workspace';
@@ -120,10 +121,12 @@ export function blockLines(ds: Dataset, block: ActiveBlock, todayIso: string): B
       }));
     case 'founder':
       return fromTasks(
-        mine.filter((t) => openTask(t) && !personalProjects.has(t.project_id)),
+        // A task in a business project AND a personal one belongs in both
+        // block lists -- one row, many views (principle 10).
+        mine.filter((t) => openTask(t) && taskProjects(t).some((id) => !personalProjects.has(id))),
       );
     case 'personal':
-      return fromTasks(mine.filter((t) => openTask(t) && personalProjects.has(t.project_id)));
+      return fromTasks(mine.filter((t) => openTask(t) && inAnyProject(t, personalProjects)));
     case 'study': {
       const courses = ds.courses.filter(
         (c) => (c.owner_id == null || c.owner_id === block.user_id) &&

@@ -7,8 +7,10 @@ import { entrance, micro } from '../../ui/motion';
 import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
 import { fmtDay, fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment, notifyMention } from '../../lib/handoff';
+import { mentionedIds } from '../../lib/mentions';
 import { taskProgressPct, toggleChecklistLine } from '../../lib/checklist';
 import { blockingDecisions } from '../../lib/blocking';
+import { addedAssignees, assigneePatch, projectPatch, taskAssignees, taskProjects, taskTypes, typePatch } from '../../lib/taskFacets';
 import { MAX_REPEAT_EVERY, REPEAT_UNITS, describeRepeat, normalizeRepeat } from '../../lib/repeat';
 import { spawnNextOccurrence } from '../../lib/repeatActions';
 import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
@@ -20,6 +22,7 @@ import Screenshots from './Screenshots';
 import { Attachments } from '../../ui/attachments';
 import { BriefChecklist } from '../../ui/BriefChecklist';
 import { MentionPicker } from '../../ui/MentionPicker';
+import { FacetChips, FacetToggles } from '../../ui/FacetPicker';
 import { FormattedText } from '../../ui/richText';
 import Timeline from './Timeline';
 import type { Task, TaskPriority, TaskStatus } from '../../types';
@@ -111,6 +114,13 @@ function TaskDetail({ task }: { task: Task }) {
         { description: value },
         store.asMe({ summary: `Description updated on ${task.id}` }),
       );
+      /* Tagging someone in the brief has to reach them exactly like tagging
+         them in the thread does, or the toolbar's @ control is a decoration
+         in the one place people actually write the context. Diffed against
+         what the brief already said, so re-saving after a typo fix does not
+         ring the bell again. */
+      const fresh = mentionedIds(value).filter((id) => !mentionedIds(task.description).includes(id));
+      if (fresh.length) notifyMention(store, value, `in the brief on ${task.id}`, task.id);
     }
   };
 
@@ -133,6 +143,36 @@ function TaskDetail({ task }: { task: Task }) {
       pct === null ? { description: next } : { description: next, progress_pct: pct },
       store.asMe({ summary: `Step ticked on ${task.id}` }),
     );
+  };
+
+  /**
+   * Facet writers. Each goes through lib/taskFacets so the primary and its
+   * list are written in one update and can never disagree — the invariant
+   * 0045 refuses to half-apply on.
+   */
+  const saveProjects = (ids: string[]) =>
+    store.update(
+      'tasks',
+      task.id,
+      projectPatch(ids, task.project_id),
+      store.asMe({ summary: `Projects changed on ${task.id}` }),
+    );
+
+  const saveTypes = (values: string[]) =>
+    store.update(
+      'tasks',
+      task.id,
+      typePatch(values, task.type),
+      store.asMe({ summary: `Types changed on ${task.id}` }),
+    );
+
+  /* Notices are per person: adding Raghuvar to a task Anadya already had
+     tells Raghuvar and says nothing to Anadya, and re-saving the same pair
+     says nothing at all. */
+  const saveAssignees = (ids: string[]) => {
+    const patch = assigneePatch(ids);
+    store.update('tasks', task.id, patch, store.asMe({ summary: `Assignees changed on ${task.id}` }));
+    for (const id of addedAssignees(task, patch)) notifyAssignment(store, task, id);
   };
 
   const setField = <K extends keyof Task>(field: K, value: Task[K]) => {
@@ -471,27 +511,32 @@ function TaskDetail({ task }: { task: Task }) {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label htmlFor="tf-assignee">Assignee</label>
-                  <select
-                    id="tf-assignee"
-                    value={task.assignee_id ?? ''}
-                    onChange={(e) => setField('assignee_id', e.target.value || null)}
-                  >
-                    <option value="">Unassigned</option>
-                    {store.members.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="wide">
+                  <label>Assignees</label>
+                  <FacetToggles
+                    label="assignees"
+                    options={store.members}
+                    values={taskAssignees(task)}
+                    onChange={saveAssignees}
+                  />
                 </div>
-                <div>
-                  <label htmlFor="tf-project">Project</label>
+                <div className="wide">
+                  <label htmlFor="tf-project">Projects</label>
+                  <FacetChips
+                    label="projects"
+                    values={taskProjects(task)}
+                    onChange={saveProjects}
+                    color={(id) => ds.projects.find((p) => p.id === id)?.color}
+                    render={(id) => ds.projects.find((p) => p.id === id)?.name ?? id}
+                  />
+                  {/* The combo adds rather than replaces, so it always opens
+                      empty -- a value in it would read as "the project", which
+                      is exactly the singular this field stopped being. */}
                   <ProjectCombo
                     id="tf-project"
-                    value={task.project_id}
-                    onChange={(id) => id && setField('project_id', id)}
+                    value=""
+                    placeholder="Add a project, or type a new one"
+                    onChange={(id) => id && saveProjects([...taskProjects(task), id])}
                   />
                 </div>
                 <div>
@@ -581,8 +626,19 @@ function TaskDetail({ task }: { task: Task }) {
                   </div>
                 </div>
                 <div className="wide">
-                  <label htmlFor="tf-type">Type — 'ops' and 'code_change' unlock the panels below</label>
-                  <TypeCombo id="tf-type" value={task.type} onChange={(t) => t && setField('type', t)} />
+                  <label htmlFor="tf-type">Types — the first one decides which panels render below</label>
+                  <FacetChips
+                    label="types"
+                    values={taskTypes(task)}
+                    onChange={saveTypes}
+                    render={(value) => value}
+                  />
+                  <TypeCombo
+                    id="tf-type"
+                    value=""
+                    placeholder="Add a type, or type a new one"
+                    onChange={(t) => t && saveTypes([...taskTypes(task), t])}
+                  />
                 </div>
               </div>
 

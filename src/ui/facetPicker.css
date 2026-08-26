@@ -1,0 +1,126 @@
+/* Multi-value facet chips — projects, types — and the people toggles.
+   Mobile-first: chips wrap, toggles stack to full width and go to a row from
+   641px. Every control that does something is 44px. */
+.facet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.facet-chips li {
+  margin: 0;
+}
+.facet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surf3);
+  font-size: 12px;
+  max-width: 100%;
+}
+.facet-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.facet-primary {
+  font-size: 10px;
+  color: var(--stamp);
+  line-height: 1;
+}
+.facet-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--mute);
+  cursor: pointer;
+}
+.facet-btn:hover {
+  background: var(--surf);
+  color: var(--ink);
+}
+.facet-btn.danger:hover {
+  color: var(--rose);
+}
+.facet-empty {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.facet-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.facet-toggles label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  font-size: 13px;
+  cursor: pointer;
+}
+.facet-toggles label.on {
+  border-color: var(--indigo);
+  background: var(--indigo-s);
+}
+.facet-toggles label:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.facet-toggles input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--indigo);
+  flex: none;
+}
+@media (min-width: 641px) {
+  .facet-toggles {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .facet-toggles label {
+    flex: 1 1 auto;
+  }
+}
+/* Touch: the promote and remove buttons are 30px inside a 44px chip, which
+   is a real control under the minimum. They fill the chip on mobile and
+   tablet, which is also why the chip loses its vertical padding there --
+   otherwise the chip has to grow to 56px to hold them. No exemption: both
+   buttons perform an action. */
+@media (max-width: 1024px) {
+  .facet-chip {
+    padding-right: 0;
+  }
+  .facet-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+}
+
+/* The chips' 44px hit area is right on touch; on a real pointer it makes a
+   row of three projects look like a toolbar, so it relaxes with the buttons. */
+@media (min-width: 1025px) {
+  .facet-chip {
+    min-height: 32px;
+  }
+  .facet-toggles label {
+    min-height: 38px;
+  }
+}

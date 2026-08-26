@@ -222,11 +222,29 @@ export interface Task {
   title: string;
   description: string;
   acceptance_criteria: string;
+  /**
+   * The PRIMARY project — the one carrying the foreign key and the NOT NULL,
+   * and the one whose colour the board card takes. Always element 0 of
+   * `project_ids` (0045). Read both through lib/taskFacets.ts, never directly.
+   */
   project_id: string;
+  /** Every project this task belongs to. Absent on rows written before 0045. */
+  project_ids?: string[];
+  /** The primary type — the one that decides which panels the task page
+   *  renders (principle 7). Always element 0 of `types`. */
   type: TaskType;
+  /** Every type this task carries. Absent on rows written before 0045. */
+  types?: string[];
   status: TaskStatus;
   priority: TaskPriority;
+  /**
+   * The PRIMARY assignee — the ownership fence 0012 backfilled and the person
+   * a handoff notice addresses. Always element 0 of `assignee_ids`.
+   */
   assignee_id: UserId | null;
+  /** Everyone this task is assigned to. A task on both lists shows on both
+   *  boards, which is the point (principle 1). Absent before 0045. */
+  assignee_ids?: UserId[];
   created_by: UserId;
   start_date: string | null; // YYYY-MM-DD
   due_date: string | null;

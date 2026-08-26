@@ -1,5 +1,6 @@
 import type { Capacity, Dataset, Effort, Task, UserId } from '../types';
 import { isMyTask } from './workspace';
+import { taskProjects } from './taskFacets';
 
 export interface RankedTask {
   task: Task;
@@ -48,7 +49,11 @@ export function rankTasks(
   const open = ds.tasks.filter(
     (t) =>
       t.status !== 'done' &&
-      !personal.has(t.project_id) &&
+      // Business work if ANY of its projects is a business one. A task that
+      // is both stays rankable -- it is real business work that also touches
+      // personal life, and principle 6 fences the personal SYSTEM out of the
+      // ranking, not every task that happens to overlap it.
+      taskProjects(t).some((id) => !personal.has(id)) &&
       (!ownerId || isMyTask(t, ownerId)),
   );
 

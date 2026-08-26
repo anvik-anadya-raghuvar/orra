@@ -193,3 +193,42 @@ describe('what I handed to the other person', () => {
     expect(assignedOut(all, ME).filter((t) => mine.has(t.id))).toEqual([]);
   });
 });
+
+describe('a task shared by both of them (0045)', () => {
+  const both = (p: Partial<Task> = {}) =>
+    task({ assignee_id: ME, assignee_ids: [ME, THEM], ...p });
+
+  it('shows on both boards — that is the point of allowing it', () => {
+    expect(isMyTask(both(), ME)).toBe(true);
+    expect(isMyTask(both(), THEM)).toBe(true);
+  });
+
+  it('still keeps a single-assignee task off the other board', () => {
+    const only = task({ assignee_id: ME, assignee_ids: [ME] });
+    expect(isMyTask(only, THEM)).toBe(false);
+  });
+
+  it('reads a row written before 0045 from its primary alone', () => {
+    const legacy = task({ assignee_id: THEM, assignee_ids: undefined });
+    expect(isMyTask(legacy, THEM)).toBe(true);
+    expect(isMyTask(legacy, ME)).toBe(false);
+  });
+
+  it('needs no acceptance when the author is one of the holders', () => {
+    // Sharing a task with someone is not handing it to them.
+    expect(handoffState(both({ created_by: ME }))).toBe('mine');
+  });
+
+  it('is still a handoff when the author kept none of it', () => {
+    expect(handoffState(task({ assignee_id: THEM, assignee_ids: [THEM], created_by: ME }))).toBe('waiting');
+  });
+
+  it('puts a shared task in the other person’s inbox only if they did not write it', () => {
+    expect(inboxTasks([both({ created_by: ME })], THEM).map((t) => t.id)).toEqual(['T-1']);
+    expect(inboxTasks([both({ created_by: ME })], ME)).toEqual([]);
+  });
+
+  it('counts a shared task as handed out, since someone else is on it', () => {
+    expect(assignedOut([both({ created_by: ME })], ME).map((t) => t.id)).toEqual(['T-1']);
+  });
+});

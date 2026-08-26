@@ -17,6 +17,7 @@ import { rise, staggerItem, staggerParent } from '../../ui/motion';
 import { Ring, VIZ } from '../../ui/viz';
 import { daysUntil, fmtDay, todayIso } from '../../lib/dates';
 import { myTasks, ownRows } from '../../lib/workspace';
+import { inAnyProject } from '../../lib/taskFacets';
 import { ensurePersonalProjectId } from '../../data/projects';
 import { makeTask } from '../../lib/taskFactory';
 import { goalProgress, goalsFor, nextGoalPosition, progressLabel } from '../../lib/goals';
@@ -95,7 +96,7 @@ export function PersonalTasks() {
   const rows = useMemo(
     () =>
       myTasks(ds.tasks, meId)
-        .filter((t) => personalProjects.has(t.project_id) && t.status !== 'done')
+        .filter((t) => inAnyProject(t, personalProjects) && t.status !== 'done')
         .sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999')),
     [ds.tasks, meId, personalProjects],
   );

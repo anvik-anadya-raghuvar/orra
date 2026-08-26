@@ -7,6 +7,7 @@ import { CountUp, InfoTip, Modal, useToast } from '../../ui/bits';
 import { spring } from '../../ui/motion';
 import { daysUntil, fmtDay, inr, todayIso } from '../../lib/dates';
 import { myTasks } from '../../lib/workspace';
+import { taskProjects } from '../../lib/taskFacets';
 import { monthlyRunRate, soonestSubscription } from '../../lib/tracker';
 import { quoteForDate } from '../../lib/quotes';
 import { Donut, MiniBars, VIZ } from '../../ui/viz';
@@ -573,7 +574,7 @@ export function ProjectsTile() {
   const items = ds.projects.map((pj) => ({
     id: pj.id,
     label: pj.name,
-    value: mine.filter((t) => t.project_id === pj.id && t.status !== 'done').length,
+    value: mine.filter((t) => taskProjects(t).includes(pj.id) && t.status !== 'done').length,
   }));
   const max = Math.max(...items.map((i) => i.value), 1);
   const snapshot = snapshotId ? ds.projects.find((p) => p.id === snapshotId) ?? null : null;
@@ -622,8 +623,8 @@ function ProjectSnapshotModal({ project, onClose }: { project: Project | null; o
   const open = !!project;
   // Opened from my Home's project bars, so it shows the same slice they count.
   const mine = useMemo(() => myTasks(ds.tasks, meId), [ds.tasks, meId]);
-  const openTasks = project ? mine.filter((t) => t.project_id === project.id && t.status !== 'done') : [];
-  const doneTasks = project ? mine.filter((t) => t.project_id === project.id && t.status === 'done') : [];
+  const openTasks = project ? mine.filter((t) => taskProjects(t).includes(project.id) && t.status !== 'done') : [];
+  const doneTasks = project ? mine.filter((t) => taskProjects(t).includes(project.id) && t.status === 'done') : [];
   const openDecisions = project ? ds.decisions.filter((d) => d.project_id === project.id && d.status === 'open') : [];
   const net = project
     ? ds.ledger

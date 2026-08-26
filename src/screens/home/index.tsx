@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, ChevronRight, Plus, RefreshCw, Settings2, Sparkles } from 'lucide-react';
 import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
 import { ensureProjectId } from '../../data/projects';
+import { isAssignedTo } from '../../lib/taskFacets';
 import { packBento } from '../../lib/bento';
 import { Avatar, CountUp, InfoTip, Modal, ProgressBar, SideSheet, useToast } from '../../ui/bits';
 import { staggerParent } from '../../ui/motion';
@@ -1067,7 +1068,7 @@ function PulseTile() {
   }, [liveBlock?.id, liveBlock?.paused_at]);
 
   const theirs = ds.tasks
-    .filter((t) => t.assignee_id === other.id && t.status !== 'done')
+    .filter((t) => isAssignedTo(t, other.id) && t.status !== 'done')
     .sort((a, b) => {
       const active = Number(b.status === 'in_progress') - Number(a.status === 'in_progress');
       return active || b.updated_at.localeCompare(a.updated_at);

@@ -7,6 +7,7 @@
  * inside render paths and covered by workspace.test.ts.
  */
 import type { HandoffState, Task, UserId } from '../types';
+import { isAssignedTo, taskAssignees } from './taskFacets';
 
 /** Anything carrying an optional owner. NULL owner = belongs to both. */
 interface Owned {
@@ -14,12 +15,18 @@ interface Owned {
 }
 
 /**
- * A task is mine when it is assigned to me. An unassigned task falls back to
- * its author so nothing can end up owned by nobody and disappear from both
- * boards — 0012_workspaces.sql backfills the same rule.
+ * A task is mine when I am one of the people it is assigned to. An unassigned
+ * task falls back to its author so nothing can end up owned by nobody and
+ * disappear from both boards — 0012_workspaces.sql backfills the same rule.
+ *
+ * "One of the people" since 0045: a task assigned to both of them is on both
+ * boards, which is the whole point of allowing it. That makes the two
+ * workspaces overlap rather than partition, and that is fine — principle 1
+ * calls the separation focus, not secrecy.
  */
 export function isMyTask(t: Task, meId: UserId): boolean {
-  return t.assignee_id ? t.assignee_id === meId : t.created_by === meId;
+  const assignees = taskAssignees(t);
+  return assignees.length ? assignees.includes(meId) : t.created_by === meId;
 }
 
 export function myTasks(tasks: Task[], meId: UserId): Task[] {
@@ -33,7 +40,7 @@ export function myTasks(tasks: Task[], meId: UserId): Task[] {
  */
 export function inboxTasks(tasks: Task[], meId: UserId): Task[] {
   return tasks.filter(
-    (t) => t.assignee_id === meId && t.created_by !== meId && !t.acknowledged_at,
+    (t) => isAssignedTo(t, meId) && t.created_by !== meId && !t.acknowledged_at,
   );
 }
 
@@ -45,7 +52,10 @@ export function inboxTasks(tasks: Task[], meId: UserId): Task[] {
  * it as "waiting" would park half of everyone's own board in an inbox.
  */
 export function handoffState(t: Task): HandoffState {
-  if (!t.assignee_id || t.assignee_id === t.created_by) return 'mine';
+  // Shared with the author counts as mine: a task the two of them hold
+  // together is not something either has to accept from the other.
+  const assignees = taskAssignees(t);
+  if (!assignees.length || assignees.includes(t.created_by)) return 'mine';
   if (t.acknowledged_at) return 'accepted';
   if (t.pushback_reason) return 'pushed_back';
   return 'waiting';
@@ -62,8 +72,7 @@ export function awaitingThem(tasks: Task[], meId: UserId): Task[] {
   return tasks.filter(
     (t) =>
       t.created_by === meId &&
-      t.assignee_id != null &&
-      t.assignee_id !== meId &&
+      taskAssignees(t).some((id) => id !== meId) &&
       !t.acknowledged_at,
   );
 }
@@ -80,7 +89,7 @@ export function awaitingThem(tasks: Task[], meId: UserId): Task[] {
  */
 export function assignedOut(tasks: Task[], meId: UserId): Task[] {
   return tasks.filter(
-    (t) => t.created_by === meId && t.assignee_id != null && t.assignee_id !== meId,
+    (t) => t.created_by === meId && taskAssignees(t).some((id) => id !== meId),
   );
 }
 

@@ -14,6 +14,7 @@
  */
 import { useMemo } from 'react';
 import { useData } from '../../data/store';
+import { inAnyProject } from '../../lib/taskFacets';
 import { todayIso } from '../../lib/dates';
 import { minToLabel } from '../../lib/dayPlan';
 import { isTerminalOrder } from '../../lib/personalOrders';
@@ -30,7 +31,7 @@ function usePersonalMonthItems(): MonthItem[] {
 
     for (const t of myTasks(ds.tasks, meId)) {
       if (!t.due_date || t.status === 'done') continue;
-      if (!personal.has(t.project_id)) continue;
+      if (!inAnyProject(t, personal)) continue;
       out.push({ id: `t-${t.id}`, date: t.due_date, label: t.title, tone: 'task', to: `/task/${t.id}` });
     }
 

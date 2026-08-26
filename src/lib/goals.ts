@@ -9,6 +9,7 @@
  */
 import type { Dataset, PersonalGoal, UserId } from '../types';
 import { myTasks } from './workspace';
+import { taskProjects } from './taskFacets';
 
 export interface GoalProgress {
   pct: number;
@@ -35,7 +36,7 @@ export function goalProgress(ds: Dataset, goal: PersonalGoal): GoalProgress {
 
   if (goal.linked_project_id) {
     const mine = myTasks(ds.tasks, goal.user_id).filter(
-      (t) => t.project_id === goal.linked_project_id,
+      (t) => taskProjects(t).includes(goal.linked_project_id!),
     );
     const done = mine.filter((t) => t.status === 'done').length;
     return {

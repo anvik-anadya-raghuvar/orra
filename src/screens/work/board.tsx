@@ -10,6 +10,8 @@ import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../..
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
 import { taskProgressPct } from '../../lib/checklist';
+import { inAnyProject, taskAssignees, taskProjects, taskTypes } from '../../lib/taskFacets';
+import { FacetChips, FacetToggles } from '../../ui/FacetPicker';
 import { BriefChecklist } from '../../ui/BriefChecklist';
 import { stuckTasks } from '../../lib/ranking';
 import { assignedOut, awaitingThem, inboxTasks, isMyTask, myTasks, priorityDiffers } from '../../lib/workspace';
@@ -473,10 +475,15 @@ function TaskCard({
               → {priBadge(t.accepted_priority)}
             </span>
           )}
-          <span className="tagc" style={{ background: 'var(--surf3)', color: projColor(ds, t.project_id) }}>
-            {projName(ds, t.project_id)}
-          </span>
-          <Avatar userId={t.assignee_id} size={22} />
+          {taskProjects(t).map((id) => (
+            <span key={id} className="tagc" style={{ background: 'var(--surf3)', color: projColor(ds, id) }}>
+              {projName(ds, id)}
+            </span>
+          ))}
+          {taskAssignees(t).map((id) => (
+            <Avatar key={id} userId={id} size={22} />
+          ))}
+          {taskAssignees(t).length === 0 && <Avatar userId={null} size={22} />}
           {t.due_date && <span>{fmtDay(t.due_date)}</span>}
           {pins > 0 && <span className="wk-pc">{pins} pins</span>}
           {stuckReason && (
@@ -669,7 +676,7 @@ export default function BoardTab({
      type is shared vocabulary rather than per-owner, so this reads ds.tasks
      rather than mineAll. */
   const liveTypes = useMemo(
-    () => [...new Set(ds.tasks.map((t) => t.type).filter(Boolean))].sort(),
+    () => [...new Set(ds.tasks.flatMap((t) => taskTypes(t)))].sort(),
     [ds.tasks],
   );
 
@@ -702,9 +709,9 @@ export default function BoardTab({
   const list = useMemo(
     () =>
       mineAll.filter((t) => {
-        if (projects.size && !projects.has(t.project_id)) return false;
+        if (projects.size && !inAnyProject(t, projects)) return false;
         if (priorities.size && !priorities.has(t.priority)) return false;
-        if (types.size && !types.has(t.type)) return false;
+        if (types.size && !taskTypes(t).some((x) => types.has(x))) return false;
         if (tags.size && !t.tags.some((x) => tags.has(x))) return false;
         if (stuckOnly && !stuckReasons.has(t.id)) return false;
         if (!inSprintScope(t)) return false;
@@ -736,8 +743,13 @@ export default function BoardTab({
     const map = new Map<string, number>();
     for (const t of list) {
       if (t.status === 'done') continue;
-      const key = t.assignee_id ?? '__unassigned';
-      map.set(key, (map.get(key) ?? 0) + 1);
+      /* A task on both of them counts against both. It is one row, but it is
+         two people's time -- a workload chart that halved it, or credited only
+         the primary, would understate exactly the tasks worth noticing. */
+      const owners = taskAssignees(t);
+      for (const key of owners.length ? owners : ['__unassigned']) {
+        map.set(key, (map.get(key) ?? 0) + 1);
+      }
     }
     return [...map.entries()]
       .map(([id, count]) => ({ label: personName(ds, id === '__unassigned' ? null : id), value: count }))
@@ -1509,13 +1521,13 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [projectId, setProjectId] = useState('');
+  const [projectIds, setProjectIds] = useState<string[]>([]);
   /* No default type any more — 'ops' was a leftover from when type was a
      fixed 4-value list. An empty string forces an active choice, same as
      project. */
-  const [type, setType] = useState<TaskType>('');
+  const [types, setTypes] = useState<TaskType[]>([]);
   const [priority, setPriority] = useState<TaskPriority>('normal');
-  const [assignee, setAssignee] = useState(store.meId);
+  const [assignees, setAssignees] = useState<string[]>([store.meId]);
   const [due, setDue] = useState(todayIso());
   const [tagText, setTagText] = useState('');
   const [decisionIds, setDecisionIds] = useState<string[]>([]);
@@ -1587,15 +1599,15 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
      base64 apiece and would blow the localStorage quota on the second one. */
   const draft = useFormDraft(
     open ? 'work:new-task' : null,
-    { title, description, projectId, type, priority, assignee, due, tagText, effort, estimate, steps },
+    { title, description, projectIds, types, priority, assignees, due, tagText, effort, estimate, steps },
     (d) => {
       if (d.steps !== undefined) setSteps(d.steps);
       if (d.title !== undefined) setTitle(d.title);
       if (d.description !== undefined) setDescription(d.description);
-      if (d.projectId !== undefined) setProjectId(d.projectId);
-      if (d.type !== undefined) setType(d.type);
+      if (d.projectIds !== undefined) setProjectIds(d.projectIds);
+      if (d.types !== undefined) setTypes(d.types);
       if (d.priority !== undefined) setPriority(d.priority);
-      if (d.assignee !== undefined) setAssignee(d.assignee);
+      if (d.assignees !== undefined) setAssignees(d.assignees);
       if (d.due !== undefined) setDue(d.due);
       if (d.tagText !== undefined) setTagText(d.tagText);
       if (d.effort !== undefined) setEffort(d.effort);
@@ -1606,7 +1618,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const startBlank = () => {
     setTitle('');
     setDescription('');
-    setType('');
+    setTypes([]);
     setTagText('');
     setDecisionIds([]);
     setSteps([]);
@@ -1619,11 +1631,11 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       toast('Give the task a clear title before creating it');
       return;
     }
-    if (!projectId) {
+    if (!projectIds.length) {
       toast('Pick a project, or create one, before creating the task');
       return;
     }
-    if (!type.trim()) {
+    if (!types.length) {
       toast('Pick a task type, or create one, before creating the task');
       return;
     }
@@ -1649,10 +1661,13 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           id,
           title: clean,
           description,
-          project_id: projectId,
-          type,
+          project_id: projectIds[0],
+          project_ids: projectIds,
+          type: types[0],
+          types,
           priority,
-          assignee_id: assignee,
+          assignee_id: assignees[0] ?? null,
+          assignee_ids: assignees,
           created_by: store.meId,
           start_date: todayIso(),
           due_date: due || null,
@@ -1749,7 +1764,11 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
         store.asMe({ summary: `Pin ${pin.note} added to ${id}` }),
       ),
     );
-    notifyAssignment(store, { id, title: clean, due_date: due || null }, assignee);
+    /* One notice per person put on it, not one for the task. Assigning to
+       yourself stays silent, which notifyAssignment already handles. */
+    for (const person of assignees) {
+      notifyAssignment(store, { id, title: clean, due_date: due || null }, person);
+    }
     toast(
       shots.length
         ? `${id} created with ${shots.length} screenshot${shots.length === 1 ? '' : 's'} and ${pins.length} pin${pins.length === 1 ? '' : 's'}`
@@ -1843,20 +1862,39 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       </Field>
       <div style={{ height: 11 }} />
       <div className="wk-ctl">
-        <Field label="Project">
-          <ProjectCombo className="wk-in" value={projectId} onChange={setProjectId} />
+        <Field label="Projects · the first is the primary">
+          <FacetChips
+            label="projects"
+            values={projectIds}
+            onChange={setProjectIds}
+            color={(id) => ds.projects.find((p) => p.id === id)?.color}
+            render={(id) => ds.projects.find((p) => p.id === id)?.name ?? id}
+          />
+          {/* Opens empty every time: this combo ADDS, and a value sitting in
+              it would read as "the project", the singular this stopped being. */}
+          <ProjectCombo
+            className="wk-in"
+            value=""
+            placeholder="Add a project, or type a new one"
+            onChange={(id) => id && setProjectIds((prev) => (prev.includes(id) ? prev : [...prev, id]))}
+          />
         </Field>
-        <Field label="Assignee">
-          <select className="wk-in" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
-            {store.members.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+        <Field label="Assignees">
+          <FacetToggles
+            label="assignees"
+            options={store.members}
+            values={assignees}
+            onChange={setAssignees}
+          />
         </Field>
-        <Field label="Type">
-          <TypeCombo className="wk-in" value={type} onChange={setType} />
+        <Field label="Types · the first decides the task page's panels">
+          <FacetChips label="types" values={types} onChange={setTypes} render={(value) => value} />
+          <TypeCombo
+            className="wk-in"
+            value=""
+            placeholder="Add a type, or type a new one"
+            onChange={(t) => t && setTypes((prev) => (prev.includes(t) ? prev : [...prev, t]))}
+          />
         </Field>
         <Field label="Priority">
           <Segment value={priority} onChange={setPriority} options={PRIORITIES} label="Priority" />

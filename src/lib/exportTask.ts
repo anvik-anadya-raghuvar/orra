@@ -1,5 +1,6 @@
 import type { Dataset, Task } from '../types';
 import { stripInlineImageMarkers } from '../ui/inlineImages';
+import { taskAssignees, taskProjects, taskTypes } from './taskFacets';
 
 /**
  * Coding-agent export generator — a PURE FUNCTION (principle 4). No LLM, no clock,
@@ -32,16 +33,23 @@ export function taskAssetName(filename: string, index: number): string {
 export function generateTaskExport(ds: Dataset, taskId: string): string {
   const task = ds.tasks.find((t) => t.id === taskId);
   if (!task) throw new Error(`No task ${taskId}`);
-  const project = ds.projects.find((p) => p.id === task.project_id);
-  const assignee = ds.profiles.find((p) => p.id === task.assignee_id);
   const profiles = new Map(ds.profiles.map((p) => [p.id, p.name]));
+  /* Every project and every person, primary first, joined in the order the
+     task carries them. Still a pure function of the row (principle 5): the
+     lists are read, never sorted or de-duplicated differently per call. */
+  const projectNames = taskProjects(task)
+    .map((id) => ds.projects.find((p) => p.id === id)?.name ?? id)
+    .join(', ');
+  const assigneeNames = taskAssignees(task)
+    .map((id) => profiles.get(id) ?? id)
+    .join(', ');
 
   const lines: string[] = [];
   lines.push(`# ${task.id} · ${task.title}`);
   lines.push(
-    `Project: ${project?.name ?? '—'} · Priority: ${task.priority} · Status: ${task.status}`,
+    `Project: ${projectNames || '—'} · Priority: ${task.priority} · Status: ${task.status}`,
   );
-  lines.push(`Assignee: ${assignee?.name ?? '—'} · Due: ${task.due_date ?? '—'}`);
+  lines.push(`Assignee: ${assigneeNames || '—'} · Due: ${task.due_date ?? '—'}`);
   lines.push('');
   lines.push('## Objective');
   lines.push(stripInlineImageMarkers(task.description) || '—');
@@ -245,7 +253,12 @@ export function generateTaskContext(ds: Dataset, taskId: string): string {
       title: task.title,
       objective: stripInlineImageMarkers(task.description),
       project: project?.name ?? null,
+      /* Added beside `project`/`type` rather than replacing them: the schema
+         is still orra-task-context/v1 and anything already reading the
+         singular keys keeps working. The primary is element 0 of each. */
+      projects: taskProjects(task).map((id) => ds.projects.find((p) => p.id === id)?.name ?? id),
       type: task.type,
+      types: taskTypes(task),
       priority: task.priority,
       status: task.status,
       due_date: task.due_date,
