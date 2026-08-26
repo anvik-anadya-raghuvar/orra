@@ -1806,7 +1806,8 @@ function QuickCapture() {
       store.asMe({ summary: `Quick capture — "${title}"` }),
     );
     setText('');
-    toast('Captured as a scribble in the Notebook');
+    const landed = projects.find((p) => p.id === defaultProject)?.name ?? 'a new project';
+    toast(`Captured as a scribble in the Notebook, filed under ${landed}`);
   };
 
   return (

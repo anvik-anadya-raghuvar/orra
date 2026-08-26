@@ -356,7 +356,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     appendMissingInlineImages(existing?.body ?? '', existingImages.map((image) => image.id)),
   );
   const [type, setType] = useState<NoteType>(existing?.type ?? 'plain');
-  const [projectId, setProjectId] = useState(existing?.project_id ?? projects[0]?.id ?? '');
+  const [projectId, setProjectId] = useState(existing?.project_id ?? '');
   const [taskId, setTaskId] = useState(existing?.task_id ?? '');
   const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
   const [tagDraft, setTagDraft] = useState('');
@@ -482,7 +482,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
     setTitle(existing?.title ?? '');
     setBody(appendMissingInlineImages(existing?.body ?? '', existingImages.map((i) => i.id)));
     setType(existing?.type ?? 'plain');
-    setProjectId(existing?.project_id ?? projects[0]?.id ?? '');
+    setProjectId(existing?.project_id ?? '');
     setTaskId(existing?.task_id ?? '');
     setTags(existing?.tags ?? []);
     setPinned(existing?.is_pinned ?? false);

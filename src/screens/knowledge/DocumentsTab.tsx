@@ -176,7 +176,7 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
   const toast = useToast();
   const projects = useData((ds) => ds.projects);
   const [title, setTitle] = useState('');
-  const [projectId, setProjectId] = useState(projects[0]?.id ?? '');
+  const [projectId, setProjectId] = useState('');
   const [expiry, setExpiry] = useState('');
   const [deadlineNote, setDeadlineNote] = useState('');
   const [url, setUrl] = useState('');

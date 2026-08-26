@@ -1485,7 +1485,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [projectId, setProjectId] = useState(ds.projects[0]?.id ?? '');
+  const [projectId, setProjectId] = useState('');
   /* No default type any more — 'ops' was a leftover from when type was a
      fixed 4-value list. An empty string forces an active choice, same as
      project. */

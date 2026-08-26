@@ -56,7 +56,7 @@ export function PromoteModal({ promote, onClose }: { promote: PromoteTarget | nu
     if (!promote) return;
     setTitle(firstWords(promote.message.body));
     setDesc(promote.message.body);
-    setProjectId(ds.projects.find((p) => !p.is_personal)?.id ?? ds.projects[0]?.id ?? '');
+    setProjectId('');
     // Only re-seed the form when a new message is targeted, not on every dataset tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promote]);

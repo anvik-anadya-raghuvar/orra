@@ -126,7 +126,8 @@ export function CommandPalette() {
       },
       store.asMe({ summary: `Captured — ${text.slice(0, 60)}` }),
     );
-    toast('Kept as a scribble');
+    const landed = ds.projects.find((p) => p.id === projectId)?.name ?? 'your first project';
+    toast(`Kept as a scribble in ${landed}`);
     close();
   }, [close, ds.projects, query, store, toast]);
 
