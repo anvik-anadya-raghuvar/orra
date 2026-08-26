@@ -8,6 +8,7 @@ import { Attachments } from '../../ui/attachments';
 import { ProjectCombo } from '../../ui/pickers';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysSinceTs, fmtDateTime } from '../../lib/dates';
+import { notifyDecisionOwner } from '../../lib/handoff';
 import { BarRows, VIZ } from '../../ui/viz';
 import { Field, projColor, projName } from './common';
 
@@ -110,7 +111,7 @@ export default function DecisionsTab({
                 <span className="mono" style={{ fontSize: 10.5, color: 'var(--mute)' }}>
                   opened {fmtDateTime(d.opened_at)}
                 </span>
-                <Avatar userId={d.owner_id} size={22} />
+                <OwnerPicker decision={d} />
                 <div className="spacer" />
                 <button
                   className="btn sm danger"
@@ -402,5 +403,50 @@ function DecisionTasksSheet({ decision, onClose }: { decision: Decision | null; 
         />
       </div>
     </SideSheet>
+  );
+}
+
+/**
+ * Who owns this decision, changeable in place.
+ *
+ * Assigning a decision was previously a one-shot choice made in the create
+ * sheet and never revisitable — which is backwards, because who should rule
+ * on something is exactly what changes once you find out what it touches.
+ * A ruled decision keeps a plain avatar instead: that is a record of who
+ * ruled, not a field.
+ *
+ * The count of held-up tasks rides along in the notice, so "this is yours"
+ * arrives with the reason it matters.
+ */
+function OwnerPicker({ decision }: { decision: Decision }) {
+  const store = useStore();
+  const toast = useToast();
+  return (
+    <label className="wk-dec-owner">
+      <Avatar userId={decision.owner_id} size={22} />
+      <select
+        aria-label={`Who rules on "${decision.question}"`}
+        value={decision.owner_id ?? ''}
+        onChange={(event) => {
+          const next = event.target.value;
+          if (next === decision.owner_id) return;
+          store.update(
+            'decisions',
+            decision.id,
+            { owner_id: next },
+            store.asMe({ summary: `Decision reassigned — ${decision.question}` }),
+          );
+          notifyDecisionOwner(store, decision.question, next, (decision.task_ids ?? []).length);
+          const name = store.members.find((m) => m.id === next)?.name ?? 'them';
+          toast(`${name} rules on this one now`);
+        }}
+      >
+        {store.members.map((member) => (
+          <option key={member.id} value={member.id}>
+            {member.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

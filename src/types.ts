@@ -426,8 +426,43 @@ export interface Decision {
   ruled_at: string | null;
   ruling_note: string;
   /** Tasks that need or are governed by this decision. Kept on the canonical
-   * decision row so Decisions and task editors are always the same view. */
+   * decision row so Decisions and task editors are always the same view.
+   * While the decision is open these tasks read as blocked — see
+   * lib/blocking.ts. Nothing is written onto the task; the block is derived,
+   * so ruling the decision unblocks every one of them at once. */
   task_ids?: string[];
+}
+
+/**
+ * A question that wants an answer, not a ruling.
+ *
+ * The lighter half of the pair: a decision is a fork in the work that blocks
+ * the tasks hanging off it until someone rules, a query is "what did the
+ * accountant say" — informal, blocking nothing, and worth keeping only until
+ * it has been read. Filing those as decisions buried the three that actually
+ * gate work under thirty that did not.
+ *
+ * No project. A query is a question between two people, not project work —
+ * see 0044.
+ */
+export interface Query {
+  id: string;
+  question: string;
+  detail: string;
+  asked_by: UserId;
+  /** Who owes the answer. A nudge, never a permission — either of them can
+   *  answer or close any query (principle 2). */
+  asked_of: UserId;
+  /** 'answered' and 'closed' are different endings: answered means you got
+   *  what you needed, closed means it stopped mattering. */
+  status: 'open' | 'answered' | 'closed';
+  answer: string;
+  answered_by: UserId | null;
+  /** Optional — most queries are about nothing in particular. */
+  task_id: string | null;
+  created_at: string;
+  answered_at: string | null;
+  closed_at: string | null;
 }
 
 /**
@@ -550,7 +585,11 @@ export type MessageKind =
   | 'task_accept'
   | 'task_pushback'
   /** Someone tagged you with [[person:…]] in an update — see 0043. */
-  | 'mention';
+  | 'mention'
+  /** A query was asked — pinged into the thread on creation (0044). */
+  | 'query'
+  /** A decision was put on you (0044). */
+  | 'decision_assign';
 
 export interface Message {
   id: string;
@@ -1100,6 +1139,7 @@ export interface Dataset {
   attachments: Attachment[];
   annotation_pins: AnnotationPin[];
   decisions: Decision[];
+  queries: Query[];
   notes: Note[];
   mail_items: MailItem[];
   documents: DocumentRef[];

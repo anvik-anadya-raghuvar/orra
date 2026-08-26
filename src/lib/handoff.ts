@@ -91,6 +91,45 @@ export function notifyMention(
 }
 
 /**
+ * Tell someone a decision is now theirs to rule on.
+ *
+ * A decision holds up every task linked to it, so who owns it is the
+ * difference between "waiting" and "waiting on you". Same silence rule as
+ * assignment: taking a decision yourself announces nothing.
+ */
+export function notifyDecisionOwner(
+  store: AppStore,
+  question: string,
+  ownerId: UserId | null,
+  blocking: number,
+): void {
+  if (!ownerId || ownerId === store.meId) return;
+
+  const held = blocking === 1 ? ' — 1 task is waiting on it' : blocking > 1 ? ` — ${blocking} tasks are waiting on it` : '';
+  notice(
+    store,
+    'decision_assign',
+    null,
+    `Yours to rule on: ${question}${held}`,
+    `Decision assigned — ${question}`,
+  );
+}
+
+/**
+ * Ping a query into the thread the moment it is asked.
+ *
+ * Unlike a mention, this one fires even when you ask yourself — a query is a
+ * question you want to come back to, and the thread is where both of them
+ * already look. It is the only notice here that is not conditional on the
+ * other person, which is the point: an informal question with no home is the
+ * thing that gets lost.
+ */
+export function notifyQuery(store: AppStore, question: string, askedOf: UserId, taskId: string | null): void {
+  const who = askedOf === store.meId ? 'Asked, for me to answer' : 'Asked you';
+  notice(store, 'query', taskId, `${who}: ${question}`, `Query asked — ${question}`);
+}
+
+/**
  * Tell the assigner their task was accepted, and at what priority.
  *
  * The priority is always stated, not only when it differs from the ask: "I

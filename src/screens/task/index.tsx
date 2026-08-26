@@ -8,6 +8,7 @@ import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
 import { fmtDay, fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment, notifyMention } from '../../lib/handoff';
 import { taskProgressPct, toggleChecklistLine } from '../../lib/checklist';
+import { blockingDecisions } from '../../lib/blocking';
 import { MAX_REPEAT_EVERY, REPEAT_UNITS, describeRepeat, normalizeRepeat } from '../../lib/repeat';
 import { spawnNextOccurrence } from '../../lib/repeatActions';
 import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
@@ -89,6 +90,7 @@ function TaskDetail({ task }: { task: Task }) {
      brief's tick boxes and these rows are counted as one checklist, so
      saving a tick needs both halves in hand. */
   const subtasks = ds.subtasks.filter((s) => s.task_id === task.id);
+  const blockers = blockingDecisions(ds.decisions, task.id);
 
   const saveTitle = () => {
     const t = title.trim();
@@ -394,6 +396,25 @@ function TaskDetail({ task }: { task: Task }) {
                   }}
                 />
               </DictateField>
+
+              {/* Derived from the decision rows, never written onto the task
+                  — so ruling one releases every task it held at once. The
+                  banner is above the brief because "you cannot move this yet"
+                  has to be read before the work is, not after. */}
+              {blockers.length > 0 && (
+                <div className="tk-blocked" role="status">
+                  <span className="tk-blocked-tag">Blocked</span>
+                  <div>
+                    {blockers.map((decision) => (
+                      <p key={decision.id}>
+                        Waiting on{' '}
+                        <b>{ds.profiles.find((p) => p.id === decision.owner_id)?.name ?? 'someone'}</b>{' '}
+                        to rule: {decision.question}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <Screenshots
                 task={task}

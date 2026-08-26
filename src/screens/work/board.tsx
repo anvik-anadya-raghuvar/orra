@@ -414,6 +414,7 @@ function TaskCard({
   onEdit,
   stuckReason,
   waitingOn,
+  blockedBy,
   childOf,
   dragging,
   readOnly = false,
@@ -426,6 +427,9 @@ function TaskCard({
   stuckReason?: string;
   /** Id of the unfinished task this one cannot start before. */
   waitingOn?: string;
+  /** The open decision holding this up, if any — derived from decisions.task_ids
+   *  rather than stored on the task, so a ruling clears every card at once. */
+  blockedBy?: string;
   childOf: string | null;
   dragging: boolean;
   /** Someone else's card: readable and openable, but not steerable from here. */
@@ -486,6 +490,11 @@ function TaskCard({
               title={`Cannot start until ${waitingOn} is done`}
             >
               waiting on {waitingOn}
+            </span>
+          )}
+          {blockedBy && (
+            <span className="wk-blocked" title={`Blocked until this is ruled: ${blockedBy}`}>
+              blocked
             </span>
           )}
         </span>
@@ -677,6 +686,18 @@ export default function BoardTab({
     () => new Map(stuck.map((s) => [s.task.id, s.reason])),
     [stuck],
   );
+  /* Built once per render rather than per card: a column of cards asking the
+     same question of the same decision rows is the shape `blockedTaskIds`
+     exists for. The question text rides along so the chip's tooltip can say
+     what is actually being waited on. */
+  const blockedBy = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const decision of ds.decisions) {
+      if (decision.status !== 'open') continue;
+      for (const id of decision.task_ids ?? []) if (!map.has(id)) map.set(id, decision.question);
+    }
+    return map;
+  }, [ds.decisions]);
 
   const list = useMemo(
     () =>
@@ -1080,6 +1101,7 @@ export default function BoardTab({
                             onMove={move}
                             onEdit={setQuick}
                             stuckReason={stuckReasons.get(t.id)}
+                            blockedBy={blockedBy.get(t.id)}
                             waitingOn={waiting.get(t.id)}
                             childOf={childOf}
                             dragging={dragId === t.id}

@@ -1286,3 +1286,63 @@ tr.wk-driftrow td {
 .wk-task-open:focus-visible b {
   color: var(--indigo);
 }
+
+/* Blocked by an open decision. Amber rather than rose: nothing has gone
+   wrong, a question simply has not been answered — the same distinction
+   .wk-wait already draws against .wk-stuck. */
+.wk-blocked {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--stamp);
+  background: var(--stamp-s);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+/* Who rules on a decision, changeable in place. The avatar stays as the
+   at-a-glance answer; the select beside it is how you change it. */
+.wk-dec-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+.wk-dec-owner select {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surf2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── queries ──────────────────────────────────────────────────────────── */
+/* A query card is a decision card without the project stripe — it belongs to
+   no project by design (0044), so it gets no colour to inherit. */
+.wk-query {
+  border-left-color: var(--sky);
+}
+.wk-query-detail {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--slate);
+}
+.wk-query-answer {
+  margin-top: 9px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--surf2);
+  font-size: 13px;
+}
+.wk-query-answer .eyebrow {
+  display: block;
+  margin-bottom: 3px;
+}
+.wk-query-of {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}

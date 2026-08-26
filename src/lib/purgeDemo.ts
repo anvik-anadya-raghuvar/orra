@@ -63,6 +63,7 @@ export const PURGE_ORDER: CollectionKey[] = [
   'mail_items',
   'notes',
   'decisions',
+  'queries',
   'documents',
   'messages',
   'shared_daily',

@@ -987,3 +987,34 @@
     min-height: 30px;
   }
 }
+
+/* Blocked by an open decision — derived from the decision rows, never a flag
+   on the task. Sits above the brief because "you cannot move this yet" has to
+   be read before the work is, not after. */
+.tpage .tk-blocked {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 10px 0 4px;
+  padding: 11px 13px;
+  border: 1px solid var(--stamp);
+  border-radius: var(--r);
+  background: var(--stamp-s);
+}
+.tpage .tk-blocked-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--stamp);
+  padding-top: 2px;
+  flex: none;
+}
+.tpage .tk-blocked p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.tpage .tk-blocked p:last-child {
+  margin-bottom: 0;
+}

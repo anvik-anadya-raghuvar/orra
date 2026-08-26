@@ -16,6 +16,7 @@ const TABLE: Record<CollectionKey, string> = {
   attachments: 'attachments',
   annotation_pins: 'annotation_pins',
   decisions: 'decisions',
+  queries: 'queries',
   notes: 'notes',
   mail_items: 'mail_items',
   documents: 'documents',
