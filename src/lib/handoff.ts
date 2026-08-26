@@ -171,6 +171,55 @@ export function notifyQuery(store: AppStore, question: string, askedOf: UserId, 
 }
 
 /**
+ * Tell someone you have put a block on their calendar.
+ *
+ * Fires on the proposal, not on acceptance: the whole reason the block appears
+ * on their calendar immediately rather than waiting for a yes is that they
+ * should find out now. The push lands even if they never open the app.
+ */
+export function notifyCalendarInvite(
+  store: AppStore,
+  label: string,
+  dateIso: string,
+  clock: string,
+  inviteeId: UserId,
+): void {
+  if (!inviteeId || inviteeId === store.meId) return;
+  notice(
+    store,
+    'calendar_invite',
+    null,
+    `${fmtDay(dateIso)} at ${clock} — ${label}. Unconfirmed until you accept.`,
+    `Time proposed — ${label}`,
+    inviteeId,
+  );
+}
+
+/**
+ * Tell the proposer their block was accepted.
+ *
+ * The inverse notice, and the reason `created_by` exists on the row: without
+ * it there is no way to say who to tell.
+ */
+export function notifyCalendarConfirmed(
+  store: AppStore,
+  label: string,
+  dateIso: string,
+  clock: string,
+  proposerId: UserId | null | undefined,
+): void {
+  if (!proposerId || proposerId === store.meId) return;
+  notice(
+    store,
+    'calendar_confirm',
+    null,
+    `Confirmed: ${fmtDay(dateIso)} at ${clock} — ${label}`,
+    `Time confirmed — ${label}`,
+    proposerId,
+  );
+}
+
+/**
  * Tell the assigner their task was accepted, and at what priority.
  *
  * The priority is always stated, not only when it differs from the ask: "I

@@ -12,10 +12,17 @@
  * Ownership is the usual rule, not a new one: personal projects, this person's
  * own fixed dates and orders, and day events that are theirs or shared.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { CalendarPlus, Check } from 'lucide-react';
+import { isMyEvent, isUnconfirmed, minutesToClock, pendingInvites } from '../../lib/calendar';
+import { notifyCalendarConfirmed } from '../../lib/handoff';
+import { CalendarComposer } from '../../ui/CalendarComposer';
+import { useStore } from '../../data/store';
+import { useToast } from '../../ui/bits';
+import { nowIso } from '../../data/store';
 import { useData } from '../../data/store';
 import { inAnyProject } from '../../lib/taskFacets';
-import { todayIso } from '../../lib/dates';
+import { fmtDay, todayIso } from '../../lib/dates';
 import { minToLabel } from '../../lib/dayPlan';
 import { isTerminalOrder } from '../../lib/personalOrders';
 import { myTasks } from '../../lib/workspace';
@@ -42,12 +49,14 @@ function usePersonalMonthItems(): MonthItem[] {
       out.push({ id: `d-${d.id}`, date: d.date, label: d.label, tone: 'date' });
     }
 
+    /* isMyEvent, not a user_id test: since 0050 a block can be WITH you, and
+       one somebody else proposed has their user_id and your invitee_id. */
     for (const e of ds.day_events) {
-      if (e.user_id !== null && e.user_id !== meId) continue;
+      if (!isMyEvent(e, meId)) continue;
       out.push({
         id: `e-${e.id}`,
         date: e.date,
-        label: e.label,
+        label: isUnconfirmed(e) ? `${e.label} · unconfirmed` : e.label,
         meta: minToLabel(e.start_min),
         tone: 'event',
         to: e.task_id ? `/task/${e.task_id}` : undefined,
@@ -85,11 +94,75 @@ export function CalendarGlance() {
 /** The side-page face: the same month with room to actually read the list. */
 export function PersonalCalendar() {
   const items = usePersonalMonthItems();
+  const [adding, setAdding] = useState(false);
   return (
-    <MonthCalendar
-      items={items}
-      upcoming={8}
-      emptyText="Nothing dated coming up. Personal tasks with a due date, fixed dates, blocks and trips all land here."
-    />
+    <div className="pcal-wrap">
+      <div className="pcal-head">
+        <InviteInbox />
+        <button className="btn sm solid pcal-add" type="button" onClick={() => setAdding(true)}>
+          <CalendarPlus size={15} strokeWidth={1.9} aria-hidden /> Add to calendar
+        </button>
+      </div>
+      <MonthCalendar
+        items={items}
+        upcoming={8}
+        emptyText="Nothing dated coming up. Personal tasks with a due date, fixed dates, blocks, reminders and countdowns all land here."
+      />
+      <CalendarComposer open={adding} onClose={() => setAdding(false)} />
+    </div>
+  );
+}
+
+/**
+ * Blocks somebody proposed that you have not answered.
+ *
+ * Sits above the month rather than inside it because an unanswered proposal is
+ * a thing to act on, not a thing to look at: it appears on the grid too, just
+ * greyed as unconfirmed, and this is the strip that says "somebody is waiting".
+ */
+function InviteInbox() {
+  const ds = useData((d) => d);
+  const meId = useData((_, s) => s.meId);
+  const store = useStore();
+  const toast = useToast();
+  const invites = pendingInvites(ds.day_events, meId, todayIso());
+  if (!invites.length) return <span className="pcal-none" />;
+
+  const accept = (id: string) => {
+    const event = ds.day_events.find((e) => e.id === id);
+    if (!event) return;
+    store.update('day_events', id, { confirmed_at: nowIso() }, store.asMe({ summary: `Time confirmed — ${event.label}` }));
+    notifyCalendarConfirmed(store, event.label, event.date, minutesToClock(event.start_min), event.created_by);
+    toast('Confirmed');
+  };
+
+  const decline = (id: string) => {
+    const event = ds.day_events.find((e) => e.id === id);
+    if (!event) return;
+    if (!window.confirm(`Decline "${event.label}"? It comes off both calendars.`)) return;
+    store.remove('day_events', id, store.asMe({ summary: `Time declined — ${event.label}` }));
+    toast('Declined');
+  };
+
+  return (
+    <div className="pcal-invites">
+      <span className="eyebrow">Waiting on you · {invites.length}</span>
+      {invites.map((e) => (
+        <div className="pcal-invite" key={e.id}>
+          <span className="pcal-invite-what">
+            <b>{e.label}</b>
+            <span className="mono">
+              {fmtDay(e.date)} · {minutesToClock(e.start_min)}–{minutesToClock(e.end_min)}
+            </span>
+          </span>
+          <button className="btn sm solid" type="button" onClick={() => accept(e.id)}>
+            <Check size={14} strokeWidth={2.2} aria-hidden /> Accept
+          </button>
+          <button className="btn sm" type="button" onClick={() => decline(e.id)}>
+            Decline
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }

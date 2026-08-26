@@ -1,0 +1,102 @@
+/* The calendar composer. Mobile-first: everything stacks, the time pair goes
+   side by side from 480px, and every control is a full touch target. */
+.cc-modes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.cc-modes button {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  color: var(--slate);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cc-modes button[aria-selected='true'] {
+  border-color: var(--indigo);
+  background: var(--indigo-s);
+  color: var(--ink);
+  font-weight: 500;
+}
+.cc-field {
+  display: block;
+  margin-bottom: 11px;
+}
+.cc-field > span {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 4px;
+}
+.cc-in {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+}
+textarea.cc-in {
+  min-height: 66px;
+  resize: vertical;
+}
+.cc-in:focus {
+  outline: 2px solid var(--indigo);
+  outline-offset: -1px;
+}
+.cc-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.cc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-height: 44px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--slate);
+  cursor: pointer;
+}
+.cc-check input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  accent-color: var(--indigo);
+  flex: none;
+  margin-top: 2px;
+}
+.cc-acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 4px;
+}
+.cc-acts .btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (min-width: 480px) {
+  .cc-row {
+    flex-direction: row;
+    gap: 10px;
+  }
+  .cc-row .cc-field {
+    flex: 1 1 0;
+  }
+}

@@ -1369,3 +1369,51 @@
     display: block;
   }
 }
+
+/* ── countdown tile ───────────────────────────────────────────────────── */
+.cd-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cd-list li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.cd-days {
+  flex: none;
+  min-width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--surf3);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 500;
+}
+.cd-list li.soon .cd-days {
+  background: var(--stamp-s);
+  color: var(--stamp);
+}
+.cd-what {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.cd-what b {
+  font-size: 13.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cd-what .mono {
+  font-size: 10.5px;
+  color: var(--mute);
+}

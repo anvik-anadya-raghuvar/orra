@@ -332,8 +332,26 @@ export interface DayEvent {
   start_min: number; // minutes from midnight, local
   end_min: number;
   label: string;
-  kind: 'focus' | 'meeting' | 'study' | 'admin' | 'personal';
+  /** 'call' and 'reminder' arrived with 0050. A reminder is a calendar event
+   *  because that is what it is — a thing at a time that should ping you — and
+   *  a separate table would mean a second calendar to merge into every view. */
+  kind: 'focus' | 'meeting' | 'study' | 'admin' | 'personal' | 'call' | 'reminder';
   task_id: string | null;
+  /** Who this block is WITH. Null for a solo block, which is most of them. */
+  invitee_id?: UserId | null;
+  /** When the invitee accepted. Null = proposed but not agreed yet; the block
+   *  still shows on both calendars, marked unconfirmed (0050). */
+  confirmed_at?: string | null;
+  /** Who proposed it, so "waiting on them" and "waiting on me" are
+   *  distinguishable without inferring it from user_id. */
+  created_by?: UserId | null;
+  /** Minutes ahead to ping. Null = no reminder, 0 = at the time itself. */
+  remind_min_before?: number | null;
+  /** Set when the ping went out, so it fires once. A timestamp rather than a
+   *  boolean because "when did this fire" is the first question when one
+   *  does not arrive. */
+  reminded_at?: string | null;
+  note?: string | null;
   /** Present for events mirrored from a connected Google account. */
   integration_grant_id?: string | null;
   external_event_id?: string | null;
@@ -648,7 +666,10 @@ export type MessageKind =
   /** A query was asked — pinged into the thread on creation (0044). */
   | 'query'
   /** A decision was put on you (0044). */
-  | 'decision_assign';
+  | 'decision_assign'
+  /** Somebody blocked time with you, or accepted the time you proposed (0050). */
+  | 'calendar_invite'
+  | 'calendar_confirm';
 
 export interface Message {
   id: string;
@@ -824,12 +845,25 @@ export interface PushSubscriptionRow {
   last_used_at?: string | null;
 }
 
+/**
+ * A date you are counting down to — a flight, a visa appointment, a launch.
+ *
+ * Already the right shape for it: a label and a date is exactly a countdown.
+ * 0050 added ownership so one can be shared, and a pin so Home can show the
+ * ones you chose rather than only the single nearest.
+ */
 export interface FixedDate {
   id: string;
   label: string;
   date: string;
   category: string;
+  /** Null = both of you, matching day_events' convention. */
   owner_id?: UserId | null;
+  created_by?: UserId | null;
+  /** Show it on Home as a countdown. */
+  pinned_home?: boolean;
+  /** Why the date matters — that fades fast once it is in the calendar. */
+  note?: string | null;
 }
 
 /**

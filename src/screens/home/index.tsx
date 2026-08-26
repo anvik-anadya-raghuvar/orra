@@ -5,9 +5,10 @@ import { AlertTriangle, ChevronRight, Plus, RefreshCw, Settings2, Sparkles } fro
 import { newId, nowIso, useData, useStore, type AppStore } from '../../data/store';
 import { ensureProjectId } from '../../data/projects';
 import { isAssignedTo } from '../../lib/taskFacets';
+import { countdownsFor } from '../../lib/calendar';
 import { packBento } from '../../lib/bento';
 import { Avatar, CountUp, InfoTip, Modal, ProgressBar, SideSheet, useToast } from '../../ui/bits';
-import { staggerParent } from '../../ui/motion';
+import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysSinceTs, daysUntil, fmtDay, fmtTime, inr, localDay, todayIso } from '../../lib/dates';
 import {
   CAPACITY_MINUTES,
@@ -78,6 +79,10 @@ type HomeView = 'today' | 'overview';
 const TODAY_TILES = new Set([
   'greet',
   'hero',
+  /* A countdown is a today thing: the number of days left is only useful
+     where you look every morning. Omitting it here silently hid the tile,
+     because this set is what the Today view renders. */
+  'countdowns',
   'capacity',
   'plan',
   'wins',
@@ -178,6 +183,8 @@ export default function Home() {
     .reduce((total, entry) => total + (entry.direction === 'in' ? entry.amount : -entry.amount), 0);
 
   /* ── tile inventory. Order is packing order; dense flow backfills. ── */
+  const countdowns = countdownsFor(ds.fixed_dates, me.id, today, { pinnedOnly: true }).slice(0, 5);
+
   const tiles: Tile[] = [
     {
       key: 'greet',
@@ -199,6 +206,11 @@ export default function Home() {
       tall: true,
       node: <HeroTile top={top} onFocus={beginFounderBlock} />,
     },
+    /* Countdowns are a tile of their own rather than the single `nextFixed`
+       line in the greeting: a move, a visa appointment and a launch are three
+       separate clocks, and showing only the nearest hides the two that need
+       planning for. Only pinned ones, so Home stays yours to curate. */
+    ...(countdowns.length ? [{ key: 'countdowns', cols: 2 as const, node: <CountdownTile rows={countdowns} /> }] : []),
     {
       key: 'capacity',
       cols: 2,
@@ -2030,5 +2042,30 @@ function CustomBlockModal({ open, onClose }: { open: boolean; onClose: () => voi
         </button>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * The countdown tile — every pinned date, nearest first.
+ *
+ * Deliberately not a list of dates: the number of days is the thing you are
+ * actually reading, so it leads, and the date itself is the small print.
+ */
+function CountdownTile({ rows }: { rows: { date: { id: string; label: string; date: string; note?: string | null }; days: number; label: string }[] }) {
+  return (
+    <div className="tile cd-tile">
+      <span className="eyebrow">Counting down</span>
+      <motion.ul className="cd-list" {...staggerParent()}>
+        {rows.map((row) => (
+          <motion.li key={row.date.id} variants={staggerItem} className={row.days <= 3 ? 'soon' : undefined}>
+            <span className="cd-days mono">{row.days < 0 ? '—' : row.days}</span>
+            <span className="cd-what">
+              <b>{row.date.label}</b>
+              <span className="mono">{row.label} · {fmtDay(row.date.date)}</span>
+            </span>
+          </motion.li>
+        ))}
+      </motion.ul>
+    </div>
   );
 }

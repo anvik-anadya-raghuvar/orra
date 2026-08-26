@@ -1588,3 +1588,55 @@
     flex: 0 0 auto;
   }
 }
+
+/* ── calendar: adding, and answering an invite ────────────────────────── */
+.personal-screen .pcal-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.personal-screen .pcal-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  align-self: flex-start;
+}
+.personal-screen .pcal-invites {
+  border: 1px solid var(--stamp);
+  background: var(--stamp-s);
+  border-radius: 12px;
+  padding: 11px 13px;
+}
+.personal-screen .pcal-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.personal-screen .pcal-invite-what {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 180px;
+  min-width: 0;
+  font-size: 13px;
+}
+.personal-screen .pcal-invite-what .mono {
+  font-size: 10.5px;
+  color: var(--mute);
+}
+.personal-screen .pcal-invite .btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+@media (min-width: 1025px) {
+  .personal-screen .pcal-invite .btn {
+    min-height: 34px;
+  }
+}
