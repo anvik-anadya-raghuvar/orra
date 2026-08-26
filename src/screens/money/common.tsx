@@ -142,7 +142,8 @@ export function downloadBlob(filename: string, content: BlobPart, type: string) 
   URL.revokeObjectURL(url);
 }
 
-export function exportLedgerCsv(filename: string, ds: Dataset, rows: LedgerEntry[]) {
+/** One definition of what a ledger export contains, shared by CSV and Excel. */
+function ledgerTable(ds: Dataset, rows: LedgerEntry[]): { headers: string[]; body: (string | number)[][] } {
   const headers = [
     'Date',
     'Party',
@@ -177,7 +178,45 @@ export function exportLedgerCsv(filename: string, ds: Dataset, rows: LedgerEntry
     r.comments ?? '',
     r.ends_on ?? '',
   ]);
+  return { headers, body };
+}
+
+export function exportLedgerCsv(filename: string, ds: Dataset, rows: LedgerEntry[]) {
+  const { headers, body } = ledgerTable(ds, rows);
   downloadBlob(filename, toCsv(headers, body), 'text/csv;charset=utf-8;');
+}
+
+/**
+ * The same ledger, as a real .xlsx.
+ *
+ * Built on the same headers and rows the CSV export uses, so the two can never
+ * disagree about what a ledger export contains. The difference is what Excel
+ * does with it: the date column is written as a real date and the amount as a
+ * real number, so they sort and total on arrival instead of being text that
+ * looks like numbers.
+ */
+export async function exportLedgerXlsx(filename: string, ds: Dataset, rows: LedgerEntry[]) {
+  const { headers, body } = ledgerTable(ds, rows);
+  const { writeXlsx } = await import('../../lib/xlsx');
+  const blob = await writeXlsx(
+    'Ledger',
+    headers,
+    body.map((row) =>
+      row.map((cell, i) => {
+        if (i === 0) return { value: String(cell), date: true };
+        if (i === 5) return { value: Number(cell) };
+        return { value: String(cell ?? '') };
+      }),
+    ),
+  );
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 /* ── import parsing shared between the import modal steps ────────────── */

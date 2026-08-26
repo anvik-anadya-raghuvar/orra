@@ -22,6 +22,7 @@ import {
   categoryBreakdown,
   cumulativeNet,
   exportLedgerCsv,
+  exportLedgerXlsx,
   pillClass,
   projColor,
   projName,
@@ -143,7 +144,11 @@ export default function Money() {
     toast(`${row.party} → ${statusLabel({ ...row, status: next })}`);
   };
 
-  const exportCsv = () => exportLedgerCsv(`ledger-${new Date().toISOString().slice(0, 10)}.csv`, ds, sorted);
+  const stamp = () => new Date().toISOString().slice(0, 10);
+  const exportCsv = () => exportLedgerCsv(`ledger-${stamp()}.csv`, ds, sorted);
+  /* Exports what is on screen, filters and all — the alternative is a file
+     that disagrees with the table you were looking at when you asked for it. */
+  const exportXlsx = () => void exportLedgerXlsx(`ledger-${stamp()}.xlsx`, ds, sorted);
 
   return (
     <div className="money-screen frame">
@@ -167,7 +172,7 @@ export default function Money() {
         {tab === 'money' && (
           <>
             <button className="btn sm" type="button" onClick={() => setImportOpen(true)}>
-              ↑ Import CSV
+              ↑ Import
             </button>
             <button className="btn sm solid" type="button" onClick={() => setAddOpen(true)}>
               + Entry
@@ -460,6 +465,9 @@ export default function Money() {
           <span className="spacer" />
           <button className="btn sm" type="button" onClick={exportCsv}>
             ↓ CSV
+          </button>
+          <button className="btn sm" type="button" onClick={exportXlsx}>
+            ↓ Excel
           </button>
         </div>
 

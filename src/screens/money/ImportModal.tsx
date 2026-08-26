@@ -66,12 +66,25 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
     setBusy(true);
     setError(null);
     try {
-      if (!/\.csv$/i.test(file.name)) throw new Error('Choose a CSV file');
-      const Papa = (await import('papaparse')).default;
-      const text = await file.text();
-      const parsed = Papa.parse<ParsedRow>(text, { header: true, skipEmptyLines: true });
-      const hdrs = (parsed.meta.fields ?? []) as string[];
-      let data = parsed.data as ParsedRow[];
+      /* Excel and CSV converge here on purpose: both produce a header list
+         and Record<string, string> rows, so the mapping, preview, duplicate
+         check and commit below never learn which format arrived. */
+      let hdrs: string[];
+      let data: ParsedRow[];
+      if (/\.xlsx$/i.test(file.name)) {
+        const { readXlsx } = await import('../../lib/xlsx');
+        const sheet = await readXlsx(await file.arrayBuffer());
+        hdrs = sheet.headers;
+        data = sheet.rows as ParsedRow[];
+      } else if (/\.csv$/i.test(file.name)) {
+        const Papa = (await import('papaparse')).default;
+        const text = await file.text();
+        const parsed = Papa.parse<ParsedRow>(text, { header: true, skipEmptyLines: true });
+        hdrs = (parsed.meta.fields ?? []) as string[];
+        data = parsed.data as ParsedRow[];
+      } else {
+        throw new Error('Choose a .csv or .xlsx file');
+      }
       data = data.filter((r) => Object.values(r).some((v) => String(v ?? '').trim() !== ''));
       if (!hdrs.length || !data.length) {
         setError('No rows found in that file.');
@@ -84,7 +97,7 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
       setFilename(file.name);
       setStep('map');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not read that CSV file.');
+      setError(err instanceof Error ? err.message : 'Could not read that file.');
     } finally {
       setBusy(false);
     }
@@ -195,14 +208,14 @@ export default function ImportModal({ open, onClose }: { open: boolean; onClose:
           <label className="mn-drop">
             <input
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               style={{ display: 'none' }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) handleFile(f);
               }}
             />
-            {busy ? 'Reading file…' : 'Choose a CSV file'}
+            {busy ? 'Reading file…' : 'Choose a CSV or Excel file'}
           </label>
           {error && (
             <p className="tip" style={{ color: 'var(--rose)' }}>
