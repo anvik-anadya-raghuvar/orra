@@ -12,14 +12,41 @@ import { newId, type AppStore } from '../data/store';
 import { PRIORITY_LABEL, type MessageKind, type Task, type TaskPriority, type UserId } from '../types';
 import { fmtDay } from './dates';
 import { mentionExcerpt, mentionedIds } from './mentions';
+import { sendPush } from './push';
 
-/** One notice, one shape. Every handoff message is a `messages` row. */
+/** Where the bell should take you when you tap the notice. */
+function noticeUrl(kind: MessageKind, taskId: string | null): string {
+  if (taskId) return `/task/${taskId}`;
+  if (kind === 'query') return '/work';
+  if (kind === 'decision_assign') return '/work';
+  return '/us';
+}
+
+/**
+ * One notice, one shape. Every handoff message is a `messages` row — AND a
+ * push, when it is aimed at the other person.
+ *
+ * The push lives here rather than at each call site for the same reason the
+ * `messages` row does: there are now six kinds of notice, and one of them
+ * having a phone ping while the others quietly did not is exactly the drift
+ * this function exists to prevent. Before this, `sendPush` was called from
+ * precisely two places in the whole app — a test button in Settings and the Us
+ * thread — so being handed a task, tagged in a thread, given a decision to
+ * rule or asked a query reached you only if you happened to have the tab open.
+ *
+ * Fire-and-forget, and never for yourself: the thing that prompted the notice
+ * has already happened, and a failed or self-addressed push must not undo it.
+ */
 function notice(
   store: AppStore,
   kind: MessageKind,
   taskId: string | null,
   body: string,
   summary: string,
+  /** Who this is for. Defaults to the other person, which is true of every
+   *  handoff notice; a query asked of yourself passes its own id and is
+   *  skipped below. */
+  recipientId: UserId = store.other.id,
 ): void {
   store.insert(
     'messages',
@@ -37,6 +64,15 @@ function notice(
     },
     store.asMe({ summary }),
   );
+  if (recipientId && recipientId !== store.meId) {
+    void sendPush(recipientId, {
+      title: store.me.name,
+      body: body.slice(0, 140),
+      url: noticeUrl(kind, taskId),
+      tag: `orra-${kind}`,
+      kind,
+    });
+  }
 }
 
 /**
@@ -58,6 +94,9 @@ export function notifyAssignment(
     task.id,
     `Assigned to you: ${task.id} — ${task.title}${due}`,
     `${task.id} assigned to the other workspace`,
+    // Multi-assignee (0045) calls this once per person added, so the push has
+    // to follow the id it was handed rather than "the other one".
+    assigneeId,
   );
 }
 
@@ -112,6 +151,7 @@ export function notifyDecisionOwner(
     null,
     `Yours to rule on: ${question}${held}`,
     `Decision assigned — ${question}`,
+    ownerId,
   );
 }
 
@@ -126,7 +166,8 @@ export function notifyDecisionOwner(
  */
 export function notifyQuery(store: AppStore, question: string, askedOf: UserId, taskId: string | null): void {
   const who = askedOf === store.meId ? 'Asked, for me to answer' : 'Asked you';
-  notice(store, 'query', taskId, `${who}: ${question}`, `Query asked — ${question}`);
+  // Addressed to whoever owes the answer, so asking yourself pushes nothing.
+  notice(store, 'query', taskId, `${who}: ${question}`, `Query asked — ${question}`, askedOf);
 }
 
 /**
@@ -155,6 +196,9 @@ export function notifyAcceptance(
     task.id,
     `Accepted ${task.id} ${priority}${comment}`,
     `${task.id} accepted`,
+    // The assigner is who wants to hear this, not "the other person" — the
+    // same thing today with two people, not a thing to rely on.
+    task.created_by,
   );
 }
 
@@ -177,5 +221,6 @@ export function notifyPushback(
     task.id,
     `Pushed back ${task.id} — “${reason.trim()}”`,
     `${task.id} pushed back`,
+    task.created_by,
   );
 }
