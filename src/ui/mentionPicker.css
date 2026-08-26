@@ -1,0 +1,16 @@
+/* The @ tag control. 44px tall like every other control that does something,
+   and sized to its own label so it never stretches a composer's button row. */
+.mention-pick {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surf2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.mention-pick:hover {
+  border-color: var(--indigo);
+}

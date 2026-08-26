@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { newId, nowIso, useData, useDataset, useStore } from '../../data/store';
@@ -6,7 +6,7 @@ import { Avatar, TagChip, useToast } from '../../ui/bits';
 import { entrance, micro } from '../../ui/motion';
 import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
 import { fmtDay, fmtTime, inr, todayIso } from '../../lib/dates';
-import { notifyAssignment } from '../../lib/handoff';
+import { notifyAssignment, notifyMention } from '../../lib/handoff';
 import { taskProgressPct, toggleChecklistLine } from '../../lib/checklist';
 import { MAX_REPEAT_EVERY, REPEAT_UNITS, describeRepeat, normalizeRepeat } from '../../lib/repeat';
 import { spawnNextOccurrence } from '../../lib/repeatActions';
@@ -18,6 +18,8 @@ import Checklist from './Checklist';
 import Screenshots from './Screenshots';
 import { Attachments } from '../../ui/attachments';
 import { BriefChecklist } from '../../ui/BriefChecklist';
+import { MentionPicker } from '../../ui/MentionPicker';
+import { FormattedText } from '../../ui/richText';
 import Timeline from './Timeline';
 import type { Task, TaskPriority, TaskStatus } from '../../types';
 import { DictateField } from '../../ui/dictation';
@@ -78,6 +80,7 @@ function TaskDetail({ task }: { task: Task }) {
   const [noteTitle, setNoteTitle] = useState('');
   const [commentBody, setCommentBody] = useState('');
   const [isDecision, setIsDecision] = useState(false);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
   /** Which half of the page is showing. The Workflow trail used to sit at the
    *  bottom of the sidebar, below six other sections — findable only by
    *  scrolling past everything. It is a view of the task, not an aside to it. */
@@ -268,6 +271,9 @@ function TaskDetail({ task }: { task: Task }) {
         summary: isDecision ? `Decision recorded on ${task.id}` : `Comment added to ${task.id}`,
       }),
     );
+    // After the comment exists, so the bell never points at a row that is not
+    // there yet. Silent when nobody but you was tagged.
+    notifyMention(store, body, `in the thread on ${task.id}`, task.id);
     setCommentBody('');
     setIsDecision(false);
   };
@@ -699,7 +705,11 @@ function TaskDetail({ task }: { task: Task }) {
                           <span className="w">{fmtTime(c.created_at)}</span>
                           {c.is_decision && <span className="dec">DECISION</span>}
                         </div>
-                        <p>{c.body}</p>
+                        {/* Was a bare <p>{c.body}</p>, which rendered a tag as
+                            the raw `[[person:…]]` token. Same renderer the
+                            notes and the wiki use, so a mention, a link and a
+                            tick box all read the same wherever they appear. */}
+                        <FormattedText text={c.body} />
                       </div>
                     </div>
                   );
@@ -712,20 +722,29 @@ function TaskDetail({ task }: { task: Task }) {
                 <div className="composer">
                   <DictateField label="Dictate this update">
                     <textarea
+                      ref={commentRef}
                       value={commentBody}
                       placeholder="Write an update…"
                       aria-label="New comment"
                       onChange={(e) => setCommentBody(e.target.value)}
                     />
                   </DictateField>
-                  <label className="flagline">
-                    <input
-                      type="checkbox"
-                      checked={isDecision}
-                      onChange={(e) => setIsDecision(e.target.checked)}
+                  <div className="composer-tools">
+                    <MentionPicker
+                      textarea={commentRef}
+                      value={commentBody}
+                      onValue={(next) => setCommentBody(next)}
+                      label="Tag someone in this update"
                     />
-                    Flag as decision
-                  </label>
+                    <label className="flagline">
+                      <input
+                        type="checkbox"
+                        checked={isDecision}
+                        onChange={(e) => setIsDecision(e.target.checked)}
+                      />
+                      Flag as decision
+                    </label>
+                  </div>
                   <button type="button" className="btn sm solid" onClick={submitComment}>
                     Post
                   </button>

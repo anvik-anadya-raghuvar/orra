@@ -750,6 +750,14 @@
   height: 20px;
   accent-color: var(--teal);
 }
+/* The @ tag control and the decision flag share a row on anything wider than
+   a phone, and wrap on one. Both are 44px, so the row is 44px either way. */
+.tpage .composer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
 
 /* ── connected items ──────────────────────────────────────────────────── */
 .tpage .conn {

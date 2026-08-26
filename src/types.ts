@@ -548,7 +548,9 @@ export type MessageKind =
   | 'task_assign'
   /** The reply half of a handoff — see 0033_task_acceptance.sql. */
   | 'task_accept'
-  | 'task_pushback';
+  | 'task_pushback'
+  /** Someone tagged you with [[person:…]] in an update — see 0043. */
+  | 'mention';
 
 export interface Message {
   id: string;

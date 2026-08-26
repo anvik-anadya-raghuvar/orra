@@ -11,12 +11,13 @@
 import { newId, type AppStore } from '../data/store';
 import { PRIORITY_LABEL, type MessageKind, type Task, type TaskPriority, type UserId } from '../types';
 import { fmtDay } from './dates';
+import { mentionExcerpt, mentionedIds } from './mentions';
 
 /** One notice, one shape. Every handoff message is a `messages` row. */
 function notice(
   store: AppStore,
   kind: MessageKind,
-  taskId: string,
+  taskId: string | null,
   body: string,
   summary: string,
 ): void {
@@ -57,6 +58,35 @@ export function notifyAssignment(
     task.id,
     `Assigned to you: ${task.id} — ${task.title}${due}`,
     `${task.id} assigned to the other workspace`,
+  );
+}
+
+/**
+ * Tell someone they were tagged in an update they are not looking at.
+ *
+ * Only fires for a tag on the *other* person: tagging yourself is a note to
+ * self, and a bell that rings for your own writing is noise. Nothing is
+ * needed for a tag written in the Us thread — that message is already the
+ * unread row, and a second one announcing it would be the app talking about
+ * itself.
+ *
+ * `where` is the room, not the row ("in the thread on T-45"), because the
+ * body has to make sense in a chat bubble hours later with no other context.
+ */
+export function notifyMention(
+  store: AppStore,
+  body: string,
+  where: string,
+  taskId: string | null,
+): void {
+  if (!mentionedIds(body).some((id) => id !== store.meId)) return;
+
+  notice(
+    store,
+    'mention',
+    taskId,
+    `Tagged you ${where} — “${mentionExcerpt(body)}”`,
+    `Mention ${where}`,
   );
 }
 

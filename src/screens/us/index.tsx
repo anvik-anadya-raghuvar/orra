@@ -14,6 +14,8 @@ import { isYouTubeUrl, playUrl } from '../../lib/song';
 import { PromoteModal, type PromoteKind, type PromoteTarget } from './PromoteModal';
 import { SideColumn } from './Sidebar';
 import { MicButton } from '../../ui/dictation';
+import { MentionPicker } from '../../ui/MentionPicker';
+import { FormattedText } from '../../ui/richText';
 import './us.css';
 
 type Row = { kind: 'day'; label: string; date: string } | { kind: 'msg'; m: Message };
@@ -272,7 +274,7 @@ function Bubble({
             </div>
           </div>
         ) : (
-          m.body && <p>{m.body}</p>
+          m.body && <FormattedText text={m.body} />
         )}
         {task && (
           <Link className="lk" style={{ marginTop: 7, display: 'inline-block' }} to={`/task/${task.id}`}>
@@ -585,6 +587,15 @@ function ChatColumn({
               </option>
             ))}
           </select>
+          {/* No mention notice from here: the message itself is already the
+              unread row the bell counts, so a second one announcing it would
+              be the app talking about itself. */}
+          <MentionPicker
+            textarea={textareaRef}
+            value={body}
+            onValue={(next) => setBody(next)}
+            label="Tag someone in this message"
+          />
           <MicButton targetRef={textareaRef} label="Dictate this message" />
           <SendPhotoButton />
           <SendSongButton />
