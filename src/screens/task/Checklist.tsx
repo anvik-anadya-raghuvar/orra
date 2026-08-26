@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 import { newId, useData, useStore } from '../../data/store';
+import { taskProgressPct } from '../../lib/checklist';
 import { ProgressBar } from '../../ui/bits';
 import { DictateField } from '../../ui/dictation';
 import { staggerItem, staggerParent } from '../../ui/motion';
@@ -30,6 +31,22 @@ export default function Checklist({
   const done = items.filter((s) => s.completed).length;
   const pct = items.length ? Math.round((done / items.length) * 100) : 0;
 
+  /**
+   * Push the task's percentage back in step with its checklist.
+   *
+   * Called after every add, tick and delete rather than only on tick,
+   * because all three move the fraction — removing the one unticked step of
+   * four is as much a completion as ticking it. `progress_pct` is what the
+   * board card draws, and it had no human writer at all before this: the
+   * only thing that ever set it was dragging a card to Done.
+   */
+  const syncProgress = (next: { completed: boolean }[]) => {
+    const nextPct = taskProgressPct(task.description, next);
+    if (nextPct !== null && nextPct !== task.progress_pct) {
+      store.update('tasks', task.id, { progress_pct: nextPct }, store.asMe({ silent: true }));
+    }
+  };
+
   const add = () => {
     const title = draft.trim();
     if (!title) return;
@@ -39,6 +56,7 @@ export default function Checklist({
       { id: newId('st'), task_id: task.id, title, completed: false, position },
       store.asMe({ summary: `Step added to ${task.id}: ${title}` }),
     );
+    syncProgress([...items, { completed: false }]);
     setDraft('');
   };
 
@@ -69,9 +87,10 @@ export default function Checklist({
               <button
                 className="tick"
                 aria-pressed={s.completed}
-                onClick={() =>
-                  store.update('subtasks', s.id, { completed: !s.completed }, store.asMe())
-                }
+                onClick={() => {
+                  store.update('subtasks', s.id, { completed: !s.completed }, store.asMe());
+                  syncProgress(items.map((r) => (r.id === s.id ? { completed: !r.completed } : r)));
+                }}
               >
                 <span className={`box${s.completed ? ' on' : ''}`} aria-hidden />
                 <span className={s.completed ? 'done' : undefined}>{s.title}</span>
@@ -79,13 +98,14 @@ export default function Checklist({
               <button
                 className="iconbtn danger"
                 aria-label={`Delete step ${s.title}`}
-                onClick={() =>
+                onClick={() => {
                   store.remove(
                     'subtasks',
                     s.id,
                     store.asMe({ summary: `Step removed from ${task.id}: ${s.title}` }),
-                  )
-                }
+                  );
+                  syncProgress(items.filter((r) => r.id !== s.id));
+                }}
               >
                 <Trash2 size={15} strokeWidth={1.8} />
               </button>

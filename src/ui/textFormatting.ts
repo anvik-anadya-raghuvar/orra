@@ -20,12 +20,14 @@
  * (InlineImageEditor renders one text part per split image).
  */
 import type { KeyboardEvent, RefObject } from 'react';
+import { CHECK_MARKER } from '../lib/checklist';
 import { applyInlineFormat, insertInlineToken, toggleLineMarker, type SelectionEdit } from '../lib/textFormat';
 
 export interface TextFormatting {
   apply: (before: string, after?: string, placeholder?: string) => void;
   insert: (token: string) => void;
   bullet: () => void;
+  checkbox: () => void;
 }
 
 function selectionOf(element: HTMLTextAreaElement | null, fallbackLength: number): [number, number] {
@@ -72,6 +74,14 @@ export function createTextFormatting(
       const element = textarea.current;
       const [start, end] = selectionOf(element, value.length);
       commit(element, toggleLineMarker(value, start, end), onValue);
+    },
+    // Same line-marker toggle as bullets, one marker along. A checklist is a
+    // bullet you can finish, so it reads as one everywhere that has not been
+    // taught about boxes.
+    checkbox: () => {
+      const element = textarea.current;
+      const [start, end] = selectionOf(element, value.length);
+      commit(element, toggleLineMarker(value, start, end, CHECK_MARKER), onValue);
     },
   };
 }

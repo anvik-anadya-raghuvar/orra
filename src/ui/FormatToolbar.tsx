@@ -9,7 +9,7 @@
  * working after you click a button here — see textFormatting.ts.
  */
 import type { MouseEvent, ReactNode, RefObject } from 'react';
-import { Bold, Italic, Underline, Strikethrough, Code2, Link2, List } from 'lucide-react';
+import { Bold, Italic, Underline, Strikethrough, Code2, Link2, List, ListChecks } from 'lucide-react';
 import { FORMAT_COLORS, FORMAT_SIZES, isSafeExternalUrl } from '../lib/textFormat';
 import { applyFormatShortcut, createTextFormatting } from './textFormatting';
 import './formatToolbar.css';
@@ -50,6 +50,9 @@ export function FormatToolbar({
       </button>
       <button type="button" aria-label="Bulleted list" title="Bullets" onMouseDown={keepFocus} onClick={() => formatting.bullet()}>
         <List size={14} strokeWidth={2} aria-hidden />
+      </button>
+      <button type="button" aria-label="Checklist" title="Checklist '- [ ]'" onMouseDown={keepFocus} onClick={() => formatting.checkbox()}>
+        <ListChecks size={14} strokeWidth={2} aria-hidden />
       </button>
       <button
         type="button"

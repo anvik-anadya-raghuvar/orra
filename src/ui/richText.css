@@ -51,3 +51,86 @@
 .rt-bullets li {
   margin: 2px 0;
 }
+
+/* Tick boxes written inline in the text — `- [ ] step`. Deliberately the
+   same shape as the task page's subtask ticks: they are the same gesture on
+   the same kind of thing, and two different-looking checkboxes on one screen
+   read as two different systems. 44px min-height per the touch-target rule;
+   the box itself is 18px but the hit area is the whole row. */
+.rt-checks {
+  margin: 2px 0;
+  padding: 0;
+  list-style: none;
+}
+.rt-checks li {
+  margin: 0;
+}
+.rt-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 6px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rt-check:disabled {
+  cursor: default;
+}
+.rt-check:not(:disabled):hover {
+  background: var(--surf3);
+}
+.rt-box {
+  width: 18px;
+  height: 18px;
+  border: 1.6px solid var(--line);
+  border-radius: 5px;
+  flex: none;
+  margin-top: 2px;
+}
+.rt-box.on {
+  background: var(--teal);
+  border-color: var(--teal);
+  position: relative;
+}
+.rt-box.on::after {
+  content: '';
+  position: absolute;
+  left: 5.5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 1.7px 1.7px 0;
+  transform: rotate(42deg);
+}
+.rt-struck {
+  color: var(--mute);
+  text-decoration: line-through;
+}
+
+/* The brief's tick strip — a header line, a fill bar, then the boxes. */
+.brief-checks {
+  margin-top: 10px;
+  padding: 10px 11px 4px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surf2);
+}
+.brief-checks-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--mute);
+  margin-bottom: 5px;
+}
+.brief-checks .rt-checks {
+  margin: 2px 0 0;
+}

@@ -11,6 +11,7 @@
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { matchChecklistLine } from '../lib/checklist';
 import { useData } from '../data/store';
 import './richText.css';
 
@@ -116,50 +117,91 @@ export function RichText({ text, onSelectPage }: { text: string; onSelectPage?: 
   );
 }
 
+type TextBlock =
+  | { kind: 'check'; rows: { line: number; label: string; done: boolean }[] }
+  | { kind: 'bullet' | 'plain'; rows: { line: number; content: string }[] };
+
 /**
  * A block of free-typed text — notes, task descriptions — rendered with the
- * same inline formatting as the wiki, plus one thing a flat textarea needs
- * that a wiki block gets for free from its block type: lines starting with
- * `- ` render as an actual bulleted list instead of a line of dashes.
+ * same inline formatting as the wiki, plus the two things a flat textarea
+ * needs that a wiki block gets for free from its block type: lines starting
+ * with `- ` render as an actual bulleted list instead of a line of dashes,
+ * and `- [ ] ` lines render as real tick boxes instead of a bullet that
+ * reads "[ ] step".
+ *
+ * Pass `onToggleCheck` to make those boxes clickable; it is handed the line
+ * index, which is what `toggleChecklistLine` wants back. Without it they
+ * render as disabled boxes — a note's checklist is a record, a task brief's
+ * is a control, and the same text has to serve both.
  */
 export function FormattedText({
   text,
   className,
   onSelectPage,
+  onToggleCheck,
 }: {
   text: string;
   className?: string;
   onSelectPage?: (id: string) => void;
+  onToggleCheck?: (line: number) => void;
 }) {
-  const lines = (text ?? '').split('\n');
-  const blocks: { bullet: boolean; lines: string[] }[] = [];
-  for (const line of lines) {
-    const bullet = line.startsWith('- ') || line.startsWith('• ');
-    const content = bullet ? line.slice(2) : line;
+  const blocks: TextBlock[] = [];
+  (text ?? '').split('\n').forEach((raw, line) => {
+    const box = matchChecklistLine(raw);
+    const kind: TextBlock['kind'] = box ? 'check' : raw.startsWith('- ') || raw.startsWith('• ') ? 'bullet' : 'plain';
     const last = blocks[blocks.length - 1];
-    if (last && last.bullet === bullet) last.lines.push(content);
-    else blocks.push({ bullet, lines: [content] });
-  }
+    const row = box ? { line, ...box } : { line, content: kind === 'bullet' ? raw.slice(2) : raw };
+    if (last && last.kind === kind) (last.rows as typeof row[]).push(row);
+    else blocks.push({ kind, rows: [row] } as TextBlock);
+  });
   return (
     <>
-      {blocks.map((block, index) =>
-        block.bullet ? (
-          <ul className="rt-bullets" key={index}>
-            {block.lines.map((line, lineIndex) => (
-              <li key={lineIndex}><RichText text={line} onSelectPage={onSelectPage} /></li>
-            ))}
-          </ul>
-        ) : (
+      {blocks.map((block, index) => {
+        if (block.kind === 'check') {
+          return (
+            <ul className="rt-checks" key={index}>
+              {block.rows.map((row) => (
+                <li key={row.line}>
+                  <button
+                    type="button"
+                    className="rt-check"
+                    aria-pressed={row.done}
+                    disabled={!onToggleCheck}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggleCheck?.(row.line);
+                    }}
+                  >
+                    <span className={`rt-box${row.done ? ' on' : ''}`} aria-hidden />
+                    <span className={row.done ? 'rt-struck' : undefined}>
+                      <RichText text={row.label} onSelectPage={onSelectPage} />
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        if (block.kind === 'bullet') {
+          return (
+            <ul className="rt-bullets" key={index}>
+              {block.rows.map((row) => (
+                <li key={row.line}><RichText text={row.content} onSelectPage={onSelectPage} /></li>
+              ))}
+            </ul>
+          );
+        }
+        return (
           <p className={className} key={index}>
-            {block.lines.map((line, lineIndex) => (
-              <React.Fragment key={lineIndex}>
-                {lineIndex > 0 && <br />}
-                <RichText text={line} onSelectPage={onSelectPage} />
+            {block.rows.map((row, rowIndex) => (
+              <React.Fragment key={row.line}>
+                {rowIndex > 0 && <br />}
+                <RichText text={row.content} onSelectPage={onSelectPage} />
               </React.Fragment>
             ))}
           </p>
-        ),
-      )}
+        );
+      })}
     </>
   );
 }

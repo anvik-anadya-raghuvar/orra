@@ -9,6 +9,8 @@ import { useFormDraft } from '../../ui/useFormDraft';
 import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
+import { taskProgressPct } from '../../lib/checklist';
+import { BriefChecklist } from '../../ui/BriefChecklist';
 import { stuckTasks } from '../../lib/ranking';
 import { assignedOut, awaitingThem, inboxTasks, isMyTask, myTasks, priorityDiffers } from '../../lib/workspace';
 import { notifyAcceptance, notifyAssignment, notifyPushback } from '../../lib/handoff';
@@ -1635,6 +1637,14 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           effort,
           estimate_minutes: estimate,
           tags: labels,
+          /* A brief written with `- [x]` lines already ticked is a task that
+             is already part done. Starting it at 0 would make the board card
+             disagree with its own description from the first render. */
+          progress_pct:
+            taskProgressPct(
+              description,
+              steps.filter((step) => step.title.trim()).map(() => ({ completed: false })),
+            ) ?? 0,
         }),
         store.asMe({ summary: `Task ${id} created — ${clean}` }),
       );
@@ -1805,6 +1815,9 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           label={shots.length ? 'Insert another image here' : 'Insert an image here'}
           hint="Paste with Ctrl+V, drop a file, or click to browse — then click the image to add numbered change requests"
         />
+        {/* Read-only here: the boxes are a preview of what the brief will
+            carry, and there is no task row to tick against until submit. */}
+        <BriefChecklist text={description} label="Steps in this brief" />
       </Field>
       <div style={{ height: 11 }} />
       <div className="wk-ctl">

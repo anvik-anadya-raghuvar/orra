@@ -7,6 +7,7 @@ import { entrance, micro } from '../../ui/motion';
 import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
 import { fmtDay, fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment } from '../../lib/handoff';
+import { taskProgressPct, toggleChecklistLine } from '../../lib/checklist';
 import { MAX_REPEAT_EVERY, REPEAT_UNITS, describeRepeat, normalizeRepeat } from '../../lib/repeat';
 import { spawnNextOccurrence } from '../../lib/repeatActions';
 import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
@@ -16,6 +17,7 @@ import { ProjectCombo, TypeCombo } from '../../ui/pickers';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
 import { Attachments } from '../../ui/attachments';
+import { BriefChecklist } from '../../ui/BriefChecklist';
 import Timeline from './Timeline';
 import type { Task, TaskPriority, TaskStatus } from '../../types';
 import { DictateField } from '../../ui/dictation';
@@ -80,6 +82,10 @@ function TaskDetail({ task }: { task: Task }) {
    *  bottom of the sidebar, below six other sections — findable only by
    *  scrolling past everything. It is a view of the task, not an aside to it. */
   const [tab, setTab] = useState<TaskTab>('task');
+  /* Needed up here, not with the other derived lists further down: the
+     brief's tick boxes and these rows are counted as one checklist, so
+     saving a tick needs both halves in hand. */
+  const subtasks = ds.subtasks.filter((s) => s.task_id === task.id);
 
   const saveTitle = () => {
     const t = title.trim();
@@ -101,6 +107,27 @@ function TaskDetail({ task }: { task: Task }) {
         store.asMe({ summary: `Description updated on ${task.id}` }),
       );
     }
+  };
+
+  /**
+   * Tick one of the brief's boxes.
+   *
+   * The description and the percentage move in one update, not two: the
+   * board card reads `progress_pct`, and a card that briefly disagreed with
+   * the task page is the kind of thing you only notice as "the board is
+   * lying". `taskProgressPct` counts the brief's boxes and the subtask rows
+   * together — the same claim made in two places.
+   */
+  const toggleBriefStep = (line: number) => {
+    const next = toggleChecklistLine(desc, line);
+    setDesc(next);
+    const pct = taskProgressPct(next, subtasks);
+    store.update(
+      'tasks',
+      task.id,
+      pct === null ? { description: next } : { description: next, progress_pct: pct },
+      store.asMe({ summary: `Step ticked on ${task.id}` }),
+    );
   };
 
   const setField = <K extends keyof Task>(field: K, value: Task[K]) => {
@@ -368,6 +395,8 @@ function TaskDetail({ task }: { task: Task }) {
                 onDescriptionChange={setDesc}
                 onDescriptionCommit={saveDesc}
               />
+
+              <BriefChecklist text={desc} onToggle={toggleBriefStep} />
 
               <div className="tagrow" style={{ marginTop: 12 }}>
                 {task.tags.map((name) => (
