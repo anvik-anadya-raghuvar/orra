@@ -4,7 +4,7 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { newId, nowIso, useData, useDataset, useStore } from '../../data/store';
 import { Avatar, TagChip, useToast } from '../../ui/bits';
 import { entrance, micro } from '../../ui/motion';
-import { generateTaskExport, exportTaskZip } from '../../lib/exportTask';
+import { generateTaskExport, generateTaskHtml, exportTaskZip } from '../../lib/exportTask';
 import { fmtDay, fmtTime, inr, todayIso } from '../../lib/dates';
 import { notifyAssignment, notifyMention } from '../../lib/handoff';
 import { mentionedIds } from '../../lib/mentions';
@@ -229,6 +229,39 @@ function TaskDetail({ task }: { task: Task }) {
     } catch {
       toast('Clipboard blocked — could not copy');
     }
+  };
+
+  /** One place that turns generated text into a saved file. */
+  const saveText = (text: string, filename: string, mime: string) => {
+    const url = URL.createObjectURL(new Blob([text], { type: `${mime};charset=utf-8` }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast(`${filename} downloaded`);
+  };
+
+  /**
+   * Print the HTML export, which is how you get a PDF without shipping a PDF
+   * library. Every browser's print dialog has "Save as PDF", and adding
+   * ~100 KB of generator to the bundle to avoid one extra click is a bad
+   * trade against the 300 KB budget.
+   */
+  const printExport = () => {
+    const win = window.open('', '_blank');
+    if (!win) {
+      toast('Your browser blocked the print window — allow pop-ups for this site');
+      return;
+    }
+    win.document.write(generateTaskHtml(ds, task.id));
+    win.document.close();
+    win.focus();
+    // The document has inline images; printing before they decode gives blank
+    // boxes, so wait for load rather than firing immediately.
+    win.onload = () => win.print();
   };
 
   const downloadZip = async () => {
@@ -656,14 +689,53 @@ function TaskDetail({ task }: { task: Task }) {
                   <p>
                     {task.type === 'code_change'
                       ? 'A ready-to-use context folder: TASK.md, CONTEXT.json, marked screenshots, and clean originals. Pin numbers follow the order you added them across every image.'
-                      : 'Build a context folder with TASK.md, CONTEXT.json, and any marked screenshots — deterministic, with no model in the loop.'}
+                      : 'The same task, in whichever shape the reader needs — deterministic, with no model in the loop.'}
+                  </p>
+                  <p className="tip" style={{ marginTop: 0 }}>
+                    <b>.md</b> for a coding agent. <b>.html</b> and <b>Word</b> for a person — both
+                    carry the screenshots inside the file, so they open intact from an email.{' '}
+                    <b>Print / PDF</b> opens the same page in your browser's print dialog, where
+                    "Save as PDF" lives. <b>Context folder</b> is the zip, with the pins burned onto
+                    the images.
                   </p>
                   <div className="acts">
                     <button type="button" className="btn solid sm" onClick={copyMd}>
                       Copy TASK.md
                     </button>
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={() => saveText(generateTaskExport(ds, task.id), `${task.id}.md`, 'text/markdown')}
+                    >
+                      .md
+                    </button>
+                    {/* Self-contained: the screenshots are inline, so this
+                        opens intact from an email with no assets folder. */}
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={() => saveText(generateTaskHtml(ds, task.id), `${task.id}.html`, 'text/html')}
+                    >
+                      .html
+                    </button>
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={() =>
+                        saveText(
+                          generateTaskHtml(ds, task.id, { forWord: true }),
+                          `${task.id}.doc`,
+                          'application/msword',
+                        )
+                      }
+                    >
+                      Word
+                    </button>
+                    <button type="button" className="btn sm" onClick={printExport}>
+                      Print / PDF
+                    </button>
                     <button type="button" className="btn sm" onClick={downloadZip}>
-                      Download context folder
+                      Context folder
                     </button>
                   </div>
                 </div>

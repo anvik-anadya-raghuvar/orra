@@ -319,4 +319,185 @@ export function pinNumber(ds: Dataset, pinId: string): number {
   return taskPinNumbers(ds, shot.task_id).get(pinId) ?? 0;
 }
 
+/* ── HTML / Word export ───────────────────────────────────────────────── */
+
+/** Escape for HTML text and attribute contexts. */
+function esc(value: string): string {
+  return (value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Paragraphs from free text, blank-line separated, newlines kept as breaks. */
+function paragraphs(text: string): string {
+  const clean = stripInlineImageMarkers(text ?? '').trim();
+  if (!clean) return '<p class="none">&mdash;</p>';
+  return clean
+    .split(/\n{2,}/)
+    .map((block) => `<p>${esc(block).replace(/\n/g, '<br />')}</p>`)
+    .join('\n');
+}
+
+/**
+ * The same export as TASK.md, as a self-contained HTML document.
+ *
+ * Exists because "send me that task" usually means a person, not an agent.
+ * Markdown is the right thing to hand a coding agent and the wrong thing to
+ * hand an accountant, and the zip is neither: it is a folder you have to
+ * unpack before you can read a word of it.
+ *
+ * Self-contained on purpose. Images are the data URLs already on the rows, so
+ * the file opens with its screenshots intact straight from an email
+ * attachment, with no assets folder and nothing to fetch. That also makes this
+ * the single thing the Word export and the print-to-PDF path both render,
+ * rather than three generators drifting apart.
+ *
+ * Pure, like `generateTaskExport` (principle 5): same task state gives
+ * byte-identical output. Nothing here reads a clock, and every list uses the
+ * comparators the markdown already uses.
+ *
+ * `forWord` swaps only the root element for the namespaced one Word expects.
+ * The body is identical, so the two can never disagree about content.
+ */
+export function generateTaskHtml(
+  ds: Dataset,
+  taskId: string,
+  options: { forWord?: boolean } = {},
+): string {
+  const task = ds.tasks.find((t) => t.id === taskId);
+  if (!task) throw new Error(`No task ${taskId}`);
+  const profiles = new Map(ds.profiles.map((p) => [p.id, p.name]));
+  const projectNames = taskProjects(task)
+    .map((id) => ds.projects.find((p) => p.id === id)?.name ?? id)
+    .join(', ');
+  const assigneeNames = taskAssignees(task)
+    .map((id) => profiles.get(id) ?? id)
+    .join(', ');
+
+  const out: string[] = [];
+  out.push(`<h1>${esc(task.id)} &middot; ${esc(task.title)}</h1>`);
+  out.push(
+    `<p class="meta">Project: ${esc(projectNames || '-')} &middot; Priority: ${esc(task.priority)} &middot; Status: ${esc(task.status)}<br />` +
+      `Assignee: ${esc(assigneeNames || '-')} &middot; Due: ${esc(task.due_date ?? '-')} &middot; Type: ${esc(taskTypes(task).join(', ') || '-')}</p>`,
+  );
+
+  out.push('<h2>Objective</h2>');
+  out.push(paragraphs(task.description));
+
+  const shots = ds.screenshot_attachments.filter((s) => s.task_id === task.id).sort(byCreatedAt);
+  const pinNumbers = taskPinNumbers(ds, task.id);
+  shots.forEach((shot, si) => {
+    out.push(`<h2>Screenshot ${si + 1} &mdash; ${esc(shot.filename)} (${shot.width}&times;${shot.height})</h2>`);
+    if (shot.data_url) {
+      out.push(`<img class="shot" src="${esc(shot.data_url)}" alt="${esc(shot.filename)}" />`);
+    } else {
+      out.push('<p class="warn">No image data stored for this screenshot &mdash; the pin coordinates below still locate each change.</p>');
+    }
+    const pins = ds.annotation_pins.filter((p) => p.screenshot_id === shot.id).sort(byCreatedAt);
+    if (pins.length) {
+      out.push('<ol class="pins">');
+      for (const pin of pins) {
+        const label = pin.label ? `<b>[${esc(pin.label)}]</b> ` : '';
+        const state = pin.is_resolved ? ' <em>(resolved)</em>' : '';
+        out.push(
+          `<li value="${pinNumbers.get(pin.id)}">(x ${one(pin.x_pct)}%, y ${one(pin.y_pct)}%) ${esc(profiles.get(pin.author_id) ?? '-')} &mdash; ${label}${esc(pin.note)}${state}</li>`,
+        );
+      }
+      out.push('</ol>');
+    }
+  });
+
+  out.push('<h2>Decisions</h2>');
+  const decisions = ds.comments.filter((c) => c.task_id === task.id && c.is_decision).sort(byCreatedAt);
+  if (decisions.length) {
+    out.push('<ul>');
+    for (const d of decisions) {
+      out.push(`<li>${esc(profiles.get(d.author_id) ?? '-')} (${iso8601Utc(d.created_at)}): ${esc(d.body)}</li>`);
+    }
+    out.push('</ul>');
+  } else {
+    out.push('<p class="none">none recorded</p>');
+  }
+
+  out.push('<h2>Background</h2>');
+  const background: string[] = [];
+  for (const n of ds.notes.filter((note) => note.task_id === task.id).sort(byCreatedAt)) {
+    const who = profiles.get(n.created_by);
+    background.push(
+      `Note &ldquo;${esc(n.title)}&rdquo;${who ? ` (${esc(who)})` : ''}: ${esc(stripInlineImageMarkers(n.body || '').split('\n')[0])}`,
+    );
+  }
+  for (const m of ds.mail_items
+    .filter((mail) => mail.converted_to_id === task.id || (mail.project_id === task.project_id && mail.flag_reason))
+    .sort((a, b) => a.received_at.localeCompare(b.received_at))) {
+    background.push(`Mail &ldquo;${esc(m.subject)}&rdquo;: ${esc(m.snippet)}`);
+  }
+  for (const c of ds.ledger
+    .filter((l) => l.linked_task_id === task.id)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))) {
+    background.push(`Cost: ${esc(c.party)}, INR ${c.amount}, ${esc(c.status)}`);
+  }
+  out.push(
+    background.length
+      ? `<ul>${background.map((row) => `<li>${row}</li>`).join('')}</ul>`
+      : '<p class="none">none linked</p>',
+  );
+
+  out.push('<h2>Acceptance criteria</h2>');
+  const criteria = task.acceptance_criteria
+    .split('\n')
+    .map((l) => l.replace(/^-\s*/, '').trim())
+    .filter(Boolean);
+  if (!criteria.length) {
+    out.push('<p class="warn">No acceptance criteria set &mdash; falling back to open subtasks.</p>');
+  }
+  const rows = criteria.length
+    ? criteria
+    : ds.subtasks
+        .filter((s) => s.task_id === task.id && !s.completed)
+        .sort((a, b) => a.position - b.position)
+        .map((s) => s.title);
+  out.push(
+    rows.length
+      ? `<ul class="checks">${rows.map((r) => `<li>&#9744; ${esc(r)}</li>`).join('')}</ul>`
+      : '<p class="none">&mdash;</p>',
+  );
+
+  const root = options.forWord
+    ? '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    : '<html lang="en">';
+
+  /* Deliberately plain and dark-on-white: this is read on paper, in Word, or
+     in somebody else's inbox, none of which inherit the portal's theme. */
+  return [
+    '<!DOCTYPE html>',
+    root,
+    '<head>',
+    '<meta charset="utf-8" />',
+    `<title>${esc(task.id)} ${esc(task.title)}</title>`,
+    '<style>',
+    "body { font-family: Georgia, 'Times New Roman', serif; color: #111; background: #fff; max-width: 760px; margin: 32px auto; padding: 0 20px; line-height: 1.55; }",
+    'h1 { font-size: 22px; margin: 0 0 4px; }',
+    'h2 { font-size: 15px; margin: 26px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }',
+    'p { margin: 0 0 10px; }',
+    '.meta { font-size: 13px; color: #555; margin-bottom: 18px; }',
+    '.none { color: #777; font-style: italic; }',
+    '.warn { color: #8a5a00; }',
+    'img.shot { max-width: 100%; border: 1px solid #ccc; border-radius: 4px; }',
+    'ol.pins { padding-left: 22px; }',
+    'ol.pins li { margin: 4px 0; }',
+    'ul.checks { list-style: none; padding-left: 0; }',
+    'ul.checks li { margin: 4px 0; }',
+    '@media print { body { margin: 0; max-width: none; } h2 { page-break-after: avoid; } img.shot { page-break-inside: avoid; } }',
+    '</style>',
+    '</head>',
+    '<body>',
+    out.join('\n'),
+    '</body>',
+    '</html>',
+  ].join('\n');
+}
+
 export type { Task };

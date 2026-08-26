@@ -1047,3 +1047,19 @@
     min-height: 34px;
   }
 }
+
+/* The export row now offers five formats, so it wraps rather than overflowing
+   on a phone. Every button stays a full touch target. */
+.tpage .exportbox .acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tpage .exportbox .acts .btn {
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .tpage .exportbox .acts .btn {
+    min-height: 34px;
+  }
+}
