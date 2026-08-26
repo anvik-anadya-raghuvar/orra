@@ -83,7 +83,7 @@ const pick = (block, ...tags) => {
 async function readFeed({ url, source, viaGoogleNews, kind = 'news' }) {
   try {
     const res = await fetch(url, {
-      headers: { 'user-agent': 'anvik-ops-pulse/1.0' },
+      headers: { 'user-agent': 'orra-pulse/1.0' },
       redirect: 'follow',
       signal: AbortSignal.timeout(25000),
     });

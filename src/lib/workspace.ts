@@ -69,6 +69,22 @@ export function awaitingThem(tasks: Task[], meId: UserId): Task[] {
 }
 
 /**
+ * Everything I handed to the other person, whether or not they accepted it.
+ *
+ * `awaitingThem` deliberately stops once the task is acknowledged — it exists
+ * to chase an unanswered handoff. That left no view at all of work already
+ * accepted: the moment Raghuvar took a task it vanished off Anadya's board,
+ * because `myTasks` scopes to assignee. This is the standing answer to "what
+ * is on their plate that came from me" (principle 1: assignment is exactly
+ * where the other person's work must stay reachable).
+ */
+export function assignedOut(tasks: Task[], meId: UserId): Task[] {
+  return tasks.filter(
+    (t) => t.created_by === meId && t.assignee_id != null && t.assignee_id !== meId,
+  );
+}
+
+/**
  * True when the assignee committed to a different priority than was asked for.
  * The disagreement is the point — it is what the card surfaces for a
  * conversation, so it is computed in one place rather than re-derived per view.

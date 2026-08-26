@@ -206,6 +206,28 @@
 .wk-inbox.awaiting {
   border-left-color: var(--line);
 }
+/* Standing "assigned to them" strip — quieter than the inbox, since nothing
+   here needs answering; it is there to be glanced at. */
+.wk-inbox.handed {
+  border-left-color: color-mix(in srgb, var(--sky) 50%, var(--line));
+}
+.wk-handed-toggle {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 0;
+  padding: 0;
+  border: 0;
+  background: 0 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wk-handed-toggle .mono {
+  margin-left: auto;
+}
+.wk-inbox.handed .wk-inbox-list {
+  overflow: hidden;
+}
 .wk-inbox-list li.pushed .wk-inbox-task .mono:first-child {
   color: var(--stamp);
 }
@@ -945,6 +967,74 @@ tr.wk-driftrow td {
 }
 .wk-decision-tasks input {
   margin-top: 2px;
+}
+/* Draft checklist in the new-task sheet. Mobile-first: the reorder/remove
+   controls wrap under the step text on a phone so each keeps a 44px target,
+   and sit inline once there is room. */
+.wk-steps ul {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.wk-steps li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'n text' 'acts acts';
+  align-items: center;
+  gap: 6px 8px;
+}
+.wk-steps li > .wk-in {
+  grid-area: text;
+  min-width: 0;
+}
+.wk-steps-acts {
+  grid-area: acts;
+  display: flex;
+  gap: 6px;
+}
+.wk-steps-n {
+  grid-area: n;
+  min-width: 20px;
+  font-size: 11px;
+  color: var(--mute);
+  text-align: right;
+}
+.wk-steps-btn {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf2);
+  color: var(--slate);
+  cursor: pointer;
+  transition: color 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+.wk-steps-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.wk-steps-btn:not(:disabled):hover,
+.wk-steps-btn:not(:disabled):focus-visible {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--sky) 45%, var(--line));
+}
+.wk-steps-btn.danger:not(:disabled):hover,
+.wk-steps-btn.danger:not(:disabled):focus-visible {
+  color: var(--rose);
+  border-color: color-mix(in srgb, var(--rose) 45%, var(--line));
+}
+/* Once the row has width, the controls sit inline beside the step instead of
+   wrapping under it. */
+@media (min-width: 641px) {
+  .wk-steps li {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: 'n text acts';
+  }
 }
 .wk-decfoot {
   display: flex;

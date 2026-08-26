@@ -1,4 +1,4 @@
-# Multi-Account System Design for Anvik Ops
+# Multi-Account System Design for ORRA
 
 **Status:** Ready for implementation  
 **Complexity:** Phase 4 → Phase 5 (integrates after board/notes)  
@@ -1310,7 +1310,7 @@ INSERT INTO public.audit_trail (
 
 **Day 1: Anadya connects multiple accounts**
 
-1. Anadya opens Anvik Ops, navigates to `/settings`.
+1. Anadya opens ORRA, navigates to `/settings`.
 2. Clicks [+ Add Google Account].
 3. Redirected to Google OAuth consent → selects `anadya@gmail.com` → grants scopes.
 4. Callback stores account in `external_accounts` with encrypted refresh token.

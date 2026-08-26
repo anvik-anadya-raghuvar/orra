@@ -304,7 +304,7 @@ supabase functions deploy
 ## 📝 File Manifest
 
 ```
-anvik-ops/
+orra/
 ├── MULTI-ACCOUNT-DESIGN.md                          (Main spec, ~2000 lines)
 ├── IMPLEMENTATION-CHECKLIST-MULTI-ACCOUNT.md         (Phase breakdown)
 ├── MULTI-ACCOUNT-INDEX.md                            (This file)

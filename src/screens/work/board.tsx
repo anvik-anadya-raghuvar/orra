@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2 } from 'lucide-react';
 import type { DayEvent, Dataset, Effort, Task, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { newId, nowIso, useData, useStore } from '../../data/store';
 import { Avatar, DraftRestored, SideSheet, TagChip, useToast } from '../../ui/bits';
@@ -10,7 +10,7 @@ import { entrance, lift, micro, spring, staggerItem, staggerParent } from '../..
 import { fmtDay, todayIso } from '../../lib/dates';
 import { makeTask } from '../../lib/taskFactory';
 import { stuckTasks } from '../../lib/ranking';
-import { awaitingThem, inboxTasks, isMyTask, myTasks, priorityDiffers } from '../../lib/workspace';
+import { assignedOut, awaitingThem, inboxTasks, isMyTask, myTasks, priorityDiffers } from '../../lib/workspace';
 import { notifyAcceptance, notifyAssignment, notifyPushback } from '../../lib/handoff';
 import { spawnNextOccurrence } from '../../lib/repeatActions';
 import { MiniBars } from '../../ui/viz';
@@ -334,6 +334,75 @@ function AwaitingThem({ tasks }: { tasks: Task[] }) {
   );
 }
 
+/**
+ * Everything I handed to the other person, accepted or not.
+ *
+ * `AwaitingThem` above clears itself the moment they acknowledge, which is
+ * right for chasing a handoff and useless for knowing what is on their plate.
+ * This one stays. Collapsed by default so it never pushes the board down.
+ */
+function HandedOut({ tasks }: { tasks: Task[] }) {
+  const other = useData((_, s) => s.other);
+  const [open, setOpen] = useState(false);
+  if (!tasks.length) return null;
+
+  const done = tasks.filter((t) => t.status === 'done').length;
+
+  return (
+    <motion.section
+      className="wk-inbox handed"
+      aria-label={`Assigned to ${other.name}`}
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0, transition: entrance }}
+    >
+      <button
+        type="button"
+        className="wk-inbox-hd wk-handed-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="eyebrow">Assigned to {other.name}</span>
+        <span className="mono">
+          {done}/{tasks.length} done
+        </span>
+        {/* Framer, not a CSS transform transition — this way the rotation
+            inherits the screen's MotionConfig reducedMotion="user". */}
+        <motion.span
+          style={{ display: 'inline-flex' }}
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={micro}
+          aria-hidden
+        >
+          <ChevronDown size={16} strokeWidth={1.8} />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.ul
+            className="wk-inbox-list"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto', transition: entrance }}
+            exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+          >
+            {tasks.map((t) => (
+              <li key={t.id}>
+                <div className="wk-inbox-row">
+                  <Link to={`/task/${t.id}`} className="wk-inbox-task">
+                    <span className="mono">{t.id}</span>
+                    <span className="wk-inbox-title">{t.title}</span>
+                    <span className={priBadgeClass(t.priority)}>{priBadge(t.priority)}</span>
+                  </Link>
+                  <span className="wk-inbox-state">{statusLabel(t.status)}</span>
+                </div>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </motion.section>
+  );
+}
+
 /* ── the card body, shared by kanban ──────────────────────────────────── */
 function TaskCard({
   t,
@@ -345,6 +414,7 @@ function TaskCard({
   waitingOn,
   childOf,
   dragging,
+  readOnly = false,
 }: {
   t: Task;
   ds: Dataset;
@@ -356,6 +426,8 @@ function TaskCard({
   waitingOn?: string;
   childOf: string | null;
   dragging: boolean;
+  /** Someone else's card: readable and openable, but not steerable from here. */
+  readOnly?: boolean;
 }) {
   const idx = STATUSES.findIndex((s) => s.key === t.status);
   const parent = childOf ? ds.tasks.find((x) => x.id === childOf) : null;
@@ -439,7 +511,7 @@ function TaskCard({
       <div className="wk-move">
         <button
           type="button"
-          disabled={idx <= 0}
+          disabled={readOnly || idx <= 0}
           aria-label={`Move ${t.id} to ${STATUSES[Math.max(0, idx - 1)].label}`}
           onClick={() => onMove(t, -1)}
         >
@@ -448,13 +520,18 @@ function TaskCard({
         <span className="wk-movelbl">{statusLabel(t.status)}</span>
         <button
           type="button"
-          disabled={idx >= STATUSES.length - 1}
+          disabled={readOnly || idx >= STATUSES.length - 1}
           aria-label={`Move ${t.id} to ${STATUSES[Math.min(STATUSES.length - 1, idx + 1)].label}`}
           onClick={() => onMove(t, 1)}
         >
           <ChevronRight size={18} strokeWidth={1.9} />
         </button>
-        <button type="button" aria-label={`Quick edit ${t.id}`} onClick={() => onEdit(t)}>
+        <button
+          type="button"
+          disabled={readOnly}
+          aria-label={`Quick edit ${t.id}`}
+          onClick={() => onEdit(t)}
+        >
           <Pencil size={16} strokeWidth={1.9} />
         </button>
       </div>
@@ -554,12 +631,22 @@ export default function BoardTab({
         return t.sprint_id === sprintSel;
     }
   };
-  /* This board is my workspace (principle 1). Everything below reads from
-     `mineAll` rather than ds.tasks, so a task the other person owns can never
-     leak into a column, a count, or the tag list. */
-  const mineAll = useMemo(() => myTasks(ds.tasks, store.meId), [ds.tasks, store.meId]);
+  /* Whose board is on screen. Defaults to mine; switching to the other person
+     is a read of work I can already reach through assignment (principle 1:
+     separation is focus, not secrecy). It is a view of this screen only —
+     never a portal-wide mode, and never persisted. */
+  const other = useData((_, s) => s.other);
+  const [scope, setScope] = useState<'mine' | 'theirs'>('mine');
+  const scopeId = scope === 'mine' ? store.meId : other.id;
+  const viewingTheirs = scope === 'theirs';
+
+  /* This board is one person's workspace (principle 1). Everything below reads
+     from `mineAll` rather than ds.tasks, so the two people's work can never
+     blend into a single column, count, or tag list. */
+  const mineAll = useMemo(() => myTasks(ds.tasks, scopeId), [ds.tasks, scopeId]);
   const inbox = useMemo(() => inboxTasks(ds.tasks, store.meId), [ds.tasks, store.meId]);
   const awaiting = useMemo(() => awaitingThem(ds.tasks, store.meId), [ds.tasks, store.meId]);
+  const handedOut = useMemo(() => assignedOut(ds.tasks, store.meId), [ds.tasks, store.meId]);
 
   const liveTags = useMemo(
     () => [...new Set([...ds.tags.map((tag) => tag.name), ...mineAll.flatMap((t) => t.tags)])].sort(),
@@ -576,8 +663,8 @@ export default function BoardTab({
   );
 
   const stuck = useMemo(
-    () => stuckTasks(ds).filter((s) => isMyTask(s.task, store.meId)),
-    [ds, store.meId],
+    () => stuckTasks(ds).filter((s) => isMyTask(s.task, scopeId)),
+    [ds, scopeId],
   );
   /* A card that cannot start yet says so, instead of looking available. */
   const waiting = useMemo(
@@ -609,7 +696,7 @@ export default function BoardTab({
       tags,
       stuckOnly,
       stuckReasons,
-      store.meId,
+      scopeId,
       sprintSel,
       current,
       archived,
@@ -729,7 +816,29 @@ export default function BoardTab({
     <div>
       <Inbox tasks={inbox} />
       <AwaitingThem tasks={awaiting} />
+      <HandedOut tasks={handedOut} />
       <ReflowBanner />
+
+      {/* whose board — a lens on this screen, never a portal-wide mode */}
+      <div className="wk-bar">
+        <span className="eyebrow">Board</span>
+        <div style={{ flex: '1 1 280px', maxWidth: 420 }}>
+          <Segment
+            value={scope}
+            onChange={setScope}
+            options={[
+              { key: 'mine' as const, label: 'Mine' },
+              { key: 'theirs' as const, label: other.name },
+            ]}
+            label="Whose board"
+          />
+        </div>
+        {viewingTheirs && (
+          <span className="tip" style={{ margin: 0 }}>
+            {other.name}'s board — read-only here. Open a task to comment or reassign.
+          </span>
+        )}
+      </div>
 
       {/* sprint scope — a filter on this board, never a mode for the portal */}
       <div className="wk-bar">
@@ -933,8 +1042,13 @@ export default function BoardTab({
                           /* Native DnD lives on this plain wrapper: framer-motion
                              claims onDragStart/onDragEnd for its own gestures and
                              would never forward them to the DOM. */
-                          draggable
+                          /* Their board is a read, not a remote control: moving
+                             someone else's card would change their day with no
+                             notice to them. Opening the task still works, and
+                             reassignment there is explicit and audited. */
+                          draggable={!viewingTheirs}
                           onDragStart={(e) => {
+                            if (viewingTheirs) return;
                             e.dataTransfer.effectAllowed = 'move';
                             e.dataTransfer.setData('text/plain', t.id);
                             setDragId(t.id);
@@ -967,6 +1081,7 @@ export default function BoardTab({
                             waitingOn={waiting.get(t.id)}
                             childOf={childOf}
                             dragging={dragId === t.id}
+                            readOnly={viewingTheirs}
                           />
                         </div>
                       ))}
@@ -1243,6 +1358,125 @@ function TimelineView({
   );
 }
 
+/* ── checklist, before the task exists ────────────────────────────────── */
+/**
+ * One drafted step. It carries its final `subtasks.id` from the moment it is
+ * typed: the id is what keeps a row identical to React across a reorder, so
+ * the list animates the move instead of unmounting and remounting rows that
+ * happen to share an index.
+ */
+type DraftStep = { id: string; title: string };
+
+/**
+ * The steps typed into the new-task sheet.
+ *
+ * Deliberately not `Checklist.tsx`: that one writes `subtasks` rows straight
+ * through the store on every keystroke-commit, which needs a `task_id` that a
+ * task being drafted does not have yet. Same rows, same order, just deferred
+ * until submit has a real id to hang them on.
+ */
+function DraftChecklist({
+  steps,
+  onChange,
+}: {
+  steps: DraftStep[];
+  onChange: (next: DraftStep[]) => void;
+}) {
+  const [draft, setDraft] = useState('');
+
+  const add = () => {
+    const title = draft.trim();
+    if (!title) return;
+    onChange([...steps, { id: newId('st'), title }]);
+    setDraft('');
+  };
+
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= steps.length) return;
+    const next = [...steps];
+    const [row] = next.splice(from, 1);
+    next.splice(to, 0, row);
+    onChange(next);
+  };
+
+  return (
+    <div className="wk-steps">
+      <motion.ul {...staggerParent()}>
+        <AnimatePresence initial={false}>
+          {steps.map((step, i) => (
+            <motion.li
+              key={step.id}
+              variants={staggerItem}
+              exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+              layout
+            >
+              <span className="wk-steps-n mono">{i + 1}</span>
+              <input
+                className="wk-in"
+                value={step.title}
+                aria-label={`Step ${i + 1}`}
+                onChange={(e) =>
+                  onChange(
+                    steps.map((s) => (s.id === step.id ? { ...s, title: e.target.value } : s)),
+                  )
+                }
+              />
+              <div className="wk-steps-acts">
+                <button
+                  type="button"
+                  className="wk-steps-btn"
+                  aria-label={`Move step ${i + 1} up`}
+                  disabled={i === 0}
+                  onClick={() => move(i, i - 1)}
+                >
+                  <ChevronUp size={15} strokeWidth={1.8} />
+                </button>
+                <button
+                  type="button"
+                  className="wk-steps-btn"
+                  aria-label={`Move step ${i + 1} down`}
+                  disabled={i === steps.length - 1}
+                  onClick={() => move(i, i + 1)}
+                >
+                  <ChevronDown size={15} strokeWidth={1.8} />
+                </button>
+                <button
+                  type="button"
+                  className="wk-steps-btn danger"
+                  aria-label={`Remove step ${i + 1}`}
+                  onClick={() => onChange(steps.filter((s) => s.id !== step.id))}
+                >
+                  <Trash2 size={15} strokeWidth={1.8} />
+                </button>
+              </div>
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </motion.ul>
+      <input
+        className="wk-in"
+        value={draft}
+        placeholder="+ Add a step, press Enter"
+        aria-label="Add a step"
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            add();
+          }
+        }}
+        onBlur={add}
+      />
+      {steps.length > 0 && (
+        <p className="tip">
+          {steps.length} step{steps.length === 1 ? '' : 's'} — they become the task's checklist,
+          tickable from the task page.
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ── new task ─────────────────────────────────────────────────────────── */
 function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ds = useData((d) => d);
@@ -1270,6 +1504,12 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [pins, setPins] = useState<DraftPin[]>([]);
   const [pinDraftOpen, setPinDraftOpen] = useState(false);
   const [shotBusy, setShotBusy] = useState(false);
+  /* The checklist written before the task exists. Same `subtasks` rows the
+     task page edits (principle 10) — they just cannot be inserted until the
+     task id they point at is real, so they are held here and flushed on
+     submit alongside the screenshots. */
+  const [steps, setSteps] = useState<DraftStep[]>([]);
+  const [saving, setSaving] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const lastTimestamp = useRef(0);
   const descriptionRef = useRef(description);
@@ -1323,8 +1563,9 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
      base64 apiece and would blow the localStorage quota on the second one. */
   const draft = useFormDraft(
     open ? 'work:new-task' : null,
-    { title, description, projectId, type, priority, assignee, due, tagText, effort, estimate },
+    { title, description, projectId, type, priority, assignee, due, tagText, effort, estimate, steps },
     (d) => {
+      if (d.steps !== undefined) setSteps(d.steps);
       if (d.title !== undefined) setTitle(d.title);
       if (d.description !== undefined) setDescription(d.description);
       if (d.projectId !== undefined) setProjectId(d.projectId);
@@ -1344,10 +1585,11 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
     setType('');
     setTagText('');
     setDecisionIds([]);
+    setSteps([]);
     draft.clear();
   };
 
-  const submit = () => {
+  const submit = async () => {
     const clean = title.trim();
     if (!clean) {
       toast('Give the task a clear title before creating it');
@@ -1369,25 +1611,55 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
     const labels = Array.from(
       new Set(tagText.split(',').map((label) => label.trim()).filter(Boolean)),
     );
-    store.insert(
-      'tasks',
-      makeTask({
-        id,
-        title: clean,
-        description,
-        project_id: projectId,
-        type,
-        priority,
-        assignee_id: assignee,
-        created_by: store.meId,
-        start_date: todayIso(),
-        due_date: due || null,
-        effort,
-        estimate_minutes: estimate,
-        tags: labels,
-      }),
-      store.asMe({ summary: `Task ${id} created — ${clean}` }),
-    );
+    /* Awaited, not optimistic. `screenshot_attachments`, `subtasks` and
+       `annotation_pins` all carry a FOREIGN KEY onto tasks(id), so firing
+       them off beside an unconfirmed parent lost whichever child raced the
+       task row — the observed failure was
+       "screenshot_attachments_task_id_fkey" on a task that itself saved fine.
+       insertConfirmed exists for exactly this ordering. */
+    setSaving(true);
+    try {
+      await store.insertConfirmed(
+        'tasks',
+        makeTask({
+          id,
+          title: clean,
+          description,
+          project_id: projectId,
+          type,
+          priority,
+          assignee_id: assignee,
+          created_by: store.meId,
+          start_date: todayIso(),
+          due_date: due || null,
+          effort,
+          estimate_minutes: estimate,
+          tags: labels,
+        }),
+        store.asMe({ summary: `Task ${id} created — ${clean}` }),
+      );
+    } catch {
+      // insertConfirmed already surfaced the reason through the sync banner.
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    // Every step keeps the order it was left in, blanks dropped.
+    steps
+      .filter((step) => step.title.trim())
+      .forEach((step, i) =>
+        store.insert(
+          'subtasks',
+          {
+            id: step.id,
+            task_id: id,
+            title: step.title.trim(),
+            completed: false,
+            position: i + 1,
+          },
+          store.asMe({ summary: `Step added to ${id}: ${step.title.trim()}` }),
+        ),
+      );
     // The evidence follows the task it belongs to, now that the id exists.
     shots.forEach((img) =>
       store.insert(
@@ -1456,6 +1728,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
     setDescription('');
     setTagText('');
     setDecisionIds([]);
+    setSteps([]);
     setShots([]);
     setPins([]);
     setPinDraftOpen(false);
@@ -1475,8 +1748,15 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           <button className="btn" type="button" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn solid" type="button" onClick={submit} disabled={shotBusy}>
-            Create task{pins.length ? ` · ${pins.length} pin${pins.length === 1 ? '' : 's'}` : ''}
+          <button
+            className="btn solid"
+            type="button"
+            onClick={() => void submit()}
+            disabled={shotBusy || saving}
+          >
+            {saving
+              ? 'Creating…'
+              : `Create task${pins.length ? ` · ${pins.length} pin${pins.length === 1 ? '' : 's'}` : ''}`}
           </button>
         </>
       }
@@ -1575,6 +1855,10 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
         </Field>
       </div>
 
+      <div style={{ height: 14 }} />
+      <Field label="Checklist · optional">
+        <DraftChecklist steps={steps} onChange={setSteps} />
+      </Field>
       <div style={{ height: 14 }} />
       <Field label="Labels · create anything">
         <input

@@ -1,4 +1,4 @@
-# Anvik Ops Edge Functions
+# ORRA Edge Functions
 
 Supabase Edge Functions for multi-account system, mail sync, and integrations.
 
@@ -279,7 +279,7 @@ supabase functions invoke sync/mail-fetch --local
 ## Future Enhancements
 
 1. **IMAP library integration** → Use actual IMAP client (currently stubbed)
-2. **Calendar sync** → Add Google Calendar events to Anvik Ops calendar
+2. **Calendar sync** → Add Google Calendar events to ORRA calendar
 3. **Drive sync** → Index shared Drive files in Knowledge tab
 4. **YouTube playlists** → Sync liked videos for song picker
 5. **Encryption rotation** → Annual refresh of encryption keys

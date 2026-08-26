@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../types';
 import {
+  assignedOut,
   awaitingThem,
   handoffState,
   inboxTasks,
@@ -147,5 +148,48 @@ describe('owned rows', () => {
 
   it('lists what still needs claiming', () => {
     expect(unclaimedRows(rows).map((r) => r.id)).toEqual(['c']);
+  });
+});
+
+describe('what I handed to the other person', () => {
+  it('keeps listing a task after they accept it', () => {
+    // the whole point: awaitingThem drops this row, assignedOut must not
+    const accepted = {
+      ...task({}),
+      id: 'T-1',
+      assignee_id: THEM,
+      created_by: ME,
+      acknowledged_at: '2026-08-20T09:00:00Z',
+    };
+    expect(awaitingThem([accepted], ME)).toEqual([]);
+    expect(assignedOut([accepted], ME).map((t) => t.id)).toEqual(['T-1']);
+  });
+
+  it('excludes my own work and work they assigned themselves', () => {
+    const all = [
+      { ...task({}), id: 'T-1', assignee_id: THEM, created_by: ME },
+      { ...task({}), id: 'T-2', assignee_id: ME, created_by: ME },
+      { ...task({}), id: 'T-3', assignee_id: THEM, created_by: THEM },
+      { ...task({}), id: 'T-4', assignee_id: null, created_by: ME },
+    ];
+    expect(assignedOut(all, ME).map((t) => t.id)).toEqual(['T-1']);
+  });
+
+  it('is the mirror image for the other person', () => {
+    const all = [
+      { ...task({}), id: 'T-1', assignee_id: THEM, created_by: ME },
+      { ...task({}), id: 'T-2', assignee_id: ME, created_by: THEM },
+    ];
+    expect(assignedOut(all, ME).map((t) => t.id)).toEqual(['T-1']);
+    expect(assignedOut(all, THEM).map((t) => t.id)).toEqual(['T-2']);
+  });
+
+  it('never overlaps with my own board', () => {
+    const all = [
+      { ...task({}), id: 'T-1', assignee_id: THEM, created_by: ME },
+      { ...task({}), id: 'T-2', assignee_id: ME, created_by: ME },
+    ];
+    const mine = new Set(myTasks(all, ME).map((t) => t.id));
+    expect(assignedOut(all, ME).filter((t) => mine.has(t.id))).toEqual([]);
   });
 });
