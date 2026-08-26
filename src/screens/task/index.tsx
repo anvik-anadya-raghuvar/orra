@@ -15,7 +15,7 @@ import { MAX_REPEAT_EVERY, REPEAT_UNITS, describeRepeat, normalizeRepeat } from 
 import { spawnNextOccurrence } from '../../lib/repeatActions';
 import { intentionRowForTask, intentionsFor } from '../../lib/dayPlan';
 import { stripInlineImageMarkers } from '../../ui/inlineImages';
-import { PRIORITIES, STATUSES } from '../work/common';
+import { PRIORITIES, STATUSES, typeLabel } from '../work/common';
 import { ProjectCombo, TypeCombo } from '../../ui/pickers';
 import Checklist from './Checklist';
 import Screenshots from './Screenshots';
@@ -627,11 +627,16 @@ function TaskDetail({ task }: { task: Task }) {
                 </div>
                 <div className="wide">
                   <label htmlFor="tf-type">Types — the first one decides which panels render below</label>
+                  {/* Through typeLabel, like the board card and the filter
+                      chips. Rendering the raw value here made one stored type
+                      read "pre launch" on this page and "Pre Launch" on the
+                      board -- the same split-in-two confusion 0046 just fixed
+                      in the data. */}
                   <FacetChips
                     label="types"
                     values={taskTypes(task)}
                     onChange={saveTypes}
-                    render={(value) => value}
+                    render={(value) => typeLabel(value)}
                   />
                   <TypeCombo
                     id="tf-type"

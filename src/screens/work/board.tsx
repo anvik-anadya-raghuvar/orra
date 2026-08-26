@@ -1888,7 +1888,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           />
         </Field>
         <Field label="Types · the first decides the task page's panels">
-          <FacetChips label="types" values={types} onChange={setTypes} render={(value) => value} />
+          <FacetChips label="types" values={types} onChange={setTypes} render={(value) => typeLabel(value)} />
           <TypeCombo
             className="wk-in"
             value=""

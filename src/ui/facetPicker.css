@@ -83,9 +83,14 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-.facet-toggles input[type='checkbox'] {
+/* `label input[type=…]` rather than `input[type=…]`: the task page's control
+   grid carries `.tpage .ctl input { width: 100% }`, which ties on specificity
+   and wins on source order, and rendered every one of these as a full-width
+   44px box with its name underneath. */
+.facet-toggles label input[type='checkbox'] {
   width: 20px;
   height: 20px;
+  min-height: 0;
   accent-color: var(--indigo);
   flex: none;
 }
