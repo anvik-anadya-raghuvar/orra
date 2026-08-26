@@ -1018,3 +1018,32 @@
 .tpage .tk-blocked p:last-child {
   margin-bottom: 0;
 }
+
+/* Viewing is the default click on a screenshot; pinning is armed first. The
+   crosshair is the only signal that the next click will place something, so
+   it is not decoration. */
+.tpage .shotsurf {
+  cursor: zoom-in;
+}
+.tpage .shotsurf.pinning {
+  cursor: crosshair;
+  outline: 2px solid var(--stamp);
+  outline-offset: -2px;
+}
+.tpage .shotacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.tpage .shotacts .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .tpage .shotacts .btn {
+    min-height: 34px;
+  }
+}

@@ -13,6 +13,7 @@ import {
 } from '../../ui/imagedrop';
 import { InlineImageContent, InlineImageEditor } from '../../ui/InlineImageEditor';
 import { FormattedText } from '../../ui/richText';
+import { ImageViewer, useImageViewer } from '../../ui/ImageViewer';
 import { SketchCanvas, SketchSvg } from '../../ui/SketchCanvas';
 import { makeSketch, sketchIsEmpty, type SketchData } from '../../lib/sketch';
 import {
@@ -168,6 +169,7 @@ export default function NotesTab({ initialQuery }: { initialQuery?: string } = {
 function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
   const store = useStore();
   const toast = useToast();
+  const viewer = useImageViewer();
   const canPushSubtasks = !!(note.task_id && note.checklist && note.checklist.some((c) => !c.done));
 
   const pushSubtasks = (e: React.MouseEvent) => {
@@ -290,6 +292,8 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
                 className="note-inline-image"
                 src={image.data_url}
                 alt={image.filename}
+                style={{ cursor: 'zoom-in' }}
+                onClick={() => viewer.open({ src: image.data_url, filename: image.filename, width: image.width, height: image.height })}
                 loading="lazy"
                 decoding="async"
                 width={image.width}
@@ -338,6 +342,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
           Make it a page
         </button>
       </div>
+      <ImageViewer image={viewer.image} onClose={viewer.close} />
     </motion.div>
   );
 }
@@ -345,6 +350,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
 function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () => void }) {
   const store = useStore();
   const toast = useToast();
+  const viewer = useImageViewer();
   const projects = useData((ds) => ds.projects);
   const tasks = useData((ds) => ds.tasks);
   const allTags = useData((ds) => ds.tags);
@@ -638,6 +644,8 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
               <img
                 src={image.data_url}
                 alt={image.filename}
+                style={{ cursor: 'zoom-in' }}
+                onClick={() => viewer.open({ src: image.data_url, filename: image.filename, width: image.width, height: image.height })}
                 loading="lazy"
                 decoding="async"
                 width={image.width}
@@ -767,6 +775,7 @@ function NoteEditor({ noteId, onClose }: { noteId: string | null; onClose: () =>
       />
 
       </div>
+      <ImageViewer image={viewer.image} onClose={viewer.close} />
     </SideSheet>
   );
 }

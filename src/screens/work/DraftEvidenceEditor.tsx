@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Eye, MapPin, Trash2 } from 'lucide-react';
 import { newId } from '../../data/store';
 import type { DroppedImage } from '../../ui/imagedrop';
 import { InlineImageEditor } from '../../ui/InlineImageEditor';
 import { appendMissingInlineImages } from '../../ui/inlineImages';
 import { PIN_LABELS } from '../../types';
 import { DictateField } from '../../ui/dictation';
+import { ImageViewer, useImageViewer } from '../../ui/ImageViewer';
 
 export interface DraftShot extends DroppedImage {
   id: string;
@@ -66,6 +67,11 @@ export default function DraftEvidenceEditor({
   onUnusableImage?: (message: string) => void;
 }) {
   const [openPin, setOpenPin] = useState<OpenPin | null>(null);
+  /** Which draft shot is armed for pin placement. Null = clicking views.
+   *  Same rule as the task page: you have to be able to look at your own
+   *  screenshot without annotating it. */
+  const [pinning, setPinning] = useState<string | null>(null);
+  const viewer = useImageViewer();
   const numbered = [...pins].sort(ordered);
   const numberOf = (id: string) => numbered.findIndex((pin) => pin.id === id) + 1;
 
@@ -144,11 +150,22 @@ export default function DraftEvidenceEditor({
             </header>
 
             <div
-              className="wk-draft-surface"
+              className={`wk-draft-surface${pinning === shot.id ? ' pinning' : ''}`}
               style={{ aspectRatio: `${shot.width} / ${shot.height}` }}
               role="group"
-              aria-label={`Pin surface for screenshot ${shotIndex + 1}`}
-              onClick={(event) => begin(event, shot.id)}
+              aria-label={
+                pinning === shot.id
+                  ? `${shot.filename}. Click the exact spot to place a pin.`
+                  : `${shot.filename}. Click to view it full size.`
+              }
+              onClick={(event) => {
+                if (pinning === shot.id) {
+                  begin(event, shot.id);
+                  setPinning(null);
+                } else {
+                  viewer.open({ src: shot.data_url, filename: shot.filename, width: shot.width, height: shot.height });
+                }
+              }}
             >
               <img
                 src={shot.data_url}
@@ -178,6 +195,27 @@ export default function DraftEvidenceEditor({
                   {pins.length + 1}
                 </span>
               )}
+            </div>
+
+            <div className="wk-draft-acts">
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() =>
+                  viewer.open({ src: shot.data_url, filename: shot.filename, width: shot.width, height: shot.height })
+                }
+              >
+                <Eye size={14} strokeWidth={1.9} aria-hidden /> View · save · copy
+              </button>
+              <button
+                type="button"
+                className="btn sm"
+                aria-pressed={pinning === shot.id}
+                onClick={() => setPinning(pinning === shot.id ? null : shot.id)}
+              >
+                <MapPin size={14} strokeWidth={1.9} aria-hidden />
+                {pinning === shot.id ? 'Click the spot…' : 'Place a pin'}
+              </button>
             </div>
 
             {drafting && openPin && (
@@ -254,6 +292,7 @@ export default function DraftEvidenceEditor({
         );
         }}
       />
+      <ImageViewer image={viewer.image} onClose={viewer.close} />
     </div>
   );
 }

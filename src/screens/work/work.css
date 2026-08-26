@@ -1365,3 +1365,31 @@ tr.wk-driftrow td {
   border-radius: 999px;
   padding: 3px 8px;
 }
+
+/* Draft screenshots: click views, pin placement is armed first — same rule as
+   the task page, since it is the same gesture on the same kind of thing. */
+.wk-draft-surface {
+  cursor: zoom-in;
+}
+.wk-draft-surface.pinning {
+  cursor: crosshair;
+  outline: 2px solid var(--stamp);
+  outline-offset: -2px;
+}
+.wk-draft-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.wk-draft-acts .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+@media (min-width: 1025px) {
+  .wk-draft-acts .btn {
+    min-height: 34px;
+  }
+}

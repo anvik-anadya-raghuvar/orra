@@ -1,0 +1,67 @@
+/* Full-screen image viewer. Mobile-first: the bar wraps and the image takes
+   whatever is left. Sits above everything, including the companion. */
+.imgview {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(8, 6, 18, 0.92);
+  backdrop-filter: blur(6px);
+}
+.imgview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 1100px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf);
+}
+.imgview-bar .spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.imgview-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  color: var(--mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.imgview-bar .btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.imgview-img {
+  max-width: 100%;
+  /* Leaves room for the bar and the hint without either being pushed off. */
+  max-height: calc(100vh - 190px);
+  object-fit: contain;
+  border-radius: 12px;
+  background: var(--surf2);
+}
+.imgview-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--mute);
+}
+@media (min-width: 1025px) {
+  .imgview-bar .btn {
+    min-height: 36px;
+  }
+  .imgview-img {
+    max-height: calc(100vh - 170px);
+  }
+}

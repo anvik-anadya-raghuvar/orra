@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Eye, MapPin, RotateCcw, Trash2 } from 'lucide-react';
 import { newId, useDataset, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
 import { entrance, spring } from '../../ui/motion';
@@ -8,6 +8,7 @@ import { pinNumber } from '../../lib/exportTask';
 import { prettyBytes } from '../../lib/imageCompress';
 import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
 import { InlineImageEditor } from '../../ui/InlineImageEditor';
+import { ImageViewer, useImageViewer } from '../../ui/ImageViewer';
 import {
   appendMissingInlineImages,
   insertInlineImages,
@@ -85,6 +86,9 @@ export default function Screenshots({
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Which screenshot is armed for pin placement. Null = clicking views. */
+  const [pinning, setPinning] = useState<string | null>(null);
+  const viewer = useImageViewer();
 
   const shots = ds.screenshot_attachments.filter((s) => s.task_id === task.id).sort(byCreated);
   const placedDescription = appendMissingInlineImages(description, shots.map((shot) => shot.id));
@@ -130,6 +134,9 @@ export default function Screenshots({
       store.asMe({ summary: `Pin added on ${shot.filename}` }),
     );
     setDraft(null);
+    // Placing a pin disarms the mode: leaving it armed turns the next
+    // click meant to look at the image into another pin.
+    setPinning(null);
     setSelected(row.id);
   };
 
@@ -250,12 +257,23 @@ export default function Screenshots({
                   <Trash2 size={15} strokeWidth={1.8} />
                 </button>
               </div>
+              {/* Clicking used to go straight into placing a pin, which meant
+                  there was no way to simply look at your own screenshot. View
+                  is the default now; pinning is a mode you turn on, because
+                  precise placement still needs a click on the exact spot. */}
               <div
-                className="shotsurf"
+                className={`shotsurf${pinning === shot.id ? ' pinning' : ''}`}
                 style={{ aspectRatio: `${shot.width} / ${shot.height}` }}
-                onClick={(e) => startDraft(e, shot)}
+                onClick={(e) => {
+                  if (pinning === shot.id) startDraft(e, shot);
+                  else viewer.open({ src: shot.data_url ?? '', filename: shot.filename, width: shot.width, height: shot.height });
+                }}
                 role="group"
-                aria-label={`Annotation surface for ${shot.filename}. Click to place a pin.`}
+                aria-label={
+                  pinning === shot.id
+                    ? `${shot.filename}. Click the exact spot to place a pin.`
+                    : `${shot.filename}. Click to view it full size.`
+                }
               >
                 {shot.data_url ? (
                   <img
@@ -337,7 +355,7 @@ export default function Screenshots({
                         e.preventDefault();
                         commitDraft(shot);
                       }
-                      if (e.key === 'Escape') setDraft(null);
+                      if (e.key === 'Escape') { setDraft(null); setPinning(null); }
                     }}
                   />
                   {/* Categorising the pin is what lets the exported TASK.md
@@ -384,7 +402,7 @@ export default function Screenshots({
                     <button className="btn solid sm" onClick={() => commitDraft(shot)}>
                       Add pin
                     </button>
-                    <button className="btn sm" onClick={() => setDraft(null)}>
+                    <button className="btn sm" onClick={() => { setDraft(null); setPinning(null); }}>
                       Cancel
                     </button>
                   </div>
@@ -393,13 +411,33 @@ export default function Screenshots({
             </AnimatePresence>
 
             {!isDrafting && (
-              <button
-                className="btn sm"
-                style={{ marginTop: 4 }}
-                onClick={() => setDraft({ shotId: shot.id, x: 50, y: 50, note: '' })}
-              >
-                + Pin at centre
-              </button>
+              <div className="shotacts">
+                <button
+                  className="btn sm"
+                  type="button"
+                  onClick={() =>
+                    viewer.open({ src: shot.data_url ?? '', filename: shot.filename, width: shot.width, height: shot.height })
+                  }
+                >
+                  <Eye size={14} strokeWidth={1.9} aria-hidden /> View · save · copy
+                </button>
+                <button
+                  className="btn sm"
+                  type="button"
+                  aria-pressed={pinning === shot.id}
+                  onClick={() => setPinning(pinning === shot.id ? null : shot.id)}
+                >
+                  <MapPin size={14} strokeWidth={1.9} aria-hidden />
+                  {pinning === shot.id ? 'Click the spot…' : 'Place a pin'}
+                </button>
+                <button
+                  className="btn sm"
+                  type="button"
+                  onClick={() => setDraft({ shotId: shot.id, x: 50, y: 50, note: '' })}
+                >
+                  + Pin at centre
+                </button>
+              </div>
             )}
 
             <AnimatePresence initial={false}>
@@ -497,6 +535,7 @@ export default function Screenshots({
       <p className="none" style={{ marginTop: 6 }}>
         Images are compressed in the browser, then kept inline. Tap an image to place a numbered pin.
       </p>
+      <ImageViewer image={viewer.image} onClose={viewer.close} />
     </section>
   );
 }
