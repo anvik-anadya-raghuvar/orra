@@ -5,6 +5,7 @@ import { useToast } from '../../ui/bits';
 import { entrance, spring, staggerItem, staggerParent } from '../../ui/motion';
 import { todayIso } from '../../lib/dates';
 import { rankTasks } from '../../lib/ranking';
+import { taskProjects } from '../../lib/taskFacets';
 import { BarRows, MiniBars, Ring, VIZ } from '../../ui/viz';
 import { Field, projColor, projName } from './common';
 import QuickEdit from './quickedit';
@@ -60,7 +61,13 @@ export default function GoalsTab() {
   };
 
   const drifting = ds.tasks.filter(
-    (t) => t.status !== 'done' && !personalProjects.has(t.project_id) && !t.objective_id,
+    (t) =>
+      t.status !== 'done' &&
+      // Any business project counts, matching rankTasks. Reading only the
+      // primary was a leftover from before 0045 and would have hidden a task
+      // from this list that the ranking table below still ranked.
+      taskProjects(t).some((id) => !personalProjects.has(id)) &&
+      !t.objective_id,
   );
 
   /** average KR progress per objective — drives the Ring on each card and the MiniBars snapshot. */
