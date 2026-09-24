@@ -1,0 +1,219 @@
+/* Overdue triage sheet (ui/OverdueTriage.tsx). Theme tokens only.
+   Mobile-first: rows stack, action buttons wrap, every control is 44px tall
+   on phones and tablets. */
+
+.ot-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--rose) 45%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rose) 9%, var(--surf));
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.16s linear, border-color 0.16s linear;
+}
+.ot-entry:hover,
+.ot-entry:focus-visible {
+  background: color-mix(in srgb, var(--rose) 16%, var(--surf));
+}
+.ot-entry:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+.ot-entry-n {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--rose);
+  color: #fff;
+  font-size: 11px;
+}
+
+.ot-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ot-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf);
+  transition: border-color 0.16s linear, background-color 0.16s linear;
+}
+.ot-row.decided {
+  border-color: var(--indigo);
+  background: var(--indigo-s, var(--surf));
+}
+.ot-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ot-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.ot-check input[type='checkbox'] {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 12px 0 0;
+  accent-color: var(--indigo);
+}
+.ot-check > span {
+  padding-top: 11px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ot-title {
+  font-size: 13.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ot-id {
+  color: var(--mute);
+  font-size: 11px;
+}
+.ot-late {
+  font-size: 11px;
+  color: var(--rose);
+  padding-left: 30px;
+}
+.ot-diff {
+  font-size: 12px;
+  color: var(--mute);
+}
+.ot-diff s {
+  color: var(--rose);
+}
+.ot-diff b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ot-acts,
+.ot-decision {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.ot-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background-color 0.16s linear, border-color 0.16s linear;
+}
+.ot-btn:hover {
+  border-color: var(--indigo);
+}
+.ot-btn:focus-visible,
+.ot-date:focus-within {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+/* The native date input fills the chip invisibly: tapping anywhere on it
+   opens the platform picker, no hidden-input tricks needed. */
+.ot-date input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+}
+.ot-date input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.ot-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--indigo);
+  color: #fff;
+  font-size: 12.5px;
+}
+
+@media (min-width: 641px) {
+  .ot-head {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .ot-late {
+    padding: 13px 0 0;
+    white-space: nowrap;
+  }
+  .ot-bulk {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* Desktop: a pointer is precise, so controls can be a little denser. */
+@media (min-width: 1025px) {
+  .ot-btn {
+    min-height: 36px;
+  }
+  .ot-entry {
+    min-height: 38px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ot-entry,
+  .ot-row,
+  .ot-btn {
+    transition: none;
+  }
+}

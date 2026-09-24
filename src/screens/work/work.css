@@ -1393,3 +1393,64 @@ tr.wk-driftrow td {
     min-height: 34px;
   }
 }
+
+/* ── new task: required fields, inline errors, quick due dates ─────────── */
+.wk-reqtag {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+.wk-req.invalid .wk-reqtag {
+  border-color: var(--rose);
+  color: var(--rose);
+}
+.wk-in.invalid,
+.wk-req.invalid .wk-in {
+  border-color: var(--rose);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rose) 18%, transparent);
+}
+.wk-err {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  color: var(--rose);
+}
+.wk-duepicks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.wk-duepick {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surf);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background-color 0.16s linear, border-color 0.16s linear;
+}
+.wk-duepick[aria-pressed='true'] {
+  border-color: var(--indigo);
+  background: var(--indigo-s, var(--surf));
+}
+.wk-duepick:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+@media (min-width: 1025px) {
+  .wk-duepick {
+    min-height: 34px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wk-duepick {
+    transition: none;
+  }
+}

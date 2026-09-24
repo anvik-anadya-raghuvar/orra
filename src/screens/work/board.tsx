@@ -26,6 +26,7 @@ import DraftEvidenceEditor, { type DraftPin, type DraftShot } from './DraftEvide
 import { blockedByOpenDep } from '../../lib/schedule';
 import { minToLabel } from '../../lib/dayPlan';
 import { ProjectCombo, TypeCombo } from '../../ui/pickers';
+import { OverdueTriageButton } from '../../ui/OverdueTriage';
 import {
   Field,
   PRIORITIES,
@@ -610,7 +611,11 @@ export default function BoardTab({
   const store = useStore();
   const toast = useToast();
 
-  const [view, setView] = useState<View>('kanban');
+  // `?view=` from a link (Home's "Work calendar"); Work keys this tab on it.
+  const [view, setView] = useState<View>(() => {
+    const asked = new URLSearchParams(window.location.search).get('view');
+    return asked === 'list' || asked === 'calendar' || asked === 'timeline' ? asked : 'kanban';
+  });
   const [colLimits, setColLimits] = useState<Record<string, number>>({});
   const [listLimit, setListLimit] = useState(50);
   const [projects, setProjects] = useState<Set<string>>(new Set());
@@ -873,6 +878,9 @@ export default function BoardTab({
             {other.name}'s board — read-only here. Open a task to comment or reassign.
           </span>
         )}
+        {/* Always my overdue pile, whichever board is on screen: triage
+            only ever proposes changes to my own tasks. Hidden at zero. */}
+        <OverdueTriageButton />
       </div>
 
       {/* sprint scope — a filter on this board, never a mode for the portal */}
@@ -1514,6 +1522,89 @@ function DraftChecklist({
 }
 
 /* ── new task ─────────────────────────────────────────────────────────── */
+
+/** Local-date ISO `n` days after today. */
+function isoInDays(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return todayIso(d);
+}
+
+/** Explicit one-tap due dates. "No date" is a real choice, and the default. */
+function duePicks(): { label: string; value: string }[] {
+  return [
+    { label: 'No date', value: '' },
+    { label: 'Today', value: todayIso() },
+    { label: 'Tomorrow', value: isoInDays(1) },
+    { label: 'Next week', value: isoInDays(7) },
+  ];
+}
+
+/**
+ * A required field group in the new-task sheet. Says "required" up front, and
+ * after a failed Create marks the field invalid with an inline message wired
+ * to the input by aria-invalid + aria-describedby — the combo input lives in
+ * ui/pickers, which has no props for those, so they are set on it by id.
+ */
+function RequiredGroup({
+  id,
+  label,
+  invalid,
+  inputId,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  invalid: boolean;
+  inputId: string;
+  error: string;
+  children: React.ReactNode;
+}) {
+  const errId = `${id}-err`;
+  const lblId = `${id}-lbl`;
+  const reduced = useReducedMotion();
+  React.useEffect(() => {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.setAttribute('aria-required', 'true');
+    input.setAttribute('aria-labelledby', lblId);
+    input.removeAttribute('aria-label');
+    if (invalid) {
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', errId);
+    } else {
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+    }
+  });
+  return (
+    <div role="group" aria-labelledby={lblId} className={invalid ? 'wk-req invalid' : 'wk-req'}>
+      <label className="wk-lbl" id={lblId} htmlFor={inputId}>
+        {label} <span className="wk-reqtag">required</span>
+      </label>
+      {/* Above the field, not below: focusing the combo opens its list, which
+          would otherwise cover the very message explaining why. */}
+      <AnimatePresence initial={false}>
+        {invalid && (
+          <motion.p
+            id={errId}
+            className="wk-err"
+            role="alert"
+            initial={reduced ? false : { opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={reduced ? { duration: 0 } : micro}
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      {children}
+    </div>
+  );
+}
+
 function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ds = useData((d) => d);
   const store = useStore();
@@ -1528,7 +1619,46 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [types, setTypes] = useState<TaskType[]>([]);
   const [priority, setPriority] = useState<TaskPriority>('normal');
   const [assignees, setAssignees] = useState<string[]>([store.meId]);
-  const [due, setDue] = useState(todayIso());
+  /* No due date unless you give one. Prefilling today put every new task in
+     "due today" and, a day later, in the overdue pile — the bell filled with
+     dates nobody chose. The quick picks below make a real choice one tap. */
+  const [due, setDue] = useState('');
+  /* Which required fields the last Create attempt found empty. Cleared per
+     field as soon as it is filled. */
+  const [missing, setMissing] = useState<{ project: boolean; type: boolean }>({
+    project: false,
+    type: false,
+  });
+  if (missing.project && projectIds.length) setMissing((m) => ({ ...m, project: false }));
+  if (missing.type && types.length) setMissing((m) => ({ ...m, type: false }));
+
+  /* The common case is one tap: open on the project and type of the last task
+     I created. Applied during render on the open transition (not in an
+     effect) so the draft hook's "as it opened" snapshot already includes
+     them — otherwise an untouched sheet would count as a draft. */
+  const recentDefaults = () => {
+    let latest: Task | null = null;
+    for (const t of ds.tasks) {
+      if (t.created_by !== store.meId) continue;
+      if (!latest || t.created_at > latest.created_at) latest = t;
+    }
+    if (!latest) return { projectIds: [] as string[], types: [] as TaskType[] };
+    const project = ds.projects.find((p) => p.id === latest!.project_id);
+    return {
+      projectIds: project ? [project.id] : [],
+      types: latest.type ? [latest.type] : [],
+    };
+  };
+  const [openSeen, setOpenSeen] = useState(false);
+  if (open !== openSeen) {
+    setOpenSeen(open);
+    if (open) {
+      const d = recentDefaults();
+      if (!projectIds.length && d.projectIds.length) setProjectIds(d.projectIds);
+      if (!types.length && d.types.length) setTypes(d.types);
+      setMissing({ project: false, type: false });
+    }
+  }
   const [tagText, setTagText] = useState('');
   const [decisionIds, setDecisionIds] = useState<string[]>([]);
   /* Screenshots captured while writing the task, attached the moment it
@@ -1580,7 +1710,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       addShot(image, nextOffset);
       nextOffset = descriptionCaret.current;
     })
-      .then(() => toast('Image inserted — click it to pin the exact change'))
+      .then(() => toast('Image inserted — use Place a pin, then tap where the change is'))
       .catch((err: Error) => toast(err.message || 'That image could not be pasted'))
       .finally(() => setShotBusy(false));
   };
@@ -1616,9 +1746,12 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
   );
 
   const startBlank = () => {
+    const d = recentDefaults();
     setTitle('');
     setDescription('');
-    setTypes([]);
+    setProjectIds(d.projectIds);
+    setTypes(d.types);
+    setDue('');
     setTagText('');
     setDecisionIds([]);
     setSteps([]);
@@ -1631,12 +1764,25 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       toast('Give the task a clear title before creating it');
       return;
     }
-    if (!projectIds.length) {
-      toast('Pick a project, or create one, before creating the task');
-      return;
-    }
-    if (!types.length) {
-      toast('Pick a task type, or create one, before creating the task');
+    if (!projectIds.length || !types.length) {
+      const miss = { project: !projectIds.length, type: !types.length };
+      setMissing(miss);
+      // Take them to the first empty one rather than leaving a toast to decode.
+      const first = document.getElementById(miss.project ? 'nt-project' : 'nt-type');
+      if (first) {
+        first.scrollIntoView({
+          block: 'center',
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        });
+        first.focus({ preventScroll: true });
+      }
+      toast(
+        miss.project && miss.type
+          ? 'Pick a project and a type to create the task'
+          : miss.project
+            ? 'Pick a project to create the task'
+            : 'Pick a type to create the task',
+      );
       return;
     }
     if (pinDraftOpen) {
@@ -1854,7 +2000,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           setBusy={setShotBusy}
           compact
           label={shots.length ? 'Insert another image here' : 'Insert an image here'}
-          hint="Paste with Ctrl+V, drop a file, or click to browse — then click the image to add numbered change requests"
+          hint="Paste with Ctrl+V, drop a file, or click to browse — then use Place a pin and tap where each change is"
         />
         {/* Read-only here: the boxes are a preview of what the brief will
             carry, and there is no task row to tick against until submit. */}
@@ -1862,7 +2008,13 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       </Field>
       <div style={{ height: 11 }} />
       <div className="wk-ctl">
-        <Field label="Projects · the first is the primary">
+        <RequiredGroup
+          id="nt-project-group"
+          label="Projects · the first is the primary"
+          invalid={missing.project}
+          inputId="nt-project"
+          error="Pick a project, or type a new one."
+        >
           <FacetChips
             label="projects"
             values={projectIds}
@@ -1873,12 +2025,13 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
           {/* Opens empty every time: this combo ADDS, and a value sitting in
               it would read as "the project", the singular this stopped being. */}
           <ProjectCombo
-            className="wk-in"
+            id="nt-project"
+            className={`wk-in${missing.project ? ' invalid' : ''}`}
             value=""
             placeholder="Add a project, or type a new one"
             onChange={(id) => id && setProjectIds((prev) => (prev.includes(id) ? prev : [...prev, id]))}
           />
-        </Field>
+        </RequiredGroup>
         <Field label="Assignees">
           <FacetToggles
             label="assignees"
@@ -1887,21 +2040,50 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
             onChange={setAssignees}
           />
         </Field>
-        <Field label="Types · the first decides the task page's panels">
+        <RequiredGroup
+          id="nt-type-group"
+          label="Types · the first decides the task page's panels"
+          invalid={missing.type}
+          inputId="nt-type"
+          error="Pick a type, or type a new one."
+        >
           <FacetChips label="types" values={types} onChange={setTypes} render={(value) => typeLabel(value)} />
           <TypeCombo
-            className="wk-in"
+            id="nt-type"
+            className={`wk-in${missing.type ? ' invalid' : ''}`}
             value=""
             placeholder="Add a type, or type a new one"
             onChange={(t) => t && setTypes((prev) => (prev.includes(t) ? prev : [...prev, t]))}
           />
-        </Field>
+        </RequiredGroup>
         <Field label="Priority">
           <Segment value={priority} onChange={setPriority} options={PRIORITIES} label="Priority" />
         </Field>
-        <Field label="Due date">
-          <input className="wk-in" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
-        </Field>
+        <div role="group" aria-labelledby="nt-due-lbl">
+          <label className="wk-lbl" id="nt-due-lbl" htmlFor="nt-due">
+            Due date · optional
+          </label>
+          <input
+            id="nt-due"
+            className="wk-in"
+            type="date"
+            value={due}
+            onChange={(e) => setDue(e.target.value)}
+          />
+          <div className="wk-duepicks" role="group" aria-label="Quick due dates">
+            {duePicks().map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                className="wk-duepick"
+                aria-pressed={due === p.value}
+                onClick={() => setDue(p.value)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <Field label="Effort">
           <div className="wk-seg">
             {(['light', 'medium', 'heavy'] as Effort[]).map((e) => (

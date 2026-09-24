@@ -48,6 +48,7 @@ import VikHouse from './VikHouse';
 import VikStatus from './VikStatus';
 import { useHideTarget } from './useHideTarget';
 import { useVikBounds } from './useVikBounds';
+import { useTuckAway } from './useTuckAway';
 import { useVikChase } from './useVikChase';
 import { useVikGame } from './useVikGame';
 import { useAppPresence } from './useAppPresence';
@@ -73,7 +74,9 @@ const VikGameLayer = lazy(() => import('./VikGameLayer'));
 
 /** Money, Admin and People: he shrinks, stops volunteering, and leaves the house behind. */
 const DENSE = ['/money', '/admin', '/people'];
-const SIZE = { normal: 58, dense: 36 };
+/* Phones get a smaller robot: at 58px he covered real content at 375px wide.
+   The button around him keeps its 44px minimum either way. */
+const SIZE = { normal: 58, phone: 42, dense: 36 };
 
 /** How he looks while you are busy with something else. */
 const REACTION_POSE: Record<string, VikPose | null> = {
@@ -157,7 +160,9 @@ export default function Companion() {
 
   // Hide and seek plays against the real page, so it needs the real geometry.
   const bounds = useVikBounds();
-  const spriteW = dense ? SIZE.dense : SIZE.normal;
+  // On a phone he steps aside while you type, pin or have a sheet open.
+  const { phone, tucked } = useTuckAway();
+  const spriteW = dense ? SIZE.dense : phone ? SIZE.phone : SIZE.normal;
   const hideTarget = useHideTarget(bounds, spriteW, (spriteW * 74) / 64);
   const [hideState, setHideState] = useState<hideSeek.HideState | null>(null);
   // Catch him: he flees the cursor across the whole safe area, not just the dock.
@@ -530,8 +535,9 @@ export default function Companion() {
 
   return (
     <div
-      className={`companion${dense ? ' dense' : ''}`}
+      className={`companion${dense ? ' dense' : ''}${phone ? ' phone' : ''}${tucked ? ' tucked' : ''}`}
       ref={boundsRef}
+      aria-hidden={tucked || undefined}
       // His own accent colour, picked in Customise. Unset falls back to the
       // theme's --indigo inside companion.css, so this is a no-op by default.
       style={color ? ({ '--vik-accent': `var(--${color})` } as React.CSSProperties) : undefined}

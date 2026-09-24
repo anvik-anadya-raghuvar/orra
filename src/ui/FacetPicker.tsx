@@ -103,6 +103,7 @@ export function FacetToggles({
           <label key={option.id} className={on ? 'on' : undefined}>
             <input
               type="checkbox"
+              aria-label={option.name}
               checked={on}
               disabled={!on && values.length >= MAX_FACET}
               onChange={() =>

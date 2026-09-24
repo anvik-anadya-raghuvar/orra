@@ -108,7 +108,7 @@ export default function DraftEvidenceEditor({
       {shots.length > 0 && <div className="wk-draft-intro">
         <b>Pin the change while it is still obvious.</b>
         <span>
-          Click any screenshot, write what should change, and add the pin. The sequence runs across
+          Use Place a pin, tap the spot, write what should change, and add the pin. The sequence runs across
           every image — returning to screenshot 1 later still creates the next number.
         </span>
       </div>}
