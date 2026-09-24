@@ -20,7 +20,7 @@
  * Deploy:  npx supabase functions deploy ics --no-verify-jwt
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { addDays, buildIcs, icsBusy, isValidTimeZone, zonedParts } from '../../../src/lib/booking.ts';
+import { addDays, buildIcs, icsBusy, isValidTimeZone, zonedParts } from '../_shared/booking.ts';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{32,128}$/;
 

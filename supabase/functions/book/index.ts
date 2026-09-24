@@ -18,7 +18,7 @@
  *   · an unknown slug and a switched-off page answer identically, so the
  *     endpoint cannot be used to discover which slugs exist
  *
- * Slot maths is src/lib/booking.ts — the exact code the tests cover and the
+ * Slot maths is ../_shared/booking.ts (re-exported to the app as src/lib/booking.ts) — the exact code the tests cover and the
  * browser renders with. It has no imports so Deno can load it directly.
  *
  * Deploy:  npx supabase functions deploy book --no-verify-jwt
@@ -42,7 +42,7 @@ import {
   zonedParts,
   type Interval,
   type Slot,
-} from '../../../src/lib/booking.ts';
+} from '../_shared/booking.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
