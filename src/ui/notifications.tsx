@@ -143,7 +143,12 @@ function useDesktopNotifications() {
         try {
           const reg = await navigator.serviceWorker?.getRegistration();
           if (reg) {
-            await reg.showNotification(title, { body, tag: 'orra-message', icon: '/icons/icon-192.png' });
+            await reg.showNotification(title, {
+              body,
+              tag: 'orra-message',
+              icon: '/icons/icon-192.png',
+              badge: '/icons/badge-96.png', // white-on-transparent, for Android's status bar
+            });
             return;
           }
         } catch {

@@ -109,7 +109,10 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(title, {
       body: data.body || '',
       icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      // The status-bar icon. Android draws it from the alpha channel alone,
+      // so the full-colour square app icon rendered as a solid white block;
+      // this is the OR glyph as white-on-transparent (design/icon-source.png).
+      badge: '/icons/badge-96.png',
       // Same tag replaces rather than stacks, so five due-date pushes in a
       // morning are one line on the lock screen instead of five.
       tag: data.tag || 'orra',
