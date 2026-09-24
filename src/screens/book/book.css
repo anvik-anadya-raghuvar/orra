@@ -1,0 +1,428 @@
+/* ── Public booking page (bk-) and the settings card (bks-) ──────────────
+   Mobile-first: everything below is the phone layout; the container query
+   at the end widens it. Every control is at least 44×44. Only colour and
+   opacity use CSS transitions — movement is Framer Motion's. */
+
+.bk-shell {
+  min-height: 100dvh;
+  padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  container-type: inline-size;
+}
+.bk-card {
+  width: 100%;
+  max-width: 880px;
+  padding: 20px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--rl);
+  background: var(--surf-dense);
+  box-shadow: var(--sh1);
+  container-type: inline-size;
+}
+.bk-center {
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.bk-head {
+  margin-bottom: 18px;
+}
+.bk-title {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 4px 0 6px;
+}
+.bk-sub,
+.bk-zone,
+.bk-fine {
+  color: var(--slate);
+  font-size: 14px;
+  margin: 0;
+}
+.bk-fine {
+  font-size: 12.5px;
+  color: var(--mute);
+}
+.bk-h2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate);
+  margin: 0 0 8px;
+}
+.bk-block {
+  margin-bottom: 18px;
+  min-width: 0;
+}
+.bk-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bk-btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+.bk-chip,
+.bk-slot,
+.bk-day {
+  min-height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--line);
+  background: var(--surf2);
+  border-radius: var(--r);
+  color: var(--ink);
+  font-size: 14px;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.bk-chip {
+  padding: 0 16px;
+}
+.bk-chip[aria-checked='true'],
+.bk-day[aria-checked='true'] {
+  background: var(--ink);
+  color: var(--surf-solid);
+  border-color: var(--ink);
+}
+.bk-slot:hover,
+.bk-chip:hover,
+.bk-day:hover,
+.bk-slot:focus-visible {
+  border-color: var(--indigo);
+}
+
+/* Day strip: a horizontal scroller of day buttons on phones. It is a picker,
+   not a data table, so sideways scrolling is the native idiom here. */
+.bk-days {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+.bk-day {
+  flex: none;
+  width: 64px;
+  padding: 8px 0;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  scroll-snap-align: start;
+}
+.bk-day-wd,
+.bk-day-m {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.bk-day-n {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.bk-slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+}
+.bk-slot {
+  width: 100%;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.bk-empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 12px 0;
+}
+.bk-notice,
+.bk-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  font-size: 14px;
+  margin: 0 0 14px;
+}
+.bk-notice {
+  background: var(--stamp-s);
+  color: var(--stamp);
+}
+.bk-error {
+  background: var(--rose-s);
+  color: var(--rose);
+}
+.bk-x {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 20px;
+  color: inherit;
+}
+
+.bk-picked {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--indigo-s);
+  margin-bottom: 16px;
+}
+.bk-picked-when {
+  font-weight: 600;
+  margin: 0;
+}
+.bk-form {
+  display: grid;
+  gap: 14px;
+}
+.bk-form label,
+.bks-form label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--slate);
+}
+.bk-form input,
+.bk-form textarea,
+.bks-form input,
+.bks-form select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surf2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px; /* 16px stops iOS zooming into the field */
+  transition: border-color 0.15s;
+}
+.bk-form input:focus,
+.bk-form textarea:focus,
+.bks-form input:focus,
+.bks-form select:focus {
+  outline: none;
+  border-color: var(--indigo);
+}
+.bk-form textarea {
+  resize: vertical;
+}
+.bk-opt,
+.bk-count {
+  font-size: 11.5px;
+  color: var(--mute);
+}
+.bk-count {
+  justify-self: end;
+}
+.bk-submit {
+  width: 100%;
+}
+.bk-submit[disabled] {
+  opacity: 0.6;
+}
+.bk-tick {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  background: var(--teal-s);
+  color: var(--teal);
+  margin-bottom: 4px;
+}
+.bk-foot {
+  margin-top: 14px;
+  font-size: 11.5px;
+  color: var(--mute);
+}
+
+/* Tablet and up: more air; desktop: days become a column beside the times. */
+@container (min-width: 600px) {
+  .bk-card {
+    padding: 28px 28px;
+  }
+  .bk-title {
+    font-size: 28px;
+  }
+}
+@container (min-width: 760px) {
+  .bk-pick {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .bk-days {
+    flex-direction: column;
+    overflow: visible;
+    max-height: 460px;
+    overflow-y: auto;
+  }
+  .bk-day {
+    width: 100%;
+    grid-template-columns: auto auto 1fr;
+    justify-items: start;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 14px;
+  }
+}
+
+/* ── settings card ───────────────────────────────────────────────────── */
+.bks {
+  display: grid;
+  gap: 16px;
+  container-type: inline-size;
+}
+.bks-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bks-form {
+  display: grid;
+  gap: 14px;
+}
+.bks-pair {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.bks-switch {
+  flex: none;
+  min-width: 64px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--slate);
+}
+.bks-track {
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--line);
+  padding: 3px;
+  display: flex;
+  transition: background-color 0.15s;
+}
+.bks-switch[aria-checked='true'] .bks-track {
+  background: var(--teal);
+  justify-content: flex-end;
+}
+.bks-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--sh1);
+}
+.bks-link {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--r);
+  background: var(--surf2);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.bks-link code {
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--ink);
+}
+.bks-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bks .btn,
+.bks-actions .btn {
+  min-height: 44px;
+}
+.bks-hint {
+  font-size: 12.5px;
+  color: var(--mute);
+  margin: 0;
+}
+.bks-warn {
+  font-size: 13px;
+  color: var(--stamp);
+  margin: 0;
+}
+.bks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.bks-item {
+  padding: 12px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--surf2);
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.bks-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.bks-item-note {
+  font-size: 13px;
+  color: var(--slate);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.bks-item a {
+  color: var(--indigo);
+  overflow-wrap: anywhere;
+}
+@container (min-width: 520px) {
+  .bks-pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-chip,
+  .bk-slot,
+  .bk-day,
+  .bks-track,
+  .bk-form input,
+  .bk-form textarea,
+  .bks-form input,
+  .bks-form select {
+    transition: none;
+  }
+  .bk-shell .skel {
+    animation: none;
+  }
+}
