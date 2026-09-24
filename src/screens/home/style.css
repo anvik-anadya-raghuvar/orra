@@ -179,8 +179,15 @@
 }
 .home-screen .capture {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   flex: 2 1 260px;
+  min-width: 0;
+}
+/* The field keeps a usable width: on a 360px phone the button drops to its
+   own line instead of squeezing the input down to two letters. */
+.home-screen .capture > .grow {
+  flex: 1 1 220px;
   min-width: 0;
 }
 .home-screen .capture .srch {
@@ -1259,9 +1266,8 @@
   .home-screen .btn.sm {
     padding: 10px 13px;
   }
-  .home-screen .capture .btn,
-  .home-screen .capture .srch {
-    flex: 1 1 130px;
+  .home-screen .capture .btn {
+    flex: 1 1 120px;
   }
   .home-screen .lk {
     display: inline-flex;

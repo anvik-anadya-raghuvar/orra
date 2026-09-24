@@ -162,6 +162,12 @@
   gap: 10px;
   flex-wrap: wrap;
 }
+/* An id or a due date is one token: never split "T-38" or "due 28 Sept"
+   across lines on a narrow phone — the title gives way instead. */
+.wk-inbox-row .mono {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
 .wk-inbox-acts {
   display: flex;
   gap: 6px;

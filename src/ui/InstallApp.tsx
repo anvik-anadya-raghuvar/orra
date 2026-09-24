@@ -34,9 +34,11 @@ export function InstallApp({ variant = 'chip' }: { variant?: 'chip' | 'block' })
         type="button"
         className={variant === 'chip' ? 'chip' : 'btn solid'}
         onClick={() => void onClick()}
+        aria-label="Install ORRA"
         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44 }}
       >
-        <Download size={15} strokeWidth={2} aria-hidden /> Install ORRA
+        <Download size={15} strokeWidth={2} aria-hidden />{' '}
+        <span className={variant === 'chip' ? 'bar-label' : undefined}>Install ORRA</span>
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="Put ORRA on your home screen">
         <InstallSteps kind={kind} />

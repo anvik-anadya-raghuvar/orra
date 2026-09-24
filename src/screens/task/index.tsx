@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { newId, nowIso, useData, useDataset, useStore } from '../../data/store';
@@ -85,6 +85,24 @@ function TaskDetail({ task }: { task: Task }) {
   const [commentBody, setCommentBody] = useState('');
   const [isDecision, setIsDecision] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
+  /* The title wraps on a phone, so its box has to be as tall as its lines.
+     Where the browser has field-sizing, CSS does it (task.css) and nothing
+     here may set an inline height over it — that is what cut the second line
+     off on a 360px screen. Elsewhere: measure after layout, again once the
+     display font has loaded, and on every resize or rotation. */
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el || CSS.supports?.('field-sizing', 'content')) return;
+    const fit = () => {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    void document.fonts?.ready.then(fit);
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [title]);
   /** Which half of the page is showing. The Workflow trail used to sit at the
    *  bottom of the sidebar, below six other sections — findable only by
    *  scrolling past everything. It is a view of the task, not an aside to it. */
@@ -495,17 +513,8 @@ function TaskDetail({ task }: { task: Task }) {
                   rows={1}
                   value={title}
                   aria-label="Task title"
-                  ref={(el) => {
-                    if (el) {
-                      el.style.height = 'auto';
-                      el.style.height = el.scrollHeight + 'px';
-                    }
-                  }}
-                  onChange={(e) => {
-                    setTitle(e.target.value.replace(/\n/g, ' '));
-                    e.target.style.height = 'auto';
-                    e.target.style.height = e.target.scrollHeight + 'px';
-                  }}
+                  ref={titleRef}
+                  onChange={(e) => setTitle(e.target.value.replace(/\n/g, ' '))}
                   onBlur={saveTitle}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {

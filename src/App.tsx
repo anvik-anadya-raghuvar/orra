@@ -11,6 +11,8 @@ import {
   Wallet,
   Shield,
   Menu,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { StoreProvider, useData, useStore, useSyncError } from './data/store';
 import { ToastProvider, Avatar, Skeleton, Modal, SideSheet } from './ui/bits';
@@ -134,9 +136,10 @@ function AccountMenu() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={`Account — ${me.name}`}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
       >
-        <Avatar userId={me.id} /> {me.name}
+        <Avatar userId={me.id} /> <span className="bar-label">{me.name}</span>
       </button>
       {open && (
         <div
@@ -240,7 +243,11 @@ function Header() {
     return () => clearInterval(t);
   }, []);
   return (
-    <div className="bar" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+    /* One row on every phone. At 360px (Galaxy S-series) the old header wrapped
+       to three rows — a third of the screen before any content — so below
+       400px the chips go icon-only (they keep their accessible names) and the
+       two-city clock steps aside; see .app-bar in theme.css. */
+    <div className="bar app-bar" style={{ display: 'flex', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
       {/* The real mark rather than a letter drawn in CSS, so the header, the
           installed app icon and the notification badge are the same artwork
           and cannot drift apart. */}
@@ -251,18 +258,24 @@ function Header() {
         height={33}
         style={{ width: 33, height: 33, borderRadius: 9, display: 'block' }}
       />
-      <span className="disp" style={{ fontSize: 17, letterSpacing: '0.02em' }}>
+      <span className="disp bar-name" style={{ fontSize: 17, letterSpacing: '0.02em' }}>
         ORRA
       </span>
-      <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{clock}</span>
+      <span className="mono bar-clock" style={{ fontSize: 11, color: 'var(--mute)' }}>{clock}</span>
       <RunningBlockBadge />
       <div className="spacer" />
       <InstallApp />
       <CommandPaletteButton />
       <NotificationBell />
       <AccountMenu />
-      <button className="chip" onClick={toggle} aria-label="Toggle theme">
-        {theme === 'dark' ? 'Light' : 'Dark'}
+      <button
+        className="chip"
+        onClick={toggle}
+        aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+      >
+        {theme === 'dark' ? <Sun size={15} strokeWidth={2} aria-hidden /> : <Moon size={15} strokeWidth={2} aria-hidden />}
+        <span className="bar-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
       </button>
     </div>
   );

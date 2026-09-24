@@ -1539,3 +1539,86 @@ html {
     min-height: 44px;
   }
 }
+
+/* ── top bar: one row on every phone ──────────────────────────────────────
+   Mobile-first: 360px wide (Galaxy S-series) is the narrowest phone the two
+   of you carry. Chips are icon-only there, each still a 44px target with an
+   accessible name; the words come back from 400px, the clock too. */
+.app-bar {
+  gap: 6px;
+}
+.app-bar .spacer {
+  min-width: 0;
+}
+.app-bar .chip {
+  min-height: 44px;
+  min-width: 44px;
+  padding-inline: 10px;
+  justify-content: center;
+}
+/* Below 400px the logo alone is the brand; the name, clock and chip words
+   come back once there is room for them on the same row. */
+.app-bar .bar-label,
+.app-bar .bar-clock,
+.app-bar .bar-name {
+  display: none;
+}
+@media (min-width: 400px) {
+  .app-bar {
+    gap: 10px;
+  }
+  .app-bar .bar-label,
+  .app-bar .bar-clock,
+  .app-bar .bar-name {
+    display: inline;
+  }
+}
+
+/* ── narrow phones (≤400px: Galaxy S-series at 360) ───────────────────────
+   Checked at 360×780 against the Pixel's 412. Three things made every room
+   feel cramped there: a 16px page gutter stacked on each card's own 16px
+   padding, tab strips wrapping to a second line, and the formatting toolbar
+   folding into three rows. Tabs and the toolbar now stay one row and scroll
+   sideways (they are controls, not data tables); the gutter slims to 10px
+   but never inside a notch or rounded corner. */
+@media (max-width: 400px) {
+  .shell {
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+  }
+  .sub2,
+  .home-viewtabs,
+  .mn-tabs,
+  .ptabs,
+  .shell .fmt-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sub2::-webkit-scrollbar,
+  .home-viewtabs::-webkit-scrollbar,
+  .mn-tabs::-webkit-scrollbar,
+  .ptabs::-webkit-scrollbar,
+  .shell .fmt-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .sub2 > *,
+  .home-viewtabs > *,
+  .mn-tabs > *,
+  .ptabs > *,
+  .shell .fmt-bar > * {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+/* Tell the browser which scheme is showing, so native controls (date pickers,
+   scrollbars, autofill) match it and no forced-dark mode repaints the app. */
+html {
+  color-scheme: light;
+}
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
