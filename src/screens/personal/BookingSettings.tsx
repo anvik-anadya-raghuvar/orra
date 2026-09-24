@@ -1,9 +1,11 @@
 /**
- * Your booking page — the settings card.
+ * Booking — the settings card.
  *
- * Creates and edits the signed-in person's booking_pages row through the
- * store, shows the public link and the ICS busy-feed URL, and lists upcoming
- * requests with Confirm / Decline.
+ * Cal.com is the booking system (it reads Google live, so it cannot
+ * double-book against an unsynced meeting). This card hands over the two
+ * private links Cal.com needs: the ICS busy feed, so it sees ORRA blocks, and
+ * the calcom webhook, so every booking buzzes your phone. ORRA's own public
+ * page is still here, folded away, for anyone not using Cal.com.
  *
  * Wiring (for whoever mounts it): drop <BookingSettings /> into a Personal
  * card; it needs the store and ToastProvider, nothing else. The public page
@@ -128,9 +130,6 @@ export default function BookingSettings() {
   const pages = useData((ds) => ds.booking_pages);
   const allBookings = useData((ds) => ds.bookings);
   const page = pages.find((p) => p.user_id === meId) ?? null;
-  /** Already writing ORRA blocks into Google (Settings → Connections)? Then
-   *  the busy feed is redundant — subscribing too shows every block twice. */
-  const pushingToGoogle = useData((_, s) => Boolean(s.me.personalization.calendar_push_account_id));
   const tap = reduced ? {} : { whileTap: { scale: 0.97 } };
 
   const [draft, setDraft] = useState<Draft | null>(page ? draftOf(page) : null);
@@ -294,17 +293,17 @@ export default function BookingSettings() {
     return (
       <section className="bks" aria-label="Booking page">
         <div>
-          <p className="eyebrow">Booking page</p>
-          <h3 style={{ margin: '4px 0 6px', fontSize: 17 }}>Let people book time with you</h3>
+          <p className="eyebrow">Cal.com</p>
+          <h3 style={{ margin: '4px 0 6px', fontSize: 17 }}>Connect Cal.com to ORRA</h3>
           <p className="bks-hint">
-            A public link where someone outside ORRA picks a free slot. It reads your calendar, never shows what is on it,
-            and every request waits for your yes.
+            Makes two private links to paste into Cal.com: one so it sees your ORRA blocks as busy, one so every
+            booking buzzes your phone.
           </p>
         </div>
         {error && <p className="bk-error" role="alert">{error}</p>}
         <div className="bks-actions">
           <motion.button type="button" className="btn solid" onClick={() => void create()} disabled={creating} {...tap}>
-            {creating ? 'Setting up…' : 'Set up my booking page'}
+            {creating ? 'Setting up…' : 'Create my Cal.com links'}
           </motion.button>
         </div>
       </section>
@@ -318,8 +317,81 @@ export default function BookingSettings() {
   const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
   const toggleIn = (list: number[], v: number) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
+  const webhookUrl = supaUrl ? `${supaUrl}/functions/v1/calcom?token=${page.ics_token}` : null;
+
+  const copyRow = (label: string, url: string) => (
+    <div className="bks-actions">
+      <motion.button
+        type="button"
+        className="btn sm"
+        onClick={async () => toast((await copy(url)) ? `${label} copied` : 'Copy failed — select the link instead')}
+        {...tap}
+      >
+        Copy {label.toLowerCase()}
+      </motion.button>
+    </div>
+  );
+
   return (
-    <section className="bks" aria-label="Booking page">
+    <section className="bks" aria-label="Booking">
+      {/* ── Cal.com: the one booking system ──────────────────────────
+          Cal.com reads Google Calendar itself, live, so it cannot double-book
+          against a meeting ORRA has not synced yet. These two links close the
+          two gaps it has: seeing ORRA time, and reaching your phone. */}
+      {webhookUrl && icsUrl && (
+        <div className="bks-link">
+          <p className="eyebrow">Cal.com</p>
+          <h3 style={{ margin: '4px 0 6px', fontSize: 17 }}>Bookings go through Cal.com</h3>
+          <p className="bks-hint">
+            Cal.com already checks your Google Calendar. Paste these two links into Cal.com once and it also sees
+            your ORRA blocks as busy, and every booking buzzes your phone. Treat both links like passwords.
+          </p>
+
+          <span className="eyebrow" style={{ marginTop: 10 }}>1 · So Cal.com sees your ORRA time</span>
+          <p className="bks-hint">
+            Cal.com → <strong>Apps</strong> → search <strong>ICS Feed</strong> → install → paste this link. Then in
+            Cal.com's <strong>Calendars</strong> settings, make sure it's ticked for checking conflicts.
+          </p>
+          <code>{icsUrl}</code>
+          {copyRow('Busy link', icsUrl)}
+
+          <span className="eyebrow" style={{ marginTop: 10 }}>2 · So bookings buzz your phone</span>
+          <p className="bks-hint">
+            Cal.com → <strong>Settings</strong> → <strong>Developer</strong> → <strong>Webhooks</strong> → New →
+            paste this as the URL, leave the secret empty, tick Booking created, cancelled, rescheduled and
+            requested, then press <strong>Ping test</strong>. Your phone should buzz with "Cal.com is connected".
+          </p>
+          <code>{webhookUrl}</code>
+          {copyRow('Webhook link', webhookUrl)}
+
+          <div className="bks-actions">
+            {armed === 'rotate' ? (
+              <>
+                <motion.button type="button" className="btn sm danger" onClick={rotate} {...tap}>
+                  Yes, replace both links
+                </motion.button>
+                <motion.button type="button" className="btn sm" onClick={() => setArmed(null)} {...tap}>
+                  Keep
+                </motion.button>
+              </>
+            ) : (
+              <motion.button type="button" className="btn sm" onClick={() => setArmed('rotate')} {...tap}>
+                Replace links…
+              </motion.button>
+            )}
+          </div>
+          {armed === 'rotate' && (
+            <p className="bks-hint">Both old links stop working; paste the new ones into Cal.com again.</p>
+          )}
+        </div>
+      )}
+
+      {/* ORRA's own page stays available but out of the way — two booking
+          systems side by side was the confusion this card now avoids. */}
+      <details className="bks-link">
+        <summary className="eyebrow" style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          Not using Cal.com? ORRA's own booking page
+        </summary>
       <div className="bks-head">
         <div>
           <p className="eyebrow">Booking page</p>
@@ -356,53 +428,6 @@ export default function BookingSettings() {
         </div>
       </div>
 
-      {/* Optional, and folded away: the public link above is the whole
-          booking story. This is only for someone who ALSO takes bookings
-          through Google or Calendly and wants those to see ORRA time. */}
-      {icsUrl && (
-        <details className="bks-link">
-          <summary className="eyebrow" style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-            Optional — also use Google's booking page or Calendly?
-          </summary>
-          {pushingToGoogle ? (
-            <p className="bks-hint">
-              You don't need this: ORRA already writes your blocks into Google (Settings → Connections → Google
-              Calendar). Subscribing to this feed as well would show every block twice.
-            </p>
-          ) : (
-            <p className="bks-hint">
-              Only if people book you somewhere other than the link above. Google Calendar → Other calendars →{' '}
-              <strong>From URL</strong> → paste this, and Google sees your ORRA time as "Busy (ORRA)" (never titles),
-              refreshed every few hours. Treat the link like a password.
-            </p>
-          )}
-          <code>{icsUrl}</code>
-          <div className="bks-actions">
-            <motion.button
-              type="button"
-              className="btn sm"
-              onClick={async () => toast((await copy(icsUrl)) ? 'Feed link copied' : 'Copy failed — select the link instead')}
-              {...tap}
-            >
-              Copy feed link
-            </motion.button>
-            {armed === 'rotate' ? (
-              <>
-                <motion.button type="button" className="btn sm danger" onClick={rotate} {...tap}>
-                  Yes, replace it
-                </motion.button>
-                <motion.button type="button" className="btn sm" onClick={() => setArmed(null)} {...tap}>
-                  Keep
-                </motion.button>
-              </>
-            ) : (
-              <motion.button type="button" className="btn sm" onClick={() => setArmed('rotate')} {...tap}>
-                Replace link…
-              </motion.button>
-            )}
-          </div>
-        </details>
-      )}
 
       {/* ── rules ── */}
       <div className="bks-form">
@@ -624,6 +649,7 @@ export default function BookingSettings() {
           ORRA does not email guests. Reply from your own inbox when you confirm or decline.
         </p>
       </div>
+      </details>
     </section>
   );
 }

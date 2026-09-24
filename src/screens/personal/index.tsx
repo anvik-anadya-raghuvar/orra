@@ -563,7 +563,8 @@ const WIDGETS: {
   { key: 'orders', label: 'Orders & travel', hint: 'Review purchases, deliveries and bookings', tab: 'plans', cols: 2, glance: <OrdersGlance />, node: <PersonalOrders /> },
   { key: 'personal_admin', label: 'Personal admin', hint: 'Small errands that are not project tasks', tab: 'plans', cols: 2, glance: <LifeAdminGlance />, node: <LifeAdmin /> },
   { key: 'dates', label: 'Fixed dates', hint: 'Flights, visas and term starts', tab: 'plans', cols: 2, glance: <DatesGlance />, node: <FixedDates /> },
-  { key: 'docs', label: 'Relocation documents', hint: 'Paperwork with expiry dates', tab: 'plans', cols: 2, glance: <DocsGlance />, node: <RelocationDocs /> },  { key: 'booking', label: 'Booking page', hint: 'A link people outside ORRA use to book time with you, and a busy-feed for Google Calendar', tab: 'plans', cols: 2, glance: <span className="tip">Share a link; bookings land on your calendar</span>, node: <BookingSettings /> },
+  { key: 'docs', label: 'Relocation documents', hint: 'Paperwork with expiry dates', tab: 'plans', cols: 2, glance: <DocsGlance />, node: <RelocationDocs /> },
+  { key: 'booking', label: 'Booking (Cal.com)', hint: 'Connect Cal.com so it sees your ORRA time and every booking buzzes your phone', tab: 'plans', cols: 2, glance: <span className="tip">Cal.com sees ORRA time; bookings buzz you</span>, node: <BookingSettings /> },
 ];
 
 /** Everything on, until someone turns something off. */
