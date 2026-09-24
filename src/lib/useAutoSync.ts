@@ -8,6 +8,11 @@ import {
   syncGoogleAccount,
 } from './googleSync';
 import { googleConfigured } from './google';
+import { pushIfLive } from './calendarPush';
+
+/** Quiet period after the last calendar edit before blocks go to Google, so
+ *  dragging a block around sends one write, not one per frame. */
+const PUSH_DEBOUNCE_MS = 5_000;
 
 export { AUTO_SYNC_MIN_GAP_MS } from './googleSync';
 
@@ -46,9 +51,26 @@ export function useAutoSync(store: AppStore | null) {
     const timer = window.setInterval(maybeSync, AUTO_SYNC_MIN_GAP_MS / 3);
     const onVisible = () => void maybeSync();
     document.addEventListener('visibilitychange', onVisible);
+
+    // A block made, moved or removed reaches Google within seconds rather than
+    // at the next 15-minute sync — that gap is exactly when a booking page
+    // would still offer the slot.
+    let lastEvents = store.ds.day_events;
+    let pushTimer: number | undefined;
+    const unsubscribe = store.subscribe(() => {
+      if (store.ds.day_events === lastEvents) return;
+      lastEvents = store.ds.day_events;
+      window.clearTimeout(pushTimer);
+      pushTimer = window.setTimeout(() => {
+        if (!cancelled) pushIfLive(store).catch(() => {});
+      }, PUSH_DEBOUNCE_MS);
+    });
+
     return () => {
       cancelled = true;
       window.clearInterval(timer);
+      window.clearTimeout(pushTimer);
+      unsubscribe();
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [store]);

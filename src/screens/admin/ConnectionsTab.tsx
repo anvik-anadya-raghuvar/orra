@@ -4,7 +4,8 @@ import { ExternalLink, RefreshCw } from 'lucide-react';
 import { useData, useStore } from '../../data/store';
 import { Modal, useToast } from '../../ui/bits';
 import { staggerItem, staggerParent } from '../../ui/motion';
-import { googleConfigured } from '../../lib/google';
+import { googleConfigured, hasLiveAccountToken } from '../../lib/google';
+import { clearPushed, pushAccountId, pushCalendar } from '../../lib/calendarPush';
 import { youtubeConfigured } from '../../lib/youtube';
 import PushCard from './PushCard';
 import {
@@ -108,6 +109,40 @@ export default function ConnectionsTab() {
     }
   };
 
+  /* Opt-in, one account at a time: blocks written into two calendars would
+     show up twice anywhere both are visible. Switching away takes the old
+     account's copies back out, so nothing is left there to go stale. */
+  const pushTarget = pushAccountId(store);
+  const togglePush = async (account: IntegrationGrant) => {
+    const previous = pushTarget;
+    const turningOn = previous !== account.id;
+    const email = account.account_email ?? 'this account';
+    store.patchPersonalization(
+      { calendar_push_account_id: turningOn ? account.id : null },
+      store.asMe({ summary: turningOn ? `ORRA blocks now go to ${email}` : `ORRA blocks stopped going to ${email}` }),
+    );
+    setBusy(`push:${account.id}`);
+    try {
+      let leftBehind = false;
+      if (previous) {
+        if (hasLiveAccountToken(previous, ['calendar'])) await clearPushed(previous);
+        else leftBehind = true;
+      }
+      if (!turningOn) {
+        toast(leftBehind ? `Stopped. Reconnect ${email} and toggle again to remove the copies already there` : `ORRA blocks removed from ${email}`);
+      } else if (hasLiveAccountToken(account.id, ['calendar'])) {
+        const result = await pushCalendar(store, account.id);
+        toast(`${result.created + result.updated} upcoming block${result.created + result.updated === 1 ? '' : 's'} sent to ${email}`);
+      } else {
+        toast(`Blocks will go to ${email} once you reconnect it`);
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not update Google Calendar');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const runAllSync = async () => {
     setBusy('sync-all');
     try {
@@ -205,7 +240,7 @@ export default function ConnectionsTab() {
       name: 'Google Calendar',
       state: googleState('calendar'),
       desc: hasScope(store, 'calendar')
-        ? "Every live account's primary calendar lands on the schedule with its account label. Cancellations are cleaned up only inside their source account."
+        ? "Every live account's primary calendar lands on the schedule with its account label. Cancellations are cleaned up only inside their source account. Pick one account above to receive your ORRA blocks too, so booking pages that read Google see you busy."
         : configured
           ? 'Opens a prefilled event today. Connect Google to pull your real day onto the ribbon.'
           : 'Task pages and people cards open a prefilled event. One-way, no linking needed.',
@@ -323,6 +358,21 @@ export default function ConnectionsTab() {
                         disabled={busy !== null}
                       >
                         {busy === `reconnect:${account.id}` ? 'Waiting for Google…' : 'Reconnect'}
+                      </button>
+                    )}
+                    {active && (
+                      <button
+                        type="button"
+                        className={`btn sm${pushTarget === account.id ? ' solid' : ''}`}
+                        aria-pressed={pushTarget === account.id}
+                        onClick={() => togglePush(account)}
+                        disabled={busy !== null}
+                      >
+                        {busy === `push:${account.id}`
+                          ? 'Updating calendar…'
+                          : pushTarget === account.id
+                            ? 'Sending my blocks here ✓'
+                            : 'Send my blocks here'}
                       </button>
                     )}
                     {active && (

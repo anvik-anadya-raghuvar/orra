@@ -94,6 +94,10 @@ export interface Personalization {
   weather_on_home?: boolean;
   world_clocks_on_home?: boolean;
   calendar_on_home?: boolean;
+  /** The Google account (integration_grants.id) this user's ORRA blocks are
+   *  written into, so booking pages that read Google see them busy. Absent =
+   *  nothing is written anywhere; it is opt-in per account (lib/calendarPush). */
+  calendar_push_account_id?: string | null;
   weather_place?: {
     label: string;
     latitude: number;

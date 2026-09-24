@@ -464,6 +464,9 @@ export interface CalendarEvent {
   end: string;
   allDay: boolean;
   link: string;
+  /** Set when ORRA itself wrote this event (see lib/calendarPush.ts). The read
+   *  side skips these: the day_events row they came from is the original. */
+  orraId?: string | null;
 }
 
 interface RawEvent {
@@ -473,6 +476,7 @@ interface RawEvent {
   status?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
+  extendedProperties?: { private?: Record<string, string> };
 }
 
 const toEvent = (event: RawEvent): CalendarEvent => ({
@@ -482,6 +486,7 @@ const toEvent = (event: RawEvent): CalendarEvent => ({
   end: event.end?.dateTime ?? `${event.end?.date}T23:59:59`,
   allDay: !event.start?.dateTime,
   link: event.htmlLink ?? 'https://calendar.google.com',
+  orraId: event.extendedProperties?.private?.[ORRA_ID_KEY] ?? null,
 });
 
 export async function fetchCalendarRange(
@@ -507,6 +512,98 @@ export async function fetchCalendarRange(
   return out;
 }
 
+/* ── Calendar writes (ORRA blocks → Google) ─────────────────────────── */
+
+/** Private extended properties are visible only to this OAuth client, so the
+ *  tag never shows on the event and cannot be forged by an invite. */
+export const ORRA_ID_KEY = 'orraId';
+/** The list filter only matches `name=value`, so every pushed event also
+ *  carries this constant marker to query by. */
+export const ORRA_MARK = { key: 'orra', value: '1' } as const;
+const EVENTS_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+
+/** What ORRA writes for one of its blocks. Times are local wall-clock with an
+ *  explicit IANA zone, so Google places them exactly where ORRA shows them. */
+export interface PushedEventBody {
+  summary: string;
+  description: string;
+  start: { dateTime: string; timeZone: string };
+  end: { dateTime: string; timeZone: string };
+  transparency: 'opaque';
+  reminders: { useDefault: false };
+  extendedProperties: { private: Record<string, string> };
+}
+
+export interface PushedEvent {
+  googleId: string;
+  orraId: string;
+  summary: string;
+  start: string;
+  end: string;
+}
+
+/** Every event ORRA wrote to this account's primary calendar in the window. */
+export async function fetchPushedEvents(accountId: string, fromIso: string, toIso: string): Promise<PushedEvent[]> {
+  const min = new Date(`${fromIso}T00:00:00`).toISOString();
+  const max = new Date(`${toIso}T23:59:59`).toISOString();
+  const out: PushedEvent[] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < 10; page++) {
+    const url =
+      `${EVENTS_URL}?singleEvents=true&showDeleted=false&maxResults=250` +
+      `&privateExtendedProperty=${encodeURIComponent(`${ORRA_MARK.key}=${ORRA_MARK.value}`)}` +
+      `&timeMin=${encodeURIComponent(min)}&timeMax=${encodeURIComponent(max)}` +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+    const result = await accountApi<{ items?: RawEvent[]; nextPageToken?: string }>(accountId, ['calendar'], url);
+    for (const event of result.items ?? []) {
+      const orraId = event.extendedProperties?.private?.[ORRA_ID_KEY];
+      if (!orraId || event.status === 'cancelled') continue;
+      out.push({
+        googleId: event.id,
+        orraId,
+        summary: event.summary ?? '',
+        start: event.start?.dateTime ?? '',
+        end: event.end?.dateTime ?? '',
+      });
+    }
+    pageToken = result.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out;
+}
+
+const jsonInit = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
+/** `sendUpdates=none`: these are your own blocks, there is nobody to email. */
+export async function insertPushedEvent(accountId: string, body: PushedEventBody): Promise<void> {
+  await accountApi(accountId, ['calendar'], `${EVENTS_URL}?sendUpdates=none`, jsonInit('POST', body));
+}
+
+export async function updatePushedEvent(accountId: string, googleId: string, body: PushedEventBody): Promise<void> {
+  await accountApi(
+    accountId,
+    ['calendar'],
+    `${EVENTS_URL}/${encodeURIComponent(googleId)}?sendUpdates=none`,
+    jsonInit('PUT', body),
+  );
+}
+
+export async function deletePushedEvent(accountId: string, googleId: string): Promise<void> {
+  const token = await getAccountToken(accountId, ['calendar']);
+  if (!token) throw new Error('Reconnect this Google account to continue');
+  const response = await fetch(`${EVENTS_URL}/${encodeURIComponent(googleId)}?sendUpdates=none`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  // 204 is the answer; 404/410 mean it is already gone, which is the goal.
+  if (!response.ok && response.status !== 404 && response.status !== 410) {
+    throw new GoogleApiError(response.status, `Google API ${response.status}: ${(await response.text()).slice(0, 240)}`);
+  }
+}
 
 /* ── Drive ──────────────────────────────────────────────────────────── */
 

@@ -24,6 +24,7 @@ import {
   toGmailMessage,
 } from './google';
 import { detectPersonalOrder, recordOrderDetection } from './personalOrders';
+import { pushAccountId, pushCalendar } from './calendarPush';
 
 export const ALL_SCOPES: ScopeKey[] = ['gmail', 'calendar', 'drive'];
 export const AUTO_SYNC_MIN_GAP_MS = 15 * 60 * 1000;
@@ -39,6 +40,8 @@ export interface AccountSyncResult {
   orderUpdates: number;
   eventsNew: number;
   eventsDropped: number;
+  /** ORRA blocks written to / taken out of this account's calendar. */
+  blocksPushed: number;
 }
 
 export interface SyncResult {
@@ -49,6 +52,7 @@ export interface SyncResult {
   orderUpdates: number;
   eventsNew: number;
   eventsDropped: number;
+  blocksPushed: number;
 }
 
 export const googleAccounts = (store: AppStore): IntegrationGrant[] =>
@@ -326,7 +330,9 @@ export async function syncCalendarWindow(
   fromIso: string,
   toIso: string,
 ): Promise<{ eventsNew: number; eventsDropped: number }> {
-  const events = await fetchCalendarRange(account.id, fromIso, toIso);
+  // ORRA's own blocks, echoed back from Google by calendarPush. The row they
+  // came from is already on the calendar; mirroring them would double it.
+  const events = (await fetchCalendarRange(account.id, fromIso, toIso)).filter((event) => !event.orraId);
   const live = new Set(events.map((event) => event.id));
   let eventsNew = 0;
   for (const event of events) {
@@ -367,6 +373,7 @@ export async function syncGoogleAccount(store: AppStore, accountId: string): Pro
       syncOrders(store, account),
       syncCalendarWindow(store, account, from, to),
     ]);
+    const pushed = pushAccountId(store) === account.id ? await pushCalendar(store, account.id) : null;
     const now = nowIso();
     store.update(
       'integration_grants',
@@ -388,6 +395,7 @@ export async function syncGoogleAccount(store: AppStore, accountId: string): Pro
       orderReviewsNew: orders.orderReviewsNew,
       orderUpdates: orders.orderUpdates,
       ...calendar,
+      blocksPushed: pushed ? pushed.created + pushed.updated + pushed.removed : 0,
     };
     store.note(
       'google_sync',
@@ -424,6 +432,7 @@ export async function syncLiveGoogleAccounts(store: AppStore): Promise<SyncResul
     orderUpdates: accounts.reduce((sum, row) => sum + row.orderUpdates, 0),
     eventsNew: accounts.reduce((sum, row) => sum + row.eventsNew, 0),
     eventsDropped: accounts.reduce((sum, row) => sum + row.eventsDropped, 0),
+    blocksPushed: accounts.reduce((sum, row) => sum + row.blocksPushed, 0),
   };
 }
 
@@ -437,6 +446,7 @@ function describeAccountSync(result: AccountSyncResult): string {
     result.orderUpdates ? `${result.orderUpdates} order update${result.orderUpdates === 1 ? '' : 's'}` : '',
     result.eventsNew ? `${result.eventsNew} event${result.eventsNew === 1 ? '' : 's'}` : '',
     result.eventsDropped ? `${result.eventsDropped} cancelled` : '',
+    result.blocksPushed ? `${result.blocksPushed} block change${result.blocksPushed === 1 ? '' : 's'} sent to Google` : '',
   ].filter(Boolean);
   return `Google synced ${result.accountEmail}${bits.length ? ` — ${bits.join(', ')}` : ' — nothing new'}`;
 }
@@ -454,6 +464,7 @@ export function describeSync(result: SyncResult | AccountSyncResult): string {
     result.orderUpdates ? `${result.orderUpdates} order update${result.orderUpdates === 1 ? '' : 's'}` : '',
     result.eventsNew ? `${result.eventsNew} event${result.eventsNew === 1 ? '' : 's'}` : '',
     result.eventsDropped ? `${result.eventsDropped} cancelled` : '',
+    result.blocksPushed ? `${result.blocksPushed} block change${result.blocksPushed === 1 ? '' : 's'} sent to Google` : '',
   ].filter(Boolean);
   const skipped = result.skippedAccountIds.length ? ` · ${result.skippedAccountIds.length} need reconnect` : '';
   return `Synced ${result.accounts.length} account${result.accounts.length === 1 ? '' : 's'}${bits.length ? ` — ${bits.join(', ')}` : ' — nothing new'}${skipped}`;
