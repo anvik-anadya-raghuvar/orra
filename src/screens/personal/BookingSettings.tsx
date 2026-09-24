@@ -128,6 +128,9 @@ export default function BookingSettings() {
   const pages = useData((ds) => ds.booking_pages);
   const allBookings = useData((ds) => ds.bookings);
   const page = pages.find((p) => p.user_id === meId) ?? null;
+  /** Already writing ORRA blocks into Google (Settings → Connections)? Then
+   *  the busy feed is redundant — subscribing too shows every block twice. */
+  const pushingToGoogle = useData((_, s) => Boolean(s.me.personalization.calendar_push_account_id));
   const tap = reduced ? {} : { whileTap: { scale: 0.97 } };
 
   const [draft, setDraft] = useState<Draft | null>(page ? draftOf(page) : null);
@@ -353,15 +356,27 @@ export default function BookingSettings() {
         </div>
       </div>
 
+      {/* Optional, and folded away: the public link above is the whole
+          booking story. This is only for someone who ALSO takes bookings
+          through Google or Calendly and wants those to see ORRA time. */}
       {icsUrl && (
-        <div className="bks-link">
-          <span className="eyebrow">Busy feed for Google Calendar</span>
+        <details className="bks-link">
+          <summary className="eyebrow" style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            Optional — also use Google's booking page or Calendly?
+          </summary>
+          {pushingToGoogle ? (
+            <p className="bks-hint">
+              You don't need this: ORRA already writes your blocks into Google (Settings → Connections → Google
+              Calendar). Subscribing to this feed as well would show every block twice.
+            </p>
+          ) : (
+            <p className="bks-hint">
+              Only if people book you somewhere other than the link above. Google Calendar → Other calendars →{' '}
+              <strong>From URL</strong> → paste this, and Google sees your ORRA time as "Busy (ORRA)" (never titles),
+              refreshed every few hours. Treat the link like a password.
+            </p>
+          )}
           <code>{icsUrl}</code>
-          <p className="bks-hint">
-            Google Calendar → Other calendars → <strong>From URL</strong> → paste this. Google then sees your ORRA blocks as
-            busy, even with ORRA closed. It shows only "Busy (ORRA)", never titles. Treat the link like a password; Google
-            refreshes it every few hours.
-          </p>
           <div className="bks-actions">
             <motion.button
               type="button"
@@ -386,7 +401,7 @@ export default function BookingSettings() {
               </motion.button>
             )}
           </div>
-        </div>
+        </details>
       )}
 
       {/* ── rules ── */}

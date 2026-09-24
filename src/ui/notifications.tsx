@@ -102,7 +102,21 @@ function usePushOnThisDevice(userId: string) {
     }
   }, [userId, refresh]);
 
-  return { state, note, busy, enable };
+  /** The proof, on demand: a real push through the server to every device
+   *  you turned on — so "is it working?" is one tap, not a guess. */
+  const test = useCallback(async () => {
+    const push = await import('../lib/push');
+    await push.sendPush(userId, {
+      title: 'ORRA test alert',
+      body: 'If you can read this with ORRA in the background, alerts work on this device.',
+      url: '/',
+      tag: 'orra-test',
+      kind: 'test',
+    });
+    setNote('Sent. It should appear within a few seconds on every device you turned on — try it with ORRA minimised.');
+  }, [userId]);
+
+  return { state, note, busy, enable, test };
 }
 
 const NUDGE_KEY = 'orra:push-nudge-dismissed';
@@ -548,7 +562,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 function PushRow({ push }: { push: ReturnType<typeof usePushOnThisDevice> }) {
   const lines: Record<PushState, React.ReactNode> = {
     checking: null,
-    on: <p className="tip" style={{ margin: 0 }}>✓ This device gets alerts, even with ORRA closed.</p>,
+    on: (
+      <>
+        <p className="tip" style={{ margin: 0 }}>✓ This device gets alerts, even with ORRA closed.</p>
+        <button type="button" className="btn sm" onClick={() => void push.test()}>
+          Send me a test alert
+        </button>
+      </>
+    ),
     off: (
       <button
         type="button"
