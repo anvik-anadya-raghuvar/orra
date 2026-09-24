@@ -48,6 +48,65 @@ const Ctx = createContext<NotifCtx>({
 });
 export const useNotifications = () => useContext(Ctx);
 
+type PushState = 'checking' | 'on' | 'off' | 'needs-install' | 'blocked' | 'unavailable';
+
+/**
+ * Whether THIS device will be reached with the app closed.
+ *
+ * The bell used to offer "Also notify me when I'm away", which only asked the
+ * browser for permission and never registered the device — so it looked
+ * switched on and nothing ever arrived (the 2026-09-24 audit found zero
+ * registered devices). This asks, subscribes and saves in one tap, through
+ * the same `enablePush` the Settings card uses. push.ts is loaded on demand
+ * so the bell does not grow the first-load bundle.
+ */
+function usePushOnThisDevice(userId: string) {
+  const [state, setState] = useState<PushState>('checking');
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const push = await import('../lib/push');
+    const support = push.pushSupport();
+    if (support === 'needs-install') return setState('needs-install');
+    if (support === 'blocked') return setState('blocked');
+    if (support !== 'ready') return setState('unavailable');
+    const sub = await push.currentSubscription().catch(() => null);
+    setState(sub ? 'on' : 'off');
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const enable = useCallback(async () => {
+    setBusy(true);
+    setNote(null);
+    try {
+      const push = await import('../lib/push');
+      const result = await push.enablePush(userId);
+      setNote(result.message);
+      if (result.ok) {
+        // Prove it end to end, rather than trusting the switch.
+        void push.sendPush(userId, {
+          title: 'ORRA alerts are on',
+          body: 'This is what a reminder will look like on this device.',
+          url: '/',
+          tag: 'orra-test',
+          kind: 'test',
+        });
+      }
+    } finally {
+      setBusy(false);
+      void refresh();
+    }
+  }, [userId, refresh]);
+
+  return { state, note, busy, enable };
+}
+
+const NUDGE_KEY = 'orra:push-nudge-dismissed';
+
 /** Ask once, only after the user has shown intent by enabling it. */
 function useDesktopNotifications() {
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() =>
@@ -63,11 +122,25 @@ function useDesktopNotifications() {
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
       // Only when the tab isn't in front — otherwise the in-app card is enough.
       if (document.visibilityState === 'visible') return;
-      try {
-        new Notification(title, { body, tag: 'orra-message' });
-      } catch {
-        /* some browsers block construction outside a service worker */
-      }
+      // Through the service worker first: Android Chrome refuses
+      // `new Notification()` from a page outright, so the constructor alone
+      // silently showed nothing on every Android phone.
+      void (async () => {
+        try {
+          const reg = await navigator.serviceWorker?.getRegistration();
+          if (reg) {
+            await reg.showNotification(title, { body, tag: 'orra-message', icon: '/icons/icon-192.png' });
+            return;
+          }
+        } catch {
+          /* fall through to the page constructor */
+        }
+        try {
+          new Notification(title, { body, tag: 'orra-message' });
+        } catch {
+          /* nothing left to try */
+        }
+      })();
     },
     [],
   );
@@ -91,7 +164,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [popupId, setPopupId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
-  const { permission, request, notify } = useDesktopNotifications();
+  const { notify } = useDesktopNotifications();
+  const pushOn = usePushOnThisDevice(me.id);
+  const [nudgeGone, setNudgeGone] = useState(() => {
+    try {
+      return localStorage.getItem(NUDGE_KEY) === '1';
+    } catch {
+      return true;
+    }
+  });
+  const dismissNudge = () => {
+    setNudgeGone(true);
+    try {
+      localStorage.setItem(NUDGE_KEY, '1');
+    } catch {}
+  };
+  const showNudge = !nudgeGone && (pushOn.state === 'off' || pushOn.state === 'needs-install');
   const seen = useRef<Set<string>>(new Set());
   const ready = useRef(false);
 
@@ -303,6 +391,50 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         )}
       </AnimatePresence>
 
+      {/* ── one-time ask: reach me with the app closed ───────────────── */}
+      <AnimatePresence>
+        {showNudge && !popup && (
+          <motion.div
+            className="notif-pop"
+            role="dialog"
+            aria-label="Turn on alerts for this device"
+            initial={{ opacity: 0, y: -16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1, transition: spring }}
+            exit={{ opacity: 0, y: -10, scale: 0.98, transition: micro }}
+          >
+            <div className="notif-head">
+              <Bell size={18} strokeWidth={1.9} />
+              <div className="notif-who">
+                <b>Get reminders on this device?</b>
+              </div>
+              <button type="button" className="notif-x" aria-label="Not now" onClick={dismissNudge}>
+                <X size={15} strokeWidth={2} />
+              </button>
+            </div>
+            <p className="notif-body">
+              {pushOn.state === 'needs-install'
+                ? 'On iPhone and iPad: tap Share, then Add to Home Screen, open ORRA from there, and turn alerts on.'
+                : `Reminders, messages from ${other.name} and the morning summary, even with ORRA closed.`}
+            </p>
+            {pushOn.state === 'off' && (
+              <div className="notif-acts">
+                <button
+                  type="button"
+                  className="btn sm solid"
+                  disabled={pushOn.busy}
+                  onClick={() => void pushOn.enable().then(dismissNudge)}
+                >
+                  {pushOn.busy ? 'Turning on…' : 'Turn on'}
+                </button>
+                <button type="button" className="btn sm" onClick={dismissNudge}>
+                  Not now
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── the panel behind the bell ─────────────────────────────────── */}
       <AnimatePresence>
         {panelOpen && (
@@ -342,10 +474,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                   .map((m) => (
                     <div className="notif-row" key={m.id}>
                       <Avatar userId={m.sender_id} size={24} />
-                      <div className="notif-rowbody">
+                      <Link
+                        className="notif-rowbody"
+                        to={m.task_ref_id ? `/task/${m.task_ref_id}` : '/us'}
+                        onClick={() => {
+                          markRead(m.id);
+                          setPanelOpen(false);
+                        }}
+                      >
                         <p>{m.body}</p>
-                        <span className="mono">{fmtTime(m.created_at)}</span>
-                      </div>
+                        <span className="mono">
+                          {fmtTime(m.created_at)}
+                          {m.task_ref_id ? ` · ${m.task_ref_id}` : ''}
+                        </span>
+                      </Link>
                       <button
                         type="button"
                         className="btn sm"
@@ -393,22 +535,51 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                   })}
                 </div>
               )}
-              {permission === 'default' && (
-                <button type="button" className="btn sm" style={{ marginTop: 10 }} onClick={request}>
-                  Also notify me when I'm away
-                </button>
-              )}
-              {permission === 'denied' && (
-                <p className="tip" style={{ marginTop: 10 }}>
-                  Desktop notifications are blocked in your browser settings, so alerts only show
-                  while this tab is open.
-                </p>
-              )}
+              <PushRow push={pushOn} />
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
     </Ctx.Provider>
+  );
+}
+
+/** This device's alert status, at the foot of the bell panel. */
+function PushRow({ push }: { push: ReturnType<typeof usePushOnThisDevice> }) {
+  const lines: Record<PushState, React.ReactNode> = {
+    checking: null,
+    on: <p className="tip" style={{ margin: 0 }}>✓ This device gets alerts, even with ORRA closed.</p>,
+    off: (
+      <button
+        type="button"
+        className="btn sm solid"
+        disabled={push.busy}
+        onClick={() => void push.enable()}
+      >
+        {push.busy ? 'Turning on…' : 'Get alerts on this device'}
+      </button>
+    ),
+    'needs-install': (
+      <p className="tip" style={{ margin: 0 }}>
+        To get alerts on iPhone or iPad: Share, then Add to Home Screen, open ORRA from the home
+        screen, then turn alerts on here.
+      </p>
+    ),
+    blocked: (
+      <p className="tip" style={{ margin: 0 }}>
+        Alerts are blocked for this site in your browser settings. Allow notifications for ORRA
+        there, then reload.
+      </p>
+    ),
+    unavailable: (
+      <p className="tip" style={{ margin: 0 }}>This browser can't receive alerts with ORRA closed.</p>
+    ),
+  };
+  return (
+    <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+      {lines[push.state]}
+      {push.note && <p className="tip" style={{ margin: 0 }}>{push.note}</p>}
+    </div>
   );
 }
 

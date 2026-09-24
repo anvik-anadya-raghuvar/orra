@@ -29,7 +29,7 @@ type Mode = 'block' | 'reminder' | 'countdown';
 
 const MODES: { key: Mode; label: string; blurb: string }[] = [
   { key: 'block', label: 'Time block', blurb: 'Hold time — on your own, or with the other person.' },
-  { key: 'reminder', label: 'Reminder', blurb: 'A nudge at a time. Pings your phone if push is on.' },
+  { key: 'reminder', label: 'Reminder', blurb: 'A nudge at a time. Pings every device you turned alerts on for — even with ORRA closed.' },
   { key: 'countdown', label: 'Countdown', blurb: 'A date to count down to. Pin it to Home.' },
 ];
 

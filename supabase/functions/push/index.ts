@@ -11,8 +11,17 @@
  * reason this approach was chosen over OneSignal or Firebase Cloud Messaging
  * with an SDK.
  *
- * Deploy:  npx supabase functions deploy push
+ * Deploy:  npx supabase functions deploy push --no-verify-jwt
  * Secrets: npx supabase secrets set VAPID_PRIVATE_KEY=... VAPID_PUBLIC_KEY=... VAPID_SUBJECT=mailto:you@example.com
+ *          npx supabase secrets set ORRA_INTERNAL_SECRET=...   (same value as Vault's orra_internal_secret)
+ *
+ * Who may call it (checked here, not by the gateway — `--no-verify-jwt`
+ * because the gateway's legacy check rejects the project's newer keys):
+ *   · a signed-in member: a user JWT whose email is on the allowlist, or
+ *   · the database / another function: header `x-orra-internal` equal to
+ *     ORRA_INTERNAL_SECRET (pg_cron reminders and digest, the booking page).
+ * Before 2026-09-24 anyone holding the public anon key could push any text
+ * to either of your phones.
  */
 // deno-lint-ignore-file no-explicit-any
 import webpush from 'npm:web-push@3.6.7';
@@ -20,7 +29,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-orra-internal',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -64,6 +73,31 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
+
+  // ── caller check ─────────────────────────────────────────────────────
+  const internal = Deno.env.get('ORRA_INTERNAL_SECRET');
+  const presented = req.headers.get('x-orra-internal');
+  let allowed = Boolean(internal && presented && timingSafeEqual(internal, presented));
+  if (!allowed) {
+    const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
+    if (token) {
+      const { data: who } = await supabase.auth.getUser(token);
+      const email = who?.user?.email?.toLowerCase();
+      if (email) {
+        const { data: member } = await supabase
+          .from('allowlist')
+          .select('email')
+          .eq('email', email)
+          .maybeSingle();
+        allowed = Boolean(member);
+      }
+    }
+  }
+  if (!allowed) return json({ error: 'not allowed' }, 401);
+
+  // Only ever notify one of the members.
+  const { data: target } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
+  if (!target) return json({ error: 'unknown user' }, 404);
 
   const { data: subs, error } = await supabase
     .from('push_subscriptions')
@@ -129,3 +163,13 @@ Deno.serve(async (req: Request) => {
   await log(sent > 0 ? 'sent' : 'failed', failures.join('; ') || undefined);
   return json({ sent, failed: failures.length, failures });
 });
+
+/** Constant-time string compare, so the secret cannot be guessed by timing. */
+function timingSafeEqual(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  if (x.length !== y.length) return false;
+  let diff = 0;
+  for (let i = 0; i < x.length; i += 1) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
