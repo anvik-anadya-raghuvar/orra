@@ -14,6 +14,7 @@ const TABLE: Record<CollectionKey, string> = {
   comments: 'comments',
   screenshot_attachments: 'screenshot_attachments',
   attachments: 'attachments',
+  annotations: 'annotations',
   annotation_pins: 'annotation_pins',
   decisions: 'decisions',
   queries: 'queries',
@@ -53,6 +54,8 @@ const TABLE: Record<CollectionKey, string> = {
   personal_orders: 'personal_orders',
   personal_order_events: 'personal_order_events',
   trash_items: 'trash_items',
+  booking_pages: 'booking_pages',
+  bookings: 'bookings',
 };
 
 /**

@@ -186,6 +186,11 @@ export interface Project {
   color: string; // css color or var()
   description: string;
   is_personal: boolean;
+  /** Where this project's code lives, for the coding-agent export. Null or
+   *  absent when the project has no repository (0053, capped server-side). */
+  repo_url?: string | null;
+  /** The branch work starts from when a task names none of its own. */
+  default_branch?: string | null;
   created_at: string;
 }
 
@@ -254,6 +259,11 @@ export interface Task {
   created_by: UserId;
   start_date: string | null; // YYYY-MM-DD
   due_date: string | null;
+  /** An instant to ping the assignees (0052). The server sends it every
+   *  minute via pg_cron, so it arrives with the app closed. */
+  remind_at?: string | null;
+  /** Set by the server when the ping went out, so it fires once. */
+  reminded_at?: string | null;
   objective_id: string | null;
   tags: string[];
   progress_pct: number;
@@ -283,6 +293,12 @@ export interface Task {
    *  into limbo where neither board shows it. Cleared on accept. */
   pushback_reason?: string | null;
   pushed_back_at?: string | null;
+  /** The branch this task's work happens on; overrides the project's
+   *  `default_branch` in the export. Null or absent when unset (0053). */
+  branch?: string | null;
+  /** Newline-separated repo paths the work touches — a hint for a coding
+   *  agent, not a constraint. Capped at 2000 chars server-side (0053). */
+  code_paths?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -437,6 +453,44 @@ export interface Attachment {
   caption: string | null;
   uploaded_by: UserId;
   created_at: string;
+}
+
+/** One pen stroke drawn over a file, in page units (see lib/annotate/ink.ts). */
+export interface AnnotationInkStroke {
+  id: string;
+  tool: 'pen' | 'highlighter';
+  /** Literal #rrggbb — ink on a page someone will print, not a theme token. */
+  color: string;
+  /** Nib width in page units. */
+  size: number;
+  /** Flat triples [x, y, pressure, …] in page units. */
+  points: number[];
+  /** True when pressure was simulated (finger / mouse) rather than measured. */
+  sim?: boolean;
+}
+
+/** All the ink on one file: page sizes it was drawn against, strokes per page. */
+export interface AnnotationInk {
+  v: 1;
+  pages: { w: number; h: number }[];
+  strokes: AnnotationInkStroke[][];
+}
+
+/**
+ * Ink drawn over an attachment (a PDF, image, .xlsx or .docx), kept as
+ * strokes so it can be re-opened and edited. The flattened, shareable copy is
+ * a separate attachment (`output_attachment_id`, "<name>.annotated.pdf").
+ */
+export interface Annotation {
+  id: string;
+  attachment_id: string;
+  user_id: UserId;
+  page_count: number;
+  strokes: AnnotationInk;
+  status: 'draft' | 'reviewed';
+  output_attachment_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /** What kind of change a pin is asking for. Free-form on purpose — these are
@@ -1221,6 +1275,45 @@ export interface DailyCloseout {
   created_at: string;
 }
 
+/** A person's public booking page (0055). One per person; owner-written. */
+export interface BookingPage {
+  id: string;
+  user_id: UserId;
+  slug: string;
+  title: string;
+  is_active: boolean;
+  durations: number[];
+  work_start_min: number;
+  work_end_min: number;
+  /** ISO weekdays, 1 = Monday … 7 = Sunday. */
+  work_days: number[];
+  buffer_min: number;
+  min_notice_min: number;
+  horizon_days: number;
+  /** Zone the work hours are written in. Null = the profile's zone. */
+  time_zone: string | null;
+  /** Secret for the ICS busy feed. Treat like a password. */
+  ics_token: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A guest's request, written only by the `book` edge function (0055). */
+export interface Booking {
+  id: string;
+  page_id: string;
+  host_id: UserId;
+  guest_name: string;
+  guest_email: string;
+  note: string;
+  start_at: string;
+  end_at: string;
+  status: 'pending' | 'confirmed' | 'declined' | 'cancelled';
+  day_event_id: string | null;
+  created_at: string;
+  ip_hash?: string | null;
+}
+
 /** The whole in-memory dataset the store holds. */
 export interface Dataset {
   profiles: Profile[];
@@ -1234,6 +1327,7 @@ export interface Dataset {
   comments: Comment[];
   screenshot_attachments: ScreenshotAttachment[];
   attachments: Attachment[];
+  annotations: Annotation[];
   annotation_pins: AnnotationPin[];
   decisions: Decision[];
   queries: Query[];
@@ -1273,6 +1367,8 @@ export interface Dataset {
   personal_orders: PersonalOrder[];
   personal_order_events: PersonalOrderEvent[];
   trash_items: TrashItem[];
+  booking_pages: BookingPage[];
+  bookings: Booking[];
 }
 
 export type CollectionKey = keyof Omit<Dataset, 'ranking_weights'>;

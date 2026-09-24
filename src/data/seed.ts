@@ -244,6 +244,7 @@ function rawSeed(): Dataset {
        downloadable, and a row pointing at nothing is worse than an empty
        list. Uploading one is the demo. */
     attachments: [],
+    annotations: [],
     annotation_pins: [
       { id: 'pin-1', screenshot_id: 'shot-1', x_pct: 32.4, y_pct: 41.0, note: 'Date column shifted one cell left on pre-2019 rows', label: 'bug', author_id: RG, is_resolved: false, created_at: T('2026-08-17T09:12:00') },
       { id: 'pin-2', screenshot_id: 'shot-1', x_pct: 71.8, y_pct: 63.5, note: 'Case number truncated at 16 chars — NIC widens to 24 on 1 Sept', label: 'logic', author_id: RG, is_resolved: false, created_at: T('2026-08-17T09:14:00') },
@@ -456,6 +457,8 @@ function rawSeed(): Dataset {
     personal_orders: [],
     personal_order_events: [],
     trash_items: [],
+    booking_pages: [],
+    bookings: [],
     page_comments: [
       { id: 'pc-1', page_id: 'pg-2', author_id: RG, body: 'Added the Karnataka bench case — see T-42.', created_at: T('2026-08-17T12:00:00') },
     ],

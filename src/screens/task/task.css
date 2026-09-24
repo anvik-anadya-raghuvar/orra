@@ -156,6 +156,19 @@
     font-size: 23px;
   }
 }
+/* The title as a wrapping textarea: a long title reads in full on a 375px
+   phone instead of being cut off at the edge of a one-line input.
+   field-sizing grows it where supported; the component sets the height from
+   scrollHeight everywhere else. */
+.tpage textarea.tin {
+  display: block;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  line-height: 1.25;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .tpage .ta {
   width: 100%;
   border: 1px solid var(--line);

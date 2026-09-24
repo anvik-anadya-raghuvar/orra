@@ -62,9 +62,9 @@ describe('pin numbering', () => {
     expect(pinNumber(ds, 'pin-1')).toBe(1);
     expect(pinNumber(ds, 'pin-3')).toBe(2); // no gap
     const md = generateTaskExport(ds, 'T-42');
-    expect(md).toContain('1. (x 32.4%');
-    expect(md).toContain('2. (x 10.0%');
-    expect(md).not.toContain('3. (x');
+    expect(md).toContain('- **Pin 1** (x 32.4%');
+    expect(md).toContain('- **Pin 2** (x 10.0%');
+    expect(md).not.toContain('**Pin 3**');
   });
 
   it('runs one sequence across the whole task — a second screenshot continues, never restarts', () => {
@@ -91,10 +91,10 @@ describe('pin numbering', () => {
     // shot-1 already carries pins 1 and 2 — the new screenshot's pin is 3.
     expect(pinNumber(ds, 'pin-later')).toBe(3);
     const md = generateTaskExport(ds, 'T-42');
-    expect(md).toContain('3. (x 55.0%, y 60.0%)');
+    expect(md).toContain('- **Pin 3** (x 55.0%, y 60.0%)');
     // and the section for the second screenshot does NOT begin again at 1
     const secondSection = md.slice(md.indexOf('## Screenshot 2'));
-    expect(secondSection).not.toContain('1. (x');
+    expect(secondSection).not.toContain('**Pin 1**');
   });
 
   it('keeps chronology when a later pin is added back onto the first screenshot', () => {
@@ -132,7 +132,7 @@ describe('pin numbering', () => {
     expect(pinNumber(ds, 'pin-on-second')).toBe(3);
     expect(pinNumber(ds, 'pin-back-on-first')).toBe(4);
     const firstSection = generateTaskExport(ds, 'T-42').split('## Screenshot 2')[0];
-    expect(firstSection).toContain('4. (x 70.0%, y 20.0%)');
+    expect(firstSection).toContain('- **Pin 4** (x 70.0%, y 20.0%)');
   });
 });
 

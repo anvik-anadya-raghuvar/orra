@@ -515,7 +515,7 @@ export default function Screenshots({
 
             {!pins.length && (
               <p className="none" style={{ marginTop: 9 }}>
-                No pins yet — tap anywhere on the surface above.
+                No pins yet — use Place a pin, then tap the spot.
               </p>
             )}
           </motion.div>
@@ -533,7 +533,7 @@ export default function Screenshots({
         hint="Paste with Ctrl+V, drop a file, or click to browse"
       />
       <p className="none" style={{ marginTop: 6 }}>
-        Images are compressed in the browser, then kept inline. Tap an image to place a numbered pin.
+        Images are compressed in the browser, then kept inline. Use Place a pin, then tap where the change is.
       </p>
       <ImageViewer image={viewer.image} onClose={viewer.close} />
     </section>

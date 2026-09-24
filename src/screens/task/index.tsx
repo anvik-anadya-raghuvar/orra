@@ -222,9 +222,12 @@ function TaskDetail({ task }: { task: Task }) {
       store.asMe({ summary: `Tag removed from ${task.id}: ${name}` }),
     );
 
+  /* The copied text and the .md download travel alone, with no assets folder
+     beside them — `standalone` swaps image links for a pointer to the zip
+     rather than leaving links that can only ever be broken. */
   const copyMd = async () => {
     try {
-      await navigator.clipboard.writeText(generateTaskExport(ds, task.id));
+      await navigator.clipboard.writeText(generateTaskExport(ds, task.id, { standalone: true }));
       toast('TASK.md copied to clipboard');
     } catch {
       toast('Clipboard blocked — could not copy');
@@ -280,6 +283,33 @@ function TaskDetail({ task }: { task: Task }) {
       toast('Export failed — try again');
     }
   };
+
+  /**
+   * Code context for the export (0053). Saved on blur like the title, capped
+   * to the same lengths the CHECK constraints enforce so a paste that would
+   * be refused server-side is trimmed here instead of failing silently.
+   * Paths are one per line; blank lines and stray spaces are dropped.
+   */
+  const saveCodeField = (field: 'branch' | 'code_paths', raw: string) => {
+    const clean =
+      field === 'branch'
+        ? raw.trim().slice(0, 200)
+        : raw
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .join('\n')
+            .slice(0, 2000);
+    const value = clean || null;
+    if (value === (task[field] ?? null)) return;
+    store.update(
+      'tasks',
+      task.id,
+      { [field]: value } as Partial<Task>,
+      store.asMe({ summary: `${field === 'branch' ? 'Branch' : 'Code paths'} updated on ${task.id}` }),
+    );
+  };
+  const taskProject = ds.projects.find((p) => p.id === task.project_id);
 
   const addNote = () => {
     const t = noteTitle.trim();
@@ -458,14 +488,30 @@ function TaskDetail({ task }: { task: Task }) {
               >
             <div className="tl-main">
               <DictateField label="Dictate the task title" className="tin-wrap">
-                <input
+                {/* A textarea so a long title wraps on a phone instead of
+                    being cut off; Enter still saves, as a title has no lines. */}
+                <textarea
                   className="tin"
+                  rows={1}
                   value={title}
                   aria-label="Task title"
-                  onChange={(e) => setTitle(e.target.value)}
+                  ref={(el) => {
+                    if (el) {
+                      el.style.height = 'auto';
+                      el.style.height = el.scrollHeight + 'px';
+                    }
+                  }}
+                  onChange={(e) => {
+                    setTitle(e.target.value.replace(/\n/g, ' '));
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }}
                   onBlur={saveTitle}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      (e.target as HTMLTextAreaElement).blur();
+                    }
                   }}
                 />
               </DictateField>
@@ -591,6 +637,46 @@ function TaskDetail({ task }: { task: Task }) {
                   />
                 </div>
                 <div>
+                  {/* Sent by the server (0052's pg_cron sweep), so it reaches
+                      every device with alerts on, even with ORRA closed. */}
+                  <label htmlFor="tf-remind">
+                    Remind me{task.reminded_at && task.remind_at ? ' — sent' : ''}
+                  </label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      id="tf-remind"
+                      type="datetime-local"
+                      value={task.remind_at ? toLocalInput(task.remind_at) : ''}
+                      onChange={(e) => {
+                        const next = e.target.value ? new Date(e.target.value).toISOString() : null;
+                        store.update(
+                          'tasks',
+                          task.id,
+                          { remind_at: next, reminded_at: null },
+                          store.asMe({ summary: next ? `Reminder set on ${task.id}` : `Reminder cleared on ${task.id}` }),
+                        );
+                      }}
+                    />
+                    {task.remind_at && (
+                      <button
+                        type="button"
+                        className="btn sm"
+                        aria-label="Clear reminder"
+                        onClick={() =>
+                          store.update(
+                            'tasks',
+                            task.id,
+                            { remind_at: null, reminded_at: null },
+                            store.asMe({ summary: `Reminder cleared on ${task.id}` }),
+                          )
+                        }
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
                   {/* Marking this done creates the next one as a new row and
                       names it — this task's dates never move (principle 3). */}
                   <label htmlFor="tf-repeat">Repeats — {describeRepeat(task.repeat).toLowerCase()}</label>
@@ -705,7 +791,9 @@ function TaskDetail({ task }: { task: Task }) {
                     <button
                       type="button"
                       className="btn sm"
-                      onClick={() => saveText(generateTaskExport(ds, task.id), `${task.id}.md`, 'text/markdown')}
+                      onClick={() =>
+                        saveText(generateTaskExport(ds, task.id, { standalone: true }), `${task.id}.md`, 'text/markdown')
+                      }
                     >
                       .md
                     </button>
@@ -738,6 +826,95 @@ function TaskDetail({ task }: { task: Task }) {
                       Context folder
                     </button>
                   </div>
+                  {/* Where the code is, so the export can say so (0053). The
+                      branch here overrides the project's default; the repo
+                      itself belongs to the project row. Keyed on the stored
+                      value so a save from the other person refreshes it. */}
+                  <div className="ctl" style={{ marginTop: 12 }}>
+                    <div className="wide">
+                      <label htmlFor="tf-branch">
+                        Branch
+                        {taskProject?.default_branch ? ` — default ${taskProject.default_branch}` : ''}
+                      </label>
+                      <input
+                        id="tf-branch"
+                        key={`branch:${task.branch ?? ''}`}
+                        defaultValue={task.branch ?? ''}
+                        maxLength={200}
+                        placeholder={taskProject?.default_branch || 'e.g. fix/ecourts-pre2019'}
+                        onBlur={(e) => saveCodeField('branch', e.target.value)}
+                      />
+                    </div>
+                    <div className="wide">
+                      <label htmlFor="tf-paths">Code paths — one per line</label>
+                      <textarea
+                        id="tf-paths"
+                        key={`paths:${task.code_paths ?? ''}`}
+                        defaultValue={task.code_paths ?? ''}
+                        maxLength={2000}
+                        rows={3}
+                        placeholder="src/collectors/ecourts/parse.ts"
+                        onBlur={(e) => saveCodeField('code_paths', e.target.value)}
+                        style={{
+                          width: '100%',
+                          border: '1px solid var(--line)',
+                          background: 'var(--surf)',
+                          borderRadius: 9,
+                          padding: 10,
+                          fontSize: 13,
+                          minHeight: 44,
+                          resize: 'vertical',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {/* The repo is the project's, so every task in it shares one
+                      value. Edited here because this is the only place that
+                      reads it; there is no separate project editor. */}
+                  {taskProject && (
+                    <div className="ctl" style={{ marginTop: 8 }}>
+                      <div className="wide">
+                        <label htmlFor="tf-repo">Repository for {taskProject.name}</label>
+                        <input
+                          id="tf-repo"
+                          key={`repo:${taskProject.repo_url ?? ''}`}
+                          defaultValue={taskProject.repo_url ?? ''}
+                          maxLength={500}
+                          placeholder="github.com/you/repo"
+                          onBlur={(e) => {
+                            const v = e.target.value.trim().slice(0, 500) || null;
+                            if (v === (taskProject.repo_url ?? null)) return;
+                            store.update(
+                              'projects',
+                              taskProject.id,
+                              { repo_url: v },
+                              store.asMe({ summary: `Repository set on ${taskProject.name}` }),
+                            );
+                          }}
+                        />
+                      </div>
+                      <div className="wide">
+                        <label htmlFor="tf-defbranch">Default branch</label>
+                        <input
+                          id="tf-defbranch"
+                          key={`defbranch:${taskProject.default_branch ?? ''}`}
+                          defaultValue={taskProject.default_branch ?? ''}
+                          maxLength={200}
+                          placeholder="main"
+                          onBlur={(e) => {
+                            const v = e.target.value.trim().slice(0, 200) || null;
+                            if (v === (taskProject.default_branch ?? null)) return;
+                            store.update(
+                              'projects',
+                              taskProject.id,
+                              { default_branch: v },
+                              store.asMe({ summary: `Default branch set on ${taskProject.name}` }),
+                            );
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -963,4 +1140,11 @@ function TaskDetail({ task }: { task: Task }) {
       </MotionConfig>
     </div>
   );
+}
+
+/** An ISO instant as the value a `datetime-local` input wants, in local time. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
