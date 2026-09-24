@@ -5,6 +5,7 @@ import { checkCredentials } from '../lib/auth';
 import { getSupabase, isRecoveryUrl } from '../lib/supabaseClient';
 import { entrance } from './motion';
 import './gate.css';
+import { InstallApp } from './InstallApp';
 
 /**
  * Sign-in gate — email + password for the member accounts.
@@ -371,6 +372,9 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
           <p className="gate-foot">
             Member accounts only. Change your password any time from the account menu.
           </p>
+          <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}>
+            <InstallApp variant="block" />
+          </div>
         </motion.div>
       </div>
     </div>

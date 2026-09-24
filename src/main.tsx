@@ -5,6 +5,7 @@ import App from './App';
 import './styles/theme.css';
 import './styles/alive.css';
 import './styles/viz.css';
+import { captureInstallPrompt } from './lib/install';
 
 /**
  * Set BEFORE the first render, not in an effect: mount animations are queued
@@ -31,6 +32,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
  * Failure is deliberately silent — an unregistered worker costs the install
  * prompt and a warm start, never the app.
  */
+// Before anything renders: the browser fires its install prompt once, early.
+captureInstallPrompt();
+
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/sw.js').catch(() => {});

@@ -18,6 +18,7 @@ import { ErrorBoundary } from './ui/ErrorBoundary';
 import { Gate } from './ui/gate';
 import { getSupabase } from './lib/supabaseClient';
 import { NotificationBell, NotificationProvider } from './ui/notifications';
+import { InstallApp } from './ui/InstallApp';
 import { CommandPalette, CommandPaletteButton } from './ui/CommandPalette';
 import { DictationProvider } from './ui/dictation';
 import BlockOverlay from './ui/BlockOverlay';
@@ -256,6 +257,7 @@ function Header() {
       <span className="mono" style={{ fontSize: 11, color: 'var(--mute)' }}>{clock}</span>
       <RunningBlockBadge />
       <div className="spacer" />
+      <InstallApp />
       <CommandPaletteButton />
       <NotificationBell />
       <AccountMenu />
