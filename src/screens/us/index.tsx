@@ -260,6 +260,7 @@ function Bubble({
                   e.preventDefault();
                   saveEdit();
                 } else if (e.key === 'Escape') {
+                  e.preventDefault();
                   setEditing(false);
                 }
               }}

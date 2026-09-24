@@ -13,6 +13,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Info, Trash2, X } from 'lucide-react';
 import { useData } from '../data/store';
 import { entrance, useAnimateIn } from './motion';
+import { useEscapeLayer } from './escapeStack';
 
 /* ── Contextual help ─────────────────────────────────────────────────── */
 /** How much room to leave between the bubble and the edge of the screen. */
@@ -76,16 +77,12 @@ export function InfoTip({ text, label = 'More information' }: { text: string; la
     // sit inside a scrollable panel, and only a capturing listener hears both.
     window.addEventListener('scroll', on, true);
     window.addEventListener('resize', on);
-    const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    window.addEventListener('keydown', key);
     return () => {
       window.removeEventListener('scroll', on, true);
       window.removeEventListener('resize', on);
-      window.removeEventListener('keydown', key);
     };
   }, [open, place]);
+  useEscapeLayer(open, () => setOpen(false));
 
   return (
     <>
@@ -270,17 +267,11 @@ function usePanelBehaviour(open: boolean, onClose: () => void) {
   const openerRef = useRef<Element | null>(null);
 
   useEffect(() => {
-    if (!open) return;
-    openerRef.current = document.activeElement;
-    const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [open, onClose]);
+    if (open) openerRef.current = document.activeElement;
+  }, [open]);
+  // Only the topmost layer closes: Escape in a viewer or a pin draft opened
+  // over this panel steps back to the panel instead of closing it too.
+  useEscapeLayer(open, onClose);
 
   useEffect(() => {
     if (!open) return;

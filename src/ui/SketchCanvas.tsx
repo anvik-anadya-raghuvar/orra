@@ -448,7 +448,7 @@ export function SketchCanvas({
         animate={{ opacity: 1, transition: reduced ? { duration: 0 } : entrance }}
         exit={reduced ? { opacity: 0 } : { opacity: 0, transition: micro }}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') setExpanded(false);
+          if (event.key === 'Escape') { event.preventDefault(); setExpanded(false); }
         }}
       >
         {board}

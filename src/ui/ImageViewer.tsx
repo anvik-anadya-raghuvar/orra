@@ -16,11 +16,13 @@
  * Firefox without the flag, any insecure origin — the button says so and
  * Download still works, rather than the whole viewer pretending it failed.
  */
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Copy, Download, X } from 'lucide-react';
 import { dataUrlToBytes, downloadName, mimeFromDataUrl, needsPngForClipboard } from '../lib/imageFile';
+import { PIN_LABELS } from '../types';
 import { useToast } from './bits';
+import { useEscapeLayer } from './escapeStack';
 import './imageViewer.css';
 
 export interface ViewableImage {
@@ -28,7 +30,30 @@ export interface ViewableImage {
   filename: string;
   width?: number;
   height?: number;
+  /** The screenshot row this is, so a caller can hand back its live pins. */
+  id?: string;
 }
+
+/** A pin already on the image, as the viewer draws it. */
+export interface ViewerPin {
+  id: string;
+  number: number;
+  x_pct: number;
+  y_pct: number;
+  note: string;
+  label?: string;
+  resolved?: boolean;
+}
+
+export interface NewViewerPin {
+  x_pct: number;
+  y_pct: number;
+  note: string;
+  label: string;
+}
+
+const clampPct = (v: number) => Math.min(100, Math.max(0, Math.round(v * 10) / 10));
+const spring = { type: 'spring', stiffness: 400, damping: 30 } as const;
 
 /** Redraw through a canvas to get PNG bytes the clipboard will take. */
 function toPngBlob(src: string): Promise<Blob | null> {
@@ -48,25 +73,71 @@ function toPngBlob(src: string): Promise<Blob | null> {
   });
 }
 
-export function ImageViewer({ image, onClose }: { image: ViewableImage | null; onClose: () => void }) {
+/**
+ * With `onAddPin`, the viewer is also where you pin. Opening a screenshot by
+ * accident used to be a dead end — close it, find Place a pin, click again.
+ * Now a click on the picture drops a pin right there, Enter saves it, and the
+ * next click starts the next one. Escape backs out one step at a time: the
+ * open pin first, then the viewer — never the page or sheet behind it.
+ */
+export function ImageViewer({
+  image,
+  onClose,
+  pins,
+  onAddPin,
+  nextPinNumber,
+}: {
+  image: ViewableImage | null;
+  onClose: () => void;
+  pins?: ViewerPin[];
+  onAddPin?: (pin: NewViewerPin) => void;
+  nextPinNumber?: number;
+}) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<NewViewerPin | null>(null);
 
   useEffect(() => {
     if (!image) return undefined;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
     /* The page behind must not scroll while this is open — on a phone the
        overlay is the whole screen and scrolling it moves the wrong thing. */
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('keydown', onKey);
       document.body.style.overflow = previous;
     };
-  }, [image, onClose]);
+  }, [image]);
+
+  // A different image (or none) never inherits a half-written pin.
+  useEffect(() => setDraft(null), [image?.src]);
+
+  useEscapeLayer(!!image, onClose);
+  useEscapeLayer(!!image && !!draft, () => setDraft(null));
+
+  const startPin = (event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+    if (!onAddPin) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    // Clicking elsewhere while a note is half-written moves the pin, keeps the words.
+    setDraft({
+      x_pct: clampPct(((event.clientX - rect.left) / rect.width) * 100),
+      y_pct: clampPct(((event.clientY - rect.top) / rect.height) * 100),
+      note: draft?.note ?? '',
+      label: draft?.label ?? '',
+    });
+  };
+
+  const savePin = () => {
+    if (!draft || !onAddPin) return;
+    const note = draft.note.trim();
+    if (!note) {
+      toast('A pin needs a note — that note is what the agent reads');
+      return;
+    }
+    onAddPin({ ...draft, note });
+    setDraft(null);
+  };
 
   const download = useCallback(() => {
     if (!image) return;
@@ -127,7 +198,7 @@ export function ImageViewer({ image, onClose }: { image: ViewableImage | null; o
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          onClick={onClose}
+          onClick={() => (draft ? setDraft(null) : onClose())}
         >
           <div className="imgview-bar" onClick={(event) => event.stopPropagation()}>
             <span className="imgview-name">
@@ -145,17 +216,101 @@ export function ImageViewer({ image, onClose }: { image: ViewableImage | null; o
               <X size={15} strokeWidth={2} aria-hidden />
             </button>
           </div>
-          <motion.img
-            className="imgview-img"
-            src={image.src}
-            alt={image.filename}
+          <motion.div
+            className={`imgview-stage${onAddPin ? ' pinnable' : ''}`}
             initial={{ scale: 0.97, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.98, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            onClick={(event) => event.stopPropagation()}
-          />
-          <p className="imgview-hint">Click outside, or press Esc, to close.</p>
+            transition={spring}
+            onClick={startPin}
+            role={onAddPin ? 'group' : undefined}
+            aria-label={onAddPin ? `${image.filename}. Click the exact spot to place a pin.` : undefined}
+          >
+            <img className="imgview-img" src={image.src} alt={image.filename} draggable={false} />
+            {pins?.map((pin) => (
+              <span
+                key={pin.id}
+                className={`imgview-pin${pin.resolved ? ' res' : ''}`}
+                style={{ left: `${pin.x_pct}%`, top: `${pin.y_pct}%` }}
+                title={`${pin.label ? `[${pin.label}] ` : ''}${pin.note}`}
+                role="img"
+                aria-label={`Pin ${pin.number}${pin.label ? `, ${pin.label}` : ''}: ${pin.note}`}
+              >
+                {pin.number}
+              </span>
+            ))}
+            <AnimatePresence>
+              {draft && (
+                <motion.span
+                  key="draft"
+                  className="imgview-pin pending"
+                  style={{ left: `${draft.x_pct}%`, top: `${draft.y_pct}%`, x: '-50%', y: '-50%' }}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={spring}
+                  aria-hidden
+                >
+                  {nextPinNumber ?? '+'}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.div>
+          <AnimatePresence initial={false}>
+            {draft && (
+              <motion.div
+                key="pinform"
+                className="imgview-pinform"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <textarea
+                  autoFocus
+                  rows={2}
+                  value={draft.note}
+                  placeholder={`Pin ${nextPinNumber ?? ''} — what is wrong here, and what should it become?`}
+                  aria-label="Pin note"
+                  onChange={(event) => setDraft({ ...draft, note: event.target.value })}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      savePin();
+                    }
+                  }}
+                />
+                <div className="imgview-pinrow">
+                  {PIN_LABELS.map((label) => (
+                    <button
+                      key={label}
+                      type="button"
+                      className="chip"
+                      aria-pressed={draft.label === label}
+                      onClick={() => setDraft({ ...draft, label: draft.label === label ? '' : label })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <div className="spacer" />
+                  <button type="button" className="btn sm" onClick={() => setDraft(null)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="btn sm solid" disabled={!draft.note.trim()} onClick={savePin}>
+                    Add pin
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <p className="imgview-hint">
+            {onAddPin
+              ? draft
+                ? 'Enter saves the pin · Shift+Enter for a new line · Esc cancels it'
+                : 'Click the spot to pin it · Esc goes back'
+              : 'Click outside, or press Esc, to close.'}
+          </p>
         </motion.div>
       )}
     </AnimatePresence>

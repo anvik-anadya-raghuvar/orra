@@ -7,6 +7,7 @@ import { appendMissingInlineImages } from '../../ui/inlineImages';
 import { PIN_LABELS } from '../../types';
 import { DictateField } from '../../ui/dictation';
 import { ImageViewer, useImageViewer } from '../../ui/ImageViewer';
+import { useEscapeLayer } from '../../ui/escapeStack';
 
 export interface DraftShot extends DroppedImage {
   id: string;
@@ -89,19 +90,33 @@ export default function DraftEvidenceEditor({
     });
   };
 
-  const addPin = () => {
-    if (!openPin?.note.trim()) return;
+  const pushPin = (pin: OpenPin) =>
     onPinsChange([
       ...pins,
       {
-        ...openPin,
+        ...pin,
         id: newId('pin'),
-        note: openPin.note.trim(),
+        note: pin.note.trim(),
         created_at: nextTimestamp(),
       },
     ]);
+
+  const addPin = () => {
+    if (!openPin?.note.trim()) return;
+    pushPin(openPin);
     setOpenPin(null);
   };
+
+  // Escape backs out of the pin being written (or an armed Place a pin) —
+  // one step, not the whole New task sheet.
+  useEscapeLayer(!!openPin || !!pinning, () => {
+    setOpenPin(null);
+    setPinning(null);
+  });
+
+  const openViewer = (shot: DraftShot) =>
+    viewer.open({ id: shot.id, src: shot.data_url, filename: shot.filename, width: shot.width, height: shot.height });
+  const viewedShot = shots.find((shot) => shot.id === viewer.image?.id);
 
   return (
     <div className="wk-draft-evidence">
@@ -163,7 +178,7 @@ export default function DraftEvidenceEditor({
                   begin(event, shot.id);
                   setPinning(null);
                 } else {
-                  viewer.open({ src: shot.data_url, filename: shot.filename, width: shot.width, height: shot.height });
+                  openViewer(shot);
                 }
               }}
             >
@@ -201,11 +216,9 @@ export default function DraftEvidenceEditor({
               <button
                 type="button"
                 className="btn sm"
-                onClick={() =>
-                  viewer.open({ src: shot.data_url, filename: shot.filename, width: shot.width, height: shot.height })
-                }
+                onClick={() => openViewer(shot)}
               >
-                <Eye size={14} strokeWidth={1.9} aria-hidden /> View · save · copy
+                <Eye size={14} strokeWidth={1.9} aria-hidden /> View · pin · save
               </button>
               <button
                 type="button"
@@ -229,8 +242,12 @@ export default function DraftEvidenceEditor({
                       placeholder="What is wrong here, and what should it become?"
                       onChange={(event) => setOpenPin({ ...openPin, note: event.target.value })}
                       onKeyDown={(event) => {
-                        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) addPin();
-                        if (event.key === 'Escape') setOpenPin(null);
+                        // Enter saves, like every other one-line note here;
+                        // Shift+Enter is still there for a second line.
+                        if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                          event.preventDefault();
+                          addPin();
+                        }
                       }}
                     />
                   </DictateField>
@@ -262,7 +279,7 @@ export default function DraftEvidenceEditor({
                   <button className="btn sm" type="button" onClick={() => setOpenPin(null)}>
                     Cancel
                   </button>
-                  <span>Ctrl/⌘ + Enter to add</span>
+                  <span>Enter to add · Esc to cancel</span>
                 </div>
               </div>
             )}
@@ -292,7 +309,21 @@ export default function DraftEvidenceEditor({
         );
         }}
       />
-      <ImageViewer image={viewer.image} onClose={viewer.close} />
+      <ImageViewer
+        image={viewer.image}
+        onClose={viewer.close}
+        pins={
+          viewedShot
+            ? pins
+                .filter((pin) => pin.screenshot_id === viewedShot.id)
+                .map((pin) => ({ ...pin, number: numberOf(pin.id) }))
+            : undefined
+        }
+        nextPinNumber={pins.length + 1}
+        onAddPin={
+          viewedShot ? (pin) => pushPin({ ...pin, screenshot_id: viewedShot.id }) : undefined
+        }
+      />
     </div>
   );
 }

@@ -38,6 +38,7 @@ import { activeBlockFor } from '../../lib/blocks';
 import { entrance, micro, spring, staggerItem } from '../../ui/motion';
 import './arrange.css';
 import type { HomeLayout } from '../../types';
+import { useEscapeLayer } from '../../ui/escapeStack';
 import {
   MAX_COLS,
   MAX_ROWS,
@@ -599,13 +600,10 @@ export function TileSheet({
     };
   }, [tileKey]);
 
+  useEscapeLayer(true, close);
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        close();
-        return;
-      }
       if (e.key !== 'Tab') return;
       const el = sheetRef.current;
       if (!el) return;

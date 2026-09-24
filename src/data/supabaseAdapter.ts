@@ -67,6 +67,45 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
   const knownIds = new Map<CollectionKey, Set<string>>();
   let onError: ((msg: string) => void) | null = null;
 
+  /* Writes still on the wire, by row id. Optimistic writes are fired without
+     waiting, so a child and its parent raced each other: a pin (a few hundred
+     bytes) reached Postgres before the screenshot it points at (hundreds of
+     KB of image), and the pin failed "annotation_pins_screenshot_id_fkey"
+     though both rows were fine. A write now waits for any in-flight row its
+     `*_id` columns reference — and for an earlier write of the same row, so
+     an update never lands before the insert it amends. Unrelated writes still
+     go out in parallel. */
+  const inflight = new Map<string, Promise<void>>();
+
+  const dependenciesOf = (rows: readonly unknown[]): Promise<void>[] => {
+    const deps = new Set<Promise<void>>();
+    for (const row of rows as Record<string, unknown>[]) {
+      for (const [field, value] of Object.entries(row)) {
+        if (typeof value !== 'string') continue;
+        if (field !== 'id' && !field.endsWith('_id')) continue;
+        const pending = inflight.get(value);
+        if (pending) deps.add(pending);
+      }
+    }
+    return [...deps];
+  };
+
+  /** Run `send` after its dependencies, and register it as in flight for `ids`. */
+  const ordered = <T>(ids: string[], deps: Promise<void>[], send: () => PromiseLike<T>): Promise<T> => {
+    const result = deps.length ? Promise.all(deps).then(send) : Promise.resolve(send());
+    const settled = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    for (const id of ids) {
+      inflight.set(id, settled);
+      void settled.then(() => {
+        if (inflight.get(id) === settled) inflight.delete(id);
+      });
+    }
+    return result;
+  };
+
   return {
     kind: 'supabase',
     async load() {
@@ -131,14 +170,16 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
         changed = (changed as Record<string, unknown>[]).map(({ password: _pw, ...rest }) => rest);
       }
       if (changed && changed.length) {
-        const write =
+        const rowsToSend = changed;
+        const send = () =>
           key === 'audit_trail' || key === 'personal_order_events'
-            ? sb.from(table).insert(changed as never[])
-            : sb.from(table).upsert(changed as never[]);
+            ? sb.from(table).insert(rowsToSend as never[])
+            : sb.from(table).upsert(rowsToSend as never[]);
+        const ids = (rowsToSend as { id: string }[]).map((row) => row.id);
         // Fire-and-forget from the caller's point of view (the UI already
         // updated optimistically), but a failure here must not vanish —
         // that is exactly "I created it and it's gone after refresh."
-        void write.then(({ error }) => {
+        void ordered(ids, dependenciesOf(rowsToSend), send).then(({ error }) => {
           if (error) {
             console.error(`[supabaseAdapter] failed to save ${table}:`, error.message);
             onError?.(`Couldn't save to ${table.replace(/_/g, ' ')} — ${error.message}`);
@@ -154,10 +195,10 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
         const present = new Set((rows as { id: string }[]).map((r) => r.id));
         const gone = [...known].filter((id) => !present.has(id));
         if (gone.length && key !== 'audit_trail') {
-          void sb
-            .from(table)
-            .delete()
-            .in('id', gone)
+          // A delete waits for the insert it undoes, or the insert lands
+          // second and the row comes back.
+          const deps = gone.map((id) => inflight.get(id)).filter((p): p is Promise<void> => !!p);
+          void ordered(gone, deps, () => sb.from(table).delete().in('id', gone))
             .then(({ error }) => {
               if (error) {
                 console.error(`[supabaseAdapter] failed to delete from ${table}:`, error.message);
@@ -181,11 +222,16 @@ export function createSupabaseAdapter(sb: SupabaseClient): DataAdapter {
       if (key === 'profiles') {
         changed = (changed as Record<string, unknown>[]).map(({ password: _pw, ...rest }) => rest);
       }
-      const write =
+      const rowsToSend = changed;
+      const send = () =>
         key === 'audit_trail' || key === 'personal_order_events'
-          ? sb.from(table).insert(changed as never[])
-          : sb.from(table).upsert(changed as never[]);
-      const { error } = await write;
+          ? sb.from(table).insert(rowsToSend as never[])
+          : sb.from(table).upsert(rowsToSend as never[]);
+      const { error } = await ordered(
+        (rowsToSend as { id: string }[]).map((row) => row.id),
+        dependenciesOf(rowsToSend),
+        send,
+      );
       if (error) return error.message;
       const known = knownIds.get(key) ?? new Set<string>();
       for (const row of changed as { id: string }[]) known.add(row.id);

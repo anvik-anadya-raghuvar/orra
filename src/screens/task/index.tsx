@@ -571,6 +571,7 @@ function TaskDetail({ task }: { task: Task }) {
                         commitTag();
                       }
                       if (e.key === 'Escape') {
+                        e.preventDefault();
                         setTagDraft('');
                         setAddingTag(false);
                       }

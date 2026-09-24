@@ -4,11 +4,12 @@ import { Check, Eye, MapPin, RotateCcw, Trash2 } from 'lucide-react';
 import { newId, useDataset, useStore } from '../../data/store';
 import { useToast } from '../../ui/bits';
 import { entrance, spring } from '../../ui/motion';
-import { pinNumber } from '../../lib/exportTask';
+import { pinNumber, taskPinNumbers } from '../../lib/exportTask';
+import { useEscapeLayer } from '../../ui/escapeStack';
 import { prettyBytes } from '../../lib/imageCompress';
 import { ImageDrop, processImages, useImagePaste, type DroppedImage } from '../../ui/imagedrop';
 import { InlineImageEditor } from '../../ui/InlineImageEditor';
-import { ImageViewer, useImageViewer } from '../../ui/ImageViewer';
+import { ImageViewer, useImageViewer, type NewViewerPin } from '../../ui/ImageViewer';
 import {
   appendMissingInlineImages,
   insertInlineImages,
@@ -111,6 +112,24 @@ export default function Screenshots({
     });
   };
 
+  /** Both routes land here: the inline draft under the image, and the viewer. */
+  const insertPin = (shot: ScreenshotAttachment, pin: NewViewerPin) =>
+    store.insert(
+      'annotation_pins',
+      {
+        id: newId('pin'),
+        screenshot_id: shot.id,
+        x_pct: clampPct(pin.x_pct),
+        y_pct: clampPct(pin.y_pct),
+        note: pin.note,
+        label: pin.label,
+        author_id: store.me.id,
+        is_resolved: false,
+        created_at: new Date().toISOString(),
+      },
+      store.asMe({ summary: `Pin added on ${shot.filename}` }),
+    );
+
   const commitDraft = (shot: ScreenshotAttachment) => {
     if (!draft) return;
     const note = draft.note.trim();
@@ -118,21 +137,7 @@ export default function Screenshots({
       toast('A pin needs a note — that note is what the agent reads');
       return;
     }
-    const row = store.insert(
-      'annotation_pins',
-      {
-        id: newId('pin'),
-        screenshot_id: shot.id,
-        x_pct: clampPct(draft.x),
-        y_pct: clampPct(draft.y),
-        note,
-        label: draft.label ?? '',
-        author_id: store.me.id,
-        is_resolved: false,
-        created_at: new Date().toISOString(),
-      },
-      store.asMe({ summary: `Pin added on ${shot.filename}` }),
-    );
+    const row = insertPin(shot, { x_pct: draft.x, y_pct: draft.y, note, label: draft.label ?? '' });
     setDraft(null);
     // Placing a pin disarms the mode: leaving it armed turns the next
     // click meant to look at the image into another pin.
@@ -207,6 +212,17 @@ export default function Screenshots({
   // Ctrl/Cmd+V anywhere on the task page: take a screenshot, switch back, paste.
   useImagePaste(sectionRef, (files) => insertFiles(files));
 
+  // Escape backs out of the pin you are writing (or the armed Place a pin),
+  // and only that — not the task page.
+  useEscapeLayer(!!draft || !!pinning, () => {
+    setDraft(null);
+    setPinning(null);
+  });
+
+  const openViewer = (shot: ScreenshotAttachment) =>
+    viewer.open({ id: shot.id, src: shot.data_url ?? '', filename: shot.filename, width: shot.width, height: shot.height });
+  const viewedShot = shots.find((shot) => shot.id === viewer.image?.id);
+
   return (
     <section className="task-inline-brief" aria-label="Task brief" ref={sectionRef}>
       <div
@@ -266,7 +282,7 @@ export default function Screenshots({
                 style={{ aspectRatio: `${shot.width} / ${shot.height}` }}
                 onClick={(e) => {
                   if (pinning === shot.id) startDraft(e, shot);
-                  else viewer.open({ src: shot.data_url ?? '', filename: shot.filename, width: shot.width, height: shot.height });
+                  else openViewer(shot);
                 }}
                 role="group"
                 aria-label={
@@ -355,7 +371,6 @@ export default function Screenshots({
                         e.preventDefault();
                         commitDraft(shot);
                       }
-                      if (e.key === 'Escape') { setDraft(null); setPinning(null); }
                     }}
                   />
                   {/* Categorising the pin is what lets the exported TASK.md
@@ -415,11 +430,9 @@ export default function Screenshots({
                 <button
                   className="btn sm"
                   type="button"
-                  onClick={() =>
-                    viewer.open({ src: shot.data_url ?? '', filename: shot.filename, width: shot.width, height: shot.height })
-                  }
+                  onClick={() => openViewer(shot)}
                 >
-                  <Eye size={14} strokeWidth={1.9} aria-hidden /> View · save · copy
+                  <Eye size={14} strokeWidth={1.9} aria-hidden /> View · pin · save
                 </button>
                 <button
                   className="btn sm"
@@ -535,7 +548,25 @@ export default function Screenshots({
       <p className="none" style={{ marginTop: 6 }}>
         Images are compressed in the browser, then kept inline. Use Place a pin, then tap where the change is.
       </p>
-      <ImageViewer image={viewer.image} onClose={viewer.close} />
+      <ImageViewer
+        image={viewer.image}
+        onClose={viewer.close}
+        pins={
+          viewedShot
+            ? pinsFor(viewedShot.id).map((p) => ({
+                id: p.id,
+                number: pinNumber(ds, p.id),
+                x_pct: p.x_pct,
+                y_pct: p.y_pct,
+                note: p.note,
+                label: p.label,
+                resolved: p.is_resolved,
+              }))
+            : undefined
+        }
+        nextPinNumber={taskPinNumbers(ds, task.id).size + 1}
+        onAddPin={viewedShot ? (pin) => insertPin(viewedShot, pin) : undefined}
+      />
     </section>
   );
 }

@@ -75,7 +75,7 @@ export function LabelEditor({
                 event.preventDefault();
                 add();
               }
-              if (event.key === 'Escape') setEditing(false);
+              if (event.key === 'Escape') { event.preventDefault(); setEditing(false); }
             }}
           />
           <button type="button" className="btn sm" onClick={add} disabled={!draft.trim()}>

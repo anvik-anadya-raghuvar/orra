@@ -295,6 +295,8 @@ export function DictationProvider({ children }: { children: React.ReactNode }) {
     if (!supported) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && wantListening.current) {
+        // Stopping dictation is this Escape's whole job — the sheet stays.
+        event.preventDefault();
         stop();
         return;
       }

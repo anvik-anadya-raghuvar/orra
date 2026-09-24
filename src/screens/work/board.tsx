@@ -1710,7 +1710,7 @@ function NewTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
       addShot(image, nextOffset);
       nextOffset = descriptionCaret.current;
     })
-      .then(() => toast('Image inserted — use Place a pin, then tap where the change is'))
+      .then(() => toast('Image inserted — click it to pin, or keep pasting'))
       .catch((err: Error) => toast(err.message || 'That image could not be pasted'))
       .finally(() => setShotBusy(false));
   };

@@ -383,6 +383,7 @@ export function BlockRow(props: BlockRowProps) {
       }
     }
     if (event.key === 'Escape') {
+      event.preventDefault();
       if (menuOpen) { setMenuOpen(false); onMenuClosed(); return; }
       onDeactivate();
       element.blur();

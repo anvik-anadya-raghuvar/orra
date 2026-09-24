@@ -386,7 +386,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                       e.preventDefault();
                       sendReply(popup);
                     }
-                    if (e.key === 'Escape') setReplyTo(null);
+                    if (e.key === 'Escape') { e.preventDefault(); setReplyTo(null); }
                   }}
                 />
                 <button type="button" className="btn sm solid" onClick={() => sendReply(popup)}>
