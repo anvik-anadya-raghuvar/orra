@@ -301,6 +301,23 @@ export const shiftDay = (iso: string, days: number): string =>
 
 export const eventDay = (event: CalendarEvent): string => event.start.slice(0, 10);
 
+/** True when a Google event is the same meeting as a Cal.com booking row
+ *  (`external_event_id` "calcom:<uid>") on this person's calendar. */
+export function isCalcomTwin(rows: DayEvent[], userId: UserId, event: CalendarEvent): boolean {
+  if (event.allDay) return false;
+  const day = eventDay(event);
+  const start = toMin(event.start);
+  const end = toMin(event.end);
+  return rows.some(
+    (row) =>
+      row.user_id === userId &&
+      !!row.external_event_id?.startsWith('calcom:') &&
+      row.date === day &&
+      row.start_min === start &&
+      row.end_min === end,
+  );
+}
+
 export function toDayEvent(
   event: CalendarEvent,
   userId: UserId,
@@ -332,7 +349,11 @@ export async function syncCalendarWindow(
 ): Promise<{ eventsNew: number; eventsDropped: number }> {
   // ORRA's own blocks, echoed back from Google by calendarPush. The row they
   // came from is already on the calendar; mirroring them would double it.
-  const events = (await fetchCalendarRange(account.id, fromIso, toIso)).filter((event) => !event.orraId);
+  const events = (await fetchCalendarRange(account.id, fromIso, toIso))
+    .filter((event) => !event.orraId)
+    // A Cal.com booking is already on the calendar, written by the calcom
+    // webhook the moment it was made; its Google copy would double it.
+    .filter((event) => !isCalcomTwin(store.ds.day_events, store.meId, event));
   const live = new Set(events.map((event) => event.id));
   let eventsNew = 0;
   for (const event of events) {

@@ -7,10 +7,16 @@
  * nothing buzzed. Cal.com calls this webhook on every booking, reschedule and
  * cancellation; this turns each into a push to the host's devices.
  *
- * Deliberately NOT a calendar write. The booking is already in Google (Cal.com
- * put it there), and ORRA's Google sync mirrors it into the ORRA calendar;
- * writing a day_events row here too would show every booking twice — and the
- * Google push would copy that row back into Google a second time.
+ * It also puts the booking on the host's ORRA calendar, straight away. The
+ * Google mirror could do that too, but only while ORRA is open and its Google
+ * token is fresh (an hour), so a booking often never appeared. To keep it to
+ * one copy:
+ *   · the row is id `calcom-<uid>` with external_event_id `calcom:<uid>` and
+ *     no integration_grant_id — calendarPush skips anything with an
+ *     external_event_id, so it is never copied back into Google, and the busy
+ *     feed skips it too (Cal.com already knows its own bookings);
+ *   · any Google mirror of the same meeting already in ORRA is removed here,
+ *     and googleSync skips a Google event that matches a calcom row.
  *
  * Who is calling: the URL carries the host's secret feed token (the same one
  * the busy feed uses — booking_pages.ics_token), which is how the host is
@@ -20,7 +26,7 @@
  */
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { isValidTimeZone } from '../_shared/booking.ts';
+import { isValidTimeZone, zonedParts } from '../_shared/booking.ts';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{32,128}$/;
 
@@ -57,7 +63,8 @@ Deno.serve(async (req: Request) => {
   }
 
   // Service role: Cal.com has no ORRA session, and the host must be looked
-  // up by the secret token it presented. Reads one row, writes nothing.
+  // up by the secret token it presented. Writes only the host's own
+  // `calcom-*` calendar rows (and removes a Google mirror of the same one).
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false },
   });
@@ -87,7 +94,51 @@ Deno.serve(async (req: Request) => {
   const line = lines[trigger];
   if (!line) return json({ ok: true, ignored: trigger || 'unknown' });
 
-  await notify(page.user_id, line[0], line[1], `orra-calcom-${String(p.uid ?? '').slice(0, 40)}`);
+  const uid = String(p.uid ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+  if (uid) {
+    const guestEmail = String(p.attendees?.[0]?.email ?? '').slice(0, 200);
+    // A reschedule arrives with the new uid and the old one in rescheduleUid
+    // (older payloads: fromReschedule); the old block has to go either way.
+    const oldUid = String(p.rescheduleUid ?? p.fromReschedule ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+    if (trigger === 'BOOKING_CANCELLED') {
+      await sb.from('day_events').delete().eq('id', `calcom-${uid}`);
+    } else {
+      if (oldUid && oldUid !== uid) await sb.from('day_events').delete().eq('id', `calcom-${oldUid}`);
+      const start = zonedParts(Date.parse(String(p.startTime)), zone);
+      const endMs = Date.parse(String(p.endTime ?? p.startTime));
+      const end = zonedParts(endMs, zone);
+      // Wall-clock minutes on the start day; a meeting past midnight is shown
+      // to the end of that day rather than split.
+      const endMin = end.date === start.date ? Math.max(end.minutes, start.minutes + 5) : 1440;
+      const row = {
+        id: `calcom-${uid}`,
+        user_id: page.user_id,
+        date: start.date,
+        start_min: start.minutes,
+        end_min: Math.min(endMin, 1440),
+        label: `${guest} — ${title}`.slice(0, 200),
+        kind: 'meeting',
+        task_id: null,
+        created_by: page.user_id,
+        external_event_id: `calcom:${uid}`,
+        note: `Booked through Cal.com${guestEmail ? ` by ${guestEmail}` : ''}${trigger === 'BOOKING_REQUESTED' ? ' — waiting for your confirmation in Cal.com' : ''}.`,
+      };
+      const { error } = await sb.from('day_events').upsert(row, { onConflict: 'id' });
+      if (!error) {
+        // The same meeting may already be in ORRA as a Google mirror.
+        await sb
+          .from('day_events')
+          .delete()
+          .eq('user_id', page.user_id)
+          .eq('date', row.date)
+          .eq('start_min', row.start_min)
+          .eq('end_min', row.end_min)
+          .not('integration_grant_id', 'is', null);
+      }
+    }
+  }
+
+  await notify(page.user_id, line[0], line[1], `orra-calcom-${uid.slice(0, 40)}`);
   return json({ ok: true });
 });
 
