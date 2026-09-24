@@ -122,17 +122,36 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || '/';
+  const raw = (event.notification.data && event.notification.data.url) || '/';
+  // Only ever open this app: a push naming another origin falls back to home.
+  let target = new URL('/', self.location.origin).href;
+  try {
+    const resolved = new URL(raw, self.location.origin);
+    if (resolved.origin === self.location.origin) target = resolved.href;
+  } catch (_) {
+    /* malformed url: keep the home fallback */
+  }
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      // Reuse a window that is already open rather than stacking another copy
-      // of the app — then send it where the notification pointed.
-      for (const client of all) {
-        if (new URL(client.url).origin === self.location.origin) {
-          await client.focus();
-          if ('navigate' in client) await client.navigate(target);
-          return;
+      // Reuse a window of this app that is already open rather than stacking
+      // another copy — focus it, then send it where the notification pointed.
+      const client = all.find((c) => {
+        try {
+          return new URL(c.url).origin === self.location.origin;
+        } catch (_) {
+          return false;
+        }
+      });
+      if (client) {
+        try {
+          const focused = await client.focus();
+          // navigate() rejects (or resolves null) for a window this worker
+          // does not control, e.g. one opened before it activated.
+          const moved = 'navigate' in focused ? await focused.navigate(target) : null;
+          if (moved) return;
+        } catch (_) {
+          /* fall through to a fresh window */
         }
       }
       await self.clients.openWindow(target);

@@ -122,10 +122,15 @@ describe('routeFor', () => {
     expect(routeFor(item({ kind: 'task', id: 'T-45' }))).toBe('/task/T-45');
   });
 
-  it('sends everything else to the room that holds it', () => {
-    expect(routeFor(item({ kind: 'person' }))).toBe('/people');
-    expect(routeFor(item({ kind: 'money' }))).toBe('/money');
-    expect(routeFor(item({ kind: 'decision' }))).toBe('/work');
-    expect(routeFor(item({ kind: 'page' }))).toBe('/knowledge');
+  it('sends everything else to the room and tab that holds it', () => {
+    expect(routeFor(item({ kind: 'decision' }))).toBe('/work?tab=decisions');
+    expect(routeFor(item({ kind: 'page' }))).toBe('/knowledge?tab=wiki');
+    expect(routeFor(item({ kind: 'note' }))).toBe('/knowledge?tab=notes');
+    expect(routeFor(item({ kind: 'document' }))).toBe('/knowledge?tab=docs');
+  });
+
+  it('carries the id of a person or a money entry so the room can open it', () => {
+    expect(routeFor(item({ kind: 'person', id: 'p-1' }))).toBe('/people?id=p-1');
+    expect(routeFor(item({ kind: 'money', id: 'L 7&x' }))).toBe('/money?id=L%207%26x');
   });
 });

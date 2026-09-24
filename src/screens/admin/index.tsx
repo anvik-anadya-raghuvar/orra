@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { entrance, micro } from '../../ui/motion';
@@ -21,11 +20,24 @@ const TABS: { key: Tab; label: string; help: string }[] = [
 ];
 
 export default function Admin() {
-  const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState<Tab>(() => {
-    const requested = searchParams.get('tab');
-    return TABS.some((item) => item.key === requested) ? requested as Tab : 'trail';
-  });
+  /**
+   * The tab lives in the URL, not in local state. A copy in useState was read
+   * once on mount, so `/admin?tab=connections` from Home while already in
+   * Settings changed the address and left the old tab on screen. Deriving it
+   * means every navigation — link, back button, palette — is the tab.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = searchParams.get('tab');
+  const tab: Tab = TABS.some((item) => item.key === requested) ? (requested as Tab) : 'trail';
+  const setTab = (key: Tab) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', key);
+        return next;
+      },
+      { replace: true },
+    );
 
   return (
     <div className="admin-screen frame">

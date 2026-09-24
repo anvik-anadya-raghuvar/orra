@@ -20,6 +20,8 @@ import { momentSrc, uploadMoment } from '../../lib/moments';
 import type { MoodItem } from '../../types';
 import { DeleteBtn } from '../../ui/bits';
 import { DictateField } from '../../ui/dictation';
+import { normalizeUrl } from '../../lib/socialLinks';
+import { safeHref } from '../../lib/safeUrl';
 
 const KINDS: { key: MoodItem['kind']; label: string; Icon: typeof Quote }[] = [
   { key: 'note', label: 'Note', Icon: StickyNote },
@@ -63,12 +65,20 @@ function Card({ item }: { item: MoodItem }) {
           {item.body && <span className="sub">{item.body}</span>}
         </div>
       )}
-      {item.kind === 'link' && item.url && (
-        <a className="mb-link" href={item.url} target="_blank" rel="noreferrer">
-          <Link2 size={14} strokeWidth={1.8} aria-hidden />
-          {item.title || item.url}
-        </a>
-      )}
+      {item.kind === 'link' &&
+        item.url &&
+        (safeHref(item.url) ? (
+          <a className="mb-link" href={safeHref(item.url)!} target="_blank" rel="noreferrer">
+            <Link2 size={14} strokeWidth={1.8} aria-hidden />
+            {item.title || item.url}
+          </a>
+        ) : (
+          // Not a link we will open (a script, a typo): shown, never followed.
+          <span className="mb-link">
+            <Link2 size={14} strokeWidth={1.8} aria-hidden />
+            {item.title || item.url}
+          </span>
+        ))}
       {item.title && item.kind !== 'link' && item.kind !== 'song' && (
         <span className="mb-title">{item.title}</span>
       )}
@@ -117,7 +127,7 @@ export default function MoodBoard() {
         kind,
         title: title.trim(),
         body: body.trim(),
-        url: url.trim() || null,
+        url: normalizeUrl(url) || null,
         storage_path: null,
         color: '',
         position: items.length + 1,

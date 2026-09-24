@@ -137,13 +137,13 @@ export function CommandPalette() {
         id: 'new-task',
         label: 'New task',
         hint: 'Work board',
-        run: () => go('/work'),
+        run: () => go('/work?compose=task'),
       },
       {
         id: 'new-scribble',
         label: 'New scribble',
         hint: 'Notebook',
-        run: () => go('/knowledge', { knowledgeTab: 'notes' }),
+        run: () => go('/knowledge?tab=notes&compose=1', { knowledgeTab: 'notes' }),
       },
       ...ROOMS.map((room) => ({
         id: `go-${room.to}`,
@@ -186,9 +186,9 @@ export function CommandPalette() {
         list.push({
           key: `${item.kind}:${item.id}`,
           run: () => {
-            if (item.kind === 'page') go('/knowledge', { knowledgeTab: 'wiki', pageId: item.id });
-            else if (item.kind === 'note') go('/knowledge', { knowledgeTab: 'notes', query: item.title });
-            else if (item.kind === 'document') go('/knowledge', { knowledgeTab: 'docs', query: item.title });
+            if (item.kind === 'page') go(routeFor(item), { knowledgeTab: 'wiki', pageId: item.id });
+            else if (item.kind === 'note') go(routeFor(item), { knowledgeTab: 'notes', query: item.title });
+            else if (item.kind === 'document') go(routeFor(item), { knowledgeTab: 'docs', query: item.title });
             else go(routeFor(item));
           },
         }),

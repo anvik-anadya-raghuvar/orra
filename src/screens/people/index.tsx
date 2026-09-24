@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore, newId, nowIso } from '../../data/store';
 import { InfoTip, useToast } from '../../ui/bits';
@@ -52,6 +52,27 @@ export default function People() {
   const [driftOnly, setDriftOnly] = useState(false);
   const [openProfileId, setOpenProfileId] = useState<string | 'new' | null>(null);
   const [touchPersonId, setTouchPersonId] = useState<string | null>(null);
+
+  /**
+   * `/people?id=…` — the search palette's way of saying "this person". Open
+   * their profile, then drop the param so closing the profile stays closed
+   * and a second search for the same person still fires. Waits for the row to
+   * exist, because the first paint can precede the data.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedId = searchParams.get('id');
+  useEffect(() => {
+    if (!requestedId || !people.some((p) => p.id === requestedId)) return;
+    setOpenProfileId(requestedId);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('id');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [people, requestedId, setSearchParams]);
 
   const today = todayIso();
 

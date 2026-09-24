@@ -7,6 +7,7 @@ import { ProjectCombo } from '../../ui/pickers';
 import { fmtDay, todayIso } from '../../lib/dates';
 import { warmth } from '../../lib/warmth';
 import { guessLinkLabel, normalizeUrl } from '../../lib/socialLinks';
+import { safeHref } from '../../lib/safeUrl';
 import type { RelationshipType } from '../../types';
 import { buildTimeline, nudgeMessage, TYPE_META } from './timeline';
 
@@ -526,9 +527,15 @@ export default function ProfileModal({
                       <span className="mono tl-date">{fmtDay(e.date.slice(0, 10))}</span>
                       {e.href ? (
                         e.external ? (
-                          <a className="lk tl-summary" href={e.href} target="_blank" rel="noreferrer">
-                            {e.summary} <ArrowUpRight size={12} style={{ verticalAlign: -1 }} />
-                          </a>
+                          // An external link came from outside (a mail's
+                          // link); only an http(s)/mailto one is followed.
+                          safeHref(e.href) ? (
+                            <a className="lk tl-summary" href={safeHref(e.href)!} target="_blank" rel="noreferrer">
+                              {e.summary} <ArrowUpRight size={12} style={{ verticalAlign: -1 }} />
+                            </a>
+                          ) : (
+                            <span className="tl-summary">{e.summary}</span>
+                          )
                         ) : (
                           <Link className="lk tl-summary" to={e.href} onClick={onClose}>
                             {e.summary}

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useData, useStore } from '../../data/store';
 import { Avatar, CountUp, InfoTip, useToast } from '../../ui/bits';
@@ -71,6 +71,30 @@ export default function Money() {
   const [range, setRange] = useState<RangeKey>('all');
   const [custom, setCustom] = useState({ from: '', to: '' });
   const [editing, setEditing] = useState<LedgerEntry | null>(null);
+
+  /**
+   * `/money?id=…` — the search palette landing on one entry. Open that entry
+   * itself rather than leaving it to be found in the table, then drop the
+   * param so closing it stays closed. Waits for the row, since the first
+   * paint can precede the data.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedId = searchParams.get('id');
+  useEffect(() => {
+    if (!requestedId) return;
+    const entry = ds.ledger.find((row) => row.id === requestedId);
+    if (!entry) return;
+    setTab('money');
+    setEditing(entry);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('id');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [ds.ledger, requestedId, setSearchParams]);
   const businessProjects = useMemo(() => ds.projects.filter((project) => !project.is_personal), [ds.projects]);
   const businessProjectIds = useMemo(() => new Set(businessProjects.map((project) => project.id)), [businessProjects]);
 

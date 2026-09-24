@@ -17,8 +17,8 @@ import { sendPush } from './push';
 /** Where the bell should take you when you tap the notice. */
 function noticeUrl(kind: MessageKind, taskId: string | null): string {
   if (taskId) return `/task/${taskId}`;
-  if (kind === 'query') return '/work';
-  if (kind === 'decision_assign') return '/work';
+  if (kind === 'query') return '/work?tab=queries';
+  if (kind === 'decision_assign') return '/work?tab=decisions';
   return '/us';
 }
 

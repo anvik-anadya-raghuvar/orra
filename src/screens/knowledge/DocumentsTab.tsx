@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useData, useStore, newId } from '../../data/store';
 import { ProgressBar, SideSheet, useToast } from '../../ui/bits';
 import { Attachments } from '../../ui/attachments';
+import { DocAnnotateButton } from '../../ui/annotate/launch';
 import { ProjectCombo } from '../../ui/pickers';
 import { staggerItem, staggerParent } from '../../ui/motion';
 import { daysUntil } from '../../lib/dates';
@@ -11,6 +12,18 @@ import type { DocumentRef } from '../../types';
 import type { DriveFile } from '../../lib/google';
 import { googleConfigured, hasLiveAccountToken, searchAllDrives } from '../../lib/google';
 import { googleAccounts } from '../../lib/googleSync';
+import { normalizeUrl } from '../../lib/socialLinks';
+import { safeHref } from '../../lib/safeUrl';
+
+/** Older rows were saved with the bare Drive home as a stand-in for "no
+ *  link", which opened Drive's front page. Treat it as what it meant. */
+const DRIVE_PLACEHOLDER = /^https?:\/\/drive\.google\.com\/?$/i;
+
+/** The document's own link, or null — never a stand-in destination. */
+function docHref(doc: DocumentRef): string | null {
+  if (DRIVE_PLACEHOLDER.test((doc.cloud_ref_url ?? '').trim())) return null;
+  return safeHref(doc.cloud_ref_url);
+}
 
 function urgency(doc: DocumentRef): 'ok' | 'soon' | 'over' {
   if (doc.expiry_date) {
@@ -44,7 +57,7 @@ const URGENCY_COLOR: Record<'ok' | 'soon' | 'over', string> = {
   over: 'var(--rose)',
 };
 
-export default function DocumentsTab() {
+export default function DocumentsTab({ initialQuery }: { initialQuery?: string } = {}) {
   const docs = useData((ds) => ds.documents);
   const projects = useData((ds) => ds.projects);
   const store = useStore();
@@ -52,6 +65,9 @@ export default function DocumentsTab() {
   const [adding, setAdding] = useState(false);
   /** A typo'd expiry used to mean delete and re-add. */
   const [editing, setEditing] = useState<DocumentRef | null>(null);
+  /** Prefilled when the search palette lands here on one document. */
+  const [query, setQuery] = useState(initialQuery ?? '');
+  const needle = query.trim().toLowerCase();
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
   const projectColor = (id: string) => projects.find((p) => p.id === id)?.color ?? 'var(--slate)';
 
@@ -64,8 +80,16 @@ export default function DocumentsTab() {
 
   // Most urgent first — impossible to miss, not something you have to sort for.
   const sorted = useMemo(
-    () => [...docs].sort((a, b) => proximityPct(b) - proximityPct(a)),
-    [docs],
+    () =>
+      [...docs]
+        .filter(
+          (d) =>
+            !needle ||
+            d.title.toLowerCase().includes(needle) ||
+            (d.deadline_note ?? '').toLowerCase().includes(needle),
+        )
+        .sort((a, b) => proximityPct(b) - proximityPct(a)),
+    [docs, needle],
   );
   const counts = useMemo(() => {
     let ok = 0;
@@ -86,6 +110,16 @@ export default function DocumentsTab() {
         <button className="btn sm solid" onClick={() => setAdding(true)}>
           + Document
         </button>
+        {docs.length > 0 && (
+          <input
+            className="srch"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter documents"
+            aria-label="Filter documents"
+          />
+        )}
       </div>
       {docs.length > 0 && (
         <div className="kn-ov-panel" style={{ marginBottom: 16 }}>
@@ -101,6 +135,8 @@ export default function DocumentsTab() {
       )}
       {docs.length === 0 ? (
         <p className="tip">No documents tracked yet.</p>
+      ) : sorted.length === 0 ? (
+        <p className="tip">No document matches “{query.trim()}”.</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <motion.table className="doc-table" {...staggerParent()}>
@@ -116,6 +152,7 @@ export default function DocumentsTab() {
             <tbody>
               {sorted.map((d) => {
                 const u = urgency(d);
+                const href = docHref(d);
                 return (
                   <motion.tr variants={staggerItem} key={d.id}>
                     <td data-label="Document" style={{ fontWeight: 500 }}>
@@ -138,14 +175,13 @@ export default function DocumentsTab() {
                       </div>
                     </td>
                     <td data-label="Actions" className="doc-acts">
-                      <a
-                        className="btn sm"
-                        href={d.cloud_ref_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Open
-                      </a>
+                      {href && (
+                        <a className="btn sm" href={href} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                      )}
+                      {/* Draw on the file kept here — renders nothing without one. */}
+                      <DocAnnotateButton docId={d.id} />
                       <button type="button" className="btn sm" onClick={() => setEditing(d)}>
                         Edit
                       </button>
@@ -198,7 +234,8 @@ function AddDocumentModal({ onClose }: { onClose: () => void }) {
         project_id: projectId,
         expiry_date: expiry || null,
         deadline_note: deadlineNote,
-        cloud_ref_url: url || 'https://drive.google.com/',
+        // No link means no link: a stand-in URL would make Open lie.
+        cloud_ref_url: normalizeUrl(url),
         status_cache: 'ok',
         owner_id: store.meId,
         integration_grant_id: sourceAccount?.accountId ?? null,
@@ -422,7 +459,7 @@ function EditDocumentModal({ doc, onClose }: { doc: DocumentRef; onClose: () => 
         project_id: projectId,
         expiry_date: expiry || null,
         deadline_note: note.trim(),
-        cloud_ref_url: url.trim() || doc.cloud_ref_url,
+        cloud_ref_url: normalizeUrl(url),
       },
       store.asMe({ summary: `Document updated — ${clean}` }),
     );

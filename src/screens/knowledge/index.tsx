@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import './style.css';
 import NotesTab from './NotesTab';
 import MailTab from './MailTab';
 import DocumentsTab from './DocumentsTab';
 import WikiTab from './WikiTab';
 import { InfoTip } from '../../ui/bits';
-import { takeJump } from '../../lib/jump';
+import { takeJump, type Jump } from '../../lib/jump';
 
 type KTab = 'notes' | 'wiki' | 'mail' | 'docs';
+
+const isKTab = (value: string | null | undefined): value is KTab =>
+  value === 'notes' || value === 'wiki' || value === 'mail' || value === 'docs';
 
 const TABS: { key: KTab; label: string; help: string }[] = [
   { key: 'notes', label: 'Scribbles', help: 'Fast notes, checklists, meeting notes and voice captures.' },
@@ -33,8 +37,39 @@ export default function Knowledge() {
    * initialiser rather than an effect, so the right tab is what first paints
    * instead of Scribbles flashing before the switch.
    */
-  const [jump] = useState(takeJump);
-  const [tab, setTab] = useState<KTab>(jump?.knowledgeTab ?? 'notes');
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [jump, setJumpNote] = useState<Jump | null>(takeJump);
+  const [tab, setTab] = useState<KTab>(() => {
+    const fromUrl = searchParams.get('tab');
+    return jump?.knowledgeTab ?? (isKTab(fromUrl) ? fromUrl : 'notes');
+  });
+  /** Bumped on every arrival after the first, so a tab whose props are only
+   *  read on mount (a prefilled query, a selected page) remounts with them. */
+  const [arrival, setArrival] = useState(0);
+
+  /**
+   * Ctrl+K while already standing in the Notebook changes the URL's key but
+   * does not remount this screen, so the initialiser above never re-reads the
+   * note — it would sit in sessionStorage until some later, unrelated visit.
+   * Re-read on every navigation instead. The first run is skipped because the
+   * initialiser already consumed that arrival's note.
+   */
+  const mounted = useRef(false);
+  const tabParam = searchParams.get('tab');
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    const note = takeJump();
+    const nextTab = note?.knowledgeTab ?? (isKTab(tabParam) ? tabParam : null);
+    if (!note && !nextTab) return;
+    setJumpNote(note);
+    if (nextTab) setTab(nextTab);
+    setArrival((n) => n + 1);
+    // location.key is the trigger: a fresh navigation, even to the same URL.
+  }, [location.key]);
 
   return (
     <div className="frame">
@@ -45,7 +80,11 @@ export default function Knowledge() {
         </div>
         <div className="sub2" role="tablist" aria-label="Notebook sections">
           {TABS.map(({ key, label }) => (
-            <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}>
+            <button key={key} role="tab" aria-selected={tab === key} onClick={() => {
+                // A tab picked by hand starts clean, not with the last jump's query.
+                setJumpNote(null);
+                setTab(key);
+              }}>
               {label}
             </button>
           ))}
@@ -53,10 +92,16 @@ export default function Knowledge() {
         <div className="spacer" />
       </div>
       <div className="wrap">
-        {tab === 'notes' && <NotesTab initialQuery={jump?.query} />}
-        {tab === 'wiki' && <WikiTab initialPageId={jump?.pageId} />}
+        {tab === 'notes' && (
+          <NotesTab
+            key={arrival}
+            initialQuery={jump?.query}
+            initialCompose={searchParams.get('compose') === '1'}
+          />
+        )}
+        {tab === 'wiki' && <WikiTab key={arrival} initialPageId={jump?.pageId} />}
         {tab === 'mail' && <MailTab />}
-        {tab === 'docs' && <DocumentsTab />}
+        {tab === 'docs' && <DocumentsTab key={arrival} initialQuery={jump?.query} />}
       </div>
     </div>
   );

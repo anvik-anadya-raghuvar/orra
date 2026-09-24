@@ -948,7 +948,7 @@ function RibbonTile({
           <Plus size={13} strokeWidth={2} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Add block
         </button>
-        <TileOpen to="/work" label="Work calendar" />
+        <TileOpen to="/work?tab=board&view=calendar" label="Work calendar" />
       </div>
       <div className="bt-mid">
       {events.length ? (
@@ -1047,14 +1047,14 @@ function CalendarTile() {
             {syncing ? 'Syncing…' : live.length ? 'Sync now' : 'Reconnect to sync'}
           </button>
         )}
-        <TileOpen to="/work" label="Work calendar" />
+        <TileOpen to="/work?tab=board&view=calendar" label="Work calendar" />
       </div>
       <div className="bt-mid">
         <MonthCalendar
           items={items}
           upcoming={3}
           fit
-          openTo="/work"
+          openTo="/work?tab=board&view=calendar"
           openLabel="Open the full calendar"
           emptyText="Nothing dated yet. Due dates, blocks and fixed dates all land here."
         />

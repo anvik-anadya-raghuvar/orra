@@ -173,12 +173,12 @@ export function searchItems(items: SearchItem[], query: string, limit = 24): Sea
 export function routeFor(item: SearchItem): string {
   switch (item.kind) {
     case 'task': return `/task/${item.id}`;
-    case 'note': return '/knowledge';
-    case 'page': return '/knowledge';
-    case 'person': return '/people';
-    case 'decision': return '/work';
-    case 'document': return '/knowledge';
-    case 'money': return '/money';
+    case 'note': return '/knowledge?tab=notes';
+    case 'page': return '/knowledge?tab=wiki';
+    case 'person': return `/people?id=${encodeURIComponent(item.id)}`;
+    case 'decision': return '/work?tab=decisions';
+    case 'document': return '/knowledge?tab=docs';
+    case 'money': return `/money?id=${encodeURIComponent(item.id)}`;
     default: return '/';
   }
 }

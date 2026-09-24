@@ -14,6 +14,8 @@ import { Donut, MiniBars, VIZ } from '../../ui/viz';
 import { isTerminalOrder } from '../../lib/personalOrders';
 import { ChevronRight } from 'lucide-react';
 import { ResetArrangement } from './tilechrome';
+import { normalizeUrl } from '../../lib/socialLinks';
+import { safeHref } from '../../lib/safeUrl';
 import type { Project } from '../../types';
 
 /* ── One consistent "open full page" affordance, shared with index.tsx.
@@ -297,7 +299,7 @@ export function WorthTile() {
         id: newId('pulse'),
         title: t,
         source: 'Pinned by ' + store.me.name,
-        url: url.trim(),
+        url: normalizeUrl(url),
         published_at: nowIso(),
         origin: 'manual',
         is_pinned: true,
@@ -316,7 +318,8 @@ export function WorthTile() {
       <div className="bt-hd">
         <span className="eyebrow">AI news · updated twice a day</span>
         <div className="spacer" />
-        <TileOpen to="/knowledge" label="Notebook" />
+        {/* No "open" link: AI news lives only on this tile — the Notebook it
+            used to point to has never shown it. */}
         <button type="button" className="btn sm" onClick={() => setAdding((v) => !v)}>
           {adding ? 'Cancel' : 'Pin one'}
         </button>
@@ -351,9 +354,10 @@ export function WorthTile() {
             Nothing yet — headlines arrive twice a day, or pin something yourself.
           </p>
         ) : (
-          items.map((x) =>
-            x.url ? (
-              <a className="aiitem" key={x.id} href={x.url} target="_blank" rel="noreferrer">
+          items.map((x) => {
+            const href = safeHref(x.url);
+            return href ? (
+              <a className="aiitem" key={x.id} href={href} target="_blank" rel="noreferrer">
                 <b>{x.title}</b>
                 <span>{x.source}</span>
               </a>
@@ -362,17 +366,25 @@ export function WorthTile() {
                 <b>{x.title}</b>
                 <span>{x.source}</span>
               </div>
-            ),
-          )
+            );
+          })
         )}
       </div>
-      {podcast && (
-        <a className="pod-row" href={podcast.url || '#'} target="_blank" rel="noreferrer">
-          <span className="eyebrow">Podcast this week</span>
-          <b>{podcast.title}</b>
-          <span className="sub">{podcast.source}</span>
-        </a>
-      )}
+      {podcast &&
+        (safeHref(podcast.url) ? (
+          <a className="pod-row" href={safeHref(podcast.url)!} target="_blank" rel="noreferrer">
+            <span className="eyebrow">Podcast this week</span>
+            <b>{podcast.title}</b>
+            <span className="sub">{podcast.source}</span>
+          </a>
+        ) : (
+          // No link to follow: a row, not an href="#" that jumps to the top.
+          <div className="pod-row">
+            <span className="eyebrow">Podcast this week</span>
+            <b>{podcast.title}</b>
+            <span className="sub">{podcast.source}</span>
+          </div>
+        ))}
     </>
   );
 }

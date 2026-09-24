@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { entrance, micro } from '../../ui/motion';
 import { InfoTip } from '../../ui/bits';
@@ -18,8 +19,47 @@ const TABS: { key: Tab; label: string; help: string }[] = [
 ];
 
 export default function Work() {
-  const [tab, setTab] = useState<Tab>('board');
+  /**
+   * The tab is the URL's `?tab=`, so a notice, a search result or a Home tile
+   * can land on Decisions or Queries directly, and a second link while already
+   * here still switches — a copy in useState would only be read on mount.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = searchParams.get('tab');
+  const tab: Tab = TABS.some((item) => item.key === requested) ? (requested as Tab) : 'board';
+  const setTab = (key: Tab) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', key);
+        // A view asked for by a link applies to that arrival, not to every
+        // later return to the board.
+        next.delete('view');
+        return next;
+      },
+      { replace: true },
+    );
+  /** The board reads `?view=` when it mounts; keying on it remounts the
+   *  board when a link asks for a different view while Work is already open. */
+  const viewParam = searchParams.get('view') ?? '';
+
   const [newTask, setNewTask] = useState(false);
+  /** `?compose=task` — the palette's "New task". Open the composer on the
+   *  board, then drop the param so closing it stays closed. */
+  const compose = searchParams.get('compose');
+  useEffect(() => {
+    if (compose !== 'task') return;
+    setNewTask(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('compose');
+        next.set('tab', 'board');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [compose, setSearchParams]);
   const [newDecision, setNewDecision] = useState(false);
   const [newQuery, setNewQuery] = useState(false);
 
@@ -71,7 +111,9 @@ export default function Work() {
               animate={{ opacity: 1, y: 0, transition: entrance }}
               exit={{ opacity: 0, y: 6, transition: micro }}
             >
-              {tab === 'board' && <BoardTab newOpen={newTask} setNewOpen={setNewTask} />}
+              {tab === 'board' && (
+                <BoardTab key={viewParam} newOpen={newTask} setNewOpen={setNewTask} />
+              )}
               {tab === 'next' && <NextTab />}
               {tab === 'decisions' && (
                 <DecisionsTab newOpen={newDecision} setNewOpen={setNewDecision} />

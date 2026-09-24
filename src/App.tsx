@@ -38,6 +38,9 @@ const People = lazy(() => import('./screens/people'));
 const Personal = lazy(() => import('./screens/personal'));
 const Money = lazy(() => import('./screens/money'));
 const Admin = lazy(() => import('./screens/admin'));
+/** Public: a guest booking time. Rendered outside the store and the sign-in
+ *  gate (see App), so it never loads member data or asks anyone to log in. */
+const Book = lazy(() => import('./screens/book'));
 
 const NAV = [
   { to: '/', label: 'Home', icon: HomeIcon },
@@ -357,6 +360,13 @@ function NotFound() {
   );
 }
 
+/** The route boundary, keyed on the pathname: an error caught in one room is
+ *  cleared by walking to another, instead of the error screen following you. */
+function RouteErrorBoundary({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
   return (
@@ -429,9 +439,9 @@ function Gated() {
           <SyncErrorBanner />
           <Nav />
           <main id="main-content">
-            <ErrorBoundary>
+            <RouteErrorBoundary>
               <AnimatedRoutes />
-            </ErrorBoundary>
+            </RouteErrorBoundary>
           </main>
           {/* The companion lives on the portal, not on a screen, for the same
               reason as the block overlay below. Its own boundary: a robot
@@ -470,6 +480,15 @@ function useSkipAnimationsWhenHidden() {
 
 export default function App() {
   useSkipAnimationsWhenHidden();
+  if (window.location.pathname.startsWith('/book/')) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<Skeleton />}>
+          <Book />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
   return (
     <ErrorBoundary>
       <StoreProvider>
