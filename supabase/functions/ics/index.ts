@@ -40,7 +40,9 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false },
   });
 
-  const { data: page } = await sb.from('booking_pages').select('user_id, time_zone').eq('ics_token', token).maybeSingle();
+  const { data: page, error: pageErr } = await sb.from('booking_pages').select('user_id, time_zone').eq('ics_token', token).maybeSingle();
+  // A database failure is not 'no such link': say so, so it can be told apart.
+  if (pageErr) return text(`Temporarily unavailable (${pageErr.code ?? 'db'})`, 503);
   if (!page) return text('Not found', 404);
   const { data: host } = await sb.from('profiles').select('time_zone').eq('id', page.user_id).maybeSingle();
   const zone = [page.time_zone, host?.time_zone, 'Asia/Kolkata'].find((z) => z && isValidTimeZone(z)) as string;
