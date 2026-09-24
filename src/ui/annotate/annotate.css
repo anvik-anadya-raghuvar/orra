@@ -1,0 +1,398 @@
+/* ── Annotator ────────────────────────────────────────────────────────────
+   Mobile-first: a full-screen sheet that respects the notch and the home
+   indicator, controls in a scrollable strip, page nav at the bottom within
+   thumb reach. It becomes a large centred dialog with a thumbnail rail once
+   the panel itself is wide enough — container queries, not the viewport, so
+   the rules follow the panel rather than the window.
+
+   Every control is 44×44 at every size: this is a pen surface, and a pen
+   tip on a 30px button is a miss. */
+
+.anno-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: stretch;
+  background: rgba(10, 13, 20, 0.55);
+}
+
+.anno-panel {
+  container-type: inline-size;
+  container-name: anno;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  background: var(--surf-solid, #ffffff);
+  color: var(--ink);
+  outline: none;
+  overflow: hidden;
+}
+
+@media (min-width: 1025px) {
+  .anno-mask {
+    place-items: center;
+    backdrop-filter: blur(4px);
+  }
+  .anno-panel {
+    width: min(1280px, 96vw);
+    height: min(940px, 94vh);
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--rl, 18px);
+    box-shadow: var(--sh2);
+  }
+}
+
+/* ── header ─────────────────────────────────────────────────────────── */
+.anno-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.anno-title {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.anno-name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.anno-sub {
+  color: var(--mute);
+  font-size: 11px;
+}
+.btn.sm.anno-save {
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+.anno-review .anno-lbl {
+  display: none;
+}
+.anno-review.on {
+  color: var(--teal);
+  border-color: color-mix(in srgb, var(--teal) 50%, transparent);
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+}
+@container anno (min-width: 560px) {
+  .anno-review .anno-lbl {
+    display: inline;
+  }
+  .anno-review {
+    padding-inline: 12px;
+  }
+}
+
+/* ── controls ───────────────────────────────────────────────────────── */
+.anno-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease),
+    color 0.15s var(--ease),
+    opacity 0.15s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.anno-btn:hover:not(:disabled) {
+  background: var(--surf3);
+}
+.anno-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 1px;
+}
+.anno-btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+.anno-btn > svg {
+  position: relative;
+  z-index: 1;
+}
+.anno-tool.on {
+  color: var(--indigo);
+}
+.anno-pill {
+  position: absolute;
+  inset: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--indigo) 14%, transparent);
+}
+
+.anno-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  /* Wraps rather than scrolls: a control you have to scroll sideways to
+     find is a control a phone user never finds. Tools and undo share the
+     first row; colour and width take the second. */
+  flex-wrap: wrap;
+}
+.anno-tools .anno-hist {
+  order: 1;
+}
+.anno-tools .anno-ink-opts {
+  order: 2;
+}
+.anno-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.anno-group + .anno-group {
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+
+.anno-swatch > span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.anno-swatch.on > span {
+  box-shadow:
+    0 0 0 2px var(--surf-solid, #fff),
+    0 0 0 4px var(--indigo);
+}
+.anno-size > span {
+  border-radius: 50%;
+}
+.anno-size.on {
+  background: var(--surf3);
+}
+
+/* ── body: optional thumbnail rail + the page scroller ──────────────── */
+.anno-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+.anno-thumbs {
+  display: none;
+}
+@container anno (min-width: 720px) {
+  .anno-body {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+  .anno-thumbs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 8px;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    background: var(--surf2-solid, var(--surf2));
+  }
+}
+.anno-thumb {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--mute);
+  transition: color 0.15s var(--ease);
+}
+.anno-thumb.on {
+  border-color: var(--indigo);
+  color: var(--ink);
+}
+.anno-thumb:focus-visible {
+  outline: 2px solid var(--indigo);
+}
+.anno-thumb-n {
+  font-size: 10.5px;
+}
+
+.anno-scroll {
+  position: relative;
+  overflow: auto;
+  min-height: 0;
+  background: color-mix(in srgb, var(--ink) 7%, var(--surf-solid, #ffffff));
+  /* All gestures are ours — see the input model in Annotator.tsx. Without
+     this a stylus drag scrolls the page on Android instead of drawing. */
+  touch-action: none;
+  overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  cursor: crosshair;
+}
+.anno-scroll.tool-hand {
+  cursor: grab;
+}
+.anno-scroll.tool-eraser {
+  cursor: cell;
+}
+.anno-pages {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 14px;
+  width: max-content;
+  min-width: 100%;
+  padding: 8px 8px 28px;
+}
+@container anno (min-width: 720px) {
+  .anno-pages {
+    padding: 16px 24px 40px;
+    gap: 20px;
+  }
+}
+.anno-note {
+  max-width: min(640px, 92cqi);
+  margin: 0;
+  color: var(--mute);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.anno-page {
+  position: relative;
+  flex: 0 0 auto;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(16, 22, 35, 0.12),
+    0 6px 20px rgba(16, 22, 35, 0.1);
+}
+.anno-page.skel {
+  border-radius: 0;
+}
+.anno-page.thumb {
+  box-shadow: 0 1px 3px rgba(16, 22, 35, 0.18);
+  pointer-events: none;
+}
+.anno-canvas,
+.anno-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.anno-ink {
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ── states ─────────────────────────────────────────────────────────── */
+.anno-loading {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: 100%;
+  padding-top: 12px;
+}
+.anno-skel-page {
+  width: min(560px, 88cqi);
+  aspect-ratio: 1 / 1.414;
+  border-radius: 4px;
+}
+.anno-error {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  max-width: 460px;
+  margin: 12vh 16px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r, 12px);
+  background: var(--surf-solid, var(--surf));
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.anno-error p {
+  margin: 0;
+}
+
+/* ── footer ─────────────────────────────────────────────────────────── */
+.anno-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--line);
+}
+.anno-pageno,
+.anno-zoom {
+  min-width: 52px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--slate);
+}
+
+.anno-saving {
+  position: absolute;
+  left: 50%;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  translate: -50% 0;
+  display: grid;
+  gap: 8px;
+  width: min(360px, calc(100% - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surf-solid, var(--surf));
+  box-shadow: var(--sh2);
+  font-size: 13px;
+  z-index: 2;
+}
+.anno-bar {
+  display: block;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--surf3);
+  overflow: hidden;
+}
+.anno-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--indigo));
+  transform-origin: 0 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anno-btn,
+  .anno-thumb {
+    transition: none;
+  }
+  .anno-panel .skel {
+    animation: none;
+  }
+}

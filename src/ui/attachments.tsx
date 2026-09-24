@@ -17,10 +17,12 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Download, Paperclip, Trash2, Upload } from 'lucide-react';
+import { Download, Paperclip, PenLine, Trash2, Upload } from 'lucide-react';
 import { newId, nowIso, useData, useStore } from '../data/store';
 import { deleteFile, fileHref, fileKind, humanBytes, rejectReason, uploadFile } from '../lib/files';
+import { ANNOTATE_ACCEPT, annotateKind } from '../lib/annotate/kinds';
 import type { Attachment, AttachmentParent } from '../types';
+import { AnnotatorHost, preloadAnnotator, type AnnotateTarget } from './annotate/launch';
 import { useToast } from './bits';
 import { entrance, micro, staggerItem } from './motion';
 import './attachments.css';
@@ -35,15 +37,19 @@ function FileRow({
   file,
   onRemove,
   onCaption,
+  onAnnotate,
 }: {
   file: Attachment;
   onRemove: () => void;
   onCaption: (text: string) => void;
+  onAnnotate: () => void;
 }) {
   const [href, setHref] = useState<string | null | undefined>(undefined);
   const [caption, setCaption] = useState(file.caption ?? '');
   const uploader = useData((ds) => ds.profiles.find((p) => p.id === file.uploaded_by));
+  const inked = useData((ds) => ds.annotations.find((a) => a.attachment_id === file.id));
   const kind = fileKind(file.filename, file.mime);
+  const drawable = annotateKind(file.filename, file.mime) !== null;
 
   useEffect(() => {
     let alive = true;
@@ -66,6 +72,11 @@ function FileRow({
         <span className="att-meta mono">
           {humanBytes(file.bytes)}
           {uploader ? ` · ${uploader.name}` : ''} · {file.created_at.slice(0, 10)}
+          {inked && (
+            <span className={`att-ink${inked.status === 'reviewed' ? ' done' : ''}`}>
+              {inked.status === 'reviewed' ? 'reviewed' : 'annotated'}
+            </span>
+          )}
         </span>
         <input
           className="att-caption"
@@ -82,6 +93,19 @@ function FileRow({
         />
       </span>
       <span className="att-acts">
+        {drawable && (
+          <button
+            type="button"
+            className="btn sm icon"
+            aria-label={`Annotate ${file.filename}`}
+            title="Annotate — draw on it"
+            onPointerEnter={preloadAnnotator}
+            onFocus={preloadAnnotator}
+            onClick={onAnnotate}
+          >
+            <PenLine size={15} strokeWidth={2} aria-hidden />
+          </button>
+        )}
         {href === undefined ? (
           <span className="att-skel" aria-label="Preparing the link" />
         ) : href ? (
@@ -136,15 +160,18 @@ export function Attachments({
   );
   const [busy, setBusy] = useState(0);
   const [over, setOver] = useState(false);
+  const [annotating, setAnnotating] = useState<AnnotateTarget | null>(null);
   const count = files.length;
 
+  /** Upload what was picked. Resolves to the rows that made it in. */
   const take = useCallback(
-    async (picked: File[]) => {
-      if (!picked.length) return;
+    async (picked: File[]): Promise<Attachment[]> => {
+      const added: Attachment[] = [];
+      if (!picked.length) return added;
       const room = MAX_PER_ENTITY - count;
       if (room <= 0) {
         toast(`That is already ${MAX_PER_ENTITY} files — remove one first.`);
-        return;
+        return added;
       }
       const batch = picked.slice(0, room);
       if (batch.length < picked.length) {
@@ -160,22 +187,20 @@ export function Attachments({
         try {
           const id = newId('att');
           const storage_path = await uploadFile(file, store.meId, id);
-          store.insert(
-            'attachments',
-            {
-              id,
-              entity_type: entityType,
-              entity_id: entityId,
-              filename: file.name,
-              mime: file.type || 'application/octet-stream',
-              bytes: file.size,
-              storage_path,
-              caption: null,
-              uploaded_by: store.meId,
-              created_at: nowIso(),
-            },
-            store.asMe({ summary: `File attached — ${file.name}` }),
-          );
+          const row: Attachment = {
+            id,
+            entity_type: entityType,
+            entity_id: entityId,
+            filename: file.name,
+            mime: file.type || 'application/octet-stream',
+            bytes: file.size,
+            storage_path,
+            caption: null,
+            uploaded_by: store.meId,
+            created_at: nowIso(),
+          };
+          store.insert('attachments', row, store.asMe({ summary: `File attached — ${file.name}` }));
+          added.push(row);
           toast(`${file.name} attached`);
         } catch (err) {
           toast((err as Error).message || `Could not attach ${file.name}`);
@@ -183,9 +208,22 @@ export function Attachments({
           setBusy((n) => n - 1);
         }
       }
+      return added;
     },
     [count, entityId, entityType, store, toast],
   );
+
+  /** "Draw on a file": attach it (the original is always kept), then open it
+   *  straight in the Annotator with the bytes already in hand. */
+  const drawOn = async (picked: File | undefined) => {
+    if (!picked) return;
+    if (!annotateKind(picked.name, picked.type)) {
+      toast('PDFs, images, .xlsx and .docx can be drawn on — that one is attached as a plain file instead.');
+    }
+    preloadAnnotator();
+    const [row] = await take([picked]);
+    if (row && annotateKind(row.filename, row.mime)) setAnnotating({ attachment: row, blob: picked });
+  };
 
   const remove = (file: Attachment) => {
     if (!window.confirm(`Remove "${file.filename}"? It moves to Trash and can be restored.`)) return;
@@ -218,6 +256,19 @@ export function Attachments({
         <span className="eyebrow">{label}</span>
         {count > 0 && <span className="mono att-count">{count}</span>}
         <span className="spacer" />
+        <label className="btn sm att-add" onPointerEnter={preloadAnnotator}>
+          <PenLine size={14} strokeWidth={2} aria-hidden />
+          Draw on a file
+          <input
+            type="file"
+            accept={ANNOTATE_ACCEPT}
+            hidden
+            onChange={(e) => {
+              void drawOn(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+        </label>
         <label className="btn sm att-add">
           <Upload size={14} strokeWidth={2} aria-hidden />
           {busy ? 'Uploading…' : 'Add file'}
@@ -250,6 +301,7 @@ export function Attachments({
               key={file.id}
               file={file}
               onRemove={() => remove(file)}
+              onAnnotate={() => setAnnotating({ attachment: file })}
               onCaption={(text) =>
                 store.update(
                   'attachments',
@@ -275,6 +327,7 @@ export function Attachments({
           </motion.li>
         ))}
       </motion.ul>
+      <AnnotatorHost target={annotating} onClose={() => setAnnotating(null)} />
     </section>
   );
 }
